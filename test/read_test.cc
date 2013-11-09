@@ -54,6 +54,15 @@ TEST_F(ReadTest, List) {
                     state_->fixnumValue(3)).equal(s3)) << s3;
 }
 
+TEST_F(ReadTest, SharedStructure) {
+  Svalue s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, "(#0=(a) #0#)", &s));
+  ASSERT_EQ(TT_CELL, s.getType());
+  Cell* cell = static_cast<Cell*>(s.toObject());
+  ASSERT_EQ(TT_CELL, cell->cdr().getType());
+  ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car())) << s;
+}
+
 TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, readFromString(state_, "(1 (2) 3", &s));
