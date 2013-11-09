@@ -37,8 +37,6 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  bool operator==(Svalue target) const  { return eq(target); }
-
 private:
   Svalue(Sfixnum i);
   Svalue(class Sobject* object);
