@@ -28,6 +28,12 @@ TEST_F(ReadTest, Fixnum) {
   ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
 }
 
+TEST_F(ReadTest, Symbol) {
+  Svalue s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, "symbol", &s));
+  ASSERT_TRUE(state_->intern("symbol").eq(s)) << s;
+}
+
 TEST_F(ReadTest, List) {
   Svalue s;
   ASSERT_EQ(SUCCESS, readFromString(state_, "(123)", &s));

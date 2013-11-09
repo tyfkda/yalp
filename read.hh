@@ -12,6 +12,7 @@ namespace macp {
 enum ReadError {
   SUCCESS,
   NO_CLOSE_PAREN,
+  ILLEGAL_CHAR,
 };
 
 

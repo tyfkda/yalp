@@ -30,30 +30,35 @@ public:
       return read(pValue);
     case EOF:
       return END_OF_FILE;
+    default:
+      if (isalnum(c)) {
+        unget();
+        *pValue = readSymbolOrNumber();
+        return SUCCESS;
+      }
+      return ILLEGAL_CHAR;
     }
-
-    if (isdigit(c)) {
-      unget();
-      *pValue = readNumber();
-      return SUCCESS;
-    }
-    return END_OF_FILE;
   }
 
 private:
-  Svalue readNumber() {
+  Svalue readSymbolOrNumber() {
     char buffer[256];
     char* p = buffer;
+    bool hasSymbolChar = false;
     int c;
     while (!isDelimiter(c = getc())) {
+      if (!isdigit(c))
+        hasSymbolChar = true;
       *p++ = c;
     }
     unget();
     *p++ = '\0';
     assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
 
-    Sfixnum x = atol(buffer);
-    return state_->fixnumValue(x);
+    if (hasSymbolChar)
+      return state_->intern(buffer);
+    else
+      return state_->fixnumValue(atol(buffer));
   }
 
   ReadError readList(Svalue* pValue) {
