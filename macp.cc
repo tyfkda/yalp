@@ -4,6 +4,7 @@
 
 #include "macp.hh"
 #include "symbol_manager.hh"
+#include "vm.hh"
 #include <assert.h>
 
 namespace macp {
@@ -87,11 +88,17 @@ State* State::create() {
 State::State()
   : symbolManager_(new SymbolManager())
   , nil_(symbolManager_->intern("nil"))
-  , quote_(symbolManager_->intern("quote")) {
+  , quote_(symbolManager_->intern("quote"))
+  , vm_(NULL) {
+  vm_ = Vm::create(this);
 }
 
 State::~State() {
   delete symbolManager_;
+}
+
+Svalue State::runBinary(Svalue code) {
+  return vm_->run(code);
 }
 
 Svalue State::intern(const char* name) {
