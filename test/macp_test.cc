@@ -25,8 +25,8 @@ TEST_F(MacpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
   Scell* cell = static_cast<Scell*>(v.toObject());
-  ASSERT_EQ(state_->fixnumValue(1), cell->car());
-  ASSERT_EQ(state_->fixnumValue(2), cell->cdr());
+  ASSERT_TRUE(state_->fixnumValue(1).eq(cell->car()));
+  ASSERT_TRUE(state_->fixnumValue(2).eq(cell->cdr()));
   ASSERT_TRUE(v.eq(v));
   ASSERT_TRUE(v.equal(v));
 
