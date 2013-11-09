@@ -58,7 +58,7 @@ public:
   static State* create();
   virtual ~State();
 
-  Svalue readString(const char* str);
+  Svalue nil() const  { return nil_; }
 
   // Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
@@ -76,6 +76,7 @@ private:
   State();
 
   class SymbolManager* symbolManager_;
+  Svalue nil_;
 };
 
 
@@ -117,6 +118,8 @@ public:
 
   Svalue car() const  { return car_; }
   Svalue cdr() const  { return cdr_; }
+  void rplaca(Svalue a);
+  void rplacd(Svalue d);
 
   virtual std::ostream& operator<<(std::ostream& o) const override;
 
@@ -127,6 +130,13 @@ protected:
 
   friend State;
 };
+
+
+// Helper functions.
+Svalue list1(State* state, Svalue v1);
+Svalue list2(State* state, Svalue v1, Svalue v2);
+Svalue list3(State* state, Svalue v1, Svalue v2, Svalue v3);
+Svalue nreverse(State* state, Svalue v);
 
 }  // namespace macp
 
