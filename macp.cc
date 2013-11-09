@@ -14,6 +14,10 @@ const Sfixnum TAG_FIXNUM = 0;
 const Sfixnum TAG_OBJECT = 1;
 
 //=============================================================================
+Svalue::Svalue() : v_(TAG_OBJECT) {
+  // Initialized to illegal value.
+}
+
 Svalue::Svalue(Sfixnum i)
   : v_(reinterpret_cast<Sfixnum>(i << TAG_SHIFT) | TAG_FIXNUM) {}
 

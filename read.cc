@@ -8,19 +8,16 @@
 
 namespace macp {
 
+// Inner value.
+const ReadError END_OF_FILE = (ReadError)(NO_CLOSE_PAREN + 1);
+const ReadError CLOSE_PAREN = (ReadError)(NO_CLOSE_PAREN + 2);
+
 class Reader {
 public:
-  enum ResultType {
-    SUCCESS,
-    CLOSE_PAREN,
-    DOT,
-    END_OF_FILE,
-  };
-
   Reader(State* state, std::istream& istrm)
     : state_(state), istrm_(istrm) {}
 
-  ResultType read(Svalue* pValue) {
+  ReadError read(Svalue* pValue) {
     skipSpaces();
     int c = getc();
     switch (c) {
@@ -28,8 +25,6 @@ public:
       return readList(pValue);
     case ')':
       return CLOSE_PAREN;
-    case '.':
-      return DOT;
     case EOF:
       return END_OF_FILE;
     }
@@ -58,23 +53,24 @@ private:
     return state_->fixnumValue(x);
   }
 
-  ResultType readList(Svalue* pValue) {
-    Svalue nil = state_->nil();
+  ReadError readList(Svalue* pValue) {
     Svalue value = state_->nil();
-    ResultType err;
+    Svalue v;
+    ReadError err;
     for (;;) {
-      Svalue v = nil;
       err = read(&v);
       if (err != SUCCESS)
         break;
       value = state_->cons(v, value);
     }
 
-    switch (err) {
-    case CLOSE_PAREN:
+    if (err == CLOSE_PAREN) {
       *pValue = nreverse(state_, value);
       return SUCCESS;
-    default:
+    } else if (err == END_OF_FILE) {
+      *pValue = nreverse(state_, value);
+      return NO_CLOSE_PAREN;
+    } else {
       return err;
     }
   }
@@ -116,12 +112,10 @@ private:
   std::istream& istrm_;
 };
 
-Svalue readFromString(State* state, const char* str) {
+ReadError readFromString(State* state, const char* str, Svalue* pValue) {
   std::istringstream strm(str);
   Reader reader(state, strm);
-  Svalue value = state->nil();
-  reader.read(&value);
-  return value;
+  return reader.read(pValue);
 }
 
 }  // namespace macp

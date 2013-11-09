@@ -30,6 +30,8 @@ enum Type {
 // S-value: bit embedded type value.
 class Svalue {
 public:
+  Svalue();
+
   // Gets value type.
   Type getType() const;
 
