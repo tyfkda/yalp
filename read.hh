@@ -17,6 +17,7 @@ enum ReadError {
 
 
 ReadError readFromString(State* state, const char* str, Svalue* pValue);
+ReadError readFromFile(State* state, const char* fileName, Svalue* pValue);
 
 }  // namespace macp
 

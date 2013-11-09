@@ -4,6 +4,7 @@
 
 #include "read.hh"
 #include <assert.h>
+#include <fstream>
 #include <map>
 #include <sstream>
 
@@ -174,6 +175,12 @@ private:
 
 ReadError readFromString(State* state, const char* str, Svalue* pValue) {
   std::istringstream strm(str);
+  Reader reader(state, strm);
+  return reader.read(pValue);
+}
+
+ReadError readFromFile(State* state, const char* fileName, Svalue* pValue) {
+  std::ifstream strm(fileName);
   Reader reader(state, strm);
   return reader.read(pValue);
 }
