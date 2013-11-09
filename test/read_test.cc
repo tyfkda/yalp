@@ -16,6 +16,12 @@ protected:
   State* state_;
 };
 
+TEST_F(ReadTest, LineComment) {
+  Svalue s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, " ; Line comment\n 123", &s));
+  ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
+}
+
 TEST_F(ReadTest, Fixnum) {
   Svalue s;
   ASSERT_EQ(SUCCESS, readFromString(state_, "123", &s));
