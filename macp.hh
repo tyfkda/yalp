@@ -17,6 +17,9 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 
 namespace macp {
 
+class SymbolManager;
+class Vm;
+
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
 
@@ -60,6 +63,8 @@ public:
   static State* create();
   virtual ~State();
 
+  Svalue runBinary(Svalue code);
+
   Svalue nil() const  { return nil_; }
 
   // Fixnum.
@@ -79,9 +84,10 @@ public:
 private:
   State();
 
-  class SymbolManager* symbolManager_;
+  SymbolManager* symbolManager_;
   Svalue nil_;
   Svalue quote_;
+  Vm* vm_;
 };
 
 
