@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "macp.hh"
+#include <stdlib.h>
 
 namespace macp {
 
@@ -14,6 +15,10 @@ State::State() {
 }
 
 State::~State() {
+}
+
+Svalue State::readString(const char* str) {
+  return atoi(str);
 }
 
 }  // namespace macp
