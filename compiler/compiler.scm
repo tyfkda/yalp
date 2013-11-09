@@ -39,23 +39,37 @@
                                          (lambda (n)
                                            (compile x e s (list 'ASSIGN-FREE n next)))))
                    (call/cc (x)
-                            (list 'FRAME
-                                  next
-                                  (list 'CONTI
-                                        (list 'ARGUMENT
-                                              (compile x e s '(APPLY))))))
+                            (let ((c (list 'CONTI
+                                           (list 'ARGUMENT
+                                                 (compile x e s
+                                                          (if (tail? next)
+                                                              (list 'SHIFT
+                                                                    1
+                                                                    (cadr next)
+                                                                    '(APPLY))
+                                                            '(APPLY)))))))
+                              (if (tail? next)
+                                  c
+                                (list 'FRAME next c))))
                    (else
                     (recur loop ((args (cdr x))
-                                 (c (compile (car x) e s '(APPLY))))
+                                 (c (compile (car x) e s
+                                             (if (tail? next)
+                                                 (list 'SHIFT
+                                                       (length (cdr x))
+                                                       (cadr next)
+                                                       '(APPLY))
+                                               '(APPLY)))))
                            (if (null? args)
-                               (list 'FRAME next c)
+                               (if (tail? next)
+                                   c
+                                 (list 'FRAME next c))
                              (loop (cdr args)
                                (compile (car args)
                                         e
                                         s
                                         (list 'ARGUMENT c))))))))
-     (else
-      (list 'CONSTANT x next)))))
+     (else (list 'CONSTANT x next)))))
 
 (define find-free
   (lambda (x b)
@@ -142,23 +156,27 @@
                  (return-local n)
                (nxtlocal (cdr locals) (+ n 1)))))))
 
+(define tail?
+  (lambda (next)
+    (eq? (car next) 'RETURN)))
+
 
 ;;;; runtime
 
-(define stack (make-vector 1000))
+(define *stack* (make-vector 1000))
 
 (define push
   (lambda (x s)
-    (vector-set! stack s x)
+    (vector-set! *stack* s x)
     (+ s 1)))
 
 (define index
   (lambda (s i)
-    (vector-ref stack (- (- s i) 1))))
+    (vector-ref *stack* (- (- s i) 1))))
 
 (define index-set!
   (lambda (s i v)
-    (vector-set! stack (- (- s i) 1) v)))
+    (vector-set! *stack* (- (- s i) 1) v)))
 
 
 ;;;; VM
@@ -196,6 +214,8 @@
                         (VM a x f c (push ret (push f (push c s)))))
                  (ARGUMENT (x)
                            (VM a x f c (push a s)))
+                 (SHIFT (n m x)
+                        (VM a x f c (shift-args n m s)))
                  (APPLY ()
                         (VM a (closure-body a) s a s))
                  (RETURN (n)
@@ -232,7 +252,7 @@
     (let ((v (make-vector s)))
       (recur copy ((i 0))
              (unless (= i s)
-               (vector-set! v i (vector-ref stack i))
+               (vector-set! v i (vector-ref *stack* i))
                (copy (+ i 1))))
       v)))
 
@@ -241,7 +261,7 @@
     (let ((s (vector-length v)))
       (recur copy ((i 0))
              (unless (= i s)
-               (vector-set! stack i (vector-ref v i))
+               (vector-set! *stack* i (vector-ref v i))
                (copy (+ i 1))))
       s)))
 
@@ -258,6 +278,14 @@
 (define set-box!
   (lambda (x v)
     (set-cdr! x v)))
+
+(define shift-args
+  (lambda (n m s)
+    (recur nxtarg ((i (- n 1)))
+           (unless (< i 0)
+             (index-set! s (+ i m) (index s i))
+             (nxtarg (- i 1))))
+    (- s m)))
 
 (define evaluate
   (lambda (x)
