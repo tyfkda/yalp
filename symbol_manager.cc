@@ -9,9 +9,9 @@
 
 namespace macp {
 
-Ssymbol* symbol(Svalue s) {
+Symbol* symbol(Svalue s) {
   assert(s.getType() == TT_SYMBOL);
-  return static_cast<Ssymbol*>(s.toObject());
+  return static_cast<Symbol*>(s.toObject());
 };
 
 SymbolManager::SymbolManager()
@@ -29,7 +29,7 @@ Svalue SymbolManager::intern(const char* name) {
       return v;
 
   const char* copied = copyString(name);
-  table_.push_back(Svalue(new Ssymbol(copied)));
+  table_.push_back(Svalue(new Symbol(copied)));
   return table_[table_.size() - 1];
 }
 
