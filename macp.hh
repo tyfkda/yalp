@@ -40,6 +40,7 @@ public:
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
+  bool equal(Svalue target) const;
 
   bool operator==(Svalue target) const  { return eq(target); }
 
@@ -79,12 +80,15 @@ class Sobject {
 public:
   virtual ~Sobject();
   virtual Type getType() const = 0;
+  virtual bool equal(const Sobject* target) const = 0;
 };
 
 // Cell class.
 class Scell : public Sobject {
 public:
-  virtual Type getType() const override  { return TT_CELL; }
+  virtual Type getType() const override;
+  virtual bool equal(const Sobject* target) const override;
+
   Svalue car() const  { return car_; }
   Svalue cdr() const  { return cdr_; }
 
