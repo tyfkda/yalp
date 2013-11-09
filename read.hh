@@ -9,7 +9,13 @@
 
 namespace macp {
 
-Svalue readFromString(State* state, const char* str);
+enum ReadError {
+  SUCCESS,
+  NO_CLOSE_PAREN,
+};
+
+
+ReadError readFromString(State* state, const char* str, Svalue* pValue);
 
 }  // namespace macp
 
