@@ -18,11 +18,6 @@ namespace macp {
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
 
-const Sfixnum TAG_SHIFT = 2;
-const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Sfixnum TAG_FIXNUM = 0;
-const Sfixnum TAG_OBJECT = 1;
-
 enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,

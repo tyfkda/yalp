@@ -7,6 +7,12 @@
 #include <stdlib.h>
 
 namespace macp {
+
+const Sfixnum TAG_SHIFT = 2;
+const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Sfixnum TAG_FIXNUM = 0;
+const Sfixnum TAG_OBJECT = 1;
+
 //=============================================================================
 Svalue::Svalue(Sfixnum i)
   : v_(reinterpret_cast<Sfixnum>(i << TAG_SHIFT) | TAG_FIXNUM) {}
