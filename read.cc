@@ -4,13 +4,14 @@
 
 #include "read.hh"
 #include <assert.h>
+#include <map>
 #include <sstream>
 
 namespace macp {
 
 // Inner value.
-const ReadError END_OF_FILE = (ReadError)(NO_CLOSE_PAREN + 1);
-const ReadError CLOSE_PAREN = (ReadError)(NO_CLOSE_PAREN + 2);
+const ReadError END_OF_FILE = (ReadError)(ILLEGAL_CHAR + 1);
+const ReadError CLOSE_PAREN = (ReadError)(ILLEGAL_CHAR + 2);
 
 class Reader {
 public:
@@ -28,6 +29,8 @@ public:
     case ';':
       skipUntilNextLine();
       return read(pValue);
+    case '#':
+      return readSpecial(pValue);
     case EOF:
       return END_OF_FILE;
     default:
@@ -83,6 +86,43 @@ private:
     }
   }
 
+  ReadError readSpecial(Svalue* pValue) {
+    int c = getc();
+    if (!isdigit(c))
+      return ILLEGAL_CHAR;
+
+    char buffer[256];
+    char* p = buffer;
+    do {
+      *p++ = c;
+      c = getc();
+    } while (isdigit(c));
+    *p++ = '\0';
+    assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
+
+    int n = atoi(buffer);
+    switch (c) {
+    case '=':
+      {
+        ReadError err = read(pValue);
+        if (err != SUCCESS)
+          return err;
+        storeShared(n, *pValue);
+        return SUCCESS;
+      }
+    case '#':
+      {
+        auto it = sharedStructures_.find(n);
+        if (it == sharedStructures_.end())
+          return ILLEGAL_CHAR;
+        *pValue = it->second;
+        return SUCCESS;
+      }
+    default:
+      return ILLEGAL_CHAR;
+    }
+  }
+
   void skipSpaces() {
     while (isSpace(getc()))
       ;
@@ -123,8 +163,13 @@ private:
     }
   }
 
+  void storeShared(int id, Svalue value) {
+    sharedStructures_[id] = value;
+  }
+
   State* state_;
   std::istream& istrm_;
+  std::map<int, Svalue> sharedStructures_;
 };
 
 ReadError readFromString(State* state, const char* str, Svalue* pValue) {
