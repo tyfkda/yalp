@@ -14,7 +14,7 @@ int main() {
 
   State* state = State::create();
 
-  Svalue v = state->cons(state->fixnumValue(1), state->fixnumValue(2));
+  Svalue v = list3(state, state->fixnumValue(1), state->fixnumValue(2), state->fixnumValue(3));
   cout << v << endl;
 
   delete state;
