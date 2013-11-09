@@ -146,6 +146,9 @@
 
 (define compile-lookup
   (lambda (x e return-local return-free)
+    (when (null? e)
+          (error #`"Can't find `,x` in `,e`"))
+
     (recur nxtlocal ((locals (car e)) (n 0))
            (if (null? locals)
                (recur nxtfree ((free (cdr e)) (n 0))
@@ -296,19 +299,30 @@
 ;;; main
 
 (use file.util)
+(use gauche.parseopt)
 
-(define (compile-all code)
-  (let recur ((code code))
-    (if (null? code)
+(define (compile-all codes)
+  (let recur ((codes codes))
+    (if (null? codes)
         '(HALT)
-        (compile (car code) '() '()
-                 (recur (cdr code))))))
+        (compile (car codes) '() '()
+                 (recur (cdr codes))))))
 
 (define (main args)
-  (if (< (length args) 2)
-      (begin
-        (display "Argument required\n")
-        (exit 1)))
-  (let ((code (file->sexp-list (cadr args))))
-    (write/ss (compile-all code))
-    (display "\n")))
+  (let-args (cdr args)
+            ((compile "c|compile-only")
+             (bin     "b|run-binary")
+             . restargs)
+
+            (when (null? restargs)
+                  (display "Argument required\n")
+                  (exit 1))
+            (cond (compile (let ((codes (file->sexp-list (car restargs))))
+                             (write/ss (compile-all codes))
+                             (display "\n")))
+                  (bin (let ((codes (file->sexp-list (car restargs))))
+                         (dolist (code codes)
+                                 (print (VM '() code 0 '() 0)))))
+                  (else (let ((codes (file->sexp-list (car restargs))))
+                          (dolist (code codes)
+                                  (print (evaluate code))))))))
