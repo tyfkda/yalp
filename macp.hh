@@ -13,6 +13,8 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _MACP_HH_
 #define _MACP_HH_
 
+#include <ostream>
+
 namespace macp {
 
 // This must be able to hold native pointer size value.
@@ -37,6 +39,8 @@ public:
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
+
+  friend std::ostream& operator<<(std::ostream& o, Svalue v);
 
 private:
   Svalue(Sfixnum i);
@@ -81,7 +85,13 @@ public:
   virtual ~Sobject();
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
+
+  virtual std::ostream& operator<<(std::ostream& o) const = 0;
 };
+
+inline std::ostream& operator<<(std::ostream& o, Sobject& object) {
+  return object.operator<<(o);
+}
 
 // Symbol class.
 class Symbol : public Sobject {
@@ -89,6 +99,8 @@ public:
   virtual Type getType() const override;
 
   const char* c_str() const  { return name_; }
+
+  virtual std::ostream& operator<<(std::ostream& o) const override;
 
 protected:
   Symbol(const char* name);
@@ -105,6 +117,8 @@ public:
 
   Svalue car() const  { return car_; }
   Svalue cdr() const  { return cdr_; }
+
+  virtual std::ostream& operator<<(std::ostream& o) const override;
 
 protected:
   Cell(Svalue a, Svalue d);
