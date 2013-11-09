@@ -15,21 +15,39 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 
 namespace macp {
 
-// S-value: bit embedded type value.
 // This must be able to hold native pointer size value.
-typedef long Svalue;
+typedef long Sfixnum;
 
-typedef Svalue Sfixnum;
-
-const Svalue TAG_SHIFT = 2;
-const Svalue TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Svalue TAG_FIXNUM = 0;
-const Svalue TAG_OBJECT = 1;
+const Sfixnum TAG_SHIFT = 2;
+const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Sfixnum TAG_FIXNUM = 0;
+const Sfixnum TAG_OBJECT = 1;
 
 enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,
   TT_CELL,
+};
+
+// S-value: bit embedded type value.
+class Svalue {
+public:
+  Svalue(Sfixnum i);
+  Svalue(class Sobject* object);
+
+  // Gets value type.
+  Type getType() const;
+
+  Sfixnum toFixnum() const;
+  class Sobject* toObject() const;
+
+  // Object euality.
+  bool eq(Svalue target) const  { return v_ == target.v_; }
+
+  bool operator==(Svalue target) const  { return eq(target); }
+
+private:
+  Sfixnum v_;
 };
 
 // State class.
@@ -40,19 +58,14 @@ public:
 
   Svalue readString(const char* str);
 
-  // Gets value type.
-  Type getType(Svalue v) const;
-
   // Fixnum.
-  Svalue fixnumValue(Sfixnum i);
-  Sfixnum toFixnum(Svalue v);
+  Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
 
   // Create cell.
   Svalue cons(Svalue a, Svalue d);
 
   // Object.
-  Svalue objectValue(class Sobject* o);
-  Sobject* toObject(Svalue v) const;
+  Svalue objectValue(class Sobject* o)  { return Svalue(o); }
 
 private:
   State();
