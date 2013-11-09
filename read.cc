@@ -25,6 +25,9 @@ public:
       return readList(pValue);
     case ')':
       return CLOSE_PAREN;
+    case ';':
+      skipUntilNextLine();
+      return read(pValue);
     case EOF:
       return END_OF_FILE;
     }
@@ -77,6 +80,13 @@ private:
 
   void skipSpaces() {
     while (isSpace(getc()))
+      ;
+    unget();
+  }
+
+  void skipUntilNextLine() {
+    int c;
+    while (c = getc(), c != '\n' && c != EOF)
       ;
     unget();
   }
