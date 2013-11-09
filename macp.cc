@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "macp.hh"
+#include "symbol_manager.hh"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -68,13 +69,19 @@ State* State::create() {
 }
 
 State::State() {
+  symbolManager_ = new SymbolManager();
 }
 
 State::~State() {
+  delete symbolManager_;
 }
 
 Svalue State::readString(const char* str) {
   return fixnumValue(atoi(str));
+}
+
+Svalue State::intern(const char* name) {
+  return symbolManager_->intern(name);
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
@@ -87,9 +94,19 @@ Svalue State::cons(Svalue a, Svalue d) {
 Sobject::~Sobject() {
 }
 
-//=============================================================================
-Scell::Scell(Svalue a, Svalue d) : car_(a), cdr_(d) {
+bool Sobject::equal(const Sobject* o) const {
+  return this == o;  // Simple pointer equality.
 }
+
+//=============================================================================
+Ssymbol::Ssymbol(const char* name)
+  : Sobject(), name_(name) {}
+
+Type Ssymbol::getType() const  { return TT_SYMBOL; }
+
+//=============================================================================
+Scell::Scell(Svalue a, Svalue d)
+  : Sobject(), car_(a), cdr_(d) {}
 
 Type Scell::getType() const  { return TT_CELL; }
 

@@ -21,6 +21,12 @@ TEST_F(MacpTest, Fixnum) {
   ASSERT_TRUE(state_->fixnumValue(123).eq(s));
 }
 
+TEST_F(MacpTest, Symbol) {
+  Svalue s = state_->intern("symbol");
+  ASSERT_TRUE(state_->intern("symbol").eq(s));
+  ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
+}
+
 TEST_F(MacpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());

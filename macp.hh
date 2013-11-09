@@ -21,6 +21,7 @@ typedef long Sfixnum;
 enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,
+  TT_SYMBOL,
   TT_CELL,
 };
 
@@ -44,6 +45,7 @@ private:
   Sfixnum v_;
 
   friend class State;
+  friend class SymbolManager;
 };
 
 // State class.
@@ -57,6 +59,9 @@ public:
   // Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
 
+  // Create symbol.
+  Svalue intern(const char* name);
+
   // Create cell.
   Svalue cons(Svalue a, Svalue d);
 
@@ -65,6 +70,8 @@ public:
 
 private:
   State();
+
+  class SymbolManager* symbolManager_;
 };
 
 
@@ -73,7 +80,21 @@ class Sobject {
 public:
   virtual ~Sobject();
   virtual Type getType() const = 0;
-  virtual bool equal(const Sobject* target) const = 0;
+  virtual bool equal(const Sobject* target) const;
+};
+
+// Symbol class.
+class Ssymbol : public Sobject {
+public:
+  virtual Type getType() const override;
+
+  const char* c_str() const  { return name_; }
+
+protected:
+  Ssymbol(const char* name);
+  const char* name_;
+
+  friend class SymbolManager;
 };
 
 // Cell class.
