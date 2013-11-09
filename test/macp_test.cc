@@ -18,7 +18,7 @@ protected:
 
 TEST_F(MacpTest, Read) {
   Svalue s = state_->readString("123");
-  ASSERT_EQ(state_->fixnumValue(123), s);
+  ASSERT_TRUE(State::eq(state_->fixnumValue(123), s));
 }
 
 TEST_F(MacpTest, Cons) {
