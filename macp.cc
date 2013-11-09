@@ -129,7 +129,15 @@ bool Cell::equal(const Sobject* target) const {
 }
 
 std::ostream& Cell::operator<<(std::ostream& o) const {
-  return o << '(' << car_ << " . " << cdr_ << ')';
+  char c = '(';
+  const Cell* p;
+  for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
+    o << c << p->car_;
+    if (p->cdr_.getType() != TT_CELL)
+      break;
+    c = ' ';
+  }
+  return o << " . " << p->cdr_ << ')';
 }
 
 void Cell::rplaca(Svalue a) {
