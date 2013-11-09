@@ -1,2 +1,8 @@
 *.o
 *.a
+
+# GTAGS
+GPATH
+GRTAGS
+GTAGS
+HTML
