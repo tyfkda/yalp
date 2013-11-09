@@ -85,7 +85,7 @@ Svalue State::intern(const char* name) {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  Scell* cell = new Scell(a, d);
+  Cell* cell = new Cell(a, d);
   return Svalue(cell);
 }
 
@@ -99,19 +99,19 @@ bool Sobject::equal(const Sobject* o) const {
 }
 
 //=============================================================================
-Ssymbol::Ssymbol(const char* name)
+Symbol::Symbol(const char* name)
   : Sobject(), name_(name) {}
 
-Type Ssymbol::getType() const  { return TT_SYMBOL; }
+Type Symbol::getType() const  { return TT_SYMBOL; }
 
 //=============================================================================
-Scell::Scell(Svalue a, Svalue d)
+Cell::Cell(Svalue a, Svalue d)
   : Sobject(), car_(a), cdr_(d) {}
 
-Type Scell::getType() const  { return TT_CELL; }
+Type Cell::getType() const  { return TT_CELL; }
 
-bool Scell::equal(const Sobject* target) const {
-  const Scell* p = static_cast<const Scell*>(target);
+bool Cell::equal(const Sobject* target) const {
+  const Cell* p = static_cast<const Cell*>(target);
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 

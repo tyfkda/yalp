@@ -84,21 +84,21 @@ public:
 };
 
 // Symbol class.
-class Ssymbol : public Sobject {
+class Symbol : public Sobject {
 public:
   virtual Type getType() const override;
 
   const char* c_str() const  { return name_; }
 
 protected:
-  Ssymbol(const char* name);
+  Symbol(const char* name);
   const char* name_;
 
   friend class SymbolManager;
 };
 
 // Cell class.
-class Scell : public Sobject {
+class Cell : public Sobject {
 public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
@@ -107,7 +107,7 @@ public:
   Svalue cdr() const  { return cdr_; }
 
 protected:
-  Scell(Svalue a, Svalue d);
+  Cell(Svalue a, Svalue d);
   Svalue car_;
   Svalue cdr_;
 

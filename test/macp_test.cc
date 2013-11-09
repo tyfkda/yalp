@@ -30,7 +30,7 @@ TEST_F(MacpTest, Symbol) {
 TEST_F(MacpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
-  Scell* cell = static_cast<Scell*>(v.toObject());
+  Cell* cell = static_cast<Cell*>(v.toObject());
   ASSERT_TRUE(state_->fixnumValue(1).eq(cell->car()));
   ASSERT_TRUE(state_->fixnumValue(2).eq(cell->cdr()));
   ASSERT_TRUE(v.eq(v));
