@@ -33,6 +33,19 @@ Type Svalue::getType() const {
   }
 }
 
+std::ostream& operator<<(std::ostream& o, Svalue v) {
+  switch (v.v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return o;
+  case TAG_FIXNUM:
+    o << v.toFixnum();
+    return o;
+  case TAG_OBJECT:
+    return o << *v.toObject();
+  }
+}
+
 Sfixnum Svalue::toFixnum() const {
   assert((v_ & TAG_MASK) == TAG_FIXNUM);
   assert(TAG_FIXNUM == 0);
@@ -104,6 +117,10 @@ Symbol::Symbol(const char* name)
 
 Type Symbol::getType() const  { return TT_SYMBOL; }
 
+std::ostream& Symbol::operator<<(std::ostream& o) const {
+  return o << name_;
+}
+
 //=============================================================================
 Cell::Cell(Svalue a, Svalue d)
   : Sobject(), car_(a), cdr_(d) {}
@@ -113,6 +130,10 @@ Type Cell::getType() const  { return TT_CELL; }
 bool Cell::equal(const Sobject* target) const {
   const Cell* p = static_cast<const Cell*>(target);
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
+}
+
+std::ostream& Cell::operator<<(std::ostream& o) const {
+  return o << '(' << car_ << " . " << cdr_ << ')';
 }
 
 //=============================================================================

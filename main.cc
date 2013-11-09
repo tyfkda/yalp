@@ -10,9 +10,13 @@ int main() {
   cout << "sizeof(ptr) = " << sizeof(void*) << endl;
   cout << "sizeof(Svalue) = " << sizeof(Svalue) << endl;
   cout << "sizeof(Sobject) = " << sizeof(Sobject) << endl;
-  cout << "sizeof(Scell) = " << sizeof(Scell) << endl;
+  cout << "sizeof(Cell) = " << sizeof(Cell) << endl;
 
   State* state = State::create();
+
+  Svalue v = state->cons(state->fixnumValue(1), state->fixnumValue(2));
+  cout << v << endl;
+
   delete state;
   return 0;
 }
