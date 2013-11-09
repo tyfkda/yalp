@@ -1,10 +1,11 @@
 #include "macp.hh"
+#include "read.hh"
 #include <iostream>
 
 using namespace std;
 using namespace macp;
 
-int main() {
+int main(int argc, char* argv[]) {
   cout << "sizeof(int) = " << sizeof(int) << endl;
   cout << "sizeof(long) = " << sizeof(long) << endl;
   cout << "sizeof(ptr) = " << sizeof(void*) << endl;
@@ -14,8 +15,14 @@ int main() {
 
   State* state = State::create();
 
-  Svalue v = list3(state, state->fixnumValue(1), state->fixnumValue(2), state->fixnumValue(3));
-  cout << v << endl;
+  if (argc >= 2) {
+    Svalue v;
+    readFromFile(state, argv[1], &v);
+    cout << v << endl;
+  } else {
+    Svalue v = list3(state, state->fixnumValue(1), state->fixnumValue(2), state->fixnumValue(3));
+    cout << v << endl;
+  }
 
   delete state;
   return 0;

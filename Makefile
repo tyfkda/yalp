@@ -3,6 +3,7 @@ PROJECT=macp
 OBJS=\
 	main.o\
 	macp.o\
+	read.o\
 	symbol_manager.o\
 
 CXXFLAGS += -Wall -Wextra -std=c++0x
