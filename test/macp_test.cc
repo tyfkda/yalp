@@ -16,8 +16,8 @@ protected:
   State* state_;
 };
 
-TEST_F(MacpTest, Read) {
-  Svalue s = state_->readString("123");
+TEST_F(MacpTest, Fixnum) {
+  Svalue s = state_->fixnumValue(123);
   ASSERT_TRUE(state_->fixnumValue(123).eq(s));
 }
 
@@ -27,4 +27,9 @@ TEST_F(MacpTest, Cons) {
   Scell* cell = static_cast<Scell*>(v.toObject());
   ASSERT_EQ(state_->fixnumValue(1), cell->car());
   ASSERT_EQ(state_->fixnumValue(2), cell->cdr());
+}
+
+TEST_F(MacpTest, Read) {
+  Svalue s = state_->readString("123");
+  ASSERT_TRUE(state_->fixnumValue(123).eq(s));
 }

@@ -32,9 +32,6 @@ enum Type {
 // S-value: bit embedded type value.
 class Svalue {
 public:
-  Svalue(Sfixnum i);
-  Svalue(class Sobject* object);
-
   // Gets value type.
   Type getType() const;
 
@@ -47,7 +44,12 @@ public:
   bool operator==(Svalue target) const  { return eq(target); }
 
 private:
+  Svalue(Sfixnum i);
+  Svalue(class Sobject* object);
+
   Sfixnum v_;
+
+  friend class State;
 };
 
 // State class.
