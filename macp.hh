@@ -54,6 +54,9 @@ public:
   Svalue objectValue(class Sobject* o);
   Sobject* toObject(Svalue v) const;
 
+  // Object euality.
+  static bool eq(Svalue a, Svalue b)  { return a == b; }
+
 private:
   State();
 };
