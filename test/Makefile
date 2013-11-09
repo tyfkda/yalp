@@ -25,7 +25,7 @@ USER_DIR = ..
 CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(USER_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1
+CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
