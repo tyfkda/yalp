@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "symbol_manager.hh"
 
-using namespace macp;
+using namespace yalp;
 
 class SymbolManagerTest : public ::testing::Test {
 protected:

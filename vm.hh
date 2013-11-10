@@ -1,11 +1,11 @@
 //=============================================================================
-/// Vm - Macro Processor VM.
+/// Vm - Yet Another List Processor VM.
 //=============================================================================
 
 #ifndef _VM_HH_
 #define _VM_HH_
 
-namespace macp {
+namespace yalp {
 
 class State;
 class Svalue;
@@ -43,6 +43,6 @@ private:
   Svalue* opcodes_;
 };
 
-}  // namespace macp
+}  // namespace yalp
 
 #endif
