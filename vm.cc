@@ -14,6 +14,7 @@ enum Opcode {
   REFER_LOCAL,
   CONSTANT,
   CLOSE,
+  TEST,
   FRAME,
   ARGUMENT,
   APPLY,
@@ -81,6 +82,7 @@ Vm::Vm(State* state)
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
   opcodes_[CONSTANT] = state_->intern("CONSTANT");
   opcodes_[CLOSE] = state_->intern("CLOSE");
+  opcodes_[TEST] = state_->intern("TEST");
   opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[ARGUMENT] = state_->intern("ARGUMENT");
   opcodes_[APPLY] = state_->intern("APPLY");
@@ -125,6 +127,13 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = CADDR(x);
       a = createClosure(body, n, s);
       s -= n;
+    }
+    goto again;
+  case TEST:
+    {
+      Svalue thn = CAR(x);
+      Svalue els = CADR(x);
+      x = state_->isTrue(a) ? thn : els;
     }
     goto again;
   case FRAME:
