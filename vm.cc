@@ -13,6 +13,7 @@ enum Opcode {
   HALT,
   REFER_LOCAL,
   REFER_FREE,
+  INDIRECT,
   CONSTANT,
   CLOSE,
   BOX,
@@ -80,6 +81,7 @@ public:
   virtual Type getType() const override  { return TT_BOX; }
 
   void set(Svalue x)  { x_ = x; }
+  Svalue get()  { return x_; }
 
   virtual std::ostream& operator<<(std::ostream& o) const override {
     return o << x_;
@@ -143,6 +145,7 @@ Vm::Vm(State* state)
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
   opcodes_[REFER_FREE] = state_->intern("REFER-FREE");
+  opcodes_[INDIRECT] = state_->intern("INDIRECT");
   opcodes_[CONSTANT] = state_->intern("CONSTANT");
   opcodes_[CLOSE] = state_->intern("CLOSE");
   opcodes_[BOX] = state_->intern("BOX");
@@ -181,6 +184,11 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   case CONSTANT:
     a = CAR(x);
     x = CADR(x);
+    goto again;
+  case INDIRECT:
+    x = CAR(x);
+    assert(a.getType() == TT_BOX);
+    a = static_cast<Box*>(a.toObject())->get();
     goto again;
   case REFER_LOCAL:
     {
