@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "read.hh"
 
-using namespace macp;
+using namespace yalp;
 
 class ReadTest : public ::testing::Test {
 protected:

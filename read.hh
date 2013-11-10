@@ -5,9 +5,9 @@
 #ifndef _READ_HH_
 #define _READ_HH_
 
-#include "macp.hh"
+#include "yalp.hh"
 
-namespace macp {
+namespace yalp {
 
 enum ReadError {
   SUCCESS,
@@ -19,6 +19,6 @@ enum ReadError {
 ReadError readFromString(State* state, const char* str, Svalue* pValue);
 ReadError readFromFile(State* state, const char* fileName, Svalue* pValue);
 
-}  // namespace macp
+}  // namespace yalp
 
 #endif

@@ -1,5 +1,5 @@
 //=============================================================================
-/// MACP - Macro Processor.
+/// YALP - Yet Another List Processor.
 /**
 
 Naming convension:
@@ -10,12 +10,12 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
  */
 //=============================================================================
 
-#ifndef _MACP_HH_
-#define _MACP_HH_
+#ifndef _YALP_HH_
+#define _YALP_HH_
 
 #include <ostream>
 
-namespace macp {
+namespace yalp {
 
 class SymbolManager;
 class Vm;
@@ -155,6 +155,6 @@ Svalue list2(State* state, Svalue v1, Svalue v2);
 Svalue list3(State* state, Svalue v1, Svalue v2, Svalue v3);
 Svalue nreverse(State* state, Svalue v);
 
-}  // namespace macp
+}  // namespace yalp
 
 #endif

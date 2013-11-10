@@ -1,13 +1,13 @@
 //=============================================================================
-/// Vm - Macro Processor VM.
+/// Vm - Yet Another List Processor VM.
 //=============================================================================
 
 #include "vm.hh"
-#include "macp.hh"
+#include "yalp.hh"
 #include <assert.h>
 #include <iostream>
 
-namespace macp {
+namespace yalp {
 
 enum Opcode {
   HALT,
@@ -394,4 +394,4 @@ int Vm::restoreStack(Svalue v) {
   return s;
 }
 
-}  // namespace macp
+}  // namespace yalp

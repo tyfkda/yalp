@@ -1,11 +1,11 @@
-PROJECT=macp
+PROJECT=yalp
 
 OBJS=\
 	main.o\
-	macp.o\
 	read.o\
 	symbol_manager.o\
 	vm.o\
+	yalp.o\
 
 CXXFLAGS += -Wall -Wextra -Werror -std=c++0x
 

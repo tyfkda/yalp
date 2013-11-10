@@ -3,11 +3,11 @@
 //=============================================================================
 
 #include "symbol_manager.hh"
-#include "macp.hh"
+#include "yalp.hh"
 #include <assert.h>
 #include <string.h>
 
-namespace macp {
+namespace yalp {
 
 Symbol* symbol(Svalue s) {
   assert(s.getType() == TT_SYMBOL);
@@ -41,4 +41,4 @@ const char* SymbolManager::copyString(const char* name) {
   return copied;
 }
 
-}  // namespace macp
+}  // namespace yalp

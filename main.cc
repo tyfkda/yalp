@@ -1,9 +1,9 @@
-#include "macp.hh"
 #include "read.hh"
+#include "yalp.hh"
 #include <iostream>
 
 using namespace std;
-using namespace macp;
+using namespace yalp;
 
 int main(int argc, char* argv[]) {
   cout << "sizeof(int) = " << sizeof(int) << endl;

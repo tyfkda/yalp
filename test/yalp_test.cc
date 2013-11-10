@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
-#include "macp.hh"
+#include "yalp.hh"
 
-using namespace macp;
+using namespace yalp;
 
-class MacpTest : public ::testing::Test {
+class YalpTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
     state_ = State::create();
@@ -16,18 +16,18 @@ protected:
   State* state_;
 };
 
-TEST_F(MacpTest, Fixnum) {
+TEST_F(YalpTest, Fixnum) {
   Svalue s = state_->fixnumValue(123);
   ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
 }
 
-TEST_F(MacpTest, Symbol) {
+TEST_F(YalpTest, Symbol) {
   Svalue s = state_->intern("symbol");
   ASSERT_TRUE(state_->intern("symbol").eq(s)) << s;
   ASSERT_FALSE(state_->intern("otherSymbol").eq(s)) << s;
 }
 
-TEST_F(MacpTest, Cons) {
+TEST_F(YalpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
   Cell* cell = static_cast<Cell*>(v.toObject());
@@ -45,7 +45,7 @@ TEST_F(MacpTest, Cons) {
   ASSERT_FALSE(v.equal(v3));
 }
 
-TEST_F(MacpTest, ListFunctions) {
+TEST_F(YalpTest, ListFunctions) {
   Svalue a = state_->fixnumValue(1);
   Svalue b = state_->fixnumValue(2);
   Svalue c = state_->fixnumValue(3);
@@ -60,7 +60,7 @@ TEST_F(MacpTest, ListFunctions) {
   ASSERT_TRUE(state_->cons(a, state_->cons(b,  state_->cons(c, state_->nil()))).equal(s3));
 }
 
-TEST_F(MacpTest, Nreverse) {
+TEST_F(YalpTest, Nreverse) {
   Svalue a = state_->fixnumValue(1);
   Svalue b = state_->fixnumValue(2);
   Svalue c = state_->fixnumValue(3);

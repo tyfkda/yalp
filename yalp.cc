@@ -1,13 +1,13 @@
 //=============================================================================
-/// MACP - Macro Processor.
+/// YALP - Yet Another List Processor.
 //=============================================================================
 
-#include "macp.hh"
+#include "yalp.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
 #include <assert.h>
 
-namespace macp {
+namespace yalp {
 
 const Sfixnum TAG_SHIFT = 2;
 const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
@@ -196,4 +196,4 @@ Svalue nreverse(State* state, Svalue v) {
 
 //=============================================================================
 
-}  // namespace macp
+}  // namespace yalp

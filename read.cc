@@ -8,7 +8,7 @@
 #include <map>
 #include <sstream>
 
-namespace macp {
+namespace yalp {
 
 // Inner value.
 const ReadError END_OF_FILE = (ReadError)(ILLEGAL_CHAR + 1);
@@ -195,4 +195,4 @@ ReadError readFromFile(State* state, const char* fileName, Svalue* pValue) {
   return reader.read(pValue);
 }
 
-}  // namespace macp
+}  // namespace yalp

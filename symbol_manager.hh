@@ -5,10 +5,10 @@
 #ifndef _SYMBOL_MANAGER_HH_
 #define _SYMBOL_MANAGER_HH_
 
-#include "macp.hh"
+#include "yalp.hh"
 #include <vector>
 
-namespace macp {
+namespace yalp {
 
 class SymbolManager {
 public:
@@ -23,6 +23,6 @@ private:
   std::vector<Svalue> table_;
 };
 
-}  // namespace macp
+}  // namespace yalp
 
 #endif
