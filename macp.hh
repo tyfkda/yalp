@@ -68,6 +68,8 @@ public:
   Svalue runBinary(Svalue code);
 
   Svalue nil() const  { return nil_; }
+  bool isTrue(Svalue x) const  { return !x.eq(nil_); }
+  bool isFalse(Svalue x) const  { return x.eq(nil_); }
 
   // Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
