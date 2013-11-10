@@ -28,6 +28,7 @@ enum Type {
   TT_FIXNUM,
   TT_SYMBOL,
   TT_CELL,
+  TT_CLOSURE,
 };
 
 // S-value: bit embedded type value.
@@ -55,6 +56,7 @@ private:
 
   friend class State;
   friend class SymbolManager;
+  friend class Vm;
 };
 
 // State class.
