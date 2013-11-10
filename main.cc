@@ -18,7 +18,8 @@ int main(int argc, char* argv[]) {
   if (argc >= 2) {
     Svalue v;
     readFromFile(state, argv[1], &v);
-    cout << v << endl;
+    cout << "Code: " << v << endl;
+    cout << "Run: " << state->runBinary(v) << endl;
   } else {
     Svalue v = list3(state, state->fixnumValue(1), state->fixnumValue(2), state->fixnumValue(3));
     cout << v << endl;
