@@ -22,6 +22,11 @@ private:
   Vm(State* state);
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
+  Svalue createClosure(Svalue body, int n, int s);
+
+  int push(Svalue x, int s);
+  Svalue index(int s, int i);
+  Svalue expandStack();
 
   State* state_;
   Svalue* stack_;
