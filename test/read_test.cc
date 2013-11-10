@@ -54,6 +54,17 @@ TEST_F(ReadTest, List) {
                     state_->fixnumValue(3)).equal(s3)) << s3;
 }
 
+TEST_F(ReadTest, Quote) {
+  Svalue s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, "'(x y z)", &s));
+  ASSERT_TRUE(list2(state_,
+                    state_->intern("quote"),
+                    list3(state_,
+                          state_->intern("x"),
+                          state_->intern("y"),
+                          state_->intern("z"))).equal(s)) << s;
+}
+
 TEST_F(ReadTest, SharedStructure) {
   Svalue s;
   ASSERT_EQ(SUCCESS, readFromString(state_, "(#0=(a) #0#)", &s));

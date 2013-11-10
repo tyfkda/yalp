@@ -71,6 +71,8 @@ public:
   // Create cell.
   Svalue cons(Svalue a, Svalue d);
 
+  Svalue quote(Svalue x);
+
   // Object.
   Svalue objectValue(class Sobject* o)  { return Svalue(o); }
 
@@ -79,6 +81,7 @@ private:
 
   class SymbolManager* symbolManager_;
   Svalue nil_;
+  Svalue quote_;
 };
 
 

@@ -30,6 +30,8 @@ public:
     case ';':
       skipUntilNextLine();
       return read(pValue);
+    case '\'':
+      return readQuote(pValue);
     case '#':
       return readSpecial(pValue);
     case EOF:
@@ -85,6 +87,14 @@ private:
     } else {
       return err;
     }
+  }
+
+  ReadError readQuote(Svalue* pValue) {
+    ReadError err = read(pValue);
+    if (err == SUCCESS) {
+      *pValue = state_->quote(*pValue);
+    }
+    return err;
   }
 
   ReadError readSpecial(Svalue* pValue) {
@@ -157,7 +167,7 @@ private:
   static bool isDelimiter(char c) {
     switch (c) {
     case ' ': case '\t': case '\n': case '\0': case -1:
-    case '(': case ')': case '#':
+    case '(': case ')': case '\'': case '#':
       return true;
     default:
       return false;

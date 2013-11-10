@@ -85,8 +85,9 @@ State* State::create() {
 }
 
 State::State()
-  : symbolManager_(new SymbolManager()),
-    nil_(symbolManager_->intern("nil")) {
+  : symbolManager_(new SymbolManager())
+  , nil_(symbolManager_->intern("nil"))
+  , quote_(symbolManager_->intern("quote")) {
 }
 
 State::~State() {
@@ -100,6 +101,10 @@ Svalue State::intern(const char* name) {
 Svalue State::cons(Svalue a, Svalue d) {
   Cell* cell = new Cell(a, d);
   return Svalue(cell);
+}
+
+Svalue State::quote(Svalue x) {
+  return list2(this, quote_, x);
 }
 
 
