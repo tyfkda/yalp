@@ -17,6 +17,7 @@ enum Opcode {
   CLOSE,
   BOX,
   TEST,
+  ASSIGN_LOCAL,
   ASSIGN_FREE,
   FRAME,
   ARGUMENT,
@@ -107,6 +108,7 @@ Vm::Vm(State* state)
   opcodes_[CLOSE] = state_->intern("CLOSE");
   opcodes_[BOX] = state_->intern("BOX");
   opcodes_[TEST] = state_->intern("TEST");
+  opcodes_[ASSIGN_LOCAL] = state_->intern("ASSIGN-LOCAL");
   opcodes_[ASSIGN_FREE] = state_->intern("ASSIGN-FREE");
   opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[ARGUMENT] = state_->intern("ARGUMENT");
@@ -175,6 +177,15 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue thn = CAR(x);
       Svalue els = CADR(x);
       x = state_->isTrue(a) ? thn : els;
+    }
+    goto again;
+  case ASSIGN_LOCAL:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      Svalue box = index(f, n);
+      assert(box.getType() == TT_BOX);
+      static_cast<Box*>(box.toObject())->set(a);
     }
     goto again;
   case ASSIGN_FREE:
