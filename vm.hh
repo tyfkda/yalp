@@ -20,11 +20,15 @@ public:
 
 private:
   Vm(State* state);
-  Svalue run(Svalue a, Svalue code, int f, Svalue c, int s);
+  Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
+  int findOpcode(Svalue op);
 
   State* state_;
   Svalue* stack_;
   int stackSize_;
+
+  // Symbols
+  Svalue* opcodes_;
 };
 
 }  // namespace macp
