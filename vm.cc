@@ -12,11 +12,15 @@ namespace macp {
 enum Opcode {
   HALT,
   REFER_LOCAL,
+  REFER_FREE,
   CONSTANT,
   CLOSE,
+  BOX,
   TEST,
+  ASSIGN_FREE,
   FRAME,
   ARGUMENT,
+  SHIFT,
   APPLY,
   RETURN,
 
@@ -64,6 +68,24 @@ protected:
   Svalue* freeVariables_;
 };
 
+// Box class.
+class Box : public Sobject {
+public:
+  Box(Svalue x)
+    : Sobject()
+    , x_(x) {}
+  virtual Type getType() const override  { return TT_BOX; }
+
+  void set(Svalue x)  { x_ = x; }
+
+  virtual std::ostream& operator<<(std::ostream& o) const override {
+    return o << x_;
+  }
+
+protected:
+  Svalue x_;
+};
+
 Vm* Vm::create(State* state) {
   return new Vm(state);
 }
@@ -80,11 +102,15 @@ Vm::Vm(State* state)
   opcodes_ = new Svalue[NUMBER_OF_OPCODE];
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
+  opcodes_[REFER_FREE] = state_->intern("REFER-FREE");
   opcodes_[CONSTANT] = state_->intern("CONSTANT");
   opcodes_[CLOSE] = state_->intern("CLOSE");
+  opcodes_[BOX] = state_->intern("BOX");
   opcodes_[TEST] = state_->intern("TEST");
+  opcodes_[ASSIGN_FREE] = state_->intern("ASSIGN-FREE");
   opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[ARGUMENT] = state_->intern("ARGUMENT");
+  opcodes_[SHIFT] = state_->intern("SHIFT");
   opcodes_[APPLY] = state_->intern("APPLY");
   opcodes_[RETURN] = state_->intern("RETURN");
 }
@@ -120,6 +146,14 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       a = index(f, n);
     }
     goto again;
+  case REFER_FREE:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      assert(c.getType() == TT_CLOSURE);
+      a = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+    }
+    goto again;
   case CLOSE:
     {
       int n = CAR(x).toFixnum();
@@ -129,6 +163,13 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       s -= n;
     }
     goto again;
+  case BOX:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      indexSet(s, n, box(index(s, n)));
+    }
+    goto again;
   case TEST:
     {
       Svalue thn = CAR(x);
@@ -136,11 +177,28 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = state_->isTrue(a) ? thn : els;
     }
     goto again;
+  case ASSIGN_FREE:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      Svalue box = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+      assert(box.getType() == TT_BOX);
+      static_cast<Box*>(box.toObject())->set(a);
+    }
+    goto again;
   case FRAME:
     {
       Svalue ret = CAR(x);
       x = CADR(x);
       s = push(ret, push(state_->fixnumValue(f), push(c, s)));
+    }
+    goto again;
+  case SHIFT:
+    {
+      int n = CAR(x).toFixnum();
+      int m = CADR(x).toFixnum();
+      x = CADDR(x);
+      s = shiftArgs(n, m, s);
     }
     goto again;
   case ARGUMENT:
@@ -194,6 +252,10 @@ Svalue Vm::createClosure(Svalue body, int n, int s) {
   return Svalue(closure);
 }
 
+Svalue Vm::box(Svalue x) {
+  return new Box(x);
+}
+
 int Vm::push(Svalue x, int s) {
   if (s >= stackSize_)
     expandStack();
@@ -215,6 +277,18 @@ void Vm::expandStack() {
 Svalue Vm::index(int s, int i) {
   assert(s - i - 1 >= 0);
   return stack_[s - i - 1];
+}
+
+void Vm::indexSet(int s, int i, Svalue v) {
+  assert(s - i - 1 >= 0);
+  stack_[s - i - 1] = v;
+}
+
+int Vm::shiftArgs(int n, int m, int s) {
+  for (int i = n; --i >= 0; ) {
+    indexSet(s, i + m, index(s, i));
+  }
+  return s - m;
 }
 
 }  // namespace macp
