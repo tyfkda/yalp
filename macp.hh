@@ -30,6 +30,7 @@ enum Type {
   TT_CELL,
   TT_CLOSURE,
   TT_BOX,
+  TT_VECTOR,
 };
 
 // S-value: bit embedded type value.

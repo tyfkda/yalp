@@ -23,6 +23,7 @@ private:
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int n, int s);
+  Svalue createContinuation(int s);
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);
@@ -30,6 +31,9 @@ private:
   void indexSet(int s, int i, Svalue v);
   void expandStack();
   int shiftArgs(int n, int m, int s);
+
+  Svalue saveStack(int s);
+  int restoreStack(Svalue v);
 
   State* state_;
   Svalue* stack_;
