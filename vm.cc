@@ -19,6 +19,8 @@ enum Opcode {
   TEST,
   ASSIGN_LOCAL,
   ASSIGN_FREE,
+  CONTI,
+  NUATE,
   FRAME,
   ARGUMENT,
   SHIFT,
@@ -87,6 +89,43 @@ protected:
   Svalue x_;
 };
 
+// Vector class.
+class Vector : public Sobject {
+public:
+  Vector(int size)
+    : Sobject()
+    , size_(size) {
+    buffer_ = new Svalue[size_];
+  }
+  virtual Type getType() const override  { return TT_VECTOR; }
+
+  int size() const  { return size_; }
+
+  Svalue get(int index)  {
+    assert(0 <= index && index < size_);
+    return buffer_[index];
+  }
+
+  void set(int index, Svalue x)  {
+    assert(0 <= index && index < size_);
+    buffer_[index] = x;
+  }
+
+  virtual std::ostream& operator<<(std::ostream& o) const override {
+    o << "#";
+    char c = '(';
+    for (int i = 0; i < size_; ++i) {
+      o << c << buffer_[i];
+      c = ' ';
+    }
+    return o << ")";
+  }
+
+protected:
+  Svalue* buffer_;
+  int size_;
+};
+
 Vm* Vm::create(State* state) {
   return new Vm(state);
 }
@@ -110,6 +149,8 @@ Vm::Vm(State* state)
   opcodes_[TEST] = state_->intern("TEST");
   opcodes_[ASSIGN_LOCAL] = state_->intern("ASSIGN-LOCAL");
   opcodes_[ASSIGN_FREE] = state_->intern("ASSIGN-FREE");
+  opcodes_[CONTI] = state_->intern("CONTI");
+  opcodes_[NUATE] = state_->intern("NUATE");
   opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[ARGUMENT] = state_->intern("ARGUMENT");
   opcodes_[SHIFT] = state_->intern("SHIFT");
@@ -197,6 +238,17 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       static_cast<Box*>(box.toObject())->set(a);
     }
     goto again;
+  case CONTI:
+    x = CAR(x);
+    a = createContinuation(s);
+    goto again;
+  case NUATE:
+    {
+      Svalue stack = CAR(x);
+      x = CADR(x);
+      s = restoreStack(stack);
+    }
+    goto again;
   case FRAME:
     {
       Svalue ret = CAR(x);
@@ -263,6 +315,20 @@ Svalue Vm::createClosure(Svalue body, int n, int s) {
   return Svalue(closure);
 }
 
+Svalue Vm::createContinuation(int s) {
+  Svalue zero = state_->fixnumValue(0);
+  Svalue body = list3(state_,
+                      opcodes_[REFER_LOCAL],
+                      zero,
+                      list3(state_,
+                            opcodes_[NUATE],
+                            saveStack(s),
+                            list2(state_,
+                                  opcodes_[RETURN],
+                                  zero)));
+  return createClosure(body, s, s);
+}
+
 Svalue Vm::box(Svalue x) {
   return new Box(x);
 }
@@ -300,6 +366,24 @@ int Vm::shiftArgs(int n, int m, int s) {
     indexSet(s, i + m, index(s, i));
   }
   return s - m;
+}
+
+Svalue Vm::saveStack(int s) {
+  Vector* v = new Vector(s);
+  for (int i = 0; i < s; ++i) {
+    v->set(i, stack_[i]);
+  }
+  return Svalue(v);
+}
+
+int Vm::restoreStack(Svalue v) {
+  assert(v.getType() == TT_VECTOR);
+  Vector* vv = static_cast<Vector*>(v.toObject());
+  int s = vv->size();
+  for (int i = 0; i < s; ++i) {
+    stack_[i] = vv->get(i);
+  }
+  return s;
 }
 
 }  // namespace macp
