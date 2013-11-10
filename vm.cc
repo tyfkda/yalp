@@ -201,7 +201,7 @@ int Vm::push(Svalue x, int s) {
   return s + 1;
 }
 
-Svalue Vm::expandStack() {
+void Vm::expandStack() {
   int newSize = stackSize_ + 16;
   Svalue* newStack = static_cast<Svalue*>(realloc(stack_, sizeof(Svalue) * newSize));
   if (newStack == NULL) {

@@ -26,7 +26,7 @@ private:
 
   int push(Svalue x, int s);
   Svalue index(int s, int i);
-  Svalue expandStack();
+  void expandStack();
 
   State* state_;
   Svalue* stack_;
