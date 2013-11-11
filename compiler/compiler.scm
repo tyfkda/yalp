@@ -145,20 +145,20 @@
                     (lambda (n) (list 'REFER-LOCAL n next))
                     (lambda (n) (list 'REFER-FREE n next)))))
 
+(define (find-index x ls)
+  (let loop ((ls ls)
+             (idx 0))
+    (cond ((null? ls) #f)
+          ((eq? (car ls) x) idx)
+          (else (loop (cdr ls) (+ idx 1))))))
+
 (define compile-lookup
   (lambda (x e return-local return-free)
-    (when (null? e)
-          (error #`"Can't find `,x` in `,e`"))
-
-    (recur nxtlocal ((locals (car e)) (n 0))
-           (if (null? locals)
-               (recur nxtfree ((free (cdr e)) (n 0))
-                      (if (eq? (car free) x)
-                          (return-free n)
-                        (nxtfree (cdr free) (+ n 1))))
-             (if (eq? (car locals) x)
-                 (return-local n)
-               (nxtlocal (cdr locals) (+ n 1)))))))
+    (let ((locals (car e))
+          (free   (cdr e)))
+      (cond ((find-index x locals) => return-local)
+            ((find-index x free) => return-free)
+            (else (error #`"Can't find `,x` in `,e`"))))))
 
 (define tail?
   (lambda (next)
@@ -293,7 +293,7 @@
 
 (define evaluate
   (lambda (x)
-    (let1 code (compile x '() '() '(HALT))
+    (let1 code (compile x '(()) '() '(HALT))
       (VM '() code 0 '() 0))))
 
 
