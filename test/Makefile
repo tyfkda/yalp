@@ -38,7 +38,7 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 
 # House-keeping build targets.
 
-all:	$(TESTS)
+all:	test
 
 clean:
 	rm -f $(TESTS) gtest.a gtest_main.a *.o
@@ -81,7 +81,7 @@ gtest_main.a:	gtest-all.o gtest_main.o
 #sample1_unittest:	sample1.o sample1_unittest.o gtest_main.a
 #	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-test:	$(TESTS)
+test:	$(TESTS) vm-test
 	for test in $(TESTS); do\
 	  "./$$test"; \
 	done
@@ -94,5 +94,11 @@ read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/symbol_manager.o $(USER_DI
 
 yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+
+vm-test:	../yalp
+	./vm_test.sh
+
+../yalp:
+	cd .. && make
 
 #

@@ -1,7 +1,8 @@
 ;;;; Compiler
 ;;;; Based on 3imp.
 
-(load "./util.scm")
+(add-load-path ".") 
+(load "util.scm")
 
 (define compile
   (lambda (x e s next)
@@ -318,10 +319,13 @@
                   (display "Argument required\n")
                   (exit 1))
             (cond (compile (let ((codes (file->sexp-list (car restargs))))
-                             (compile-all codes)))
+                             (compile-all codes)
+                             (exit 0)))
                   (bin (let ((codes (file->sexp-list (car restargs))))
                          (dolist (code codes)
-                                 (print (VM '() code 0 '() 0)))))
+                                 (print (VM '() code 0 '() 0)))
+                         (exit 0)))
                   (else (let ((codes (file->sexp-list (car restargs))))
                           (dolist (code codes)
-                                  (print (evaluate code))))))))
+                                  (print (evaluate code)))
+                          (exit 0))))))
