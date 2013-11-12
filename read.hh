@@ -11,6 +11,7 @@ namespace yalp {
 
 enum ReadError {
   SUCCESS,
+  END_OF_FILE,
   NO_CLOSE_PAREN,
   ILLEGAL_CHAR,
 };

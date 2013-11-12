@@ -22,6 +22,11 @@ TEST_F(ReadTest, LineComment) {
   ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
 }
 
+TEST_F(ReadTest, Eof) {
+  Svalue s;
+  ASSERT_EQ(END_OF_FILE, readFromString(state_, "", &s));
+}
+
 TEST_F(ReadTest, Fixnum) {
   Svalue s;
   ASSERT_EQ(SUCCESS, readFromString(state_, "123", &s));

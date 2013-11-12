@@ -11,8 +11,7 @@
 namespace yalp {
 
 // Inner value.
-const ReadError END_OF_FILE = (ReadError)(ILLEGAL_CHAR + 1);
-const ReadError CLOSE_PAREN = (ReadError)(ILLEGAL_CHAR + 2);
+const ReadError CLOSE_PAREN = (ReadError)(ILLEGAL_CHAR + 1);
 
 class Reader {
 public:
