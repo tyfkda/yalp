@@ -260,13 +260,35 @@
                  (SHIFT (n m x)
                         (VM a x f c (shift-args n m s)))
                  (APPLY (argnum)
-                        (VM a (closure-body a) s a s))
+                        (do-apply argnum a s))
                  (RETURN (n)
-                         (let ((s (- s n)))
-                           (VM a (index s 0) (index s 1) (index s 2) (- s 3))))
+                         (do-return a s n))
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
+
+(define (do-apply argnum f s)
+  (cond ((native-function? f)
+         (let ((res (call-native-function f s argnum)))
+           (do-return res s argnum)))
+        ((closure? f)
+         (VM f (closure-body f) s f s))
+        (else
+         (error "invalid application:" f))))
+
+(define (do-return a s argnum)
+  (let ((s (- s argnum)))
+    (VM a (index s 0) (index s 1) (index s 2) (- s 3))))
+
+(define (native-function? f)
+  (is-a? f <procedure>))
+
+(define (call-native-function f s argnum)
+  (let ((args (map (lambda (i) (index s i))
+                   (iota argnum))))
+    (apply f args)))
+
+
 
 ;;; Global variable table
 
@@ -298,6 +320,9 @@
                (vector-set! v (+ i 1) (index s i))
                (f (+ i 1))))
       v)))
+
+(define (closure? f)
+  (vector? f))
 
 (define closure-body
   (lambda (c)
@@ -358,6 +383,16 @@
 (use file.util)
 (use gauche.parseopt)
 
+(define (install-native-functions)
+  (assign-global! 'cons cons)
+  (assign-global! 'car car)
+  (assign-global! 'cdr cdr)
+  (assign-global! '+ +)
+  (assign-global! '- -)
+  (assign-global! '* *)
+  (assign-global! '/ quotient)
+  )
+
 (define (compile-all codes)
   (let recur ((codes codes))
     (unless (null? codes)
@@ -366,6 +401,7 @@
             (recur (cdr codes)))))
 
 (define (main args)
+  (install-native-functions)
   (let-args (cdr args)
             ((compile "c|compile-only")
              (bin     "b|run-binary")
