@@ -23,6 +23,7 @@ public:
 private:
   Vm(State* state);
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
+  void runtimeError(const char* msg);
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int n, int s);
   Svalue createContinuation(int s);

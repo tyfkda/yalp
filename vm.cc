@@ -170,6 +170,11 @@ Svalue Vm::run(Svalue code) {
   return run(nil, code, 0, nil, 0);
 }
 
+void Vm::runtimeError(const char* msg) {
+  std::cerr << msg << std::endl;
+  exit(1);
+}
+
 Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
  again:
   //std::cout << "run: stack=" << s << ", x=" << x << std::endl;
@@ -177,14 +182,9 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   Svalue op = CAR(x);
   x = CDR(x);
   int opidx = findOpcode(op);
-  if (opidx < 0) {
-    std::cerr << "Unknown op: " << op << std::endl;
-    return op;
-  }
-
   switch (opidx) {
   case HALT:
-    break;
+    return a;
   case CONSTANT:
     a = CAR(x);
     x = CADR(x);
@@ -215,7 +215,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = CADR(x);
       assert(sym.getType() == TT_SYMBOL);
       if (!refer_global(sym, &a)) {
-        std::cerr << "Unbound `" << sym << "'" << std::endl;
+        std::cerr << sym << ": ";
+        runtimeError("Unbound");
       }
     }
     goto again;
@@ -310,7 +311,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         goto again;
       }
 
-      std::cerr << "Can't call " << a << ", #" << argnum << std::endl;
+      std::cerr << a << "(#" << argnum << ") ";
+      runtimeError("Can't call");
     }
     goto again;
   case RETURN:
@@ -324,11 +326,10 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     }
     goto again;
   default:
-    std::cerr << "Unknown op: " << op << std::endl;
-    assert(false);
-    break;
+    std::cerr << op << ": ";
+    runtimeError("Unknown op");
+    return a;
   }
-  return a;
 }
 
 int Vm::findOpcode(Svalue op) {

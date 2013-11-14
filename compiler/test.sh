@@ -74,7 +74,7 @@ fail no-global '((lambda (x) y) 123)'
 ################################################################
 # All tests succeeded.
 
-#rm $TEST_FILE_NAME
+rm $TEST_FILE_NAME
 echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
 
 #

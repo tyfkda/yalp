@@ -22,6 +22,16 @@ function run() {
     echo ok
 }
 
+function fail() {
+  echo -n "Testing $1 ... "
+  echo "$2" > $TEST_FILE_NAME && gosh compiler.scm $TEST_FILE_NAME 2>& /dev/null
+  if [ $? -eq 0 ]; then
+    echo FAILED
+    error_exit "Failure expected, but succeeded!"
+  fi
+  echo ok
+}
+
 ################################################################
 # Test cases.
 
@@ -57,10 +67,14 @@ run global-var 111 '((lambda ()
                           (set! global 111)))
                        global))'
 
+# Fail cases
+fail unbound 'abc'
+fail no-global '((lambda (x) y) 123)'
+
 ################################################################
 # All tests succeeded.
 
-#rm $TEST_FILE_NAME
+rm $TEST_FILE_NAME
 echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
 
 #
