@@ -214,7 +214,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue sym = CAR(x);
       x = CADR(x);
       assert(sym.getType() == TT_SYMBOL);
-      if (!refer_global(sym, &a)) {
+      if (!referGlobal(sym, &a)) {
         std::cerr << sym << ": ";
         runtimeError("Unbound");
       }
@@ -266,7 +266,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue sym = CAR(x);
       x = CADR(x);
       assert(sym.getType() == TT_SYMBOL);
-      assign_global(sym, a);
+      assignGlobal(sym, a);
     }
     goto again;
   case CONTI:
@@ -400,7 +400,7 @@ int Vm::shiftArgs(int n, int m, int s) {
   return s - m;
 }
 
-bool Vm::refer_global(Svalue sym, Svalue* pValue) {
+bool Vm::referGlobal(Svalue sym, Svalue* pValue) {
   auto it = globalVariableTable_.find(sym.getHash());
   if (it == globalVariableTable_.end())
     return false;
@@ -408,7 +408,7 @@ bool Vm::refer_global(Svalue sym, Svalue* pValue) {
   return true;
 }
 
-void Vm::assign_global(Svalue sym, Svalue value) {
+void Vm::assignGlobal(Svalue sym, Svalue value) {
   globalVariableTable_[sym.getHash()] = value;
 }
 

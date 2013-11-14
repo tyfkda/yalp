@@ -35,8 +35,8 @@ private:
   void expandStack();
   int shiftArgs(int n, int m, int s);
 
-  bool refer_global(Svalue sym, Svalue* pValue);
-  void assign_global(Svalue sym, Svalue value);
+  bool referGlobal(Svalue sym, Svalue* pValue);
+  void assignGlobal(Svalue sym, Svalue value);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);
