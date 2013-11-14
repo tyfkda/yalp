@@ -15,20 +15,8 @@
      ((pair? x)
       (record-case x
                    (quote (obj) (list 'CONSTANT obj next))
-                   (lambda (vars body)
-                     (let ((free (find-free body vars))
-                           (sets (find-sets body vars)))
-                       (collect-free free e
-                                     (list 'CLOSE
-                                           (length free)
-                                           (make-boxes sets vars
-                                                       (compile body
-                                                                (cons vars free)
-                                                                (set-union
-                                                                 sets
-                                                                 (set-intersect s free))
-                                                                (list 'RETURN (length vars))))
-                                           next))))
+                   (lambda (vars . bodies)
+                     (compile-lambda vars bodies e s next))
                    (if (test then else)
                        (let ((thenc (compile then e s next))
                              (elsec (compile else e s next)))
@@ -71,6 +59,35 @@
                                         (list 'ARGUMENT c))))))))
      (else (list 'CONSTANT x next)))))
 
+(define (compile-lambda vars bodies e s next)
+  (let ((free (find-frees bodies vars))
+        (sets (find-setses bodies vars)))
+    (collect-free free e
+                  (list 'CLOSE
+                        (length free)
+                        (make-boxes sets vars
+                                    (compile-lambda-bodies vars bodies free sets s))
+                        next))))
+
+(define (compile-lambda-bodies vars bodies free sets s)
+  (let ((ee (cons vars free))
+        (ss (set-union sets
+                       (set-intersect s free)))
+        (next (list 'RETURN (length vars))))
+    (recur loop ((p bodies))
+           (if (null? p)
+               next
+             (compile (car p) ee ss
+                      (loop (cdr p)))))))
+
+(define (find-frees xs b)
+  (recur loop ((v '())
+               (p xs))
+         (if (null? p)
+             v
+           (loop (set-union v (find-free (car p) b))
+                 (cdr p)))))
+
 (define find-free
   (lambda (x b)
     (cond
@@ -103,6 +120,14 @@
       (collect-free (cdr vars) e
                     (compile-refer (car vars) e
                                    (list 'ARGUMENT next))))))
+
+(define (find-setses xs v)
+  (recur loop ((b '())
+               (p xs))
+         (if (null? p)
+             b
+           (loop (set-union b (find-sets (car p) v))
+                 (cdr p)))))
 
 (define find-sets
   (lambda (x v)

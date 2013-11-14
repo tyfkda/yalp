@@ -40,20 +40,27 @@ run if-true 2 '(if 1 2 3)'
 run if-false 3 '(if #f 2 3)'
 run lambda-invoke 123 '((lambda (x) x) 123)'
 run set-local 111 '((lambda (x)
-                      (set! x 111))
+                      (set! x 111)
+                      x)
                     123)'
 run closure 1 '(((lambda (x)
                    (lambda (y)
                      x))
                  1)
                 2)'
-run closure-set 23 '((lambda (f x)
-                       (f x (set! x 23)))
-                     (lambda (y z) y)
+run closure-set 23 '((lambda (x)
+                       ((lambda ()
+                          (set! x 23)))
+                       x)
                      1)'
 run call/cc 123 '(call/cc
                    (lambda (cc)
                      (cc 123)))'
+run multiple-exp 3 '((lambda ()
+                         1
+                         2
+                         3)
+                       )'
 
 # Fail cases
 fail unbound 'abc'
