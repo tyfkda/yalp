@@ -95,8 +95,8 @@ read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/symbol_manager.o $(USER_DI
 yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-vm-test:	../yalp
-	./vm_test.sh
+vm-test:
+	cd .. && make && cd test && ./vm_test.sh
 
 ../yalp:
 	cd .. && make
