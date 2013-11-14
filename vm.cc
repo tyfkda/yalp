@@ -302,6 +302,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case APPLY:
     {
+      int argnum = CAR(x).toFixnum();
       if (a.getType() == TT_CLOSURE) {
         x = static_cast<Closure*>(a.toObject())->getBody();
         f = s;
@@ -309,7 +310,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         goto again;
       }
 
-      std::cerr << "Can't call " << a << std::endl;
+      std::cerr << "Can't call " << a << ", #" << argnum << std::endl;
     }
     goto again;
   case RETURN:

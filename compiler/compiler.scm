@@ -34,30 +34,34 @@
                                                               (list 'SHIFT
                                                                     1
                                                                     (cadr next)
-                                                                    '(APPLY))
-                                                            '(APPLY)))))))
+                                                                    '(APPLY 1))
+                                                            '(APPLY 1)))))))
                               (if (tail? next)
                                   c
                                 (list 'FRAME next c))))
                    (else
-                    (recur loop ((args (cdr x))
-                                 (c (compile (car x) e s
-                                             (if (tail? next)
-                                                 (list 'SHIFT
-                                                       (length (cdr x))
-                                                       (cadr next)
-                                                       '(APPLY))
-                                               '(APPLY)))))
-                           (if (null? args)
-                               (if (tail? next)
-                                   c
-                                 (list 'FRAME next c))
-                             (loop (cdr args)
-                               (compile (car args)
-                                        e
-                                        s
-                                        (list 'ARGUMENT c))))))))
+                    (let ((func (car x))
+                          (args (cdr x)))
+                      (compile-apply func args e s next)))))
      (else (list 'CONSTANT x next)))))
+
+(define (compile-apply func args e s next)
+  (let ((argnum (length args)))
+    (recur loop ((args args)
+                 (c (compile func e s
+                             (if (tail? next)
+                                 `(SHIFT ,argnum ,(cadr next)
+                                         (APPLY ,argnum))
+                               `(APPLY ,argnum)))))
+           (if (null? args)
+               (if (tail? next)
+                   c
+                 (list 'FRAME next c))
+             (loop (cdr args)
+                   (compile (car args)
+                            e
+                            s
+                            (list 'ARGUMENT c)))))))
 
 (define (compile-lambda vars bodies e s next)
   (let ((free (set-intersect (set-union (car e)
@@ -255,7 +259,7 @@
                            (VM a x f c (push a s)))
                  (SHIFT (n m x)
                         (VM a x f c (shift-args n m s)))
-                 (APPLY ()
+                 (APPLY (argnum)
                         (VM a (closure-body a) s a s))
                  (RETURN (n)
                          (let ((s (- s n)))
