@@ -35,10 +35,9 @@
                          (compile test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
-                                         (lambda (n)
-                                           (compile x e s (list 'ASSIGN-LOCAL n next)))
-                                         (lambda (n)
-                                           (compile x e s (list 'ASSIGN-FREE n next)))))
+                                         (lambda (n)   (compile x e s (list 'ASSIGN-LOCAL n next)))
+                                         (lambda (n)   (compile x e s (list 'ASSIGN-FREE n next)))
+                                         (lambda (sym) (compile x e s (list 'ASSIGN-GLOBAL sym next)))))
                    (call/cc (x)
                             (let ((c (list 'CONTI
                                            (list 'ARGUMENT
@@ -142,23 +141,24 @@
 (define compile-refer
   (lambda (x e next)
     (compile-lookup x e
-                    (lambda (n) (list 'REFER-LOCAL n next))
-                    (lambda (n) (list 'REFER-FREE n next)))))
+                    (lambda (n)   (list 'REFER-LOCAL n next))
+                    (lambda (n)   (list 'REFER-FREE n next))
+                    (lambda (sym) (list 'REFER-GLOBAL sym next)))))
+
+(define (find-index x ls)
+  (let loop ((ls ls)
+             (idx 0))
+    (cond ((null? ls) #f)
+          ((eq? (car ls) x) idx)
+          (else (loop (cdr ls) (+ idx 1))))))
 
 (define compile-lookup
-  (lambda (x e return-local return-free)
-    (when (null? e)
-          (error #`"Can't find `,x` in `,e`"))
-
-    (recur nxtlocal ((locals (car e)) (n 0))
-           (if (null? locals)
-               (recur nxtfree ((free (cdr e)) (n 0))
-                      (if (eq? (car free) x)
-                          (return-free n)
-                        (nxtfree (cdr free) (+ n 1))))
-             (if (eq? (car locals) x)
-                 (return-local n)
-               (nxtlocal (cdr locals) (+ n 1)))))))
+  (lambda (x e return-local return-free return-global)
+    (let ((locals (car e))
+          (free   (cdr e)))
+      (cond ((find-index x locals) => return-local)
+            ((find-index x free) => return-free)
+            (else (return-global x))))))
 
 (define tail?
   (lambda (next)
@@ -193,6 +193,11 @@
                               (VM (index f n) x f c s))
                  (REFER-FREE (n x)
                              (VM (index-closure c n) x f c s))
+                 (REFER-GLOBAL (sym x)
+                               (receive (v exist?) (refer-global sym)
+                                        (unless exist?
+                                                (error #`"unbound variable: `,sym`"))
+                                        (VM v x f c s)))
                  (INDIRECT (x)
                            (VM (unbox a) x f c s))
                  (CONSTANT (obj x)
@@ -210,6 +215,9 @@
                  (ASSIGN-FREE (n x)
                               (set-box! (index-closure c n) a)
                               (VM a x f c s))
+                 (ASSIGN-GLOBAL (sym x)
+                                (assign-global! sym a)
+                                (VM a x f c s))
                  (CONTI (x)
                         (VM (continuation s) x f c s))
                  (NUATE (stack x)
@@ -224,7 +232,24 @@
                         (VM a (closure-body a) s a s))
                  (RETURN (n)
                          (let ((s (- s n)))
-                           (VM a (index s 0) (index s 1) (index s 2) (- s 3)))))))
+                           (VM a (index s 0) (index s 1) (index s 2) (- s 3))))
+                 (else
+                  (display #`"Unknown op ,x\n")
+                  (exit 1)))))
+
+;;; Global variable table
+
+
+(define *global-variable-table* (make-hash-table))
+
+(define (assign-global! sym val)
+  (hash-table-put! *global-variable-table* sym val))
+
+(define (refer-global sym)
+  (if (hash-table-exists? *global-variable-table* sym)
+      (values (hash-table-get *global-variable-table* sym) #t)
+    (values #f #f)))
+
 
 (define continuation
   (lambda (s)
@@ -293,7 +318,7 @@
 
 (define evaluate
   (lambda (x)
-    (let1 code (compile x '() '() '(HALT))
+    (let1 code (compile x '(()) '() '(HALT))
       (VM '() code 0 '() 0))))
 
 
