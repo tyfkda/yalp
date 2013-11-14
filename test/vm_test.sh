@@ -6,7 +6,7 @@ BIN_FILE_NAME='test.bin'
 ################################################################
 # Test framework.
 
-function fail() {
+function error_exit() {
   echo -n -e '\e[1;31m[ERROR]\e[0m '
   echo "$1"
   exit 1
@@ -17,7 +17,7 @@ function run() {
     result=$(echo "$3" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
     if [ "$result" != "$2" ]; then
         echo FAILED
-        fail "$2 expected, but got '$result'"
+        error_exit "$2 expected, but got '$result'"
     fi
     echo ok
 }

@@ -12,7 +12,7 @@ function error_exit() {
 }
 
 function run() {
-  echo -n "Testing ... "
+  echo -n "Testing $1 ... "
   result=$(echo "$3" > $TEST_FILE_NAME && gosh compiler.scm $TEST_FILE_NAME)
   if [ "$result" != "$2" ]; then
     echo FAILED
