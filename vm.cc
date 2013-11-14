@@ -13,6 +13,7 @@ enum Opcode {
   HALT,
   REFER_LOCAL,
   REFER_FREE,
+  REFER_GLOBAL,
   INDIRECT,
   CONSTANT,
   CLOSE,
@@ -20,6 +21,7 @@ enum Opcode {
   TEST,
   ASSIGN_LOCAL,
   ASSIGN_FREE,
+  ASSIGN_GLOBAL,
   CONTI,
   NUATE,
   FRAME,
@@ -145,6 +147,7 @@ Vm::Vm(State* state)
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
   opcodes_[REFER_FREE] = state_->intern("REFER-FREE");
+  opcodes_[REFER_GLOBAL] = state_->intern("REFER-GLOBAL");
   opcodes_[INDIRECT] = state_->intern("INDIRECT");
   opcodes_[CONSTANT] = state_->intern("CONSTANT");
   opcodes_[CLOSE] = state_->intern("CLOSE");
@@ -152,6 +155,7 @@ Vm::Vm(State* state)
   opcodes_[TEST] = state_->intern("TEST");
   opcodes_[ASSIGN_LOCAL] = state_->intern("ASSIGN-LOCAL");
   opcodes_[ASSIGN_FREE] = state_->intern("ASSIGN-FREE");
+  opcodes_[ASSIGN_GLOBAL] = state_->intern("ASSIGN-GLOBAL");
   opcodes_[CONTI] = state_->intern("CONTI");
   opcodes_[NUATE] = state_->intern("NUATE");
   opcodes_[FRAME] = state_->intern("FRAME");
@@ -205,6 +209,16 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       a = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
     }
     goto again;
+  case REFER_GLOBAL:
+    {
+      Svalue sym = CAR(x);
+      x = CADR(x);
+      assert(sym.getType() == TT_SYMBOL);
+      if (!refer_global(sym, &a)) {
+        std::cerr << "Unbound `" << sym << "'" << std::endl;
+      }
+    }
+    goto again;
   case CLOSE:
     {
       int n = CAR(x).toFixnum();
@@ -244,6 +258,14 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue box = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a);
+    }
+    goto again;
+  case ASSIGN_GLOBAL:
+    {
+      Svalue sym = CAR(x);
+      x = CADR(x);
+      assert(sym.getType() == TT_SYMBOL);
+      assign_global(sym, a);
     }
     goto again;
   case CONTI:
@@ -374,6 +396,18 @@ int Vm::shiftArgs(int n, int m, int s) {
     indexSet(s, i + m, index(s, i));
   }
   return s - m;
+}
+
+bool Vm::refer_global(Svalue sym, Svalue* pValue) {
+  auto it = globalVariableTable_.find(sym.getHash());
+  if (it == globalVariableTable_.end())
+    return false;
+  *pValue = it->second;
+  return true;
+}
+
+void Vm::assign_global(Svalue sym, Svalue value) {
+  globalVariableTable_[sym.getHash()] = value;
 }
 
 Svalue Vm::saveStack(int s) {

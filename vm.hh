@@ -5,6 +5,8 @@
 #ifndef _VM_HH_
 #define _VM_HH_
 
+#include <map>
+
 namespace yalp {
 
 class State;
@@ -32,6 +34,9 @@ private:
   void expandStack();
   int shiftArgs(int n, int m, int s);
 
+  bool refer_global(Svalue sym, Svalue* pValue);
+  void assign_global(Svalue sym, Svalue value);
+
   Svalue saveStack(int s);
   int restoreStack(Svalue v);
 
@@ -41,6 +46,9 @@ private:
 
   // Symbols
   Svalue* opcodes_;
+
+  // Global variables
+  std::map<long, Svalue> globalVariableTable_;
 };
 
 }  // namespace yalp

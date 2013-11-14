@@ -60,7 +60,9 @@
      (else (list 'CONSTANT x next)))))
 
 (define (compile-lambda vars bodies e s next)
-  (let ((free (find-frees bodies vars))
+  (let ((free (set-intersect (set-union (car e)
+                                        (cdr e))
+                             (find-frees bodies vars)))
         (sets (find-setses bodies vars)))
     (collect-free free e
                   (list 'CLOSE
@@ -95,8 +97,8 @@
      ((pair? x)
       (record-case x
                    (quote (obj) '())
-                   (lambda (vars body)
-                     (find-free body (set-union vars b)))
+                   (lambda (vars . bodies)
+                     (find-frees bodies (set-union vars b)))
                    (if (test then else)
                        (set-union (find-free test b)
                                   (set-union (find-free then b)

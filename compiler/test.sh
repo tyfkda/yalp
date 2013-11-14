@@ -61,6 +61,10 @@ run multiple-exp 3 '((lambda ()
                          2
                          3)
                        )'
+run global-var 111 '((lambda ()
+                       ((lambda ()
+                          (set! global 111)))
+                       global))'
 
 # Fail cases
 fail unbound 'abc'

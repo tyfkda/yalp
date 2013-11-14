@@ -50,6 +50,8 @@ public:
 
   friend std::ostream& operator<<(std::ostream& o, Svalue v);
 
+  long getHash() const  { return v_; }
+
 private:
   Svalue(Sfixnum i);
   Svalue(class Sobject* object);
