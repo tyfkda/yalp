@@ -17,9 +17,13 @@
                    (quote (obj) (list 'CONSTANT obj next))
                    (lambda (vars . bodies)
                      (compile-lambda vars bodies e s next))
-                   (if (test then else)
+                   (if (test then . rest)
                        (let ((thenc (compile then e s next))
-                             (elsec (compile else e s next)))
+                             (elsec (cond ((null? rest)
+                                           (compile-undef e s next))
+                                          ((null? (cdr rest))
+                                           (compile (car rest) e s next))
+                                          (else (error "malformed if")))))
                          (compile test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
@@ -44,6 +48,9 @@
                           (args (cdr x)))
                       (compile-apply func args e s next)))))
      (else (list 'CONSTANT x next)))))
+
+(define (compile-undef e s next)
+  (list 'UNDEF next))
 
 (define (compile-apply func args e s next)
   (let ((argnum (length args)))
@@ -220,6 +227,8 @@
   (lambda (a x f c s)
     (record-case x
                  (HALT () a)
+                 (UNDEF (x)
+                        (VM 'nil x f c s))
                  (REFER-LOCAL (n x)
                               (VM (index f n) x f c s))
                  (REFER-FREE (n x)

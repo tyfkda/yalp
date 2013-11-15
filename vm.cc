@@ -116,6 +116,7 @@ static Svalue s_div(State* state) {
 
 enum Opcode {
   HALT,
+  UNDEF,
   REFER_LOCAL,
   REFER_FREE,
   REFER_GLOBAL,
@@ -273,6 +274,7 @@ Vm::Vm(State* state)
 
   opcodes_ = new Svalue[NUMBER_OF_OPCODE];
   opcodes_[HALT] = state_->intern("HALT");
+  opcodes_[UNDEF] = state_->intern("UNDEF");
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
   opcodes_[REFER_FREE] = state_->intern("REFER-FREE");
   opcodes_[REFER_GLOBAL] = state_->intern("REFER-GLOBAL");
@@ -323,6 +325,10 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   switch (opidx) {
   case HALT:
     return a;
+  case UNDEF:
+    x = CAR(x);
+    a = state_->nil();
+    goto again;
   case CONSTANT:
     a = CAR(x);
     x = CADR(x);
