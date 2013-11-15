@@ -39,10 +39,15 @@ run t t 't'
 run quote abc '(quote abc)'
 run string '"string"' '"string"'
 run if-true 2 '(if 1 2 3)'
-run if-false 3 '(if () 2 3)'
+run if-false 3 '(if nil 2 3)'
 run no-else 2 '(if 1 2)'
-run no-else2 nil '(if () 2)'
+run no-else2 nil '(if nil 2)'
 run lambda-invoke 123 '((lambda (x) x) 123)'
+run multiple-exp 3 '((lambda ()
+                         1
+                         2
+                         3)
+                       )'
 run set-local 111 '((lambda (x)
                       (set! x 111)
                       x)
@@ -60,11 +65,6 @@ run closure-set 23 '((lambda (x)
 run call/cc 123 '(call/cc
                    (lambda (cc)
                      (cc 123)))'
-run multiple-exp 3 '((lambda ()
-                         1
-                         2
-                         3)
-                       )'
 run global-var 111 '((lambda ()
                        ((lambda ()
                           (set! global 111)))

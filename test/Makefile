@@ -81,7 +81,9 @@ gtest_main.a:	gtest-all.o gtest_main.o
 #sample1_unittest:	sample1.o sample1_unittest.o gtest_main.a
 #	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-test:	$(TESTS) vm-test
+test:	run-tests vm-test
+
+run-tests:	$(TESTS)
 	for test in $(TESTS); do\
 	  "./$$test"; \
 	done
