@@ -13,20 +13,18 @@ function error_exit() {
 }
 
 function run() {
-    echo -n "Testing $1 ... "
-    result=$(echo "$3" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
-    if [ "$result" != "$2" ]; then
-        echo FAILED
-        error_exit "$2 expected, but got '$result'"
-    fi
-    echo ok
+  echo -n "Testing $1 ... "
+  result=$(echo "$3" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
+  if [ "$result" != "$2" ]; then
+    error_exit "$2 expected, but got '$result'"
+  fi
+  echo ok
 }
 
 function fail() {
   echo -n "Testing $1 ... "
   echo "$2" > $TEST_FILE_NAME && gosh compiler.scm $TEST_FILE_NAME 2>& /dev/null
   if [ $? -eq 0 ]; then
-    echo FAILED
     error_exit "Failure expected, but succeeded!"
   fi
   echo ok
