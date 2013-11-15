@@ -9,6 +9,111 @@
 
 namespace yalp {
 
+//=============================================================================
+// Native functions
+
+static Svalue s_cons(State* state) {
+  Svalue a = state->getArg(0);
+  Svalue d = state->getArg(1);
+  return state->cons(a, d);
+}
+
+static Svalue s_car(State* state) {
+  Svalue cell = state->getArg(0);
+  if (cell.getType() != TT_CELL) {
+    state->runtimeError("Cell expected");
+  }
+  return static_cast<Cell*>(cell.toObject())->car();
+}
+
+static Svalue s_cdr(State* state) {
+  Svalue cell = state->getArg(0);
+  if (cell.getType() != TT_CELL) {
+    state->runtimeError("Cell expected");
+  }
+  return static_cast<Cell*>(cell.toObject())->cdr();
+}
+
+static Svalue s_add(State* state) {
+  int n = state->getArgNum();
+  Sfixnum a = 0;
+  for (int i = 0; i < n; ++i) {
+    Svalue x = state->getArg(i);
+    if (x.getType() != TT_FIXNUM) {
+      state->runtimeError("Fixnum expected");
+    }
+    a += x.toFixnum();
+  }
+  return state->fixnumValue(a);
+}
+
+static Svalue s_sub(State* state) {
+  int n = state->getArgNum();
+  Sfixnum a;
+  if (n <= 0) {
+    a = 0;
+  } else {
+    Svalue x = state->getArg(0);
+    if (x.getType() != TT_FIXNUM) {
+      state->runtimeError("Fixnum expected");
+    }
+    a = x.toFixnum();
+    if (n == 1) {
+      a = -a;
+    } else {
+      for (int i = 1; i < n; ++i) {
+        Svalue x = state->getArg(i);
+        if (x.getType() != TT_FIXNUM) {
+          state->runtimeError("Fixnum expected");
+        }
+        a -= x.toFixnum();
+      }
+    }
+  }
+  return state->fixnumValue(a);
+}
+
+static Svalue s_mul(State* state) {
+  int n = state->getArgNum();
+  Sfixnum a = 1;
+  for (int i = 0; i < n; ++i) {
+    Svalue x = state->getArg(i);
+    if (x.getType() != TT_FIXNUM) {
+      state->runtimeError("Fixnum expected");
+    }
+    a *= x.toFixnum();
+  }
+  return state->fixnumValue(a);
+}
+
+static Svalue s_div(State* state) {
+  int n = state->getArgNum();
+  Sfixnum a;
+  if (n <= 0) {
+    a = 1;
+  } else {
+    Svalue x = state->getArg(0);
+    if (x.getType() != TT_FIXNUM) {
+      state->runtimeError("Fixnum expected");
+    }
+    a = x.toFixnum();
+    if (n == 1) {
+      a = 1 / a;
+    } else {
+      for (int i = 1; i < n; ++i) {
+        Svalue x = state->getArg(i);
+        if (x.getType() != TT_FIXNUM) {
+          state->runtimeError("Fixnum expected");
+        }
+        a /= x.toFixnum();
+      }
+    }
+  }
+  return state->fixnumValue(a);
+}
+
+//=============================================================================
+
 enum Opcode {
   HALT,
   REFER_LOCAL,
@@ -74,6 +179,27 @@ protected:
   Svalue* freeVariables_;
 };
 
+// Native function class.
+typedef Svalue (*NativeFuncType)(State* state);
+class NativeFunc : public Sobject {
+public:
+  NativeFunc(NativeFuncType func)
+    : Sobject()
+    , func_(func) {}
+  virtual Type getType() const override  { return TT_NATIVEFUNC; }
+
+  Svalue call(State* state) {
+    return func_(state);
+  }
+
+  virtual std::ostream& operator<<(std::ostream& o) const override {
+    return o << "#<procedure:" << this << ">";
+  }
+
+protected:
+  NativeFuncType func_;
+};
+
 // Box class.
 class Box : public Sobject {
 public:
@@ -130,6 +256,8 @@ protected:
   int size_;
 };
 
+//=============================================================================
+
 Vm* Vm::create(State* state) {
   return new Vm(state);
 }
@@ -163,6 +291,18 @@ Vm::Vm(State* state)
   opcodes_[SHIFT] = state_->intern("SHIFT");
   opcodes_[APPLY] = state_->intern("APPLY");
   opcodes_[RETURN] = state_->intern("RETURN");
+
+  installNativeFunctions();
+}
+
+void Vm::installNativeFunctions() {
+  assignGlobal(state_->intern("cons"), new NativeFunc(s_cons));
+  assignGlobal(state_->intern("car"), new NativeFunc(s_car));
+  assignGlobal(state_->intern("cdr"), new NativeFunc(s_cdr));
+  assignGlobal(state_->intern("+"), new NativeFunc(s_add));
+  assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
+  assignGlobal(state_->intern("*"), new NativeFunc(s_mul));
+  assignGlobal(state_->intern("/"), new NativeFunc(s_div));
 }
 
 Svalue Vm::run(Svalue code) {
@@ -299,15 +439,33 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   case APPLY:
     {
       int argnum = CAR(x).toFixnum();
-      if (a.getType() == TT_CLOSURE) {
+      switch (a.getType()) {
+      case TT_CLOSURE:
         x = static_cast<Closure*>(a.toObject())->getBody();
         f = s;
         c = a;
-        goto again;
-      }
+        break;
+      case TT_NATIVEFUNC:
+        {
+          // Store current state in member variable for native function call.
+          stackPointer_ = s;
+          argNum_ = argnum;
+          NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
+          a = native->call(state_);
 
-      std::cerr << a << "(#" << argnum << ") ";
-      state_->runtimeError("Can't call");
+          // do-return
+          s -= argnum;
+          x = index(s, 0);
+          f = index(s, 1).toFixnum();
+          c = index(s, 2);
+          s -= 3;
+        }
+        break;
+      default:
+        std::cerr << a << "(#" << argnum << ") ";
+        state_->runtimeError("Can't call");
+        break;
+      }
     }
     goto again;
   case RETURN:
@@ -378,7 +536,7 @@ void Vm::expandStack() {
   stackSize_ = newSize;
 }
 
-Svalue Vm::index(int s, int i) {
+Svalue Vm::index(int s, int i) const {
   assert(s - i - 1 >= 0);
   return stack_[s - i - 1];
 }
@@ -423,6 +581,14 @@ int Vm::restoreStack(Svalue v) {
     stack_[i] = vv->get(i);
   }
   return s;
+}
+
+int Vm::getArgNum() const {
+  return argNum_;
+}
+
+Svalue Vm::getArg(int index) const {
+  return this->index(stackPointer_, index);
 }
 
 }  // namespace yalp

@@ -29,6 +29,7 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_CLOSURE,
+  TT_NATIVEFUNC,
   TT_BOX,
   TT_VECTOR,
 };
@@ -89,6 +90,8 @@ public:
   // Object.
   Svalue objectValue(class Sobject* o)  { return Svalue(o); }
 
+  int getArgNum() const;
+  Svalue getArg(int index) const;
   void runtimeError(const char* msg);
 
 private:
