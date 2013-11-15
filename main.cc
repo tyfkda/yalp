@@ -1,5 +1,6 @@
 #include "read.hh"
 #include "yalp.hh"
+#include <fstream>
 #include <iostream>
 
 using namespace std;
@@ -9,13 +10,16 @@ int main(int argc, char* argv[]) {
   State* state = State::create();
 
   if (argc >= 2) {
-    Svalue v;
-    ReadError err = readFromFile(state, argv[1], &v);
-    if (err != SUCCESS) {
-      cerr << "Read error: " << err << endl;
-    } else {
-      cout << state->runBinary(v) << endl;
+    std::ifstream strm(argv[1]);
+    Reader reader(state, strm);
+
+    Svalue bin;
+    ReadError err;
+    while ((err = reader.read(&bin)) == SUCCESS) {
+      cout << state->runBinary(bin) << endl;
     }
+    if (err != END_OF_FILE)
+      cerr << "Read error: " << err << endl;
   } else {
     Svalue v = list3(state, state->fixnumValue(1), state->fixnumValue(2), state->fixnumValue(3));
     cout << v << endl;
