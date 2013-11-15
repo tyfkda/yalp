@@ -228,7 +228,7 @@
                       (index-set! s n (box (index s n)))
                       (VM a x f c s))
                  (TEST (then else)
-                       (VM a (if a then else) f c s))
+                       (VM a (if (true? a) then else) f c s))
                  (ASSIGN-LOCAL (n x)
                                (set-box! (index f n) a)
                                (VM a x f c s))
@@ -255,6 +255,9 @@
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
+
+(define (true? x)
+  (not (eq? x 'nil)))
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)

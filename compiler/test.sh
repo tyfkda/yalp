@@ -38,9 +38,9 @@ run t t 't'
 run quote abc '(quote abc)'
 run string '"string"' '"string"'
 run if-true 2 '(if 1 2 3)'
-run if-false 3 '(if #f 2 3)'
+run if-false 3 '(if nil 2 3)'
 run no-else 2 '(if 1 2)'
-run no-else2 nil '(if #f 2)'
+run no-else2 nil '(if nil 2)'
 run lambda-invoke 123 '((lambda (x) x) 123)'
 run multiple-exp 3 '((lambda ()
                          1
