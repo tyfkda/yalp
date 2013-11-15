@@ -77,6 +77,7 @@ public:
   Svalue t() const  { return t_; }
   bool isTrue(Svalue x) const  { return !x.eq(nil_); }
   bool isFalse(Svalue x) const  { return x.eq(nil_); }
+  Svalue boolValue(bool b) const  { return b ? t() : nil(); }
 
   // Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
