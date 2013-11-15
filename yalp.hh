@@ -73,6 +73,7 @@ public:
   Svalue runBinary(Svalue code);
 
   Svalue nil() const  { return nil_; }
+  Svalue t() const  { return t_; }
   bool isTrue(Svalue x) const  { return !x.eq(nil_); }
   bool isFalse(Svalue x) const  { return x.eq(nil_); }
 
@@ -99,6 +100,7 @@ private:
 
   SymbolManager* symbolManager_;
   Svalue nil_;
+  Svalue t_;
   Svalue quote_;
   Vm* vm_;
 };

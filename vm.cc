@@ -296,6 +296,9 @@ Vm::Vm(State* state)
 }
 
 void Vm::installNativeFunctions() {
+  assignGlobal(state_->nil(), state_->nil());
+  assignGlobal(state_->t(), state_->t());
+
   assignGlobal(state_->intern("cons"), new NativeFunc(s_cons));
   assignGlobal(state_->intern("car"), new NativeFunc(s_car));
   assignGlobal(state_->intern("cdr"), new NativeFunc(s_cdr));

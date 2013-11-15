@@ -384,6 +384,9 @@
 (use gauche.parseopt)
 
 (define (install-native-functions)
+  (assign-global! 'nil 'nil)
+  (assign-global! 't 't)
+
   (assign-global! 'cons cons)
   (assign-global! 'car car)
   (assign-global! 'cdr cdr)

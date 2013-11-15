@@ -89,6 +89,7 @@ State* State::create() {
 State::State()
   : symbolManager_(new SymbolManager())
   , nil_(symbolManager_->intern("nil"))
+  , t_(symbolManager_->intern("t"))
   , quote_(symbolManager_->intern("quote"))
   , vm_(NULL) {
   vm_ = Vm::create(this);

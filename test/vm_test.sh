@@ -34,6 +34,8 @@ function fail() {
 # Test cases.
 
 run integer 123 '123'
+run nil nil 'nil'
+run t t 't'
 run quote abc '(quote abc)'
 run if-true 2 '(if 1 2 3)'
 run if-false 3 '(if () 2 3)'
