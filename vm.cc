@@ -112,6 +112,17 @@ static Svalue s_div(State* state) {
   return state->fixnumValue(a);
 }
 
+static Svalue s_write(State* state) {
+  Svalue x = state->getArg(0);
+  std::cout << x;
+  return state->nil();
+}
+
+static Svalue s_newline(State* state) {
+  std::cout << std::endl;
+  return state->nil();
+}
+
 //=============================================================================
 
 enum Opcode {
@@ -308,6 +319,11 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
   assignGlobal(state_->intern("*"), new NativeFunc(s_mul));
   assignGlobal(state_->intern("/"), new NativeFunc(s_div));
+
+  assignGlobal(state_->intern("print"), new NativeFunc(s_write));
+  assignGlobal(state_->intern("display"), new NativeFunc(s_write));
+  assignGlobal(state_->intern("write"), new NativeFunc(s_write));
+  assignGlobal(state_->intern("newline"), new NativeFunc(s_newline));
 }
 
 Svalue Vm::run(Svalue code) {

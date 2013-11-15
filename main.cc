@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     Svalue bin;
     ReadError err;
     while ((err = reader.read(&bin)) == SUCCESS) {
-      cout << state->runBinary(bin) << endl;
+      state->runBinary(bin);
     }
     if (err != END_OF_FILE)
       cerr << "Read error: " << err << endl;

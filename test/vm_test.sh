@@ -14,7 +14,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(echo "$3" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
+  result=$(echo "(write ((lambda () $3)))" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
