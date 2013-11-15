@@ -23,7 +23,7 @@ function run() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" > $TEST_FILE_NAME && gosh compiler.scm $TEST_FILE_NAME 2>& /dev/null
+  echo "$2" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME 2>& /dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi
@@ -85,6 +85,7 @@ fail no-global '((lambda (x) y) 123)'
 # All tests succeeded.
 
 rm $TEST_FILE_NAME
+rm $BIN_FILE_NAME
 echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
 
 #
