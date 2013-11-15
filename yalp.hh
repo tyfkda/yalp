@@ -89,6 +89,8 @@ public:
   // Object.
   Svalue objectValue(class Sobject* o)  { return Svalue(o); }
 
+  void runtimeError(const char* msg);
+
 private:
   State();
 

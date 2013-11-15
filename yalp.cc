@@ -6,6 +6,7 @@
 #include "symbol_manager.hh"
 #include "vm.hh"
 #include <assert.h>
+#include <iostream>
 
 namespace yalp {
 
@@ -114,6 +115,10 @@ Svalue State::quote(Svalue x) {
   return list2(this, quote_, x);
 }
 
+void State::runtimeError(const char* msg) {
+  std::cerr << msg << std::endl;
+  exit(1);
+}
 
 //=============================================================================
 Sobject::~Sobject() {

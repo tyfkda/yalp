@@ -170,11 +170,6 @@ Svalue Vm::run(Svalue code) {
   return run(nil, code, 0, nil, 0);
 }
 
-void Vm::runtimeError(const char* msg) {
-  std::cerr << msg << std::endl;
-  exit(1);
-}
-
 Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
  again:
   //std::cout << "run: stack=" << s << ", x=" << x << std::endl;
@@ -216,7 +211,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       assert(sym.getType() == TT_SYMBOL);
       if (!referGlobal(sym, &a)) {
         std::cerr << sym << ": ";
-        runtimeError("Unbound");
+        state_->runtimeError("Unbound");
       }
     }
     goto again;
@@ -312,7 +307,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       }
 
       std::cerr << a << "(#" << argnum << ") ";
-      runtimeError("Can't call");
+      state_->runtimeError("Can't call");
     }
     goto again;
   case RETURN:
@@ -327,7 +322,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   default:
     std::cerr << op << ": ";
-    runtimeError("Unknown op");
+    state_->runtimeError("Unknown op");
     return a;
   }
 }
