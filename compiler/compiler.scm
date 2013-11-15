@@ -372,6 +372,14 @@
 (use file.util)
 (use gauche.parseopt)
 
+(define (convert f)
+  (lambda args
+    (let ((result (apply f args)))
+      (case result
+        ((#t) 't)
+        ((#f) 'nil)
+        (else result)))))
+
 (define (install-native-functions)
   (assign-global! 'nil 'nil)
   (assign-global! 't 't)
@@ -383,6 +391,14 @@
   (assign-global! '- -)
   (assign-global! '* *)
   (assign-global! '/ quotient)
+
+  (assign-global! 'eq (convert eq?))
+  (assign-global! 'equal (convert equal?))
+  (assign-global! '= (convert =))
+  (assign-global! '< (convert <))
+  (assign-global! '> (convert >))
+  (assign-global! '<= (convert <=))
+  (assign-global! '>= (convert >=))
 
   (assign-global! 'print print)
   (assign-global! 'display display)

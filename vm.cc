@@ -112,6 +112,72 @@ static Svalue s_div(State* state) {
   return state->fixnumValue(a);
 }
 
+static Svalue s_eq(State* state) {
+  Svalue a = state->getArg(0);
+  Svalue b = state->getArg(1);
+  return state->boolValue(a.eq(b));
+}
+
+static Svalue s_equal(State* state) {
+  Svalue a = state->getArg(0);
+  Svalue b = state->getArg(1);
+  return state->boolValue(a.equal(b));
+}
+
+template <class Comparator>
+Svalue compare(State* state, Comparator c) {
+  int n = state->getArgNum();
+  bool b = true;
+  if (n >= 1) {
+    Svalue x = state->getArg(0);
+    if (x.getType() != TT_FIXNUM) {
+      state->runtimeError("Fixnum expected");
+    }
+    Sfixnum xx = x.toFixnum();
+    for (int i = 1; i < n; ++i) {
+      Svalue y = state->getArg(i);
+      if (y.getType() != TT_FIXNUM) {
+        state->runtimeError("Fixnum expected");
+      }
+      Sfixnum yy = y.toFixnum();
+      if (!c.satisfy(xx, yy)) {
+        b = false;
+        break;
+      }
+      xx = yy;
+    }
+  }
+  return state->boolValue(b);
+}
+
+static Svalue s_lessThan(State* state) {
+  struct LessThan {
+    static bool satisfy(Sfixnum x, Sfixnum y) { return x < y; }
+  } comp;
+  return compare(state, comp);
+}
+
+static Svalue s_greaterThan(State* state) {
+  struct greaterThan {
+    static bool satisfy(Sfixnum x, Sfixnum y) { return x > y; }
+  } comp;
+  return compare(state, comp);
+}
+
+static Svalue s_lessEqual(State* state) {
+  struct LessThan {
+    static bool satisfy(Sfixnum x, Sfixnum y) { return x <= y; }
+  } comp;
+  return compare(state, comp);
+}
+
+static Svalue s_greaterEqual(State* state) {
+  struct greaterThan {
+    static bool satisfy(Sfixnum x, Sfixnum y) { return x >= y; }
+  } comp;
+  return compare(state, comp);
+}
+
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
   std::cout << x;
@@ -319,6 +385,13 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
   assignGlobal(state_->intern("*"), new NativeFunc(s_mul));
   assignGlobal(state_->intern("/"), new NativeFunc(s_div));
+
+  assignGlobal(state_->intern("eq"), new NativeFunc(s_eq));
+  assignGlobal(state_->intern("equal"), new NativeFunc(s_equal));
+  assignGlobal(state_->intern("<"), new NativeFunc(s_lessThan));
+  assignGlobal(state_->intern(">"), new NativeFunc(s_greaterThan));
+  assignGlobal(state_->intern("<="), new NativeFunc(s_lessEqual));
+  assignGlobal(state_->intern(">="), new NativeFunc(s_greaterEqual));
 
   assignGlobal(state_->intern("print"), new NativeFunc(s_write));
   assignGlobal(state_->intern("display"), new NativeFunc(s_write));
