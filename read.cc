@@ -31,6 +31,8 @@ public:
       return read(pValue);
     case '\'':
       return readQuote(pValue);
+    case '"':
+      return readString(c, pValue);
     case '#':
       return readSpecial(pValue);
     case EOF:
@@ -131,6 +133,24 @@ private:
     default:
       return ILLEGAL_CHAR;
     }
+  }
+
+  ReadError readString(char closeChar, Svalue* pValue) {
+    char buffer[256];
+    char* p = buffer;
+    int c;
+    for (;;) {
+      c = getc();
+      if (c == EOF)
+        return NO_CLOSE_STRING;
+      if (c == closeChar)
+        break;
+      *p++ = c;
+    }
+    *p++ = '\0';
+    assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
+    *pValue = state_->stringValue(buffer);
+    return SUCCESS;
   }
 
   void skipSpaces() {

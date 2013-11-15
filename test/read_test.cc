@@ -81,7 +81,15 @@ TEST_F(ReadTest, SharedStructure) {
   ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car())) << s;
 }
 
+TEST_F(ReadTest, String) {
+  Svalue s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, "\"string\"", &s));
+  ASSERT_FALSE(state_->stringValue("string").eq(s)) << s;
+  ASSERT_TRUE(state_->stringValue("string").equal(s)) << s;
+}
+
 TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, readFromString(state_, "(1 (2) 3", &s));
+  ASSERT_EQ(NO_CLOSE_STRING, readFromString(state_, "\"string", &s));
 }

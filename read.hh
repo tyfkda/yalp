@@ -13,6 +13,7 @@ enum ReadError {
   SUCCESS,
   END_OF_FILE,
   NO_CLOSE_PAREN,
+  NO_CLOSE_STRING,
   ILLEGAL_CHAR,
 };
 

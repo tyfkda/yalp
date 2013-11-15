@@ -28,6 +28,7 @@ enum Type {
   TT_FIXNUM,
   TT_SYMBOL,
   TT_CELL,
+  TT_STRING,
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_BOX,
@@ -91,6 +92,9 @@ public:
   // Object.
   Svalue objectValue(class Sobject* o)  { return Svalue(o); }
 
+  // String.
+  Svalue stringValue(const char* string);
+
   int getArgNum() const;
   Svalue getArg(int index) const;
   void runtimeError(const char* msg);
@@ -153,6 +157,21 @@ protected:
   Cell(Svalue a, Svalue d);
   Svalue car_;
   Svalue cdr_;
+
+  friend State;
+};
+
+// String class.
+class String : public Sobject {
+public:
+  virtual Type getType() const override;
+  virtual bool equal(const Sobject* target) const override;
+
+  virtual std::ostream& operator<<(std::ostream& o) const override;
+
+protected:
+  String(const char* string);
+  const char* string_;
 
   friend State;
 };

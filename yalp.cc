@@ -116,6 +116,10 @@ Svalue State::quote(Svalue x) {
   return list2(this, quote_, x);
 }
 
+Svalue State::stringValue(const char* string) {
+  return Svalue(new String(string));
+}
+
 int State::getArgNum() const {
   return vm_->getArgNum();
 }
@@ -176,6 +180,27 @@ void Cell::rplaca(Svalue a) {
 
 void Cell::rplacd(Svalue d) {
   cdr_ = d;
+}
+
+//=============================================================================
+
+String::String(const char* string)
+  : Sobject() {
+  int len = strlen(string);
+  char* buffer = new char[len + 1];
+  strcpy(buffer, string);
+  string_ = buffer;
+}
+
+Type String::getType() const  { return TT_STRING; }
+
+bool String::equal(const Sobject* target) const {
+  const String* p = static_cast<const String*>(target);
+  return strcmp(string_, p->string_) == 0;
+}
+
+std::ostream& String::operator<<(std::ostream& o) const {
+  return o << '"' << string_ << '"';
 }
 
 //=============================================================================
