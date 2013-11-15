@@ -20,8 +20,12 @@ public:
 
   Svalue run(Svalue code);
 
+  int getArgNum() const;
+  Svalue getArg(int index) const;
+
 private:
   Vm(State* state);
+  void installNativeFunctions();
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int n, int s);
@@ -29,7 +33,7 @@ private:
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);
-  Svalue index(int s, int i);
+  Svalue index(int s, int i) const;
   void indexSet(int s, int i, Svalue v);
   void expandStack();
   int shiftArgs(int n, int m, int s);
@@ -49,6 +53,10 @@ private:
 
   // Global variables
   std::map<long, Svalue> globalVariableTable_;
+
+  // For native function call.
+  int stackPointer_;
+  int argNum_;
 };
 
 }  // namespace yalp

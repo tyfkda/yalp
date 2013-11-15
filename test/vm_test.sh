@@ -65,6 +65,16 @@ run global-var 111 '((lambda ()
                           (set! global 111)))
                        global))'
 
+# Test native functions
+run cons '(1 . 2)' '(cons 1 2)'
+run car '1' "(car '(1 2 3))"
+run cdr '(2 3 . nil)' "(cdr '(1 2 3))"
+run + '15' '(+ 1 2 3 4 5)'
+run - '7' '(- 10 3)'
+run negate '-10' '(- 10)'
+run '*' '120' '(* 1 2 3 4 5)'
+run / '3' '(/ 10 3)'
+
 # Fail cases
 fail unbound 'abc'
 fail no-global '((lambda (x) y) 123)'

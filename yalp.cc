@@ -115,6 +115,14 @@ Svalue State::quote(Svalue x) {
   return list2(this, quote_, x);
 }
 
+int State::getArgNum() const {
+  return vm_->getArgNum();
+}
+
+Svalue State::getArg(int index) const {
+  return vm_->getArg(index);
+}
+
 void State::runtimeError(const char* msg) {
   std::cerr << msg << std::endl;
   exit(1);
