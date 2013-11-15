@@ -36,7 +36,7 @@ public:
     case EOF:
       return END_OF_FILE;
     default:
-      if (isalnum(c)) {
+      if (!isDelimiter(c)) {
         unget();
         *pValue = readSymbolOrNumber();
         return SUCCESS;

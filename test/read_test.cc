@@ -37,6 +37,8 @@ TEST_F(ReadTest, Symbol) {
   Svalue s;
   ASSERT_EQ(SUCCESS, readFromString(state_, "symbol", &s));
   ASSERT_TRUE(state_->intern("symbol").eq(s)) << s;
+  ASSERT_EQ(SUCCESS, readFromString(state_, "+=", &s));
+  ASSERT_TRUE(state_->intern("+=").eq(s)) << s;
 }
 
 TEST_F(ReadTest, List) {
