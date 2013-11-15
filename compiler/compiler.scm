@@ -107,23 +107,13 @@
      ((symbol? x) (if (set-member? x b) '() (list x)))
      ((pair? x)
       (record-case x
-                   (quote (obj) '())
                    (lambda (vars . bodies)
                      (find-frees bodies (set-union vars b)))
-                   (if (test then else)
-                       (set-union (find-free test b)
-                                  (set-union (find-free then b)
-                                             (find-free else b))))
-                   (set! (var exp)
-                         (set-union (if (set-member? var b) '() (list var))
-                                    (find-free exp b)))
-                   (call/cc (exp) (find-free exp b))
-                   (else
-                    (recur next ((x x))
-                           (if (null? x)
-                               '()
-                             (set-union (find-free (car x) b)
-                                        (next (cdr x))))))))
+                   (quote (obj) '())
+                   (if      all (find-frees all b))
+                   (set!    all (find-frees all b))
+                   (call/cc all (find-frees all b))
+                   (else        (find-frees x   b))))
      (else '()))))
 
 (define collect-free
@@ -144,28 +134,18 @@
 
 (define find-sets
   (lambda (x v)
-    (cond
-     ((symbol? x) '())
-     ((pair? x)
-      (record-case x
-                   (quote (obj) '())
-                   (lambda (vars body)
-                     (find-sets body (set-minus v vars)))
-                   (if (test then else)
-                       (set-union (find-sets test v)
-                                  (set-union (find-sets then v)
-                                             (find-sets else v))))
-                   (set! (var x)
-                         (set-union (if (set-member? var v) (list var) '())
-                                    (find-sets x v)))
-                   (call/cc (exp) (find-sets exp v))
-                   (else
-                    (recur next ((x x))
-                           (if (null? x)
-                               '()
-                             (set-union (find-sets (car x) v)
-                                        (next (cdr x))))))))
-     (else '()))))
+    (if (pair? x)
+        (record-case x
+                     (set! (var x)
+                           (set-union (if (set-member? var v) (list var) '())
+                                      (find-sets x v)))
+                     (lambda (vars . bodies)
+                       (find-setses bodies (set-minus v vars)))
+                     (quote   all '())
+                     (if      all (find-setses all v))
+                     (call/cc all (find-setses all v))
+                     (else        (find-setses x v)))
+      '())))
 
 (define make-boxes
   (lambda (sets vars next)
