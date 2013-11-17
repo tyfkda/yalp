@@ -44,7 +44,8 @@
                                   c
                                 (list 'FRAME next c))))
                    (defmacro (name vars . bodies)
-                     (compile-defmacro name vars bodies e s next))
+                     (register-macro name vars bodies)
+                     (compile `(quote ,name) e s next))
                    (else
                     (let ((func (car x))
                           (args (cdr x)))
@@ -193,11 +194,10 @@
 ;; Macro hash table, (symbol => closure)
 (define *macro-table* (make-hash-table))
 
-(define (compile-defmacro name vars bodies e s next)
+(define (register-macro name vars bodies)
   "Compile (defmacro name (vars ...) bodies) syntax."
   (let ((closure (evaluate `(lambda ,vars ,@bodies))))
-    (hash-table-put! *macro-table* name closure)
-    (compile `(quote ,name) e s next)))
+    (hash-table-put! *macro-table* name closure)))
 
 (define (macro? name)
   "Whther the given name is macro."
