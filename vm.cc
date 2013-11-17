@@ -34,6 +34,31 @@ static Svalue s_cdr(State* state) {
   return static_cast<Cell*>(cell.toObject())->cdr();
 }
 
+static Svalue s_list(State* state) {
+  int n = state->getArgNum();
+  Svalue res = state->nil();
+  for (int i = n; --i >= 0; ) {
+    Svalue a = state->getArg(i);
+    res = state->cons(a, res);
+  }
+  return res;
+}
+
+static Svalue s_listStar(State* state) {
+  int n = state->getArgNum();
+  Svalue res;
+  if (n <= 0) {
+    res = state->nil();
+  } else {
+    res = state->getArg(n - 1);
+    for (int i = n - 1; --i >= 0; ) {
+      Svalue a = state->getArg(i);
+      res = state->cons(a, res);
+    }
+  }
+  return res;
+}
+
 static Svalue s_add(State* state) {
   int n = state->getArgNum();
   Sfixnum a = 0;
@@ -381,6 +406,8 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->intern("cons"), new NativeFunc(s_cons));
   assignGlobal(state_->intern("car"), new NativeFunc(s_car));
   assignGlobal(state_->intern("cdr"), new NativeFunc(s_cdr));
+  assignGlobal(state_->intern("list"), new NativeFunc(s_list));
+  assignGlobal(state_->intern("list*"), new NativeFunc(s_listStar));
   assignGlobal(state_->intern("+"), new NativeFunc(s_add));
   assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
   assignGlobal(state_->intern("*"), new NativeFunc(s_mul));

@@ -390,6 +390,8 @@
   (assign-global! 'cons cons)
   (assign-global! 'car car)
   (assign-global! 'cdr cdr)
+  (assign-global! 'list list)
+  (assign-global! 'list* list*)
   (assign-global! '+ +)
   (assign-global! '- -)
   (assign-global! '* *)
