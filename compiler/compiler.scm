@@ -43,10 +43,14 @@
                               (if (tail? next)
                                   c
                                 (list 'FRAME next c))))
+                   (defmacro (name vars . bodies)
+                     (compile-defmacro name vars bodies e s next))
                    (else
                     (let ((func (car x))
                           (args (cdr x)))
-                      (compile-apply func args e s next)))))
+                      (if (macro? func)
+                          (compile-apply-macro func args e s next)
+                        (compile-apply func args e s next))))))
      (else (list 'CONSTANT x next)))))
 
 (define (compile-undef e s next)
@@ -106,13 +110,14 @@
     (cond
      ((symbol? x) (if (set-member? x b) '() (list x)))
      ((pair? x)
-      (record-case x
+      (record-case (expand-macro-if-so x)
                    (lambda (vars . bodies)
                      (find-frees bodies (set-union vars b)))
                    (quote (obj) '())
                    (if      all (find-frees all b))
                    (set!    all (find-frees all b))
                    (call/cc all (find-frees all b))
+                   (defmacro all '())
                    (else        (find-frees x   b))))
      (else '()))))
 
@@ -135,7 +140,7 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (record-case x
+        (record-case (expand-macro-if-so x)
                      (set! (var x)
                            (set-union (if (set-member? var v) (list var) '())
                                       (find-sets x v)))
@@ -144,6 +149,7 @@
                      (quote   all '())
                      (if      all (find-setses all v))
                      (call/cc all (find-setses all v))
+                     (defmacro all '())
                      (else        (find-setses x v)))
       '())))
 
@@ -182,6 +188,53 @@
   (lambda (next)
     (eq? (car next) 'RETURN)))
 
+;;; Macro
+
+;; Macro hash table, (symbol => closure)
+(define *macro-table* (make-hash-table))
+
+(define (compile-defmacro name vars bodies e s next)
+  "Compile (defmacro name (vars ...) bodies) syntax."
+  (let ((closure (evaluate `(lambda ,vars ,@bodies))))
+    (hash-table-put! *macro-table* name closure)
+    (compile `(quote ,name) e s next)))
+
+(define (macro? name)
+  "Whther the given name is macro."
+  (hash-table-exists? *macro-table* name))
+
+(define (compile-apply-macro name args e s next)
+  "Expand macro and compile the result."
+  (let ((result (expand-macro name args)))
+    (compile result e s next)))
+
+(define (expand-macro name args)
+  (define (push-args args s)
+    (let loop ((rargs (reverse args))
+               (s s))
+      (if (null? rargs)
+          s
+        (loop (cdr rargs)
+              (push (car rargs) s)))))
+  (define (apply-macro closure s)
+    (do-apply s closure s))
+
+  "Expand macro."
+  (let ((closure (hash-table-get *macro-table* name)))
+    (apply-macro closure
+                 (push-args args
+                            (make-frame '(HALT) 0 '() 0)))))
+
+(define (expand-macro-if-so x)
+  "Expand macro all if the given parameter is macro expression,
+   otherwise return itself."
+  (if (and (pair? x)
+           (macro? (car x)))
+      (let ((expanded (expand-macro (car x) (cdr x))))
+        (if (equal? expanded x)
+            x
+          (expand-macro-if-so x)))
+    x))
 
 ;;;; runtime
 
@@ -243,7 +296,7 @@
                  (NUATE (stack x)
                         (VM a x f c (restore-stack stack)))
                  (FRAME (ret x)
-                        (VM a x f c (push ret (push f (push c s)))))
+                        (VM a x f c (make-frame ret f c s)))
                  (ARGUMENT (x)
                            (VM a x f c (push a s)))
                  (SHIFT (n m x)
@@ -255,6 +308,9 @@
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
+
+(define (make-frame ret f c s)
+  (push ret (push f (push c s))))
 
 (define (true? x)
   (not (eq? x 'nil)))
