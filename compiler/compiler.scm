@@ -233,7 +233,7 @@
       (let ((expanded (expand-macro (car x) (cdr x))))
         (if (equal? expanded x)
             x
-          (expand-macro-if-so x)))
+          (expand-macro-if-so expanded)))
     x))
 
 ;;;; runtime
