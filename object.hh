@@ -1,5 +1,12 @@
 //=============================================================================
 /// object
+/**
+
+Derived classes should hide their destructor,
+and thier destructor should do nothing,
+because yalp uses GC and destructor is not called.
+
+ */
 //=============================================================================
 
 #ifndef _VALUE_HH_
@@ -14,11 +21,14 @@ namespace yalp {
 // Base class.
 class Sobject {
 public:
-  virtual ~Sobject();
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
 
   virtual std::ostream& operator<<(std::ostream& o) const = 0;
+
+protected:
+  // Prevent to call destructor from outside.
+  ~Sobject()  {}
 };
 
 inline std::ostream& operator<<(std::ostream& o, Sobject& object) {
@@ -36,6 +46,8 @@ public:
 
 protected:
   Symbol(const char* name);
+  ~Symbol()  {}
+private:
   const char* name_;
 
   friend class SymbolManager;
@@ -56,6 +68,8 @@ public:
 
 protected:
   Cell(Svalue a, Svalue d);
+  ~Cell()  {}
+private:
   Svalue car_;
   Svalue cdr_;
 
@@ -72,6 +86,8 @@ public:
 
 protected:
   String(const char* string);
+  ~String()  {}
+private:
   const char* string_;
 
   friend State;

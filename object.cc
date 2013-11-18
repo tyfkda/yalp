@@ -79,9 +79,6 @@ bool Svalue::equal(Svalue target) const {
 }
 
 //=============================================================================
-Sobject::~Sobject() {
-}
-
 bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
