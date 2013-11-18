@@ -88,17 +88,14 @@ public:
   // Create cell.
   Svalue cons(Svalue a, Svalue d);
 
-  Svalue quote(Svalue x);
-
-  // Object.
-  Svalue objectValue(class Sobject* o)  { return Svalue(o); }
-
   // String.
   Svalue stringValue(const char* string);
 
   int getArgNum() const;
   Svalue getArg(int index) const;
   void runtimeError(const char* msg);
+
+  Svalue quote(Svalue x);
 
 private:
   State();
