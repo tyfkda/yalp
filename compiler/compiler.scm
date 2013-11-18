@@ -23,7 +23,8 @@
                                            (compile-undef e s next))
                                           ((null? (cdr rest))
                                            (compile (car rest) e s next))
-                                          (else (error "malformed if")))))
+                                          (else
+                                           (compile `(if ,@rest) e s next)))))
                          (compile test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
