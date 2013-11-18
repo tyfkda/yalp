@@ -3,7 +3,7 @@
 //=============================================================================
 
 #include "vm.hh"
-#include "yalp.hh"
+#include "object.hh"
 #include <assert.h>
 #include <iostream>
 

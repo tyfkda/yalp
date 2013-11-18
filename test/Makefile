@@ -29,7 +29,7 @@ CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = symbol_manager_test read_test yalp_test
+TESTS = symbol_manager_test object_test read_test yalp_test
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -88,13 +88,16 @@ run-tests:	$(TESTS)
 	  "./$$test"; \
 	done
 
-symbol_manager_test:	symbol_manager_test.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+object_test:	object_test.o $(USER_DIR)/object.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/vm.o gtest_main.a
+read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+
+yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 vm-test:

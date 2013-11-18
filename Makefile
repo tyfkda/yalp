@@ -2,6 +2,7 @@ PROJECT=yalp
 
 OBJS=\
 	main.o\
+	object.o\
 	read.o\
 	symbol_manager.o\
 	vm.o\
