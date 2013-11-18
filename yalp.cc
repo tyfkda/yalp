@@ -6,9 +6,81 @@
 #include "object.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
+#include <assert.h>
 #include <iostream>
 
 namespace yalp {
+
+const Sfixnum TAG_SHIFT = 2;
+const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Sfixnum TAG_FIXNUM = 0;
+const Sfixnum TAG_OBJECT = 1;
+
+//=============================================================================
+Svalue::Svalue() : v_(TAG_OBJECT) {
+  // Initialized to illegal value.
+}
+
+Svalue::Svalue(Sfixnum i)
+  : v_(reinterpret_cast<Sfixnum>(i << TAG_SHIFT) | TAG_FIXNUM) {}
+
+Svalue::Svalue(class Sobject* object)
+  : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
+
+Type Svalue::getType() const {
+  switch (v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return TT_UNKNOWN;
+  case TAG_FIXNUM:
+    return TT_FIXNUM;
+  case TAG_OBJECT:
+    return toObject()->getType();
+  }
+}
+
+std::ostream& operator<<(std::ostream& o, Svalue v) {
+  switch (v.v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return o;
+  case TAG_FIXNUM:
+    o << v.toFixnum();
+    return o;
+  case TAG_OBJECT:
+    return o << *v.toObject();
+  }
+}
+
+Sfixnum Svalue::toFixnum() const {
+  assert((v_ & TAG_MASK) == TAG_FIXNUM);
+  assert(TAG_FIXNUM == 0);
+  return reinterpret_cast<Sfixnum>(v_ >> TAG_SHIFT);
+}
+
+Sobject* Svalue::toObject() const {
+  assert((v_ & TAG_MASK) == TAG_OBJECT);
+  return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
+}
+
+bool Svalue::equal(Svalue target) const {
+  switch (v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return false;
+  case TAG_FIXNUM:
+    return eq(target);
+  case TAG_OBJECT:
+    {
+      Type t1 = getType();
+      Type t2 = target.getType();
+      if (t1 != t2)
+        return false;
+
+      return toObject()->equal(target.toObject());
+    }
+  }
+}
 
 //=============================================================================
 State* State::create() {
