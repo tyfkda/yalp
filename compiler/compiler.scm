@@ -452,6 +452,8 @@
   (assign-native! 'cdr cdr)
   (assign-native! 'list list)
   (assign-native! 'list* list*)
+  (assign-native! 'consp pair?)
+  (assign-native! 'append append)
   (assign-native! '+ +)
   (assign-native! '- -)
   (assign-native! '* *)

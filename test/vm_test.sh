@@ -76,6 +76,8 @@ run car '1' "(car '(1 2 3))"
 run cdr '(2 3 . nil)' "(cdr '(1 2 3))"
 run list '(1 2 (3 4 . nil) . nil)' "(list 1 2 '(3 4))"
 run 'list*' '(1 2 3 4 . nil)' "(list* 1 2 '(3 4))"
+run consp 't' "(consp '(1 2))"
+run append '(1 2 3 4 5 6 . nil)' "(append '(1 2) '(3 4) '(5 6))"
 run + '15' '(+ 1 2 3 4 5)'
 run - '7' '(- 10 3)'
 run negate '-10' '(- 10)'

@@ -59,6 +59,34 @@ static Svalue s_listStar(State* state) {
   return res;
 }
 
+static Svalue s_consp(State* state) {
+  Svalue a = state->getArg(0);
+  return state->boolValue(a.getType() == TT_CELL);
+}
+
+static Svalue s_append(State* state) {
+  int n = state->getArgNum();
+  Svalue res;
+  if (n <= 0) {
+    res = state->nil();
+  } else {
+    res = state->getArg(n - 1);
+    struct Local {
+      static Svalue loop(State* state, Svalue a, Svalue d) {
+        if (a.getType() != TT_CELL)
+          return d;
+        Cell* cell = static_cast<Cell*>(a.toObject());
+        return state->cons(cell->car(), loop(state, cell->cdr(), d));
+      }
+    };
+    for (int i = n - 1; --i >= 0; ) {
+      Svalue a = state->getArg(i);
+      res = Local::loop(state, a, res);
+    }
+  }
+  return res;
+}
+
 static Svalue s_add(State* state) {
   int n = state->getArgNum();
   Sfixnum a = 0;
@@ -408,6 +436,8 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->intern("cdr"), new NativeFunc(s_cdr));
   assignGlobal(state_->intern("list"), new NativeFunc(s_list));
   assignGlobal(state_->intern("list*"), new NativeFunc(s_listStar));
+  assignGlobal(state_->intern("consp"), new NativeFunc(s_consp));
+  assignGlobal(state_->intern("append"), new NativeFunc(s_append));
   assignGlobal(state_->intern("+"), new NativeFunc(s_add));
   assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
   assignGlobal(state_->intern("*"), new NativeFunc(s_mul));
