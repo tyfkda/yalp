@@ -12,6 +12,8 @@ namespace yalp {
 class State;
 class Svalue;
 
+typedef Svalue (*NativeFuncType)(State* state);
+
 // Vm class.
 class Vm {
 public:
@@ -40,6 +42,7 @@ private:
 
   bool referGlobal(Svalue sym, Svalue* pValue);
   void assignGlobal(Svalue sym, Svalue value);
+  void assignNative(const char* name, NativeFuncType func);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);

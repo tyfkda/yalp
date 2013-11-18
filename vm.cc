@@ -311,7 +311,6 @@ protected:
 };
 
 // Native function class.
-typedef Svalue (*NativeFuncType)(State* state);
 class NativeFunc : public Sobject {
 public:
   NativeFunc(NativeFuncType func)
@@ -431,29 +430,33 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->nil(), state_->nil());
   assignGlobal(state_->t(), state_->t());
 
-  assignGlobal(state_->intern("cons"), Svalue(new NativeFunc(s_cons)));
-  assignGlobal(state_->intern("car"), Svalue(new NativeFunc(s_car)));
-  assignGlobal(state_->intern("cdr"), Svalue(new NativeFunc(s_cdr)));
-  assignGlobal(state_->intern("list"), Svalue(new NativeFunc(s_list)));
-  assignGlobal(state_->intern("list*"), Svalue(new NativeFunc(s_listStar)));
-  assignGlobal(state_->intern("consp"), Svalue(new NativeFunc(s_consp)));
-  assignGlobal(state_->intern("append"), Svalue(new NativeFunc(s_append)));
-  assignGlobal(state_->intern("+"), Svalue(new NativeFunc(s_add)));
-  assignGlobal(state_->intern("-"), Svalue(new NativeFunc(s_sub)));
-  assignGlobal(state_->intern("*"), Svalue(new NativeFunc(s_mul)));
-  assignGlobal(state_->intern("/"), Svalue(new NativeFunc(s_div)));
+  assignNative("cons", s_cons);
+  assignNative("car", s_car);
+  assignNative("cdr", s_cdr);
+  assignNative("list", s_list);
+  assignNative("list*", s_listStar);
+  assignNative("consp", s_consp);
+  assignNative("append", s_append);
+  assignNative("+", s_add);
+  assignNative("-", s_sub);
+  assignNative("*", s_mul);
+  assignNative("/", s_div);
 
-  assignGlobal(state_->intern("eq"), Svalue(new NativeFunc(s_eq)));
-  assignGlobal(state_->intern("equal"), Svalue(new NativeFunc(s_equal)));
-  assignGlobal(state_->intern("<"), Svalue(new NativeFunc(s_lessThan)));
-  assignGlobal(state_->intern(">"), Svalue(new NativeFunc(s_greaterThan)));
-  assignGlobal(state_->intern("<="), Svalue(new NativeFunc(s_lessEqual)));
-  assignGlobal(state_->intern(">="), Svalue(new NativeFunc(s_greaterEqual)));
+  assignNative("eq", s_eq);
+  assignNative("equal", s_equal);
+  assignNative("<", s_lessThan);
+  assignNative(">", s_greaterThan);
+  assignNative("<=", s_lessEqual);
+  assignNative(">=", s_greaterEqual);
 
-  assignGlobal(state_->intern("print"), Svalue(new NativeFunc(s_write)));
-  assignGlobal(state_->intern("display"), Svalue(new NativeFunc(s_write)));
-  assignGlobal(state_->intern("write"), Svalue(new NativeFunc(s_write)));
-  assignGlobal(state_->intern("newline"), Svalue(new NativeFunc(s_newline)));
+  assignNative("print", s_write);
+  assignNative("display", s_write);
+  assignNative("write", s_write);
+  assignNative("newline", s_newline);
+}
+
+void Vm::assignNative(const char* name, NativeFuncType func) {
+  assignGlobal(state_->intern(name), Svalue(new NativeFunc(func)));
 }
 
 Svalue Vm::run(Svalue code) {
