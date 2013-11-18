@@ -3,6 +3,7 @@
 
 yalp
 
+test/object_test
 test/symbol_manager_test
 test/read_test
 test/yalp_test
