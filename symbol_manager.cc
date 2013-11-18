@@ -9,28 +9,24 @@
 
 namespace yalp {
 
-Symbol* symbol(Svalue s) {
-  assert(s.getType() == TT_SYMBOL);
-  return static_cast<Symbol*>(s.toObject());
-};
-
 SymbolManager::SymbolManager()
   : table_() {
 }
 
 SymbolManager::~SymbolManager() {
-  for (auto key : table_)
-    delete[] symbol(key)->c_str();
+  for (auto symbol : table_)
+    delete[] symbol->c_str();
 }
 
-Svalue SymbolManager::intern(const char* name) {
-  for (auto v : table_)
-    if (strcmp(symbol(v)->c_str(), name) == 0)
-      return v;
+Symbol* SymbolManager::intern(const char* name) {
+  for (auto symbol : table_)
+    if (strcmp(symbol->c_str(), name) == 0)
+      return symbol;
 
   const char* copied = copyString(name);
-  table_.push_back(Svalue(new Symbol(copied)));
-  return table_[table_.size() - 1];
+  Symbol* symbol = new Symbol(copied);
+  table_.push_back(symbol);
+  return symbol;
 }
 
 const char* SymbolManager::copyString(const char* name) {

@@ -104,7 +104,7 @@ Svalue State::runBinary(Svalue code) {
 }
 
 Svalue State::intern(const char* name) {
-  return symbolManager_->intern(name);
+  return Svalue(symbolManager_->intern(name));
 }
 
 Svalue State::cons(Svalue a, Svalue d) {

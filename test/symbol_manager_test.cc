@@ -9,6 +9,7 @@ protected:
 };
 
 TEST_F(SymbolManagerTest, Fixnum) {
-  Svalue symbol = symbolManager_.intern("symbol");
-  ASSERT_TRUE(symbolManager_.intern("symbol").eq(symbol));
+  Symbol* symbol1 = symbolManager_.intern("symbol");
+  Symbol* symbol2 = symbolManager_.intern("symbol");
+  ASSERT_EQ(symbol1, symbol2);
 }
