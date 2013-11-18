@@ -14,7 +14,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(echo "(write ((lambda () $3)))" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
+  result=$(echo "(write ((^() $3)))" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
@@ -42,31 +42,31 @@ run if-true 2 '(if 1 2 3)'
 run if-false 3 '(if nil 2 3)'
 run no-else 2 '(if 1 2)'
 run no-else2 nil '(if nil 2)'
-run lambda-invoke 123 '((lambda (x) x) 123)'
-run multiple-exp 3 '((lambda ()
-                         1
-                         2
-                         3)
-                       )'
-run set-local 111 '((lambda (x)
+run lambda-invoke 123 '((^(x) x) 123)'
+run multiple-exp 3 '((^()
+                       1
+                       2
+                       3)
+                     )'
+run set-local 111 '((^(x)
                       (set! x 111)
                       x)
                     123)'
-run closure 1 '(((lambda (x)
-                   (lambda (y)
+run closure 1 '(((^(x)
+                   (^(y)
                      x))
                  1)
                 2)'
-run closure-set 23 '((lambda (x)
-                       ((lambda ()
+run closure-set 23 '((^(x)
+                       ((^()
                           (set! x 23)))
                        x)
                      1)'
 run call/cc 123 '(call/cc
-                   (lambda (cc)
+                   (^(cc)
                      (cc 123)))'
-run global-var 111 '((lambda ()
-                       ((lambda ()
+run global-var 111 '((^()
+                       ((^()
                           (set! global 111)))
                        global))'
 
@@ -94,7 +94,7 @@ run '>=' t '(>= 2 2)'
 
 # Fail cases
 fail unbound 'abc'
-fail no-global '((lambda (x) y) 123)'
+fail no-global '((^(x) y) 123)'
 
 ################################################################
 # All tests succeeded.
