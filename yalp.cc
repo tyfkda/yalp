@@ -118,7 +118,11 @@ Svalue State::quote(Svalue x) {
 }
 
 Svalue State::stringValue(const char* string) {
-  return Svalue(new String(string));
+  int len = strlen(string);
+  char* copiedString = new char[len + 1];
+  strcpy(copiedString, string);
+
+  return Svalue(new String(copiedString));
 }
 
 int State::getArgNum() const {

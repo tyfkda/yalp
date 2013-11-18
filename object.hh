@@ -85,6 +85,7 @@ public:
   virtual std::ostream& operator<<(std::ostream& o) const override;
 
 protected:
+  // The given string is allocated in heap and be taken ownership.
   String(const char* string);
   ~String()  {}
 private:

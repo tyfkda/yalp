@@ -55,11 +55,8 @@ void Cell::rplacd(Svalue d) {
 //=============================================================================
 
 String::String(const char* string)
-  : Sobject() {
-  int len = strlen(string);
-  char* buffer = new char[len + 1];
-  strcpy(buffer, string);
-  string_ = buffer;
+  : Sobject()
+  , string_(string) {
 }
 
 Type String::getType() const  { return TT_STRING; }
