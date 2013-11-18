@@ -11,7 +11,7 @@ void runBinary(State* state, std::istream& istrm) {
   
   Svalue bin;
   ReadError err;
-  while ((err = reader.read(&bin)) == SUCCESS) {
+  while ((err = reader.read(&bin)) == READ_SUCCESS) {
     state->runBinary(bin);
   }
   if (err != END_OF_FILE)

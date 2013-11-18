@@ -12,7 +12,7 @@
 namespace yalp {
 
 enum ReadError {
-  SUCCESS,
+  READ_SUCCESS,
   END_OF_FILE,
   NO_CLOSE_PAREN,
   NO_CLOSE_STRING,

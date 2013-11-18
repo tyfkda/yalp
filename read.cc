@@ -42,7 +42,7 @@ ReadError Reader::read(Svalue* pValue) {
     if (!isDelimiter(c)) {
       putback(c);
       *pValue = readSymbolOrNumber();
-      return SUCCESS;
+      return READ_SUCCESS;
     }
     return ILLEGAL_CHAR;
   }
@@ -74,14 +74,14 @@ ReadError Reader::readList(Svalue* pValue) {
   ReadError err;
   for (;;) {
     err = read(&v);
-    if (err != SUCCESS)
+    if (err != READ_SUCCESS)
       break;
     value = state_->cons(v, value);
   }
   
   if (err == CLOSE_PAREN) {
     *pValue = nreverse(state_, value);
-    return SUCCESS;
+    return READ_SUCCESS;
   } else if (err == END_OF_FILE) {
     *pValue = nreverse(state_, value);
     return NO_CLOSE_PAREN;
@@ -92,7 +92,7 @@ ReadError Reader::readList(Svalue* pValue) {
 
 ReadError Reader::readQuote(Svalue* pValue) {
   ReadError err = read(pValue);
-  if (err == SUCCESS) {
+  if (err == READ_SUCCESS) {
     *pValue = state_->quote(*pValue);
   }
   return err;
@@ -117,10 +117,10 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   case '=':
     {
       ReadError err = read(pValue);
-      if (err != SUCCESS)
+      if (err != READ_SUCCESS)
         return err;
       storeShared(n, *pValue);
-      return SUCCESS;
+      return READ_SUCCESS;
     }
   case '#':
     {
@@ -128,7 +128,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
       if (it == sharedStructures_->end())
         return ILLEGAL_CHAR;
       *pValue = it->second;
-      return SUCCESS;
+      return READ_SUCCESS;
     }
   default:
     return ILLEGAL_CHAR;
@@ -150,7 +150,7 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
   *p++ = '\0';
   assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
   *pValue = state_->stringValue(buffer);
-  return SUCCESS;
+  return READ_SUCCESS;
 }
 
 void Reader::storeShared(int id, Svalue value) {
