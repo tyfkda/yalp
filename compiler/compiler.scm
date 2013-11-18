@@ -15,7 +15,7 @@
      ((pair? x)
       (record-case x
                    (quote (obj) (list 'CONSTANT obj next))
-                   (lambda (vars . bodies)
+                   (^ (vars . bodies)
                      (compile-lambda vars bodies e s next))
                    (if (test then . rest)
                        (let ((thenc (compile then e s next))
@@ -23,7 +23,8 @@
                                            (compile-undef e s next))
                                           ((null? (cdr rest))
                                            (compile (car rest) e s next))
-                                          (else (error "malformed if")))))
+                                          (else
+                                           (compile `(if ,@rest) e s next)))))
                          (compile test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
@@ -112,8 +113,8 @@
      ((symbol? x) (if (set-member? x b) '() (list x)))
      ((pair? x)
       (record-case (expand-macro-if-so x)
-                   (lambda (vars . bodies)
-                     (find-frees bodies (set-union vars b)))
+                   (^ (vars . bodies)
+                       (find-frees bodies (set-union vars b)))
                    (quote (obj) '())
                    (if      all (find-frees all b))
                    (set!    all (find-frees all b))
@@ -145,8 +146,8 @@
                      (set! (var x)
                            (set-union (if (set-member? var v) (list var) '())
                                       (find-sets x v)))
-                     (lambda (vars . bodies)
-                       (find-setses bodies (set-minus v vars)))
+                     (^ (vars . bodies)
+                         (find-setses bodies (set-minus v vars)))
                      (quote   all '())
                      (if      all (find-setses all v))
                      (call/cc all (find-setses all v))
@@ -196,7 +197,7 @@
 
 (define (register-macro name vars bodies)
   "Compile (defmacro name (vars ...) bodies) syntax."
-  (let ((closure (evaluate `(lambda ,vars ,@bodies))))
+  (let ((closure (evaluate `(^ ,vars ,@bodies))))
     (hash-table-put! *macro-table* name closure)))
 
 (define (macro? name)
