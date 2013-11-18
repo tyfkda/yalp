@@ -40,7 +40,7 @@ ReadError Reader::read(Svalue* pValue) {
     return END_OF_FILE;
   default:
     if (!isDelimiter(c)) {
-      unget();
+      putback(c);
       *pValue = readSymbolOrNumber();
       return SUCCESS;
     }
@@ -58,7 +58,7 @@ Svalue Reader::readSymbolOrNumber() {
       hasSymbolChar = true;
     *p++ = c;
   }
-  unget();
+  putback(c);
   *p++ = '\0';
   assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
   
@@ -158,24 +158,25 @@ void Reader::storeShared(int id, Svalue value) {
 }
 
 void Reader::skipSpaces() {
-  while (isSpace(getc()))
+  int c;
+  while (isSpace(c = getc()))
     ;
-  unget();
+  putback(c);
 }
 
 void Reader::skipUntilNextLine() {
   int c;
   while (c = getc(), c != '\n' && c != EOF)
     ;
-  unget();
+  putback(c);
 }
 
 int Reader::getc() {
   return istrm_.get();
 }
 
-void Reader::unget() {
-  istrm_.unget();
+void Reader::putback(char c) {
+  istrm_.putback(c);
 }
 
 bool Reader::isSpace(char c) {

@@ -36,7 +36,7 @@ private:
   void skipSpaces();
   void skipUntilNextLine();
   int getc();
-  void unget();
+  void putback(char c);
   static bool isSpace(char c);
   static bool isDelimiter(char c);
 
