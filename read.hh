@@ -24,6 +24,7 @@ public:
   Reader(State* state, std::istream& istrm);
   ~Reader();
 
+  // Reads one s-expression from stream.
   ReadError read(Svalue* pValue);
 
 private:

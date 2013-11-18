@@ -71,30 +71,38 @@ public:
   static State* create();
   virtual ~State();
 
+  // Execute compiled code.
   Svalue runBinary(Svalue code);
 
   Svalue nil() const  { return nil_; }
   Svalue t() const  { return t_; }
   bool isTrue(Svalue x) const  { return !x.eq(nil_); }
   bool isFalse(Svalue x) const  { return x.eq(nil_); }
+
+  // Converts C++ bool value to lisp bool value.
   Svalue boolValue(bool b) const  { return b ? t() : nil(); }
 
-  // Fixnum.
+  // Converts C++ int value to lisp Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
 
-  // Create symbol.
+  // Returns symbol value.
   Svalue intern(const char* name);
 
-  // Create cell.
+  // Creates cell.
   Svalue cons(Svalue a, Svalue d);
 
-  // String.
+  // Converts C string to lisp String.
   Svalue stringValue(const char* string);
 
+  // Gets argument number for current native function.
   int getArgNum() const;
+  // Gets argument value for the index.
   Svalue getArg(int index) const;
+
+  // Raises runtime error.
   void runtimeError(const char* msg);
 
+  // Wrap a value with quote.
   Svalue quote(Svalue x);
 
 private:

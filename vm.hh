@@ -20,9 +20,12 @@ public:
   static Vm* create(State* state);
   virtual ~Vm();
 
+  // Execute compiled code.
   Svalue run(Svalue code);
 
+  // Gets argument number for current native function.
   int getArgNum() const;
+  // Gets argument value for the index.
   Svalue getArg(int index) const;
 
 private:
