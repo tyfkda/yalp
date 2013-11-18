@@ -5,6 +5,7 @@
 #ifndef _SYMBOL_MANAGER_HH_
 #define _SYMBOL_MANAGER_HH_
 
+#include "mem.hh"
 #include <vector>
 
 namespace yalp {
@@ -13,14 +14,18 @@ class Symbol;
 
 class SymbolManager {
 public:
-  SymbolManager();
-  ~SymbolManager();
+  static SymbolManager* create(Allocator* allocator);
+  // Delete.
+  void release();
 
   Symbol* intern(const char* name);
 
 private:
-  static const char* copyString(const char* name);
+  SymbolManager(Allocator* allocator);
+  ~SymbolManager();
+  const char* copyString(const char* name);
 
+  Allocator* allocator_;
   std::vector<Symbol*> table_;
 };
 

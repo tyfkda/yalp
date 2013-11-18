@@ -9,13 +9,28 @@
 
 namespace yalp {
 
-SymbolManager::SymbolManager()
-  : table_() {
+SymbolManager* SymbolManager::create(Allocator* allocator) {
+  void* memory = allocator->alloc(sizeof(SymbolManager));
+  return new(memory) SymbolManager(allocator);
+}
+
+void SymbolManager::release() {
+  Allocator* allocator = allocator_;
+  this->~SymbolManager();
+  allocator->free(this);
+}
+
+SymbolManager::SymbolManager(Allocator* allocator)
+  : allocator_(allocator)
+  , table_() {
+  table_.reserve(100);
 }
 
 SymbolManager::~SymbolManager() {
-  for (auto symbol : table_)
-    delete[] symbol->c_str();
+  for (auto symbol : table_) {
+    allocator_->free(const_cast<char*>(symbol->c_str()));
+    allocator_->free(symbol);
+  }
 }
 
 Symbol* SymbolManager::intern(const char* name) {
@@ -24,14 +39,15 @@ Symbol* SymbolManager::intern(const char* name) {
       return symbol;
 
   const char* copied = copyString(name);
-  Symbol* symbol = new Symbol(copied);
+  void* memory = allocator_->alloc(sizeof(Symbol));
+  Symbol* symbol = new(memory) Symbol(copied);
   table_.push_back(symbol);
   return symbol;
 }
 
 const char* SymbolManager::copyString(const char* name) {
   int len = strlen(name);
-  char* copied = new char[len + 1];
+  char* copied = static_cast<char*>(allocator_->alloc(len + 1));
   memcpy(copied, name, len);
   copied[len] = '\0';
   return copied;

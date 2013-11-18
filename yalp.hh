@@ -17,6 +17,7 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 
 namespace yalp {
 
+class Allocator;
 class State;
 class SymbolManager;
 class Vm;
@@ -69,7 +70,9 @@ private:
 class State {
 public:
   static State* create();
-  virtual ~State();
+  static State* create(Allocator* allocator);
+  // Delete.
+  void release();
 
   // Execute compiled code.
   Svalue runBinary(Svalue code);
@@ -105,9 +108,13 @@ public:
   // Wrap a value with quote.
   Svalue quote(Svalue x);
 
-private:
-  State();
+  Allocator* getAllocator() const  { return allocator_; }
 
+private:
+  State(Allocator* allocator);
+  ~State();
+
+  Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue nil_;
   Svalue t_;

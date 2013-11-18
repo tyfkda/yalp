@@ -11,7 +11,7 @@ protected:
   }
 
   virtual void TearDown() override {
-    delete state_;
+    state_->release();
   }
 
   ReadError read(const char* str, Svalue* pValue) {

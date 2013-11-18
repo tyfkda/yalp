@@ -88,16 +88,16 @@ run-tests:	$(TESTS)
 	  "./$$test"; \
 	done
 
-symbol_manager_test:	symbol_manager_test.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/mem.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-object_test:	object_test.o $(USER_DIR)/object.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+object_test:	object_test.o $(USER_DIR)/object.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/vm.o gtest_main.a
+yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 vm-test:

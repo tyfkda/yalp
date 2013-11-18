@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "vm.hh"
+#include "mem.hh"
 #include "object.hh"
 #include <assert.h>
 #include <iostream>
@@ -282,12 +283,14 @@ enum Opcode {
 // Closure class.
 class Closure : public Sobject {
 public:
-  Closure(Svalue body, int freeVarCount)
+  Closure(State* state, Svalue body, int freeVarCount)
     : Sobject()
     , body_(body)
     , freeVariables_(NULL) {
-    if (freeVarCount > 0)
-      freeVariables_ = new Svalue[freeVarCount];
+    if (freeVarCount > 0) {
+      void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
+      freeVariables_ = new(memory) Svalue[freeVarCount];
+    }
   }
   virtual Type getType() const override  { return TT_CLOSURE; }
 
@@ -389,19 +392,27 @@ protected:
 //=============================================================================
 
 Vm* Vm::create(State* state) {
-  return new Vm(state);
+  void* memory = state->getAllocator()->alloc(sizeof(Vm));
+  return new(memory) Vm(state);
+}
+
+void Vm::release() {
+  Allocator* allocator = state_->getAllocator();
+  this->~Vm();
+  allocator->free(this);
 }
 
 Vm::~Vm() {
   free(stack_);
-  delete[] opcodes_;
+  state_->getAllocator()->free(opcodes_);
 }
 
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0) {
 
-  opcodes_ = new Svalue[NUMBER_OF_OPCODE];
+  void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
+  opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[UNDEF] = state_->intern("UNDEF");
   opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
@@ -456,7 +467,9 @@ void Vm::installNativeFunctions() {
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func) {
-  assignGlobal(state_->intern(name), Svalue(new NativeFunc(func)));
+  void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
+  NativeFunc* nativeFunc = new(memory) NativeFunc(func);
+  assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
 Svalue Vm::run(Svalue code) {
@@ -651,7 +664,8 @@ int Vm::findOpcode(Svalue op) {
 }
 
 Svalue Vm::createClosure(Svalue body, int n, int s) {
-  Closure* closure = new Closure(body, n);
+  void* memory = state_->getAllocator()->alloc(sizeof(Closure));
+  Closure* closure = new(memory) Closure(state_, body, n);
   for (int i = 0; i < n; ++i) {
     closure->setFreeVariable(i, index(s, i));
   }
@@ -673,7 +687,8 @@ Svalue Vm::createContinuation(int s) {
 }
 
 Svalue Vm::box(Svalue x) {
-  return Svalue(new Box(x));
+  void* memory = state_->getAllocator()->alloc(sizeof(Box));
+  return Svalue(new(memory) Box(x));
 }
 
 int Vm::push(Svalue x, int s) {
@@ -685,7 +700,8 @@ int Vm::push(Svalue x, int s) {
 
 void Vm::expandStack() {
   int newSize = stackSize_ + 16;
-  Svalue* newStack = static_cast<Svalue*>(realloc(stack_, sizeof(Svalue) * newSize));
+  void* memory = state_->getAllocator()->realloc(stack_, sizeof(Svalue) * newSize);
+  Svalue* newStack = static_cast<Svalue*>(memory);
   if (newStack == NULL) {
     std::cerr << "Can't expand stack! size=" << newSize << std::endl;
     exit(1);

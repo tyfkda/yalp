@@ -1,3 +1,4 @@
+#include "mem.hh"
 #include "read.hh"
 #include "yalp.hh"
 #include <fstream>
@@ -5,6 +6,52 @@
 
 using namespace std;
 using namespace yalp;
+
+static int nnew, ndelete;
+
+void* operator new(size_t size) {
+  ++nnew;
+  return malloc(size);
+}
+
+void operator delete(void* p) noexcept {
+  if (p == NULL)
+    cout << "delete called for NULL" << endl;
+  ++ndelete;
+  free(p);
+}
+
+void* operator new[](size_t size) {
+  ++nnew;
+  return malloc(size);
+}
+
+void operator delete[](void* p) noexcept {
+  if (p == NULL)
+    cout << "delete called for NULL" << endl;
+  ++ndelete;
+  free(p);
+}
+
+class MyAllocator : public Allocator {
+public:
+  int nalloc, nfree;
+  MyAllocator() : nalloc(0), nfree(0) {}
+
+  virtual void* alloc(size_t size) override {
+    ++nalloc;
+    return ::malloc(size);
+  }
+  virtual void* realloc(void* p, size_t size) override {
+    if (p == NULL)
+      ++nalloc;
+    return ::realloc(p, size);
+  }
+  virtual void free(void* p) override {
+    ::free(p);
+    ++nfree;
+  }
+};
 
 void runBinary(State* state, std::istream& istrm) {
   Reader reader(state, istrm);
@@ -19,15 +66,36 @@ void runBinary(State* state, std::istream& istrm) {
 }
 
 int main(int argc, char* argv[]) {
-  State* state = State::create();
+  MyAllocator myAllocator;
+  State* state = State::create(&myAllocator);
 
-  if (argc < 2) {
+  bool bOutMemResult = false;
+  int ii;
+  for (ii = 1; ii < argc; ++ii) {
+    char* arg = argv[ii];
+    if (arg[0] != '-')
+      break;
+    switch (arg[1]) {
+    case 'm':
+      bOutMemResult = true;
+      break;
+    default:
+      cerr << "Unknown option: " << arg << endl;
+    }
+  }
+
+  if (ii >= argc) {
     runBinary(state, cin);
   } else {
-    std::ifstream strm(argv[1]);
+    std::ifstream strm(argv[ii]);
     runBinary(state, strm);
   }
 
-  delete state;
+  state->release();
+
+  if (bOutMemResult) {
+    printf("#new: %d, #delete: %d\n", nnew, ndelete);
+    printf("#alloc: %d, #free: %d\n", myAllocator.nalloc, myAllocator.nfree);
+  }
   return 0;
 }

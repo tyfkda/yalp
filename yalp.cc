@@ -84,11 +84,23 @@ bool Svalue::equal(Svalue target) const {
 
 //=============================================================================
 State* State::create() {
-  return new State;
+  return create(Allocator::getDefaultAllocator());
 }
 
-State::State()
-  : symbolManager_(new SymbolManager())
+State* State::create(Allocator* allocator) {
+  void* memory = allocator->alloc(sizeof(State));
+  return new(memory) State(allocator);
+}
+
+void State::release() {
+  Allocator* allocator = allocator_;
+  this->~State();
+  allocator->free(this);
+}
+
+State::State(Allocator* allocator)
+  : allocator_(allocator)
+  , symbolManager_(SymbolManager::create(allocator))
   , nil_(symbolManager_->intern("nil"))
   , t_(symbolManager_->intern("t"))
   , quote_(symbolManager_->intern("quote"))
@@ -97,7 +109,7 @@ State::State()
 }
 
 State::~State() {
-  delete symbolManager_;
+  symbolManager_->release();
 }
 
 Svalue State::runBinary(Svalue code) {
@@ -109,7 +121,8 @@ Svalue State::intern(const char* name) {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  Cell* cell = new Cell(a, d);
+  void* memory = allocator_->alloc(sizeof(Cell));
+  Cell* cell = new(memory) Cell(a, d);
   return Svalue(cell);
 }
 
@@ -119,10 +132,13 @@ Svalue State::quote(Svalue x) {
 
 Svalue State::stringValue(const char* string) {
   int len = strlen(string);
-  char* copiedString = new char[len + 1];
+  void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
+  char* copiedString = new(stringBuffer) char[len + 1];
   strcpy(copiedString, string);
 
-  return Svalue(new String(copiedString));
+  void* memory = allocator_->alloc(sizeof(String));
+  String* s = new(memory) String(copiedString);
+  return Svalue(s);
 }
 
 int State::getArgNum() const {

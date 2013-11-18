@@ -18,7 +18,7 @@ typedef Svalue (*NativeFuncType)(State* state);
 class Vm {
 public:
   static Vm* create(State* state);
-  virtual ~Vm();
+  void release();
 
   // Execute compiled code.
   Svalue run(Svalue code);
@@ -30,6 +30,7 @@ public:
 
 private:
   Vm(State* state);
+  ~Vm();
   void installNativeFunctions();
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
