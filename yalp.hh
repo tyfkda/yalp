@@ -55,8 +55,8 @@ public:
   long getHash() const  { return v_; }
 
 private:
-  Svalue(Sfixnum i);
-  Svalue(class Sobject* object);
+  explicit Svalue(Sfixnum i);
+  explicit Svalue(class Sobject* object);
 
   Sfixnum v_;
 

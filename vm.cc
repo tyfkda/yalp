@@ -431,29 +431,29 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->nil(), state_->nil());
   assignGlobal(state_->t(), state_->t());
 
-  assignGlobal(state_->intern("cons"), new NativeFunc(s_cons));
-  assignGlobal(state_->intern("car"), new NativeFunc(s_car));
-  assignGlobal(state_->intern("cdr"), new NativeFunc(s_cdr));
-  assignGlobal(state_->intern("list"), new NativeFunc(s_list));
-  assignGlobal(state_->intern("list*"), new NativeFunc(s_listStar));
-  assignGlobal(state_->intern("consp"), new NativeFunc(s_consp));
-  assignGlobal(state_->intern("append"), new NativeFunc(s_append));
-  assignGlobal(state_->intern("+"), new NativeFunc(s_add));
-  assignGlobal(state_->intern("-"), new NativeFunc(s_sub));
-  assignGlobal(state_->intern("*"), new NativeFunc(s_mul));
-  assignGlobal(state_->intern("/"), new NativeFunc(s_div));
+  assignGlobal(state_->intern("cons"), Svalue(new NativeFunc(s_cons)));
+  assignGlobal(state_->intern("car"), Svalue(new NativeFunc(s_car)));
+  assignGlobal(state_->intern("cdr"), Svalue(new NativeFunc(s_cdr)));
+  assignGlobal(state_->intern("list"), Svalue(new NativeFunc(s_list)));
+  assignGlobal(state_->intern("list*"), Svalue(new NativeFunc(s_listStar)));
+  assignGlobal(state_->intern("consp"), Svalue(new NativeFunc(s_consp)));
+  assignGlobal(state_->intern("append"), Svalue(new NativeFunc(s_append)));
+  assignGlobal(state_->intern("+"), Svalue(new NativeFunc(s_add)));
+  assignGlobal(state_->intern("-"), Svalue(new NativeFunc(s_sub)));
+  assignGlobal(state_->intern("*"), Svalue(new NativeFunc(s_mul)));
+  assignGlobal(state_->intern("/"), Svalue(new NativeFunc(s_div)));
 
-  assignGlobal(state_->intern("eq"), new NativeFunc(s_eq));
-  assignGlobal(state_->intern("equal"), new NativeFunc(s_equal));
-  assignGlobal(state_->intern("<"), new NativeFunc(s_lessThan));
-  assignGlobal(state_->intern(">"), new NativeFunc(s_greaterThan));
-  assignGlobal(state_->intern("<="), new NativeFunc(s_lessEqual));
-  assignGlobal(state_->intern(">="), new NativeFunc(s_greaterEqual));
+  assignGlobal(state_->intern("eq"), Svalue(new NativeFunc(s_eq)));
+  assignGlobal(state_->intern("equal"), Svalue(new NativeFunc(s_equal)));
+  assignGlobal(state_->intern("<"), Svalue(new NativeFunc(s_lessThan)));
+  assignGlobal(state_->intern(">"), Svalue(new NativeFunc(s_greaterThan)));
+  assignGlobal(state_->intern("<="), Svalue(new NativeFunc(s_lessEqual)));
+  assignGlobal(state_->intern(">="), Svalue(new NativeFunc(s_greaterEqual)));
 
-  assignGlobal(state_->intern("print"), new NativeFunc(s_write));
-  assignGlobal(state_->intern("display"), new NativeFunc(s_write));
-  assignGlobal(state_->intern("write"), new NativeFunc(s_write));
-  assignGlobal(state_->intern("newline"), new NativeFunc(s_newline));
+  assignGlobal(state_->intern("print"), Svalue(new NativeFunc(s_write)));
+  assignGlobal(state_->intern("display"), Svalue(new NativeFunc(s_write)));
+  assignGlobal(state_->intern("write"), Svalue(new NativeFunc(s_write)));
+  assignGlobal(state_->intern("newline"), Svalue(new NativeFunc(s_newline)));
 }
 
 Svalue Vm::run(Svalue code) {
@@ -670,7 +670,7 @@ Svalue Vm::createContinuation(int s) {
 }
 
 Svalue Vm::box(Svalue x) {
-  return new Box(x);
+  return Svalue(new Box(x));
 }
 
 int Vm::push(Svalue x, int s) {
