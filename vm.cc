@@ -539,7 +539,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     {
       int n = CAR(x).toFixnum();
       x = CADR(x);
-      indexSet(s, n, box(index(s, n)));
+      indexSet(f, n, box(index(f, n)));
     }
     goto again;
   case TEST:
@@ -596,9 +596,9 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   case SHIFT:
     {
       int n = CAR(x).toFixnum();
-      int m = CADR(x).toFixnum();
-      x = CADDR(x);
-      s = shiftArgs(n, m, s);
+      x = CADR(x);
+      int calleeArgnum = index(f, -1).toFixnum();
+      s = shiftArgs(n, calleeArgnum, s);
     }
     goto again;
   case ARGUMENT:
@@ -615,6 +615,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         x = static_cast<Closure*>(a.toObject())->getBody();
         f = s;
         c = a;
+        s = push(state_->fixnumValue(argnum), s);
         break;
       case TT_NATIVEFUNC:
         {
@@ -641,8 +642,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case RETURN:
     {
-      int n = CAR(x).toFixnum();
-      s -= n;
+      int argnum = index(s, 0).toFixnum();
+      s -= argnum + 1;
       x = index(s, 0);
       f = index(s, 1).toFixnum();
       c = index(s, 2);
@@ -681,8 +682,7 @@ Svalue Vm::createContinuation(int s) {
                           opcodes_[NUATE],
                           saveStack(s),
                           list(state_,
-                               opcodes_[RETURN],
-                               zero)));
+                               opcodes_[RETURN])));
   return createClosure(body, s, s);
 }
 
@@ -722,9 +722,9 @@ void Vm::indexSet(int s, int i, Svalue v) {
 
 int Vm::shiftArgs(int n, int m, int s) {
   for (int i = n; --i >= 0; ) {
-    indexSet(s, i + m, index(s, i));
+    indexSet(s, i + m + 1, index(s, i));
   }
-  return s - m;
+  return s - m - 1;
 }
 
 bool Vm::referGlobal(Svalue sym, Svalue* pValue) {

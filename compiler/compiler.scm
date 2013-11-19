@@ -1,6 +1,38 @@
 ;;;; Compiler
 ;;;; Based on 3imp.
 
+; Stack usage:
+;    c   ... closure
+;    s   ... stack pointer
+;    f   ... frame pointer (stack index)
+;    ret ... next code
+;
+; * Initial
+;   f = s = 0
+;
+; * Function call
+;   1. Use FRAME opcode to create new frame on stack:
+;     f[c][f][ret]s
+;   2. Push function arguments to stack on reverse order:
+;     f[c][f][ret][a3][a2][a1]s
+;   3. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][a3][a2][a1]f[argnum]s
+;
+; * Return
+;   1. Get called argument number from stack:
+;     [c][f][ret][a3][a2][a1]f
+;   2. Put back previous frame:
+;     f = s = 0
+; * Shift
+;   1. Put next function arguments:
+;     [c][f][ret][a3][a2][a1]f[argnum][b1]s
+;   2. Use SHIFT opcode to remove previous function arguments:
+;     [c][f][ret][b1]s
+;   4. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][b1]f[argnum]s
+
 (add-load-path ".") 
 (load "util.scm")
 
@@ -38,7 +70,6 @@
                                                           (if (tail? next)
                                                               (list 'SHIFT
                                                                     1
-                                                                    (cadr next)
                                                                     '(APPLY 1))
                                                             '(APPLY 1)))))))
                               (if (tail? next)
@@ -63,7 +94,7 @@
     (recur loop ((args args)
                  (c (compile func e s
                              (if (tail? next)
-                                 `(SHIFT ,argnum ,(cadr next)
+                                 `(SHIFT ,argnum
                                          (APPLY ,argnum))
                                `(APPLY ,argnum)))))
            (if (null? args)
@@ -92,7 +123,7 @@
   (let ((ee (cons vars free))
         (ss (set-union sets
                        (set-intersect s free)))
-        (next (list 'RETURN (length vars))))
+        (next (list 'RETURN)))
     (recur loop ((p bodies))
            (if (null? p)
                next
@@ -217,12 +248,13 @@
           s
         (loop (cdr rargs)
               (push (car rargs) s)))))
-  (define (apply-macro closure s)
-    (do-apply s closure s))
+  (define (apply-macro argnum closure s)
+    (do-apply argnum closure s))
 
   "Expand macro."
   (let ((closure (hash-table-get *macro-table* name)))
-    (apply-macro closure
+    (apply-macro (length args)
+                 closure
                  (push-args args
                             (make-frame '(HALT) 0 '() 0)))))
 
@@ -279,7 +311,7 @@
                  (CLOSE (n body x)
                         (VM (closure body n s) x f c (- s n)))
                  (BOX (n x)
-                      (index-set! s n (box (index s n)))
+                      (index-set! f n (box (index f n)))
                       (VM a x f c s))
                  (TEST (then else)
                        (VM a (if (true? a) then else) f c s))
@@ -300,12 +332,14 @@
                         (VM a x f c (make-frame ret f c s)))
                  (ARGUMENT (x)
                            (VM a x f c (push a s)))
-                 (SHIFT (n m x)
-                        (VM a x f c (shift-args n m s)))
+                 (SHIFT (n x)
+                        (let ((callee-argnum (index f -1)))
+                          (VM a x f c (shift-args n callee-argnum s))))
                  (APPLY (argnum)
                         (do-apply argnum a s))
-                 (RETURN (n)
-                         (do-return a s n))
+                 (RETURN ()
+                         (let ((argnum (index s 0)))
+                           (do-return a (- s 1) argnum)))
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
@@ -321,7 +355,7 @@
          (let ((res (call-native-function f s argnum)))
            (do-return res s argnum)))
         ((closure? f)
-         (VM f (closure-body f) s f s))
+         (VM f (closure-body f) s f (push argnum s)))
         (else
          (runtime-error "invalid application:" f))))
 
@@ -359,7 +393,7 @@
 (define continuation
   (lambda (s)
     (closure
-     (list 'REFER-LOCAL 0 (list 'NUATE (save-stack s) '(RETURN 0)))
+     (list 'REFER-LOCAL 0 (list 'NUATE (save-stack s) '(RETURN)))
      s
      s)))
 
@@ -420,9 +454,9 @@
   (lambda (n m s)
     (recur nxtarg ((i (- n 1)))
            (unless (< i 0)
-             (index-set! s (+ i m) (index s i))
+             (index-set! s (+ i m 1) (index s i))
              (nxtarg (- i 1))))
-    (- s m)))
+    (- s m 1)))
 
 (define evaluate
   (lambda (x)
