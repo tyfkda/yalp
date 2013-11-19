@@ -111,9 +111,11 @@
   (let ((free (set-intersect (set-union (car e)
                                         (cdr e))
                              (find-frees bodies vars)))
-        (sets (find-setses bodies vars)))
+        (sets (find-setses bodies vars))
+        (varnum (length vars)))
     (collect-free free e
                   (list 'CLOSE
+                        varnum
                         (length free)
                         (make-boxes sets vars
                                     (compile-lambda-bodies vars bodies free sets s))
@@ -287,6 +289,31 @@
     (vector-set! *stack* (- (- s i) 1) v)))
 
 
+;;; Native function
+
+(define-class <NativeFunc> ()
+  ((name :init-keyword :name)
+   (fn :init-keyword :fn)
+   (min-arg-num :init-keyword :min-arg-num)
+   (max-arg-num :init-keyword :max-arg-num)
+   ))
+
+(define (native-function? f)
+  (is-a? f <NativeFunc>))
+
+(define-method call-native-function ((f <NativeFunc>) s argnum)
+  (let ((min (slot-ref f 'min-arg-num))
+        (max (slot-ref f 'max-arg-num)))
+    (cond ((< argnum min)
+           (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires atleast ,min\, but given ,argnum"))
+          ((and (>= max 0) (> argnum max))
+           (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts atmost ,max\, but given ,argnum"))
+          (else
+           (let ((fn (slot-ref f 'fn))
+                 (args (map (lambda (i) (index s i))
+                            (iota argnum))))
+             (apply fn args))))))
+
 ;;;; VM
 
 (define VM
@@ -308,8 +335,8 @@
                            (VM (unbox a) x f c s))
                  (CONSTANT (obj x)
                            (VM obj x f c s))
-                 (CLOSE (n body x)
-                        (VM (closure body n s) x f c (- s n)))
+                 (CLOSE (nparam nfree body x)
+                        (VM (closure body nfree s nparam nparam) x f c (- s nfree)))
                  (BOX (n x)
                       (index-set! f n (box (index f n)))
                       (VM a x f c s))
@@ -355,21 +382,13 @@
          (let ((res (call-native-function f s argnum)))
            (do-return res s argnum)))
         ((closure? f)
-         (VM f (closure-body f) s f (push argnum s)))
+         (call-closure f s argnum))
         (else
          (runtime-error #`"invalid application: ,f"))))
 
 (define (do-return a s argnum)
   (let ((s (- s argnum)))
     (VM a (index s 0) (index s 1) (index s 2) (- s 3))))
-
-(define (native-function? f)
-  (is-a? f <procedure>))
-
-(define (call-native-function f s argnum)
-  (let ((args (map (lambda (i) (index s i))
-                   (iota argnum))))
-    (apply f args)))
 
 (define (runtime-error msg)
   (display msg (standard-error-port))
@@ -395,28 +414,50 @@
     (closure
      (list 'REFER-LOCAL 0 (list 'NUATE (save-stack s) '(RETURN)))
      s
-     s)))
+     s
+     0 1)))
+
+(define-class <Closure> ()
+  ((body :init-keyword :body)
+   (free-variables :init-keyword :free-variables)
+   (min-arg-num :init-keyword :min-arg-num)
+   (max-arg-num :init-keyword :max-arg-num)
+   ))
 
 (define closure
-  (lambda (body n s)
-    (let ((v (make-vector (+ n 1))))
-      (vector-set! v 0 body)
-      (recur f ((i 0))
-             (unless (= i n)
-               (vector-set! v (+ i 1) (index s i))
-               (f (+ i 1))))
-      v)))
+  (lambda (body nfree s min-arg-num max-arg-num)
+    (let* ((free-variables (make-vector nfree))
+           (c (make <Closure>
+                :min-arg-num min-arg-num
+                :max-arg-num max-arg-num
+                :body body
+                :free-variables free-variables)))
+      (recur loop ((i 0))
+             (unless (= i nfree)
+               (vector-set! free-variables i (index s i))
+               (loop (+ i 1))))
+      c)))
 
-(define (closure? f)
-  (vector? f))
+(define-method call-closure ((c <Closure>) s argnum)
+  (let ((min (slot-ref c 'min-arg-num))
+        (max (slot-ref c 'max-arg-num)))
+    (cond ((< argnum min)
+           (runtime-error #`"Too few arguments: requires atleast ,min\, but given ,argnum"))
+          ((and (>= max 0) (> argnum max))
+           (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
+          (else
+           (VM c (closure-body c) s c (push argnum s))))))
+
+(define (closure? c)
+  (is-a? c <Closure>))
 
 (define closure-body
   (lambda (c)
-    (vector-ref c 0)))
+    (slot-ref c 'body)))
 
 (define index-closure
   (lambda (c n)
-    (vector-ref c (+ n 1))))
+    (vector-ref (slot-ref c 'free-variables) n)))
 
 (define save-stack
   (lambda (s)
@@ -478,36 +519,41 @@
           ((#f) 'nil)
           ((()) 'nil)
           (else result)))))
-  (define (assign-native! sym func)
-    (assign-global! sym (convert-result func)))
+  (define (assign-native! sym func min-arg-num max-arg-num)
+    (let ((f (make <NativeFunc>
+               :name sym
+               :fn (convert-result func)
+               :min-arg-num min-arg-num
+               :max-arg-num max-arg-num)))
+      (assign-global! sym f)))
 
   (assign-global! 'nil 'nil)
   (assign-global! 't 't)
 
-  (assign-native! 'cons cons)
-  (assign-native! 'car car)
-  (assign-native! 'cdr cdr)
-  (assign-native! 'list list)
-  (assign-native! 'list* list*)
-  (assign-native! 'consp pair?)
-  (assign-native! 'append append)
-  (assign-native! '+ +)
-  (assign-native! '- -)
-  (assign-native! '* *)
-  (assign-native! '/ quotient)
+  (assign-native! 'cons cons 2 2)
+  (assign-native! 'car car 1 1)
+  (assign-native! 'cdr cdr 1 1)
+  (assign-native! 'list list 0 -1)
+  (assign-native! 'list* list* 0 -1)
+  (assign-native! 'consp pair? 1 1)
+  (assign-native! 'append append 0 -1)
+  (assign-native! '+ + 0 -1)
+  (assign-native! '- - 0 -1)
+  (assign-native! '* * 0 -1)
+  (assign-native! '/ quotient 0 -1)
 
-  (assign-native! 'eq eq?)
-  (assign-native! 'equal equal?)
-  (assign-native! '= =)
-  (assign-native! '< <)
-  (assign-native! '> >)
-  (assign-native! '<= <=)
-  (assign-native! '>= >=)
+  (assign-native! 'eq eq? 2 2)
+  (assign-native! 'equal equal? 2 2)
+  (assign-native! '= = 2 -1)
+  (assign-native! '< < 2 -1)
+  (assign-native! '> > 2 -1)
+  (assign-native! '<= <= 2 -1)
+  (assign-native! '>= >= 2 -1)
 
-  (assign-native! 'print print)
-  (assign-native! 'display display)
-  (assign-native! 'write write)
-  (assign-native! 'newline newline)
+  (assign-native! 'print print 1 1)
+  (assign-native! 'display display 1 1)
+  (assign-native! 'write write 1 1)
+  (assign-native! 'newline newline 0 0)
   )
 
 (define (compile-all codes)

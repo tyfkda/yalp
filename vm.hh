@@ -34,7 +34,7 @@ private:
   void installNativeFunctions();
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
-  Svalue createClosure(Svalue body, int n, int s);
+  Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
   Svalue box(Svalue x);
 
@@ -46,7 +46,10 @@ private:
 
   bool referGlobal(Svalue sym, Svalue* pValue);
   void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func);
+  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
+    assignNative(name, func, minArgNum, minArgNum);
+  }
+  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);

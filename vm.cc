@@ -283,10 +283,12 @@ enum Opcode {
 // Closure class.
 class Closure : public Sobject {
 public:
-  Closure(State* state, Svalue body, int freeVarCount)
+  Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
     : Sobject()
     , body_(body)
-    , freeVariables_(NULL) {
+    , freeVariables_(NULL)
+    , minArgNum_(minArgNum)
+    , maxArgNum_(maxArgNum) {
     if (freeVarCount > 0) {
       void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
       freeVariables_ = new(memory) Svalue[freeVarCount];
@@ -295,6 +297,8 @@ public:
   virtual Type getType() const override  { return TT_CLOSURE; }
 
   Svalue getBody() const  { return body_; }
+  int getMinArgNum() const  { return minArgNum_; }
+  int getMaxArgNum() const  { return maxArgNum_; }
 
   void setFreeVariable(int index, Svalue value) {
     freeVariables_[index] = value;
@@ -311,17 +315,26 @@ public:
 protected:
   Svalue body_;
   Svalue* freeVariables_;
+  int minArgNum_;
+  int maxArgNum_;
 };
 
 // Native function class.
 class NativeFunc : public Sobject {
 public:
-  NativeFunc(NativeFuncType func)
+  NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
     : Sobject()
-    , func_(func) {}
+    , func_(func)
+    , minArgNum_(minArgNum)
+    , maxArgNum_(maxArgNum) {}
   virtual Type getType() const override  { return TT_NATIVEFUNC; }
 
-  Svalue call(State* state) {
+  Svalue call(State* state, int argNum) {
+    if (argNum < minArgNum_) {
+      state->runtimeError("Too few arguments");
+    } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
+      state->runtimeError("Too many arguments");
+    }
     return func_(state);
   }
 
@@ -331,6 +344,8 @@ public:
 
 protected:
   NativeFuncType func_;
+  int minArgNum_;
+  int maxArgNum_;
 };
 
 // Box class.
@@ -441,34 +456,34 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->nil(), state_->nil());
   assignGlobal(state_->t(), state_->t());
 
-  assignNative("cons", s_cons);
-  assignNative("car", s_car);
-  assignNative("cdr", s_cdr);
-  assignNative("list", s_list);
-  assignNative("list*", s_listStar);
-  assignNative("consp", s_consp);
-  assignNative("append", s_append);
-  assignNative("+", s_add);
-  assignNative("-", s_sub);
-  assignNative("*", s_mul);
-  assignNative("/", s_div);
+  assignNative("cons", s_cons, 2);
+  assignNative("car", s_car, 1);
+  assignNative("cdr", s_cdr, 1);
+  assignNative("list", s_list, 0, -1);
+  assignNative("list*", s_listStar, 0, -1);
+  assignNative("consp", s_consp, 1);
+  assignNative("append", s_append, 0, -1);
+  assignNative("+", s_add, 0, -1);
+  assignNative("-", s_sub, 0, -1);
+  assignNative("*", s_mul, 0, -1);
+  assignNative("/", s_div, 0, -1);
 
-  assignNative("eq", s_eq);
-  assignNative("equal", s_equal);
-  assignNative("<", s_lessThan);
-  assignNative(">", s_greaterThan);
-  assignNative("<=", s_lessEqual);
-  assignNative(">=", s_greaterEqual);
+  assignNative("eq", s_eq, 2);
+  assignNative("equal", s_equal, 2);
+  assignNative("<", s_lessThan, 2, -1);
+  assignNative(">", s_greaterThan, 2, -1);
+  assignNative("<=", s_lessEqual, 2, -1);
+  assignNative(">=", s_greaterEqual, 2, -1);
 
-  assignNative("print", s_write);
-  assignNative("display", s_write);
-  assignNative("write", s_write);
-  assignNative("newline", s_newline);
+  assignNative("print", s_write, 1);
+  assignNative("display", s_write, 1);
+  assignNative("write", s_write, 1);
+  assignNative("newline", s_newline, 0);
 }
 
-void Vm::assignNative(const char* name, NativeFuncType func) {
+void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func);
+  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
@@ -528,11 +543,12 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case CLOSE:
     {
-      int n = CAR(x).toFixnum();
-      Svalue body = CADR(x);
-      x = CADDR(x);
-      a = createClosure(body, n, s);
-      s -= n;
+      int nparam = CAR(x).toFixnum();
+      int nfree = CADR(x).toFixnum();
+      Svalue body = CADDR(x);
+      x = CADDDR(x);
+      a = createClosure(body, nfree, s, nparam, nparam);
+      s -= nfree;
     }
     goto again;
   case BOX:
@@ -609,24 +625,33 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case APPLY:
     {
-      int argnum = CAR(x).toFixnum();
+      int argNum = CAR(x).toFixnum();
       switch (a.getType()) {
       case TT_CLOSURE:
-        x = static_cast<Closure*>(a.toObject())->getBody();
-        f = s;
-        c = a;
-        s = push(state_->fixnumValue(argnum), s);
+        {
+          Closure* closure = static_cast<Closure*>(a.toObject());
+          int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
+          if (argNum < min) {
+            state_->runtimeError("Too few arguments");
+          } else if (max >= 0 && argNum > max) {
+            state_->runtimeError("Too many arguments");
+          }
+          x = closure->getBody();
+          f = s;
+          c = a;
+          s = push(state_->fixnumValue(argNum), s);
+        }
         break;
       case TT_NATIVEFUNC:
         {
           // Store current state in member variable for native function call.
           stackPointer_ = s;
-          argNum_ = argnum;
+          argNum_ = argNum;
           NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
-          a = native->call(state_);
+          a = native->call(state_, argNum);
 
           // do-return
-          s -= argnum;
+          s -= argNum;
           x = index(s, 0);
           f = index(s, 1).toFixnum();
           c = index(s, 2);
@@ -634,7 +659,6 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         }
         break;
       default:
-        std::cerr << a << "(#" << argnum << ") ";
         state_->runtimeError("Can't call");
         break;
       }
@@ -664,12 +688,11 @@ int Vm::findOpcode(Svalue op) {
   return -1;
 }
 
-Svalue Vm::createClosure(Svalue body, int n, int s) {
+Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
   void* memory = state_->getAllocator()->alloc(sizeof(Closure));
-  Closure* closure = new(memory) Closure(state_, body, n);
-  for (int i = 0; i < n; ++i) {
+  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
+  for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
-  }
   return Svalue(closure);
 }
 
@@ -683,7 +706,7 @@ Svalue Vm::createContinuation(int s) {
                           saveStack(s),
                           list(state_,
                                opcodes_[RETURN])));
-  return createClosure(body, s, s);
+  return createClosure(body, s, s, 0, 1);
 }
 
 Svalue Vm::box(Svalue x) {
