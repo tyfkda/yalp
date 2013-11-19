@@ -470,17 +470,16 @@
 (use gauche.parseopt)
 
 (define (install-native-functions)
-  (define (convert-result sym f)
+  (define (convert-result f)
     (lambda args
       (let ((result (apply f args)))
-        ;(print `(,sym ,args result ,result))
         (case result
           ((#t) 't)
           ((#f) 'nil)
           ((()) 'nil)
           (else result)))))
   (define (assign-native! sym func)
-    (assign-global! sym (convert-result sym func)))
+    (assign-global! sym (convert-result func)))
 
   (assign-global! 'nil 'nil)
   (assign-global! 't 't)
