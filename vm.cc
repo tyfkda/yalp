@@ -316,12 +316,19 @@ protected:
 // Native function class.
 class NativeFunc : public Sobject {
 public:
-  NativeFunc(NativeFuncType func)
+  NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
     : Sobject()
-    , func_(func) {}
+    , func_(func)
+    , minArgNum_(minArgNum)
+    , maxArgNum_(maxArgNum) {}
   virtual Type getType() const override  { return TT_NATIVEFUNC; }
 
-  Svalue call(State* state) {
+  Svalue call(State* state, int argNum) {
+    if (argNum < minArgNum_) {
+      state->runtimeError("Too few arguments");
+    } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
+      state->runtimeError("Too many arguments");
+    }
     return func_(state);
   }
 
@@ -331,6 +338,8 @@ public:
 
 protected:
   NativeFuncType func_;
+  int minArgNum_;
+  int maxArgNum_;
 };
 
 // Box class.
@@ -441,34 +450,34 @@ void Vm::installNativeFunctions() {
   assignGlobal(state_->nil(), state_->nil());
   assignGlobal(state_->t(), state_->t());
 
-  assignNative("cons", s_cons);
-  assignNative("car", s_car);
-  assignNative("cdr", s_cdr);
-  assignNative("list", s_list);
-  assignNative("list*", s_listStar);
-  assignNative("consp", s_consp);
-  assignNative("append", s_append);
-  assignNative("+", s_add);
-  assignNative("-", s_sub);
-  assignNative("*", s_mul);
-  assignNative("/", s_div);
+  assignNative("cons", s_cons, 2);
+  assignNative("car", s_car, 1);
+  assignNative("cdr", s_cdr, 1);
+  assignNative("list", s_list, 0, -1);
+  assignNative("list*", s_listStar, 0, -1);
+  assignNative("consp", s_consp, 1);
+  assignNative("append", s_append, 0, -1);
+  assignNative("+", s_add, 0, -1);
+  assignNative("-", s_sub, 0, -1);
+  assignNative("*", s_mul, 0, -1);
+  assignNative("/", s_div, 0, -1);
 
-  assignNative("eq", s_eq);
-  assignNative("equal", s_equal);
-  assignNative("<", s_lessThan);
-  assignNative(">", s_greaterThan);
-  assignNative("<=", s_lessEqual);
-  assignNative(">=", s_greaterEqual);
+  assignNative("eq", s_eq, 2);
+  assignNative("equal", s_equal, 2);
+  assignNative("<", s_lessThan, 2, -1);
+  assignNative(">", s_greaterThan, 2, -1);
+  assignNative("<=", s_lessEqual, 2, -1);
+  assignNative(">=", s_greaterEqual, 2, -1);
 
-  assignNative("print", s_write);
-  assignNative("display", s_write);
-  assignNative("write", s_write);
-  assignNative("newline", s_newline);
+  assignNative("print", s_write, 1);
+  assignNative("display", s_write, 1);
+  assignNative("write", s_write, 1);
+  assignNative("newline", s_newline, 0);
 }
 
-void Vm::assignNative(const char* name, NativeFuncType func) {
+void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func);
+  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
@@ -623,7 +632,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
           stackPointer_ = s;
           argNum_ = argnum;
           NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
-          a = native->call(state_);
+          a = native->call(state_, argnum);
 
           // do-return
           s -= argnum;

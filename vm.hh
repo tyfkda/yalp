@@ -46,7 +46,10 @@ private:
 
   bool referGlobal(Svalue sym, Svalue* pValue);
   void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func);
+  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
+    assignNative(name, func, minArgNum, minArgNum);
+  }
+  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);
