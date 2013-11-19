@@ -111,9 +111,11 @@
   (let ((free (set-intersect (set-union (car e)
                                         (cdr e))
                              (find-frees bodies vars)))
-        (sets (find-setses bodies vars)))
+        (sets (find-setses bodies vars))
+        (varnum (length vars)))
     (collect-free free e
                   (list 'CLOSE
+                        varnum
                         (length free)
                         (make-boxes sets vars
                                     (compile-lambda-bodies vars bodies free sets s))
@@ -333,8 +335,8 @@
                            (VM (unbox a) x f c s))
                  (CONSTANT (obj x)
                            (VM obj x f c s))
-                 (CLOSE (n body x)
-                        (VM (closure body n s) x f c (- s n)))
+                 (CLOSE (nparam nfree body x)
+                        (VM (closure body nfree s nparam nparam) x f c (- s nfree)))
                  (BOX (n x)
                       (index-set! f n (box (index f n)))
                       (VM a x f c s))
@@ -380,7 +382,7 @@
          (let ((res (call-native-function f s argnum)))
            (do-return res s argnum)))
         ((closure? f)
-         (VM f (closure-body f) s f (push argnum s)))
+         (call-closure f s argnum))
         (else
          (runtime-error #`"invalid application: ,f"))))
 
@@ -412,28 +414,50 @@
     (closure
      (list 'REFER-LOCAL 0 (list 'NUATE (save-stack s) '(RETURN)))
      s
-     s)))
+     s
+     0 1)))
+
+(define-class <Closure> ()
+  ((body :init-keyword :body)
+   (free-variables :init-keyword :free-variables)
+   (min-arg-num :init-keyword :min-arg-num)
+   (max-arg-num :init-keyword :max-arg-num)
+   ))
 
 (define closure
-  (lambda (body n s)
-    (let ((v (make-vector (+ n 1))))
-      (vector-set! v 0 body)
-      (recur f ((i 0))
-             (unless (= i n)
-               (vector-set! v (+ i 1) (index s i))
-               (f (+ i 1))))
-      v)))
+  (lambda (body nfree s min-arg-num max-arg-num)
+    (let* ((free-variables (make-vector nfree))
+           (c (make <Closure>
+                :min-arg-num min-arg-num
+                :max-arg-num max-arg-num
+                :body body
+                :free-variables free-variables)))
+      (recur loop ((i 0))
+             (unless (= i nfree)
+               (vector-set! free-variables i (index s i))
+               (loop (+ i 1))))
+      c)))
 
-(define (closure? f)
-  (vector? f))
+(define-method call-closure ((c <Closure>) s argnum)
+  (let ((min (slot-ref c 'min-arg-num))
+        (max (slot-ref c 'max-arg-num)))
+    (cond ((< argnum min)
+           (runtime-error #`"Too few arguments: requires atleast ,min\, but given ,argnum"))
+          ((and (>= max 0) (> argnum max))
+           (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
+          (else
+           (VM c (closure-body c) s c (push argnum s))))))
+
+(define (closure? c)
+  (is-a? c <Closure>))
 
 (define closure-body
   (lambda (c)
-    (vector-ref c 0)))
+    (slot-ref c 'body)))
 
 (define index-closure
   (lambda (c n)
-    (vector-ref c (+ n 1))))
+    (vector-ref (slot-ref c 'free-variables) n)))
 
 (define save-stack
   (lambda (s)

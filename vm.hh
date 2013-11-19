@@ -34,7 +34,7 @@ private:
   void installNativeFunctions();
   Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
   int findOpcode(Svalue op);
-  Svalue createClosure(Svalue body, int n, int s);
+  Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
   Svalue box(Svalue x);
 

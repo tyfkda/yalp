@@ -283,10 +283,12 @@ enum Opcode {
 // Closure class.
 class Closure : public Sobject {
 public:
-  Closure(State* state, Svalue body, int freeVarCount)
+  Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
     : Sobject()
     , body_(body)
-    , freeVariables_(NULL) {
+    , freeVariables_(NULL)
+    , minArgNum_(minArgNum)
+    , maxArgNum_(maxArgNum) {
     if (freeVarCount > 0) {
       void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
       freeVariables_ = new(memory) Svalue[freeVarCount];
@@ -295,6 +297,8 @@ public:
   virtual Type getType() const override  { return TT_CLOSURE; }
 
   Svalue getBody() const  { return body_; }
+  int getMinArgNum() const  { return minArgNum_; }
+  int getMaxArgNum() const  { return maxArgNum_; }
 
   void setFreeVariable(int index, Svalue value) {
     freeVariables_[index] = value;
@@ -311,6 +315,8 @@ public:
 protected:
   Svalue body_;
   Svalue* freeVariables_;
+  int minArgNum_;
+  int maxArgNum_;
 };
 
 // Native function class.
@@ -537,11 +543,12 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case CLOSE:
     {
-      int n = CAR(x).toFixnum();
-      Svalue body = CADR(x);
-      x = CADDR(x);
-      a = createClosure(body, n, s);
-      s -= n;
+      int nparam = CAR(x).toFixnum();
+      int nfree = CADR(x).toFixnum();
+      Svalue body = CADDR(x);
+      x = CADDDR(x);
+      a = createClosure(body, nfree, s, nparam, nparam);
+      s -= nfree;
     }
     goto again;
   case BOX:
@@ -618,24 +625,33 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case APPLY:
     {
-      int argnum = CAR(x).toFixnum();
+      int argNum = CAR(x).toFixnum();
       switch (a.getType()) {
       case TT_CLOSURE:
-        x = static_cast<Closure*>(a.toObject())->getBody();
-        f = s;
-        c = a;
-        s = push(state_->fixnumValue(argnum), s);
+        {
+          Closure* closure = static_cast<Closure*>(a.toObject());
+          int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
+          if (argNum < min) {
+            state_->runtimeError("Too few arguments");
+          } else if (max >= 0 && argNum > max) {
+            state_->runtimeError("Too many arguments");
+          }
+          x = closure->getBody();
+          f = s;
+          c = a;
+          s = push(state_->fixnumValue(argNum), s);
+        }
         break;
       case TT_NATIVEFUNC:
         {
           // Store current state in member variable for native function call.
           stackPointer_ = s;
-          argNum_ = argnum;
+          argNum_ = argNum;
           NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
-          a = native->call(state_, argnum);
+          a = native->call(state_, argNum);
 
           // do-return
-          s -= argnum;
+          s -= argNum;
           x = index(s, 0);
           f = index(s, 1).toFixnum();
           c = index(s, 2);
@@ -643,7 +659,6 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         }
         break;
       default:
-        std::cerr << a << "(#" << argnum << ") ";
         state_->runtimeError("Can't call");
         break;
       }
@@ -673,12 +688,11 @@ int Vm::findOpcode(Svalue op) {
   return -1;
 }
 
-Svalue Vm::createClosure(Svalue body, int n, int s) {
+Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
   void* memory = state_->getAllocator()->alloc(sizeof(Closure));
-  Closure* closure = new(memory) Closure(state_, body, n);
-  for (int i = 0; i < n; ++i) {
+  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
+  for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
-  }
   return Svalue(closure);
 }
 
@@ -692,7 +706,7 @@ Svalue Vm::createContinuation(int s) {
                           saveStack(s),
                           list(state_,
                                opcodes_[RETURN])));
-  return createClosure(body, s, s);
+  return createClosure(body, s, s, 0, 1);
 }
 
 Svalue Vm::box(Svalue x) {

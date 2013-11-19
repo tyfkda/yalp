@@ -98,6 +98,8 @@ fail no-global '((^(x) y) 123)'
 fail invalid-apply '(1 2 3)'
 fail too-few-arg-native '(cons 1)'
 fail too-many-arg-native '(cons 1 2 3)'
+fail too-few-arg-lambda '((^(x y)) 1)'
+fail too-many-arg-lambda '((^(x y)) 1 2 3)'
 
 ################################################################
 # All tests succeeded.
