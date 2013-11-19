@@ -372,7 +372,7 @@
     (apply f args)))
 
 (define (runtime-error msg)
-  (print msg)
+  (display msg (standard-error-port))
   (exit 1))
 
 
