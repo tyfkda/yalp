@@ -270,7 +270,7 @@
                  (REFER-GLOBAL (sym x)
                                (receive (v exist?) (refer-global sym)
                                         (unless exist?
-                                                (error #`"unbound variable: `,sym`"))
+                                                (runtime-error #`"unbound variable: `,sym`"))
                                         (VM v x f c s)))
                  (INDIRECT (x)
                            (VM (unbox a) x f c s))
@@ -323,7 +323,7 @@
         ((closure? f)
          (VM f (closure-body f) s f s))
         (else
-         (error "invalid application:" f))))
+         (runtime-error "invalid application:" f))))
 
 (define (do-return a s argnum)
   (let ((s (- s argnum)))
@@ -337,6 +337,9 @@
                    (iota argnum))))
     (apply f args)))
 
+(define (runtime-error msg)
+  (print msg)
+  (exit 1))
 
 
 ;;; Global variable table
@@ -406,7 +409,7 @@
 (define unbox
   (lambda (bx)
     (unless (eq? (car bx) '=box=)
-      (error "is not box"))
+      (runtime-error "is not box"))
     (cdr bx)))
 
 (define set-box!
