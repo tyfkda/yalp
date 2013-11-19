@@ -91,21 +91,21 @@
 
 (define (compile-apply func args e s next)
   (let ((argnum (length args)))
-    (recur loop ((args args)
-                 (c (compile func e s
-                             (if (tail? next)
-                                 `(SHIFT ,argnum
-                                         (APPLY ,argnum))
-                               `(APPLY ,argnum)))))
-           (if (null? args)
-               (if (tail? next)
-                   c
-                 (list 'FRAME next c))
-             (loop (cdr args)
-                   (compile (car args)
-                            e
-                            s
-                            (list 'ARGUMENT c)))))))
+    (let loop ((args args)
+               (c (compile func e s
+                           (if (tail? next)
+                               `(SHIFT ,argnum
+                                       (APPLY ,argnum))
+                             `(APPLY ,argnum)))))
+      (if (null? args)
+          (if (tail? next)
+              c
+            (list 'FRAME next c))
+        (loop (cdr args)
+              (compile (car args)
+                       e
+                       s
+                       (list 'ARGUMENT c)))))))
 
 (define (compile-lambda vars bodies e s next)
   (let ((free (set-intersect (set-union (car e)
@@ -126,19 +126,19 @@
         (ss (set-union sets
                        (set-intersect s free)))
         (next (list 'RETURN)))
-    (recur loop ((p bodies))
-           (if (null? p)
-               next
-             (compile (car p) ee ss
-                      (loop (cdr p)))))))
+    (let loop ((p bodies))
+      (if (null? p)
+          next
+        (compile (car p) ee ss
+                 (loop (cdr p)))))))
 
 (define (find-frees xs b)
-  (recur loop ((v '())
-               (p xs))
-         (if (null? p)
-             v
-           (loop (set-union v (find-free (car p) b))
-                 (cdr p)))))
+  (let loop ((v '())
+             (p xs))
+    (if (null? p)
+        v
+      (loop (set-union v (find-free (car p) b))
+            (cdr p)))))
 
 (define find-free
   (lambda (x b)
@@ -165,12 +165,12 @@
                                    (list 'ARGUMENT next))))))
 
 (define (find-setses xs v)
-  (recur loop ((b '())
-               (p xs))
-         (if (null? p)
-             b
-           (loop (set-union b (find-sets (car p) v))
-                 (cdr p)))))
+  (let loop ((b '())
+             (p xs))
+    (if (null? p)
+        b
+      (loop (set-union b (find-sets (car p) v))
+            (cdr p)))))
 
 (define find-sets
   (lambda (x v)
@@ -190,12 +190,12 @@
 
 (define make-boxes
   (lambda (sets vars next)
-    (recur f ((vars vars) (n 0))
-           (if (null? vars)
-               next
-             (if (set-member? (car vars) sets)
-                 (list 'BOX n (f (cdr vars) (+ n 1)))
-               (f (cdr vars) (+ n 1)))))))
+    (let f ((vars vars) (n 0))
+      (if (null? vars)
+          next
+        (if (set-member? (car vars) sets)
+            (list 'BOX n (f (cdr vars) (+ n 1)))
+          (f (cdr vars) (+ n 1)))))))
 
 (define compile-refer
   (lambda (x e next)
@@ -432,10 +432,10 @@
                 :max-arg-num max-arg-num
                 :body body
                 :free-variables free-variables)))
-      (recur loop ((i 0))
-             (unless (= i nfree)
-               (vector-set! free-variables i (index s i))
-               (loop (+ i 1))))
+      (let loop ((i 0))
+        (unless (= i nfree)
+          (vector-set! free-variables i (index s i))
+          (loop (+ i 1))))
       c)))
 
 (define-method call-closure ((c <Closure>) s argnum)
@@ -462,19 +462,19 @@
 (define save-stack
   (lambda (s)
     (let ((v (make-vector s)))
-      (recur copy ((i 0))
-             (unless (= i s)
-               (vector-set! v i (vector-ref *stack* i))
-               (copy (+ i 1))))
+      (let copy ((i 0))
+        (unless (= i s)
+          (vector-set! v i (vector-ref *stack* i))
+          (copy (+ i 1))))
       v)))
 
 (define restore-stack
   (lambda (v)
     (let ((s (vector-length v)))
-      (recur copy ((i 0))
-             (unless (= i s)
-               (vector-set! *stack* i (vector-ref v i))
-               (copy (+ i 1))))
+      (let copy ((i 0))
+        (unless (= i s)
+          (vector-set! *stack* i (vector-ref v i))
+          (copy (+ i 1))))
       s)))
 
 (define box
@@ -493,10 +493,10 @@
 
 (define shift-args
   (lambda (n m s)
-    (recur nxtarg ((i (- n 1)))
-           (unless (< i 0)
-             (index-set! s (+ i m 1) (index s i))
-             (nxtarg (- i 1))))
+    (let nxtarg ((i (- n 1)))
+      (unless (< i 0)
+        (index-set! s (+ i m 1) (index s i))
+        (nxtarg (- i 1))))
     (- s m 1)))
 
 (define evaluate
@@ -557,7 +557,7 @@
   )
 
 (define (compile-all codes)
-  (let recur ((codes codes))
+  (let loop ((codes codes))
     (unless (null? codes)
       (let* ((code (car codes))
              (compiled (compile (car codes) '(()) '() '(HALT))))
@@ -566,7 +566,7 @@
         (when (and (pair? code)
                    (eq? (car code) 'set!))
           (VM '() compiled 0 '() 0))
-        (recur (cdr codes))))))
+        (loop (cdr codes))))))
 
 (define (repl)
   (display "> ") (flush)
