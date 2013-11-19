@@ -357,7 +357,7 @@
         ((closure? f)
          (VM f (closure-body f) s f (push argnum s)))
         (else
-         (runtime-error "invalid application:" f))))
+         (runtime-error #`"invalid application: ,f"))))
 
 (define (do-return a s argnum)
   (let ((s (- s argnum)))
@@ -443,7 +443,7 @@
 (define unbox
   (lambda (bx)
     (unless (eq? (car bx) '=box=)
-      (runtime-error "is not box"))
+      (runtime-error #`"box expected, but `,bx`"))
     (cdr bx)))
 
 (define set-box!

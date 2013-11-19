@@ -109,7 +109,7 @@ run '>=' t '(>= 2 2)'
 # Fail cases
 fail unbound 'abc'
 fail no-global '((^(x) y) 123)'
-
+fail invalid-apply '(1 2 3)'
 
 ################################################################
 # All tests succeeded.
