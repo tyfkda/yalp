@@ -127,7 +127,7 @@ Svalue State::cons(Svalue a, Svalue d) {
 }
 
 Svalue State::quote(Svalue x) {
-  return list2(this, quote_, x);
+  return list(this, quote_, x);
 }
 
 Svalue State::stringValue(const char* string) {
@@ -156,15 +156,15 @@ void State::runtimeError(const char* msg) {
 
 //=============================================================================
 
-Svalue list1(State* state, Svalue v1) {
+Svalue list(State* state, Svalue v1) {
   return state->cons(v1, state->nil());
 }
 
-Svalue list2(State* state, Svalue v1, Svalue v2) {
+Svalue list(State* state, Svalue v1, Svalue v2) {
   return state->cons(v1, state->cons(v2, state->nil()));
 }
 
-Svalue list3(State* state, Svalue v1, Svalue v2, Svalue v3) {
+Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3) {
   return state->cons(v1, state->cons(v2, state->cons(v3, state->nil())));
 }
 

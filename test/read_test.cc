@@ -51,32 +51,32 @@ TEST_F(ReadTest, Symbol) {
 TEST_F(ReadTest, List) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("(123)", &s));
-  ASSERT_TRUE(list1(state_, state_->fixnumValue(123)).equal(s)) << s;
+  ASSERT_TRUE(list(state_, state_->fixnumValue(123)).equal(s)) << s;
 
   Svalue s2;
   ASSERT_EQ(READ_SUCCESS, read("(1 2 3)", &s2));
-  ASSERT_TRUE(list3(state_,
-                    state_->fixnumValue(1),
-                    state_->fixnumValue(2),
-                    state_->fixnumValue(3)).equal(s2)) << s2;
+  ASSERT_TRUE(list(state_,
+                   state_->fixnumValue(1),
+                   state_->fixnumValue(2),
+                   state_->fixnumValue(3)).equal(s2)) << s2;
 
   Svalue s3;
   ASSERT_EQ(READ_SUCCESS, read("(1 (2) 3)", &s3));
-  ASSERT_TRUE(list3(state_,
-                    state_->fixnumValue(1),
-                    list1(state_, state_->fixnumValue(2)),
-                    state_->fixnumValue(3)).equal(s3)) << s3;
+  ASSERT_TRUE(list(state_,
+                   state_->fixnumValue(1),
+                   list(state_, state_->fixnumValue(2)),
+                   state_->fixnumValue(3)).equal(s3)) << s3;
 }
 
 TEST_F(ReadTest, Quote) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("'(x y z)", &s));
-  ASSERT_TRUE(list2(state_,
-                    state_->intern("quote"),
-                    list3(state_,
-                          state_->intern("x"),
-                          state_->intern("y"),
-                          state_->intern("z"))).equal(s)) << s;
+  ASSERT_TRUE(list(state_,
+                   state_->intern("quote"),
+                   list(state_,
+                        state_->intern("x"),
+                        state_->intern("y"),
+                        state_->intern("z"))).equal(s)) << s;
 }
 
 TEST_F(ReadTest, SharedStructure) {

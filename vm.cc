@@ -674,15 +674,15 @@ Svalue Vm::createClosure(Svalue body, int n, int s) {
 
 Svalue Vm::createContinuation(int s) {
   Svalue zero = state_->fixnumValue(0);
-  Svalue body = list3(state_,
-                      opcodes_[REFER_LOCAL],
-                      zero,
-                      list3(state_,
-                            opcodes_[NUATE],
-                            saveStack(s),
-                            list2(state_,
-                                  opcodes_[RETURN],
-                                  zero)));
+  Svalue body = list(state_,
+                     opcodes_[REFER_LOCAL],
+                     zero,
+                     list(state_,
+                          opcodes_[NUATE],
+                          saveStack(s),
+                          list(state_,
+                               opcodes_[RETURN],
+                               zero)));
   return createClosure(body, s, s);
 }
 

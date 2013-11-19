@@ -123,9 +123,9 @@ private:
 };
 
 // Helper functions.
-Svalue list1(State* state, Svalue v1);
-Svalue list2(State* state, Svalue v1, Svalue v2);
-Svalue list3(State* state, Svalue v1, Svalue v2, Svalue v3);
+Svalue list(State* state, Svalue v1);
+Svalue list(State* state, Svalue v1, Svalue v2);
+Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3);
 Svalue nreverse(State* state, Svalue v);
 
 }  // namespace yalp
