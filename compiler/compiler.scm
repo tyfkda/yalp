@@ -333,6 +333,7 @@
 
 (define VM
   (lambda (a x f c s)
+    ;(print `(run stack= ,s x= ,x))
     (record-case x
                  (HALT () a)
                  (UNDEF (x)
@@ -456,6 +457,8 @@
       c)))
 
 (define-method call-closure ((c <Closure>) s argnum)
+  (define (rest-params? min max)
+    (< max 0))
   (let ((min (slot-ref c 'min-arg-num))
         (max (slot-ref c 'max-arg-num)))
     (cond ((< argnum min)
@@ -463,7 +466,34 @@
           ((and (>= max 0) (> argnum max))
            (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
           (else
-           (VM c (closure-body c) s c (push argnum s))))))
+           (let ((ds (if (rest-params? min max)
+                         (modify-rest-params argnum min s)
+                       0)))
+             (let ((s2 (+ s ds))
+                   (argnum2 (+ argnum ds)))
+               (VM c (closure-body c) s2 c (push argnum2 s2))))))))
+
+(define (modify-rest-params argnum min-arg-num s)
+  (define (create-rest-params)
+    (let loop ((acc '())
+               (i (- argnum 1)))
+      (if (>= i min-arg-num)
+          (loop (cons (index s i) acc)
+                (- i 1))
+        acc)))
+  (define (unshift-args argnum s)
+    (let loop ((i 0))
+      (when (< i argnum)
+        (index-set! s (- i 1) (index s i))
+        (loop (+ i 1)))))
+
+  (let ((rest (create-rest-params))
+        (ds (if (<= argnum min-arg-num)
+                (begin (unshift-args min-arg-num s)
+                       1)
+              0)))
+      (index-set! (+ s ds) min-arg-num rest)
+      ds))
 
 (define (closure? c)
   (is-a? c <Closure>))

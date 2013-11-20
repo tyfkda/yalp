@@ -43,6 +43,9 @@ private:
   void indexSet(int s, int i, Svalue v);
   void expandStack();
   int shiftArgs(int n, int m, int s);
+  int modifyRestParams(int argNum, int minArgNum, int s);
+  Svalue createRestParams(int argNum, int minArgNum, int s);
+  void unshiftArgs(int argNum, int s);
 
   bool referGlobal(Svalue sym, Svalue* pValue);
   void assignGlobal(Svalue sym, Svalue value);
