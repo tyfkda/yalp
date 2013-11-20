@@ -113,18 +113,22 @@
                        (list 'ARGUMENT c)))))))
 
 (define (compile-lambda vars bodies e s next)
-  (let ((free (set-intersect (set-union (car e)
-                                        (cdr e))
-                             (find-frees bodies '() vars)))
-        (sets (find-setses bodies vars))
-        (varnum (list (length vars) (length vars))))
-    (collect-free free e
-                  (list 'CLOSE
-                        varnum
-                        (length free)
-                        (make-boxes sets vars
-                                    (compile-lambda-bodies vars bodies free sets s))
-                        next))))
+  (let ((proper-vars (dotted->proper vars)))
+    (let ((free (set-intersect (set-union (car e)
+                                          (cdr e))
+                               (find-frees bodies '() proper-vars)))
+          (sets (find-setses bodies (dotted->proper proper-vars)))
+          (varnum (if (eq? vars proper-vars)
+                      (list (length vars) (length vars))
+                    (list (- (length proper-vars) 1)
+                          -1))))
+      (collect-free free e
+                    (list 'CLOSE
+                          varnum
+                          (length free)
+                          (make-boxes sets proper-vars
+                                      (compile-lambda-bodies proper-vars bodies free sets s))
+                          next)))))
 
 (define (compile-lambda-bodies vars bodies free sets s)
   (let ((ee (cons vars free))
@@ -138,7 +142,7 @@
                  (loop (cdr p)))))))
 
 (define (find-frees xs b vars)
-  (let ((bb (set-union vars b)))
+  (let ((bb (set-union (dotted->proper vars) b)))
     (let loop ((v '())
                (p xs))
       (if (null? p)
@@ -191,11 +195,11 @@
                            (set-union (if (set-member? var v) (list var) '())
                                       (find-sets x v)))
                      (^ (vars . bodies)
-                       (find-setses bodies (set-minus v vars)))
+                       (find-setses bodies (set-minus v (dotted->proper vars))))
                      (quote   all '())
                      (if      all (find-setses all v))
                      (call/cc all (find-setses all v))
-                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v vars)))
+                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
                      (else        (find-setses x v)))
       '())))
 
