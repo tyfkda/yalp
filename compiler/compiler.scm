@@ -115,7 +115,7 @@
 (define (compile-lambda vars bodies e s next)
   (let ((free (set-intersect (set-union (car e)
                                         (cdr e))
-                             (find-frees bodies vars)))
+                             (find-frees bodies '() vars)))
         (sets (find-setses bodies vars))
         (varnum (length vars)))
     (collect-free free e
@@ -137,13 +137,14 @@
         (compile (car p) ee ss
                  (loop (cdr p)))))))
 
-(define (find-frees xs b)
-  (let loop ((v '())
-             (p xs))
-    (if (null? p)
-        v
-      (loop (set-union v (find-free (car p) b))
-            (cdr p)))))
+(define (find-frees xs b vars)
+  (let ((bb (set-union vars b)))
+    (let loop ((v '())
+               (p xs))
+      (if (null? p)
+          v
+        (loop (set-union v (find-free (car p) bb))
+              (cdr p))))))
 
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
@@ -155,13 +156,13 @@
      ((pair? x)
       (record-case (expand-macro-if-so x)
                    (^ (vars . bodies)
-                     (find-frees bodies (set-union vars b)))
+                     (find-frees bodies b vars))
                    (quote (obj) '())
-                   (if      all (find-frees all b))
-                   (set!    all (find-frees all b))
-                   (call/cc all (find-frees all b))
-                   (defmacro (name vars . bodies) (find-frees bodies (set-union vars b)))
-                   (else        (find-frees x   b))))
+                   (if      all (find-frees all b '()))
+                   (set!    all (find-frees all b '()))
+                   (call/cc all (find-frees all b '()))
+                   (defmacro (name vars . bodies) (find-frees bodies b vars))
+                   (else        (find-frees x   b '()))))
      (else '()))))
 
 (define collect-free
