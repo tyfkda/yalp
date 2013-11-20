@@ -12,4 +12,4 @@ compiler-test:
 	gosh compiler-test.scm
 
 vm-test:
-	./test.sh
+	./vm_test.sh
