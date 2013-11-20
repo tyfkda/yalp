@@ -38,6 +38,9 @@ TEST_F(ReadTest, Fixnum) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("123", &s));
   ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
+
+  ASSERT_EQ(READ_SUCCESS, read("-123", &s));
+  ASSERT_TRUE(state_->fixnumValue(-123).eq(s)) << s;
 }
 
 TEST_F(ReadTest, Symbol) {

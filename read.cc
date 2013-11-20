@@ -52,17 +52,22 @@ Svalue Reader::readSymbolOrNumber() {
   char buffer[256];
   char* p = buffer;
   bool hasSymbolChar = false;
+  bool hasDigit = false;
   int c;
   while (!isDelimiter(c = getc())) {
-    if (!isdigit(c))
-      hasSymbolChar = true;
+    if (isdigit(c)) {
+      hasDigit = true;
+    } else {
+      if (p != buffer || (c != '-' && c != '+'))
+        hasSymbolChar = true;
+    }
     *p++ = c;
   }
   putback(c);
   *p++ = '\0';
   assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
   
-  if (hasSymbolChar)
+  if (hasSymbolChar || !hasDigit)
     return state_->intern(buffer);
   else
     return state_->fixnumValue(atol(buffer));
