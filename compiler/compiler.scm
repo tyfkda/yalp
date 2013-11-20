@@ -152,7 +152,7 @@
                    (if      all (find-frees all b))
                    (set!    all (find-frees all b))
                    (call/cc all (find-frees all b))
-                   (defmacro all '())
+                   (defmacro (name vars . bodies) (find-frees bodies (set-union vars b)))
                    (else        (find-frees x   b))))
      (else '()))))
 
@@ -180,11 +180,11 @@
                            (set-union (if (set-member? var v) (list var) '())
                                       (find-sets x v)))
                      (^ (vars . bodies)
-                         (find-setses bodies (set-minus v vars)))
+                       (find-setses bodies (set-minus v vars)))
                      (quote   all '())
                      (if      all (find-setses all v))
                      (call/cc all (find-setses all v))
-                     (defmacro all '())
+                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v vars)))
                      (else        (find-setses x v)))
       '())))
 
