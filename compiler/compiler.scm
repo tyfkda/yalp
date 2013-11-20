@@ -36,6 +36,11 @@
 (add-load-path ".") 
 (load "util.scm")
 
+;; Compiles lisp code into vm code.
+;;   x : code to be compiled.
+;;   e : current environment, ((local-vars ...) free-vars ...)
+;;   s : sets variables, (sym1 sym2 ...)
+;;   @result : compiled code (list)
 (define compile
   (lambda (x e s next)
     (cond
@@ -140,6 +145,9 @@
       (loop (set-union v (find-free (car p) b))
             (cdr p)))))
 
+;; Find free variables.
+;; This does not consider upper scope, so every symbol except under scope
+;; are listed up.
 (define find-free
   (lambda (x b)
     (cond
@@ -147,7 +155,7 @@
      ((pair? x)
       (record-case (expand-macro-if-so x)
                    (^ (vars . bodies)
-                       (find-frees bodies (set-union vars b)))
+                     (find-frees bodies (set-union vars b)))
                    (quote (obj) '())
                    (if      all (find-frees all b))
                    (set!    all (find-frees all b))
@@ -172,6 +180,8 @@
       (loop (set-union b (find-sets (car p) v))
             (cdr p)))))
 
+;; Find assignment expression for local variables to make them boxing.
+;; Boxing is needed to keep a value for continuation.
 (define find-sets
   (lambda (x v)
     (if (pair? x)
