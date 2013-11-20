@@ -113,18 +113,22 @@
                        (list 'ARGUMENT c)))))))
 
 (define (compile-lambda vars bodies e s next)
-  (let ((free (set-intersect (set-union (car e)
-                                        (cdr e))
-                             (find-frees bodies '() vars)))
-        (sets (find-setses bodies vars))
-        (varnum (length vars)))
-    (collect-free free e
-                  (list 'CLOSE
-                        varnum
-                        (length free)
-                        (make-boxes sets vars
-                                    (compile-lambda-bodies vars bodies free sets s))
-                        next))))
+  (let ((proper-vars (dotted->proper vars)))
+    (let ((free (set-intersect (set-union (car e)
+                                          (cdr e))
+                               (find-frees bodies '() proper-vars)))
+          (sets (find-setses bodies (dotted->proper proper-vars)))
+          (varnum (if (eq? vars proper-vars)
+                      (list (length vars) (length vars))
+                    (list (- (length proper-vars) 1)
+                          -1))))
+      (collect-free free e
+                    (list 'CLOSE
+                          varnum
+                          (length free)
+                          (make-boxes sets proper-vars
+                                      (compile-lambda-bodies proper-vars bodies free sets s))
+                          next)))))
 
 (define (compile-lambda-bodies vars bodies free sets s)
   (let ((ee (cons vars free))
@@ -138,7 +142,7 @@
                  (loop (cdr p)))))))
 
 (define (find-frees xs b vars)
-  (let ((bb (set-union vars b)))
+  (let ((bb (set-union (dotted->proper vars) b)))
     (let loop ((v '())
                (p xs))
       (if (null? p)
@@ -191,11 +195,11 @@
                            (set-union (if (set-member? var v) (list var) '())
                                       (find-sets x v)))
                      (^ (vars . bodies)
-                       (find-setses bodies (set-minus v vars)))
+                       (find-setses bodies (set-minus v (dotted->proper vars))))
                      (quote   all '())
                      (if      all (find-setses all v))
                      (call/cc all (find-setses all v))
-                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v vars)))
+                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
                      (else        (find-setses x v)))
       '())))
 
@@ -329,6 +333,7 @@
 
 (define VM
   (lambda (a x f c s)
+    ;(print `(run stack= ,s x= ,x))
     (record-case x
                  (HALT () a)
                  (UNDEF (x)
@@ -347,7 +352,9 @@
                  (CONSTANT (obj x)
                            (VM obj x f c s))
                  (CLOSE (nparam nfree body x)
-                        (VM (closure body nfree s nparam nparam) x f c (- s nfree)))
+                        (let ((min (car nparam))
+                              (max (cadr nparam)))
+                          (VM (closure body nfree s min max) x f c (- s nfree))))
                  (BOX (n x)
                       (index-set! f n (box (index f n)))
                       (VM a x f c s))
@@ -450,6 +457,8 @@
       c)))
 
 (define-method call-closure ((c <Closure>) s argnum)
+  (define (rest-params? min max)
+    (< max 0))
   (let ((min (slot-ref c 'min-arg-num))
         (max (slot-ref c 'max-arg-num)))
     (cond ((< argnum min)
@@ -457,7 +466,34 @@
           ((and (>= max 0) (> argnum max))
            (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
           (else
-           (VM c (closure-body c) s c (push argnum s))))))
+           (let ((ds (if (rest-params? min max)
+                         (modify-rest-params argnum min s)
+                       0)))
+             (let ((s2 (+ s ds))
+                   (argnum2 (+ argnum ds)))
+               (VM c (closure-body c) s2 c (push argnum2 s2))))))))
+
+(define (modify-rest-params argnum min-arg-num s)
+  (define (create-rest-params)
+    (let loop ((acc '())
+               (i (- argnum 1)))
+      (if (>= i min-arg-num)
+          (loop (cons (index s i) acc)
+                (- i 1))
+        acc)))
+  (define (unshift-args argnum s)
+    (let loop ((i 0))
+      (when (< i argnum)
+        (index-set! s (- i 1) (index s i))
+        (loop (+ i 1)))))
+
+  (let ((rest (create-rest-params))
+        (ds (if (<= argnum min-arg-num)
+                (begin (unshift-args min-arg-num s)
+                       1)
+              0)))
+      (index-set! (+ s ds) min-arg-num rest)
+      ds))
 
 (define (closure? c)
   (is-a? c <Closure>))

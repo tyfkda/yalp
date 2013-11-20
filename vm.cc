@@ -305,6 +305,7 @@ public:
   Svalue getBody() const  { return body_; }
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
+  bool hasRestParam() const  { return maxArgNum_ < 0; }
 
   void setFreeVariable(int index, Svalue value) {
     freeVariables_[index] = value;
@@ -549,11 +550,13 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case CLOSE:
     {
-      int nparam = CAR(x).toFixnum();
+      Svalue nparam = CAR(x);
       int nfree = CADR(x).toFixnum();
       Svalue body = CADDR(x);
       x = CADDDR(x);
-      a = createClosure(body, nfree, s, nparam, nparam);
+      int min = CAR(nparam).toFixnum();
+      int max = CADR(nparam).toFixnum();
+      a = createClosure(body, nfree, s, min, max);
       s -= nfree;
     }
     goto again;
@@ -642,6 +645,12 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
           } else if (max >= 0 && argNum > max) {
             state_->runtimeError("Too many arguments");
           }
+
+          int ds = 0;
+          if (closure->hasRestParam())
+            ds = modifyRestParams(argNum, min, s);
+          s += ds;
+          argNum += ds;
           x = closure->getBody();
           f = s;
           c = a;
@@ -754,6 +763,29 @@ int Vm::shiftArgs(int n, int m, int s) {
     indexSet(s, i + m + 1, index(s, i));
   }
   return s - m - 1;
+}
+
+int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
+  Svalue rest = createRestParams(argNum, minArgNum, s);
+  int ds = 0;
+  if (argNum <= minArgNum) {
+    unshiftArgs(argNum, s);
+    ds = 1;
+  }
+  indexSet(s + ds, minArgNum, rest);
+  return ds;
+}
+
+Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
+  Svalue acc = state_->nil();
+  for (int i = argNum; --i >= minArgNum; )
+    acc = state_->cons(index(s, i), acc);
+  return acc;
+}
+
+void Vm::unshiftArgs(int argNum, int s) {
+  for (int i = 0; i < argNum; ++i)
+    indexSet(s, i - 1, index(s, i));
 }
 
 bool Vm::referGlobal(Svalue sym, Svalue* pValue) {

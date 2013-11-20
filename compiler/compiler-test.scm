@@ -12,7 +12,10 @@
 (test* "defmacro" '(y) (find-free '(defmacro foo (x) x y) '()))
 (test* "other" '(y) (find-free '((^(x) x) y) '()))
 
-(test-section "find-set")
+(test-section "find-frees")
+(test* "dotted" '(c) (find-frees '(a b c) '() '(a . b)))
+
+(test-section "find-sets")
 (test* "set!" '(x) (find-sets '(set! x 123) '(x)))
 (test* "symbol" '() (find-sets 'symbol '(symbol)))
 (test* "lambda" '() (find-sets '(^(x) (set! x 123)) '(x)))
@@ -22,6 +25,7 @@
 (test* "call/cc" '(x) (find-sets '(call/cc (^(cc) (set! x 123))) '(x)))
 (test* "defmacro" '(y) (find-sets '(defmacro foo (x) (set! x 1) (set! y 2)) '(x y)))
 (test* "other" '(y) (find-sets '((^(x) (set! x 1)) (set! y 2)) '(x y)))
+(test* "dotted-params" '() (find-sets '(^(a . x) (set! x 123)) '(x)))
 
 (test-end :exit-on-failure #t)
 (exit 0)
