@@ -549,11 +549,13 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case CLOSE:
     {
-      int nparam = CAR(x).toFixnum();
+      Svalue nparam = CAR(x);
       int nfree = CADR(x).toFixnum();
       Svalue body = CADDR(x);
       x = CADDDR(x);
-      a = createClosure(body, nfree, s, nparam, nparam);
+      int min = CAR(nparam).toFixnum();
+      int max = CADR(nparam).toFixnum();
+      a = createClosure(body, nfree, s, min, max);
       s -= nfree;
     }
     goto again;

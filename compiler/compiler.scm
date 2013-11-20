@@ -117,7 +117,7 @@
                                         (cdr e))
                              (find-frees bodies '() vars)))
         (sets (find-setses bodies vars))
-        (varnum (length vars)))
+        (varnum (list (length vars) (length vars))))
     (collect-free free e
                   (list 'CLOSE
                         varnum
@@ -347,7 +347,9 @@
                  (CONSTANT (obj x)
                            (VM obj x f c s))
                  (CLOSE (nparam nfree body x)
-                        (VM (closure body nfree s nparam nparam) x f c (- s nfree)))
+                        (let ((min (car nparam))
+                              (max (cadr nparam)))
+                          (VM (closure body nfree s min max) x f c (- s nfree))))
                  (BOX (n x)
                       (index-set! f n (box (index f n)))
                       (VM a x f c s))
