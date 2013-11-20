@@ -238,6 +238,12 @@ static Svalue s_write(State* state) {
   return state->nil();
 }
 
+static Svalue s_print(State* state) {
+  s_write(state);
+  std::cout << std::endl;
+  return state->nil();
+}
+
 static Svalue s_newline(State* state) {
   std::cout << std::endl;
   return state->nil();
@@ -475,7 +481,7 @@ void Vm::installNativeFunctions() {
   assignNative("<=", s_lessEqual, 2, -1);
   assignNative(">=", s_greaterEqual, 2, -1);
 
-  assignNative("print", s_write, 1);
+  assignNative("print", s_print, 1);
   assignNative("display", s_write, 1);
   assignNative("write", s_write, 1);
   assignNative("newline", s_newline, 0);
