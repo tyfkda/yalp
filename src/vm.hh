@@ -5,14 +5,10 @@
 #ifndef _VM_HH_
 #define _VM_HH_
 
+#include "yalp.hh"
 #include <map>
 
 namespace yalp {
-
-class State;
-class Svalue;
-
-typedef Svalue (*NativeFuncType)(State* state);
 
 // Vm class.
 class Vm {
@@ -27,6 +23,13 @@ public:
   int getArgNum() const;
   // Gets argument value for the index.
   Svalue getArg(int index) const;
+
+  bool referGlobal(Svalue sym, Svalue* pValue);
+  void assignGlobal(Svalue sym, Svalue value);
+  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
+    assignNative(name, func, minArgNum, minArgNum);
+  }
+  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
 private:
   Vm(State* state);
@@ -46,13 +49,6 @@ private:
   int modifyRestParams(int argNum, int minArgNum, int s);
   Svalue createRestParams(int argNum, int minArgNum, int s);
   void unshiftArgs(int argNum, int s);
-
-  bool referGlobal(Svalue sym, Svalue* pValue);
-  void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
-    assignNative(name, func, minArgNum, minArgNum);
-  }
-  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);

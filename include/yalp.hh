@@ -66,6 +66,8 @@ private:
   friend class Vm;
 };
 
+typedef Svalue (*NativeFuncType)(State* state);
+
 // State class.
 class State {
 public:
@@ -110,6 +112,13 @@ public:
   Svalue quote(Svalue x);
 
   Allocator* getAllocator() const  { return allocator_; }
+
+  bool referGlobal(Svalue sym, Svalue* pValue);
+  void assignGlobal(Svalue sym, Svalue value);
+  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
+    assignNative(name, func, minArgNum, minArgNum);
+  }
+  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
 private:
   State(Allocator* allocator);

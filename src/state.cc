@@ -5,6 +5,7 @@
 #include "yalp.hh"
 #include "yalp/mem.hh"
 #include "yalp/object.hh"
+#include "basic.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
 #include <assert.h>
@@ -107,6 +108,7 @@ State::State(Allocator* allocator)
   , quote_(symbolManager_->intern("quote"))
   , vm_(NULL) {
   vm_ = Vm::create(this);
+  installBasicFunctions(this);
 }
 
 State::~State() {
@@ -157,6 +159,18 @@ Svalue State::getArg(int index) const {
 void State::runtimeError(const char* msg) {
   std::cerr << msg << std::endl;
   exit(1);
+}
+
+bool State::referGlobal(Svalue sym, Svalue* pValue) {
+  return vm_->referGlobal(sym, pValue);
+}
+
+void State::assignGlobal(Svalue sym, Svalue value) {
+  vm_->assignGlobal(sym, value);
+}
+
+void State::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+  vm_->assignNative(name, func, minArgNum, maxArgNum);
 }
 
 //=============================================================================
