@@ -1,4 +1,4 @@
-#include "mem.hh"
+#include "yalp/mem.hh"
 #include <stdlib.h>
 
 namespace yalp {

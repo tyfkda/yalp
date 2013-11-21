@@ -2,7 +2,7 @@
 /// object
 //=============================================================================
 
-#include "object.hh"
+#include "yalp/object.hh"
 
 namespace yalp {
 

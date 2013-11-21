@@ -18,11 +18,13 @@ GTEST_DIR = /usr/local/gtest
 
 # Where to find user code.
 USER_DIR = ..
+INC_DIR = ../include
+OBJ_DIR = ../obj
 
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(USER_DIR)
+CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR)
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
@@ -81,12 +83,12 @@ gtest_main.a:	gtest-all.o gtest_main.o
 # gtest_main.a, depending on whether it defines its own main()
 # function.
 
-#sample1.o:	$(USER_DIR)/sample1.cc $(USER_DIR)/sample1.h $(GTEST_HEADERS)
-#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(USER_DIR)/sample1.cc
+#sample1.o:	$(OBJ_DIR)/sample1.cc $(OBJ_DIR)/sample1.h $(GTEST_HEADERS)
+#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(OBJ_DIR)/sample1.cc
 #
-#sample1_unittest.o:	$(USER_DIR)/sample1_unittest.cc \
-#			$(USER_DIR)/sample1.h $(GTEST_HEADERS)
-#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(USER_DIR)/sample1_unittest.cc
+#sample1_unittest.o:	$(OBJ_DIR)/sample1_unittest.cc \
+#			$(OBJ_DIR)/sample1.h $(GTEST_HEADERS)
+#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(OBJ_DIR)/sample1_unittest.cc
 #
 #sample1_unittest:	sample1.o sample1_unittest.o gtest_main.a
 #	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
@@ -98,16 +100,16 @@ run-tests:	$(TESTS)
 	  "./$$test"; \
 	done
 
-symbol_manager_test:	symbol_manager_test.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/mem.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/object.o $(OBJ_DIR)/yalp.o $(OBJ_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-object_test:	object_test.o $(USER_DIR)/object.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/yalp.o $(OBJ_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-read_test:	read_test.o $(USER_DIR)/read.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/yalp.o $(USER_DIR)/vm.o gtest_main.a
+read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/yalp.o $(OBJ_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-yalp_test:	yalp_test.o $(USER_DIR)/yalp.o $(USER_DIR)/mem.o $(USER_DIR)/symbol_manager.o $(USER_DIR)/object.o $(USER_DIR)/vm.o gtest_main.a
+yalp_test:	yalp_test.o $(OBJ_DIR)/yalp.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/vm.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 vm-test:

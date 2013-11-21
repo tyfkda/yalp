@@ -3,8 +3,8 @@
 //=============================================================================
 
 #include "vm.hh"
-#include "mem.hh"
-#include "object.hh"
+#include "yalp/mem.hh"
+#include "yalp/object.hh"
 #include <assert.h>
 #include <iostream>
 

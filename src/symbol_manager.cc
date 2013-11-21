@@ -3,7 +3,7 @@
 //=============================================================================
 
 #include "symbol_manager.hh"
-#include "object.hh"
+#include "yalp/object.hh"
 #include <assert.h>
 #include <string.h>
 

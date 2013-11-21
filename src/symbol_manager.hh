@@ -5,7 +5,7 @@
 #ifndef _SYMBOL_MANAGER_HH_
 #define _SYMBOL_MANAGER_HH_
 
-#include "mem.hh"
+#include "yalp/mem.hh"
 #include <vector>
 
 namespace yalp {

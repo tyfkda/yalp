@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "object.hh"
+#include "yalp/object.hh"
 
 using namespace yalp;
 

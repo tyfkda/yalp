@@ -1,6 +1,6 @@
-#include "mem.hh"
-#include "read.hh"
 #include "yalp.hh"
+#include "yalp/mem.hh"
+#include "yalp/read.hh"
 #include <fstream>
 #include <iostream>
 

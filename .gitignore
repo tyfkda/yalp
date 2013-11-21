@@ -1,6 +1,7 @@
-*.o
-*.d
-*.a
+obj/*
+test/*.o
+test/*.d
+test/*.a
 
 yalp
 

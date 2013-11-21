@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include "read.hh"
-#include "object.hh"
+#include "yalp/read.hh"
+#include "yalp/object.hh"
 
 using namespace yalp;
 
