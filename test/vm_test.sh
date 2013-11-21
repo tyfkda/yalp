@@ -1,8 +1,5 @@
 #!/bin/zsh
 
-TEST_FILE_NAME='test.arc'
-BIN_FILE_NAME='test.bin'
-
 ################################################################
 # Test framework.
 
@@ -14,7 +11,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(echo "(write ((^() $3)))" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME)
+  result=$(echo "(write ((^() $3)))" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp)
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
@@ -23,7 +20,7 @@ function run() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" > $TEST_FILE_NAME && gosh -I ../compiler ../compiler/compiler.scm -c $TEST_FILE_NAME > $BIN_FILE_NAME && ../yalp $BIN_FILE_NAME 2>& /dev/null
+  echo "$2" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp 2>& /dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi
@@ -104,8 +101,6 @@ fail too-many-arg-lambda '((^(x y)) 1 2 3)'
 ################################################################
 # All tests succeeded.
 
-rm $TEST_FILE_NAME
-rm $BIN_FILE_NAME
 echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
 
 #
