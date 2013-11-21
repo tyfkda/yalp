@@ -26,3 +26,7 @@ $(OBJPATH)/%.o:	$(SRCPATH)/%.cc
 	  mkdir $(OBJPATH);\
 	fi
 	g++ $(CXXFLAGS) -o $@ -c $<
+
+
+check-length:
+	wc -l src/* include/**/* | sort -nr
