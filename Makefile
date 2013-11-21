@@ -1,21 +1,18 @@
 PROJECT=yalp
 
-OBJS=\
-	main.o\
-	mem.o\
-	object.o\
-	read.o\
-	symbol_manager.o\
-	vm.o\
-	yalp.o\
+SRCS=$(wildcard *.cc)
+OBJS=$(SRCS:%.cc=%.o)
+DEPS:=$(SRCS:%.cc=%.d)
 
-CXXFLAGS += -Wall -Wextra -Werror -std=c++0x
+CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD
 
 all:	$(PROJECT)
 
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) $(DEPS)
 	rm -f $(PROJECT)
+
+-include $(DEPS)
 
 $(PROJECT):	$(OBJS)
 	g++ -o $(PROJECT) $(OBJS)

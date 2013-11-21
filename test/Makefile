@@ -25,7 +25,15 @@ USER_DIR = ..
 CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(USER_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x
+CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
+
+SRCS=\
+	symbol_manager_test.cc\
+	object_test.cc\
+	read_test.cc\
+	yalp_test.cc\
+
+DEPS:=$(SRCS:%.cc=%.d)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
@@ -41,7 +49,9 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 all:	test
 
 clean:
-	rm -f $(TESTS) gtest.a gtest_main.a *.o
+	rm -f $(TESTS) gtest.a gtest_main.a *.o *.d
+
+-include $(DEPS)
 
 # Builds gtest.a and gtest_main.a.
 
