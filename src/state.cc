@@ -161,8 +161,8 @@ void State::runtimeError(const char* msg) {
   exit(1);
 }
 
-bool State::referGlobal(Svalue sym, Svalue* pValue) {
-  return vm_->referGlobal(sym, pValue);
+Svalue State::referGlobal(Svalue sym, bool* pExist) {
+  return vm_->referGlobal(sym, pExist);
 }
 
 void State::assignGlobal(Svalue sym, Svalue value) {

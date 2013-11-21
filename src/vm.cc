@@ -272,10 +272,13 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue sym = CAR(x);
       x = CADR(x);
       assert(sym.getType() == TT_SYMBOL);
-      if (!referGlobal(sym, &a)) {
+      bool exist;
+      Svalue aa = referGlobal(sym, &exist);
+      if (!exist) {
         std::cerr << sym << ": ";
         state_->runtimeError("Unbound");
       }
+      a = aa;
     }
     goto again;
   case CLOSE:
@@ -518,12 +521,16 @@ void Vm::unshiftArgs(int argNum, int s) {
     indexSet(s, i - 1, index(s, i));
 }
 
-bool Vm::referGlobal(Svalue sym, Svalue* pValue) {
+Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
   auto it = globalVariableTable_.find(sym.getId());
-  if (it == globalVariableTable_.end())
-    return false;
-  *pValue = it->second;
-  return true;
+  if (it == globalVariableTable_.end()) {
+    if (pExist != NULL)
+      *pExist = false;
+    return state_->nil();
+  }
+  if (pExist != NULL)
+    *pExist = true;
+  return it->second;
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {

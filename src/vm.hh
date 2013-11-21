@@ -24,7 +24,7 @@ public:
   // Gets argument value for the index.
   Svalue getArg(int index) const;
 
-  bool referGlobal(Svalue sym, Svalue* pValue);
+  Svalue referGlobal(Svalue sym, bool* pExist);
   void assignGlobal(Svalue sym, Svalue value);
   void assignNative(const char* name, NativeFuncType func, int minArgNum) {
     assignNative(name, func, minArgNum, minArgNum);
