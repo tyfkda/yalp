@@ -158,7 +158,7 @@
     (cond
      ((symbol? x) (if (set-member? x b) '() (list x)))
      ((pair? x)
-      (let ((expanded (expand-macro-if-so x)))
+      (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
         (record-case expanded
                      (^ (vars . bodies)
                        (find-frees bodies b vars))
@@ -191,7 +191,7 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (let ((expanded (expand-macro-if-so x)))
+        (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
           (record-case expanded
                        (set! (var val)
                              (set-union (if (set-member? var v) (list var) '())
@@ -256,10 +256,10 @@
 
 (define (compile-apply-macro name args e s next)
   "Expand macro and compile the result."
-  (let ((result (expand-macro name args)))
+  (let ((result (expand-macro name args %running-stack-pointer)))
     (compile result e s next)))
 
-(define (expand-macro name args)
+(define (expand-macro name args s)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -275,17 +275,17 @@
     (apply-macro (length args)
                  closure
                  (push-args args
-                            (make-frame '(HALT) 0 '() 0)))))
+                            (make-frame '(HALT) 0 '() s)))))
 
-(define (expand-macro-if-so x)
+(define (expand-macro-if-so x s)
   "Expand macro all if the given parameter is macro expression,
    otherwise return itself."
   (if (and (pair? x)
            (macro? (car x)))
-      (let ((expanded (expand-macro (car x) (cdr x))))
+      (let ((expanded (expand-macro (car x) (cdr x) s)))
         (if (equal? expanded x)
             x
-          (expand-macro-if-so expanded)))
+          (expand-macro-if-so expanded s)))
     x))
 
 ;;;; runtime
@@ -332,6 +332,8 @@
              (apply fn args))))))
 
 ;;;; VM
+
+(define %running-stack-pointer 0)
 
 (define VM
   (lambda (a x f c s)
@@ -399,6 +401,7 @@
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)
+         (set! %running-stack-pointer s)
          (let ((res (call-native-function f s argnum)))
            (do-return res s argnum)))
         ((closure? f)
