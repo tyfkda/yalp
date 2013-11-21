@@ -54,7 +54,7 @@ public:
 
   friend std::ostream& operator<<(std::ostream& o, Svalue v);
 
-  long getHash() const  { return v_; }
+  long getId() const  { return v_; }
 
 private:
   explicit Svalue(Sfixnum i);

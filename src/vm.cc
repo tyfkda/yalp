@@ -519,7 +519,7 @@ void Vm::unshiftArgs(int argNum, int s) {
 }
 
 bool Vm::referGlobal(Svalue sym, Svalue* pValue) {
-  auto it = globalVariableTable_.find(sym.getHash());
+  auto it = globalVariableTable_.find(sym.getId());
   if (it == globalVariableTable_.end())
     return false;
   *pValue = it->second;
@@ -527,7 +527,7 @@ bool Vm::referGlobal(Svalue sym, Svalue* pValue) {
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {
-  globalVariableTable_[sym.getHash()] = value;
+  globalVariableTable_[sym.getId()] = value;
 }
 
 Svalue Vm::saveStack(int s) {
