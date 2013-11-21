@@ -249,6 +249,10 @@ static Svalue s_newline(State* state) {
   return state->nil();
 }
 
+static Svalue s_uniq(State* state) {
+  return state->gensym();
+}
+
 //=============================================================================
 
 enum Opcode {
@@ -486,6 +490,8 @@ void Vm::installNativeFunctions() {
   assignNative("display", s_write, 1);
   assignNative("write", s_write, 1);
   assignNative("newline", s_newline, 0);
+
+  assignNative("uniq", s_uniq, 0);
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {

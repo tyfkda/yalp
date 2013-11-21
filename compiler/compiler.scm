@@ -601,6 +601,8 @@
   (assign-native! 'display display 1 1)
   (assign-native! 'write write 1 1)
   (assign-native! 'newline newline 0 0)
+
+  (assign-native! 'uniq gensym 0 0)
   )
 
 (define (compile-all codes)

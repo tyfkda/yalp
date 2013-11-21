@@ -120,6 +120,10 @@ Svalue State::intern(const char* name) {
   return Svalue(symbolManager_->intern(name));
 }
 
+Svalue State::gensym() {
+  return Svalue(symbolManager_->gensym());
+}
+
 Svalue State::cons(Svalue a, Svalue d) {
   void* memory = allocator_->alloc(sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);

@@ -90,6 +90,7 @@ public:
 
   // Returns symbol value.
   Svalue intern(const char* name);
+  Svalue gensym();
 
   // Creates cell.
   Svalue cons(Svalue a, Svalue d);

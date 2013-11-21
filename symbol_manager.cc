@@ -22,7 +22,8 @@ void SymbolManager::release() {
 
 SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
-  , table_() {
+  , table_()
+  , gensymIndex_(0) {
   table_.reserve(100);
 }
 
@@ -37,7 +38,17 @@ Symbol* SymbolManager::intern(const char* name) {
   for (auto symbol : table_)
     if (strcmp(symbol->c_str(), name) == 0)
       return symbol;
+  return generate(name);
+}
 
+Symbol* SymbolManager::gensym() {
+  int no = ++gensymIndex_;
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "#G:%d", no);
+  return generate(buffer);
+}
+
+Symbol* SymbolManager::generate(const char* name) {
   const char* copied = copyString(name);
   void* memory = allocator_->alloc(sizeof(Symbol));
   Symbol* symbol = new(memory) Symbol(copied);
