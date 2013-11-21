@@ -96,6 +96,12 @@ TEST_F(ReadTest, String) {
   ASSERT_EQ(READ_SUCCESS, read("\"string\"", &s));
   ASSERT_FALSE(state_->stringValue("string").eq(s)) << s;
   ASSERT_TRUE(state_->stringValue("string").equal(s)) << s;
+
+  ASSERT_EQ(READ_SUCCESS, read("\"a b\\tc\\nd\"", &s));
+  ASSERT_TRUE(state_->stringValue("a b\tc\nd").equal(s)) << s;
+
+  ASSERT_EQ(READ_SUCCESS, read("\"'\\\"foobar\\\"'\"", &s));
+  ASSERT_TRUE(state_->stringValue("'\"foobar\"'").equal(s)) << s;
 }
 
 TEST_F(ReadTest, Error) {

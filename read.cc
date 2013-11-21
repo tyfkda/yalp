@@ -150,6 +150,20 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
       return NO_CLOSE_STRING;
     if (c == closeChar)
       break;
+    switch (c) {
+    case '\\':
+      c = getc();
+      if (c == EOF)
+        return NO_CLOSE_STRING;
+      if (c != closeChar)
+        switch (c) {
+        case 'n':  c = '\n'; break;
+        case 'r':  c = '\r'; break;
+        case 't':  c = '\t'; break;
+        default:   break;
+        }
+      break;
+    }
     *p++ = c;
   }
   *p++ = '\0';

@@ -67,7 +67,31 @@ bool String::equal(const Sobject* target) const {
 }
 
 std::ostream& String::operator<<(std::ostream& o) const {
-  return o << '"' << string_ << '"';
+  o << '"';
+  for (const char* p = string_; *p != '\0'; ) {
+    char c = *p++;
+    switch (c) {
+    case '\n':
+      o << "\\n";
+      break;
+    case '\r':
+      o << "\\r";
+      break;
+    case '\t':
+      o << "\\t";
+      break;
+    case '\\':
+      o << "\\\\";
+      break;
+    case '"':
+      o << "\\\"";
+      break;
+    default:
+      o << c;
+      break;
+    }
+  }
+  return o << '"';
 }
 
 //=============================================================================
