@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "yalp.hh"
+#include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
