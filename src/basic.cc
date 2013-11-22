@@ -65,6 +65,11 @@ static Svalue s_consp(State* state) {
   return state->boolValue(a.getType() == TT_CELL);
 }
 
+static Svalue s_symbolp(State* state) {
+  Svalue a = state->getArg(0);
+  return state->boolValue(a.getType() == TT_SYMBOL);
+}
+
 static Svalue s_append(State* state) {
   int n = state->getArgNum();
   Svalue res;
@@ -263,6 +268,7 @@ void installBasicFunctions(State* state) {
   state->assignNative("list", s_list, 0, -1);
   state->assignNative("list*", s_listStar, 0, -1);
   state->assignNative("consp", s_consp, 1);
+  state->assignNative("symbolp", s_symbolp, 1);
   state->assignNative("append", s_append, 0, -1);
   state->assignNative("+", s_add, 0, -1);
   state->assignNative("-", s_sub, 0, -1);

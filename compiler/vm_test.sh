@@ -89,6 +89,9 @@ run cdr '(2 3)' "(cdr '(1 2 3))"
 run list '(1 2 (3 4))' "(list 1 2 '(3 4))"
 run 'list*' '(1 2 3 4)' "(list* 1 2 '(3 4))"
 run consp 't' "(consp '(1 2))"
+run consp2 'nil' "(consp 'symbol)"
+run symbolp 't' "(symbolp 'symbol)"
+run symbolp2 'nil' "(symbolp '(1 2))"
 run append '(1 2 3 4 5 6)' "(append '(1 2) '(3 4) '(5 6))"
 run + '15' '(+ 1 2 3 4 5)'
 run - '7' '(- 10 3)'

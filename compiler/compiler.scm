@@ -591,6 +591,7 @@
   (assign-native! 'list list 0 -1)
   (assign-native! 'list* list* 0 -1)
   (assign-native! 'consp pair? 1 1)
+  (assign-native! 'symbolp symbol? 1 1)
   (assign-native! 'append append 0 -1)
   (assign-native! '+ + 0 -1)
   (assign-native! '- - 0 -1)
