@@ -215,6 +215,13 @@ Svalue nreverse(State* state, Svalue v) {
   }
 }
 
+int length(State* state, Svalue v) {
+  int len = 0;
+  for (; v.getType() == TT_CELL; v = state->cdr(v))
+    ++len;
+  return len;
+}
+
 //=============================================================================
 
 }  // namespace yalp

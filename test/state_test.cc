@@ -78,3 +78,10 @@ TEST_F(YalpTest, Nreverse) {
   Svalue reversed3 = nreverse(state_, s3);
   ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed3)) << reversed3;
 }
+
+TEST_F(YalpTest, length) {
+  Svalue a = state_->fixnumValue(1);
+  ASSERT_EQ(0, length(state_, state_->nil()));
+  ASSERT_EQ(3, length(state_, list(state_, a, a, a)));
+  ASSERT_EQ(1, length(state_, state_->cons(a, a)));
+}
