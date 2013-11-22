@@ -31,6 +31,8 @@ public:
   }
   void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
+  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+
 private:
   Vm(State* state);
   ~Vm();
@@ -52,6 +54,8 @@ private:
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);
+
+  int pushArgs(int argNum, const Svalue* args, int s);
 
   State* state_;
   Svalue* stack_;

@@ -563,4 +563,69 @@ Svalue Vm::getArg(int index) const {
   return this->index(stackPointer_, index);
 }
 
+Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
+  Svalue result;
+  const int prevStackPointer = stackPointer_;
+  const int prevArgNum = argNum_;
+
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+    {
+      Svalue ret = list(state_, opcodes_[HALT]);
+      Svalue c = state_->nil();
+      int s = stackPointer_;
+      // Makes frame.
+      s = push(ret, push(state_->fixnumValue(s), push(c, s)));
+
+      s = pushArgs(argNum, args, s);
+
+      Closure* closure = static_cast<Closure*>(fn.toObject());
+      int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
+      if (argNum < min) {
+        state_->runtimeError("Too few arguments");
+      } else if (max >= 0 && argNum > max) {
+        state_->runtimeError("Too many arguments");
+      }
+
+      int ds = 0;
+      if (closure->hasRestParam())
+        ds = modifyRestParams(argNum, min, s);
+      s += ds;
+      argNum += ds;
+      Svalue x = closure->getBody();
+      int f = s;
+      s = push(state_->fixnumValue(argNum), s);
+      result = run(fn, x, f, fn, s);
+    }
+    break;
+  case TT_NATIVEFUNC:
+    {
+      // No frame.
+      int s = stackPointer_;
+      s = pushArgs(argNum, args, s);
+
+      // Store current state in member variable for native function call.
+      stackPointer_ = s;
+      argNum_ = argNum;
+      NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
+      result = native->call(state_, argNum);
+    }
+    break;
+  default:
+    state_->runtimeError("Can't call");
+    result = state_->nil();
+    break;
+  }
+
+  stackPointer_ = prevStackPointer;
+  argNum_ = prevArgNum;
+  return result;
+}
+
+int Vm::pushArgs(int argNum, const Svalue* args, int s) {
+  for (int i = argNum; --i >= 0; )
+    s = push(args[i], s);
+  return s;
+}
+
 }  // namespace yalp

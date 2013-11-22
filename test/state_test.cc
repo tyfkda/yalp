@@ -45,6 +45,14 @@ TEST_F(YalpTest, Cons) {
   ASSERT_FALSE(v.equal(v3));
 }
 
+TEST_F(YalpTest, Funcall) {
+  Svalue args[] = { state_->fixnumValue(1), state_->fixnumValue(2), state_->fixnumValue(3) };
+  Svalue fn = state_->referGlobal(state_->intern("+"));
+  Svalue result = state_->funcall(fn, sizeof(args) / sizeof(*args), args);
+  ASSERT_EQ(TT_FIXNUM, result.getType());
+  ASSERT_EQ(6, result.toFixnum());
+}
+
 TEST_F(YalpTest, ListFunctions) {
   Svalue a = state_->fixnumValue(1);
   Svalue b = state_->fixnumValue(2);

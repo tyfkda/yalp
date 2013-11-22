@@ -122,6 +122,8 @@ public:
   }
   void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
+  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+
 private:
   State(Allocator* allocator);
   ~State();

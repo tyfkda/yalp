@@ -185,6 +185,10 @@ void State::assignNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->assignNative(name, func, minArgNum, maxArgNum);
 }
 
+Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {
+  return vm_->funcall(fn, argNum, args);
+}
+
 //=============================================================================
 
 Svalue list(State* state, Svalue v1) {
