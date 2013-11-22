@@ -21,18 +21,12 @@ static Svalue s_cons(State* state) {
 
 static Svalue s_car(State* state) {
   Svalue cell = state->getArg(0);
-  if (cell.getType() != TT_CELL) {
-    state->runtimeError("Cell expected");
-  }
-  return static_cast<Cell*>(cell.toObject())->car();
+  return state->car(cell);
 }
 
 static Svalue s_cdr(State* state) {
   Svalue cell = state->getArg(0);
-  if (cell.getType() != TT_CELL) {
-    state->runtimeError("Cell expected");
-  }
-  return static_cast<Cell*>(cell.toObject())->cdr();
+  return state->cdr(cell);
 }
 
 static Svalue s_list(State* state) {
@@ -81,8 +75,7 @@ static Svalue s_append(State* state) {
       static Svalue loop(State* state, Svalue a, Svalue d) {
         if (a.getType() != TT_CELL)
           return d;
-        Cell* cell = static_cast<Cell*>(a.toObject());
-        return state->cons(cell->car(), loop(state, cell->cdr(), d));
+        return state->cons(state->car(a), loop(state, state->cdr(a), d));
       }
     };
     for (int i = n - 1; --i >= 0; ) {

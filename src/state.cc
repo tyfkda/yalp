@@ -133,6 +133,18 @@ Svalue State::cons(Svalue a, Svalue d) {
   return Svalue(cell);
 }
 
+Svalue State::car(Svalue s) {
+  if (s.getType() != TT_CELL)
+    runtimeError("Cell expected");
+  return static_cast<Cell*>(s.toObject())->car();
+}
+
+Svalue State::cdr(Svalue s) {
+  if (s.getType() != TT_CELL)
+    runtimeError("Cell expected");
+  return static_cast<Cell*>(s.toObject())->cdr();
+}
+
 Svalue State::quote(Svalue x) {
   return list(this, quote_, x);
 }

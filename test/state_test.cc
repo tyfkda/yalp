@@ -31,9 +31,8 @@ TEST_F(YalpTest, Symbol) {
 TEST_F(YalpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
-  Cell* cell = static_cast<Cell*>(v.toObject());
-  ASSERT_TRUE(state_->fixnumValue(1).eq(cell->car())) << v;
-  ASSERT_TRUE(state_->fixnumValue(2).eq(cell->cdr())) << v;
+  ASSERT_TRUE(state_->fixnumValue(1).eq(state_->car(v))) << v;
+  ASSERT_TRUE(state_->fixnumValue(2).eq(state_->cdr(v))) << v;
   ASSERT_TRUE(v.eq(v)) << v;
   ASSERT_TRUE(v.equal(v)) << v;
 

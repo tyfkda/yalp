@@ -96,6 +96,8 @@ public:
 
   // Creates cell.
   Svalue cons(Svalue a, Svalue d);
+  Svalue car(Svalue s);
+  Svalue cdr(Svalue s);
 
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
