@@ -562,6 +562,9 @@
 (use file.util)
 (use gauche.parseopt)
 
+(define (my-macroexpand exp)
+  (expand-macro-if-so exp %running-stack-pointer))
+
 (define (install-native-functions)
   (define (convert-result f)
     (lambda args
@@ -608,6 +611,7 @@
   (assign-native! 'newline newline 0 0)
 
   (assign-native! 'uniq gensym 0 0)
+  (assign-native! 'macroexpand my-macroexpand 1 1)
   )
 
 (define (compile-all codes)
