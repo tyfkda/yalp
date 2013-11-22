@@ -292,7 +292,7 @@
 
 ;;;; runtime
 
-(define *stack* (make-vector 1000))
+(define *stack* (make-vector 2000))
 
 (define push
   (lambda (x s)
