@@ -111,6 +111,10 @@ run '>=' t '(>= 2 2)'
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 
+# Scheme - yalp value differences
+run '() is false' 3 '(if () 2 3)'
+run '() is nil' t '(is () nil)'
+
 # Fail cases
 fail unbound 'abc'
 fail no-global '((^(x) y) 123)'

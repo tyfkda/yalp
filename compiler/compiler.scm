@@ -401,7 +401,8 @@
   (push ret (push f (push c s))))
 
 (define (true? x)
-  (not (eq? x 'nil)))
+  (not (or (eq? x 'nil)
+           (eq? x '()))))
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)
@@ -584,14 +585,18 @@
            (runtime-error #`"invalid application: ,f")))))
 
 (define (install-native-functions)
+  (define (convert x)
+    (case x
+      ((#t) 't)
+      ((#f) 'nil)
+      ((()) 'nil)
+      (else x)))
   (define (convert-result f)
     (lambda args
-      (let ((result (apply f args)))
-        (case result
-          ((#t) 't)
-          ((#f) 'nil)
-          ((()) 'nil)
-          (else result)))))
+      (convert (apply f args))))
+  (define (convert-inputs f)
+    (lambda args
+      (convert (apply f (map convert args)))))
   (define (assign-native! sym func min-arg-num max-arg-num)
     (let ((f (make <NativeFunc>
                :name sym
@@ -616,8 +621,8 @@
   (assign-native! '* * 0 -1)
   (assign-native! '/ quotient 0 -1)
 
-  (assign-native! 'is eq? 2 2)
-  (assign-native! 'iso equal? 2 2)
+  (assign-native! 'is (convert-inputs eq?) 2 2)
+  (assign-native! 'iso (convert-inputs equal?) 2 2)
   (assign-native! '= = 2 -1)
   (assign-native! '< < 2 -1)
   (assign-native! '> > 2 -1)
