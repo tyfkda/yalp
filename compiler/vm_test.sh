@@ -99,8 +99,9 @@ run negate '-10' '(- 10)'
 run '*' '120' '(* 1 2 3 4 5)'
 run / '3' '(/ 10 3)'
 
-run eq t '(eq 123 123)'
-run equal t '(equal "string" "string")'
+run is t '(is 123 123)'
+run iso-list t "(iso '(1 2 3) '(1 2 3))"
+run iso-string t '(iso "string" "string")'
 run '<' t '(< 1 2)'
 run '<' nil '(< 2 2)'
 run '>' t '(> 2 1)'

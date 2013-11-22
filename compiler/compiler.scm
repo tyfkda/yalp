@@ -616,8 +616,8 @@
   (assign-native! '* * 0 -1)
   (assign-native! '/ quotient 0 -1)
 
-  (assign-native! 'eq eq? 2 2)
-  (assign-native! 'equal equal? 2 2)
+  (assign-native! 'is eq? 2 2)
+  (assign-native! 'iso equal? 2 2)
   (assign-native! '= = 2 -1)
   (assign-native! '< < 2 -1)
   (assign-native! '> > 2 -1)

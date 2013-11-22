@@ -164,13 +164,13 @@ static Svalue s_div(State* state) {
   return state->fixnumValue(a);
 }
 
-static Svalue s_eq(State* state) {
+static Svalue s_is(State* state) {
   Svalue a = state->getArg(0);
   Svalue b = state->getArg(1);
   return state->boolValue(a.eq(b));
 }
 
-static Svalue s_equal(State* state) {
+static Svalue s_iso(State* state) {
   Svalue a = state->getArg(0);
   Svalue b = state->getArg(1);
   return state->boolValue(a.equal(b));
@@ -302,8 +302,8 @@ void installBasicFunctions(State* state) {
   state->assignNative("*", s_mul, 0, -1);
   state->assignNative("/", s_div, 0, -1);
 
-  state->assignNative("eq", s_eq, 2);
-  state->assignNative("equal", s_equal, 2);
+  state->assignNative("is", s_is, 2);
+  state->assignNative("iso", s_iso, 2);
   state->assignNative("<", s_lessThan, 2, -1);
   state->assignNative(">", s_greaterThan, 2, -1);
   state->assignNative("<=", s_lessEqual, 2, -1);
