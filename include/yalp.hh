@@ -115,7 +115,7 @@ public:
 
   Allocator* getAllocator() const  { return allocator_; }
 
-  Svalue referGlobal(Svalue sym, bool* pExist);
+  Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void assignGlobal(Svalue sym, Svalue value);
   void assignNative(const char* name, NativeFuncType func, int minArgNum) {
     assignNative(name, func, minArgNum, minArgNum);
