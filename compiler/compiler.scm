@@ -319,16 +319,20 @@
   (is-a? f <NativeFunc>))
 
 (define-method call-native-function ((f <NativeFunc>) s argnum)
+  (let ((args (map (lambda (i) (index s i))
+                   (iota argnum))))
+    (call-native-function f args)))
+
+(define-method call-native-function ((f <NativeFunc>) (args <list>))
   (let ((min (slot-ref f 'min-arg-num))
-        (max (slot-ref f 'max-arg-num)))
+        (max (slot-ref f 'max-arg-num))
+        (argnum (length args)))
     (cond ((< argnum min)
            (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires atleast ,min\, but given ,argnum"))
           ((and (>= max 0) (> argnum max))
            (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts atmost ,max\, but given ,argnum"))
           (else
-           (let ((fn (slot-ref f 'fn))
-                 (args (map (lambda (i) (index s i))
-                            (iota argnum))))
+           (let ((fn (slot-ref f 'fn)))
              (apply fn args))))))
 
 ;;;; VM
@@ -565,6 +569,20 @@
 (define (my-macroexpand exp)
   (expand-macro-if-so exp %running-stack-pointer))
 
+(define (my-apply f . params)
+  (let ((args (apply list* params)))
+    (cond ((native-function? f)
+           (call-native-function f args))
+          ((closure? f)
+           (let* ((s (make-frame '(HALT) 0 '() %running-stack-pointer))
+                  (s2 (let loop ((p args))
+                        (if (null? p)
+                            s
+                          (push (car p) (loop (cdr p)))))))
+             (call-closure f s2 (length args))))
+          (else
+           (runtime-error #`"invalid application: ,f")))))
+
 (define (install-native-functions)
   (define (convert-result f)
     (lambda args
@@ -613,6 +631,7 @@
 
   (assign-native! 'uniq gensym 0 0)
   (assign-native! 'macroexpand my-macroexpand 1 1)
+  (assign-native! 'apply my-apply 2 -1)
   )
 
 (define (compile-all codes)

@@ -92,6 +92,9 @@ run '>' t '(> 2 1)'
 run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
 
+run apply-native 15 "(apply + 1 2 '(3 4 5))"
+run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
+
 # Fail cases
 fail unbound 'abc'
 fail no-global '((^(x) y) 123)'

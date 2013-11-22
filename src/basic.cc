@@ -251,6 +251,40 @@ static Svalue s_uniq(State* state) {
   return state->gensym();
 }
 
+static Svalue s_apply(State* state) {
+  int n = state->getArgNum();
+  // Counts argument number for the given function.
+  int argNum = n - 1;
+  Svalue last = state->nil();
+  if (n > 1) {
+    // Last argument should be a list and its elements are function arguments.
+    last = state->getArg(n - 1);
+    if (last.eq(state->nil())) {
+      argNum -= 1;
+    } else if (last.getType() != TT_CELL) {
+      state->runtimeError("pair expected");
+    } else {
+      argNum += length(state, last) - 1;
+    }
+  }
+
+  Svalue* args = NULL;
+  if (argNum > 0)
+    args = static_cast<Svalue*>(alloca(sizeof(Svalue*) * argNum));
+  for (int i = 0; i < argNum; ++i) {
+    if (i < n - 2) {
+      args[i] = state->getArg(i + 1);
+    } else {
+      args[i] = state->car(last);
+      last = state->cdr(last);
+    }
+  }
+
+  Svalue f = state->getArg(0);
+  Svalue a = state->funcall(f, argNum, args);
+  return a;
+}
+
 void installBasicFunctions(State* state) {
   state->assignGlobal(state->nil(), state->nil());
   state->assignGlobal(state->t(), state->t());
@@ -281,6 +315,7 @@ void installBasicFunctions(State* state) {
   state->assignNative("newline", s_newline, 0);
 
   state->assignNative("uniq", s_uniq, 0);
+  state->assignNative("apply", s_apply, 1, -1);
 }
 
 }  // namespace yalp
