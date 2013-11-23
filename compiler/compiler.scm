@@ -87,7 +87,7 @@
                     (let ((func (car x))
                           (args (cdr x)))
                       (if (macro? func)
-                          (compile-apply-macro func args e s next)
+                          (compile-apply-macro x e s next)
                         (compile-apply func args e s next))))))
      (else (list 'CONSTANT x next)))))
 
@@ -254,12 +254,12 @@
   "Whther the given name is macro."
   (hash-table-exists? *macro-table* name))
 
-(define (compile-apply-macro name args e s next)
+(define (compile-apply-macro exp e s next)
   "Expand macro and compile the result."
-  (let ((result (expand-macro name args %running-stack-pointer)))
+  (let ((result (expand-macro exp %running-stack-pointer)))
     (compile result e s next)))
 
-(define (expand-macro name args s)
+(define (expand-macro exp s)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -271,18 +271,20 @@
     (do-apply argnum closure s))
 
   "Expand macro."
-  (let ((closure (hash-table-get *macro-table* name)))
-    (apply-macro (length args)
-                 closure
-                 (push-args args
-                            (make-frame '(HALT) 0 '() s)))))
+  (let ((name (car exp))
+        (args (cdr exp)))
+    (let ((closure (hash-table-get *macro-table* name)))
+      (apply-macro (length args)
+                   closure
+                   (push-args args
+                              (make-frame '(HALT) 0 '() s))))))
 
 (define (expand-macro-if-so x s)
   "Expand macro all if the given parameter is macro expression,
    otherwise return itself."
   (if (and (pair? x)
            (macro? (car x)))
-      (let ((expanded (expand-macro (car x) (cdr x) s)))
+      (let ((expanded (expand-macro x s)))
         (if (equal? expanded x)
             x
           (expand-macro-if-so expanded s)))
