@@ -83,6 +83,19 @@
     ; (w/uniq a ...) => (let a (uniq) ...)
     `(let ,names (uniq) ,@body)))
 
+(defmacro and args
+  (if args
+      (if (cdr args)
+          `(if ,(car args) (and ,@(cdr args)))
+          (car args))
+      't))
+
+(defmacro or args
+  (and args
+       (w/uniq g
+         `(let ,g ,(car args)
+            (if ,g ,g (or ,@(cdr args)))))))
+
 (defmacro afn (parms . body)
   `(let self nil
      (set! self (^ ,parms ,@body))))
@@ -101,11 +114,28 @@
 
 
 
+(defn isnt (x y)
+  (no (is x y)))
+
 (defn len (x)
   ((afn (x n)
         (if (consp x)
             (self (cdr x) (+ n 1))
             n))
    x 0))
+
+(defn last-pair (ls)
+  (if (consp (cdr ls))
+      (last-pair (cdr ls))
+      ls))
+
+(defn reverse! (ls)
+  ((afn (c p)
+        (let d (cdr c)
+          (rplacd c p)
+          (if (consp d)
+              (self d c)
+              c)))
+   ls '()))
 
 ;;

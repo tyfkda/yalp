@@ -20,8 +20,51 @@
                            ,@(self (cdr p))))))))
             args)))))
 
+;;; dotted pair -> proper list
+(defn dotted->proper (ls)
+  (if (or (no ls)
+          (no (cdr (last-pair ls))))
+      ls
+    ((afn (p acc)
+          (if (consp p)
+              (self (cdr p)
+                    (cons (car p) acc))
+              (reverse! (cons p acc))))
+     ls nil)))
+
+;;;; set
+
 (defn set-member? (x s)
-  nil)
+  (if
+   (no s) nil
+   (is x (car s)) t
+   (set-member? x (cdr s))))
+
+(defn set-cons (x s)
+  (if (set-member? x s)
+      s
+    (cons x s)))
+
+(defn set-union (s1 s2)
+  (if (no s1)
+      s2
+    (set-union (cdr s1) (set-cons (car s1) s2))))
+
+(defn set-minus (s1 s2)
+  (if (no s1)
+        '()
+      (set-member? (car s1) s2)
+        (set-minus (cdr s1) s2)
+      (cons (car s1) (set-minus (cdr s1) s2))))
+
+(defn set-intersect (s1 s2)
+  (if (no s1)
+        '()
+      (set-member? (car s1) s2)
+        (cons (car s1) (set-intersect (cdr s1) s2))
+      (set-intersect (cdr s1) s2)))
+
+;;; Compiler
 
 (defn compile (x e s next)
   (if (symbolp x)
@@ -59,9 +102,9 @@
                                 (if (tail? next)
                                     c
                                     (list 'FRAME next c))))
-                     (defmacro (name vars . bodies)
-                       (register-macro name vars bodies)
-                       (compile `(quote ,name) e s next))
+                     ;(defmacro (name vars . bodies)
+                     ;  (register-macro name vars bodies)
+                     ;  (compile `(quote ,name) e s next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -92,6 +135,110 @@
                           (APPLY ,argnum))
                   `(APPLY ,argnum))))))
 
+(defn compile-lambda (vars bodies e s next)
+  (let proper-vars (dotted->proper vars)
+    (with (free (set-intersect (set-union (car e)
+                                          (cdr e))
+                               (find-frees bodies '() proper-vars))
+           sets (find-setses bodies (dotted->proper proper-vars))
+           varnum (if (is vars proper-vars)
+                      (list (len vars) (len vars))
+                    (list (- (len proper-vars) 1)
+                          -1)))
+      (collect-free free e
+                    (list 'CLOSE
+                          varnum
+                          (len free)
+                          (make-boxes sets proper-vars
+                                      (compile-lambda-bodies proper-vars bodies free sets s))
+                          next)))))
+
+(defn compile-lambda-bodies (vars bodies free sets s)
+  (with (ee (cons vars free)
+         ss (set-union sets
+                       (set-intersect s free))
+         next (list 'RETURN))
+    ((afn (p)
+          (if (no p)
+              next
+              (compile (car p) ee ss
+                       (self (cdr p)))))
+     bodies)))
+
+(defn find-frees (xs b vars)
+  (let bb (set-union (dotted->proper vars) b)
+    ((afn (v p)
+      (if (no p)
+          v
+        (self (set-union v (find-free (car p) bb))
+              (cdr p))))
+     '() xs)))
+
+;; Find free variables.
+;; This does not consider upper scope, so every symbol except under scope
+;; are listed up.
+(defn find-free (x b)
+  (if (symbolp x)
+        (if (set-member? x b) '() (list x))
+      (consp x)
+        (let expanded (expand-macro-if-so x)
+          (if (is expanded x)
+                (record-case expanded
+                             (^ (vars . bodies)
+                                (find-frees bodies b vars))
+                             (quote (obj) '())
+                             (if      all (find-frees all b '()))
+                             (set!    all (find-frees all b '()))
+                             (call/cc all (find-frees all b '()))
+                             (defmacro (name vars . bodies) (find-frees bodies b vars))
+                             (else        (find-frees expanded b '())))
+              (find-free expanded b)))
+      '()))
+
+(defn collect-free (vars e next)
+  (if (no vars)
+      next
+    (collect-free (cdr vars) e
+                  (compile-refer (car vars) e
+                                 (list 'ARGUMENT next)))))
+
+(defn find-setses (xs v)
+  ((afn (b p)
+        (if (no p)
+            b
+            (self (set-union b (find-sets (car p) v))
+                  (cdr p))))
+   '() xs))
+
+;; Find assignment expression for local variables to make them boxing.
+;; Boxing is needed to keep a value for continuation.
+(defn find-sets (x v)
+  (if (consp x)
+      (let expanded (expand-macro-if-so x)
+        (if (isnt expanded x)
+            (find-sets expanded v)
+          (record-case x
+                       (set! (var val)
+                             (set-union (if (set-member? var v) (list var) '())
+                                        (find-sets val v)))
+                       (^ (vars . bodies)
+                          (find-setses bodies (set-minus v (dotted->proper vars))))
+                       (quote   all '())
+                       (if      all (find-setses all v))
+                       (call/cc all (find-setses all v))
+                       (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
+                       (else        (find-setses x   v)))))
+      '()))
+
+(defn make-boxes (sets vars next)
+  ((afn (vars n)
+        (if (no vars)
+              next
+            (set-member? (car vars) sets)
+              (list 'BOX n (self (cdr vars) (+ n 1)))
+            (self (cdr vars) (+ n 1))))
+   vars 0))
+
 (defn compile-refer (x e next)
   (compile-lookup x e
                   (^(n)   (list 'REFER-LOCAL n next))
@@ -119,12 +266,16 @@
 (defn macro? (name)
   nil)
 
+(defn expand-macro-if-so (x)
+  x)
+
 ;;
 
-(print (compile 123 '(()) '() '(HALT)))
-(print (compile '(quote xyz) '(()) '() '(HALT)))
-(print (compile '(if 1 2 3) '(()) '() '(HALT)))
-(print (compile '(set! x 123) '(()) '() '(HALT)))
-(print (compile '(foo a b c) '(()) '() '(HALT)))
+;(print (compile 123 '(()) '() '(HALT)))
+;(print (compile '(quote xyz) '(()) '() '(HALT)))
+;(print (compile '(if 1 2 3) '(()) '() '(HALT)))
+;(print (compile '(set! x 123) '(()) '() '(HALT)))
+(print (compile '(print (((^(x) (^(y) (set! x y))) 1) 2)) '(()) '() '(HALT)))
+;(print (compile '(call/cc (^(cc) (cc 1))) '(()) '() '(HALT)))
 
 ;;

@@ -159,15 +159,17 @@
      ((symbol? x) (if (set-member? x b) '() (list x)))
      ((pair? x)
       (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-        (record-case expanded
-                     (^ (vars . bodies)
-                       (find-frees bodies b vars))
-                     (quote (obj) '())
-                     (if      all (find-frees all b '()))
-                     (set!    all (find-frees all b '()))
-                     (call/cc all (find-frees all b '()))
-                     (defmacro (name vars . bodies) (find-frees bodies b vars))
-                     (else        (find-frees expanded b '())))))
+        (if (not (eq? expanded x))
+            (find-free expanded b)
+          (record-case x
+                       (^ (vars . bodies)
+                         (find-frees bodies b vars))
+                       (quote (obj) '())
+                       (if      all (find-frees all b '()))
+                       (set!    all (find-frees all b '()))
+                       (call/cc all (find-frees all b '()))
+                       (defmacro (name vars . bodies) (find-frees bodies b vars))
+                       (else        (find-frees x   b '()))))))
      (else '()))))
 
 (define collect-free
@@ -192,17 +194,19 @@
   (lambda (x v)
     (if (pair? x)
         (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-          (record-case expanded
-                       (set! (var val)
-                             (set-union (if (set-member? var v) (list var) '())
-                                        (find-sets val v)))
-                       (^ (vars . bodies)
-                         (find-setses bodies (set-minus v (dotted->proper vars))))
-                       (quote   all '())
-                       (if      all (find-setses all v))
-                       (call/cc all (find-setses all v))
-                       (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
-                       (else        (find-setses expanded v))))
+          (if (not (eq? expanded x))
+              (find-sets expanded v)
+            (record-case x
+                         (set! (var val)
+                               (set-union (if (set-member? var v) (list var) '())
+                                          (find-sets val v)))
+                         (^ (vars . bodies)
+                           (find-setses bodies (set-minus v (dotted->proper vars))))
+                         (quote   all '())
+                         (if      all (find-setses all v))
+                         (call/cc all (find-setses all v))
+                         (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
+                         (else        (find-setses x   v)))))
       '())))
 
 (define make-boxes
@@ -292,7 +296,7 @@
 
 ;;;; runtime
 
-(define *stack* (make-vector 2000))
+(define *stack* (make-vector 1000))
 
 (define push
   (lambda (x s)
@@ -615,6 +619,8 @@
   (assign-native! 'cons cons 2 2)
   (assign-native! 'car car 1 1)
   (assign-native! 'cdr cdr 1 1)
+  (assign-native! 'rplaca set-car! 2 2)
+  (assign-native! 'rplacd set-cdr! 2 2)
   (assign-native! 'list list 0 -1)
   (assign-native! 'list* list* 0 -1)
   (assign-native! 'consp pair? 1 1)
