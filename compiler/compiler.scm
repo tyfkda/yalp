@@ -47,11 +47,11 @@
      ((symbol? x)
       (compile-refer x e
                      (if (set-member? x s)
-                         (list 'INDIRECT next)
+                         (list 'UNBOX next)
                        next)))
      ((pair? x)
       (record-case x
-                   (quote (obj) (list 'CONSTANT obj next))
+                   (quote (obj) (list 'CONST obj next))
                    (^ (vars . bodies)
                      (compile-lambda vars bodies e s next))
                    (if (test then . rest)
@@ -65,12 +65,12 @@
                          (compile test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
-                                         (lambda (n)   (compile x e s (list 'ASSIGN-LOCAL n next)))
-                                         (lambda (n)   (compile x e s (list 'ASSIGN-FREE n next)))
-                                         (lambda (sym) (compile x e s (list 'ASSIGN-GLOBAL sym next)))))
+                                         (lambda (n)   (compile x e s (list 'LSET n next)))
+                                         (lambda (n)   (compile x e s (list 'FSET n next)))
+                                         (lambda (sym) (compile x e s (list 'GSET sym next)))))
                    (call/cc (x)
                             (let ((c (list 'CONTI
-                                           (list 'ARGUMENT
+                                           (list 'PUSH
                                                  (compile x e s
                                                           (if (tail? next)
                                                               (list 'SHIFT
@@ -89,7 +89,7 @@
                       (if (macro? func)
                           (compile-apply-macro x e s next)
                         (compile-apply func args e s next))))))
-     (else (list 'CONSTANT x next)))))
+     (else (list 'CONST x next)))))
 
 (define (compile-undef e s next)
   (list 'UNDEF next))
@@ -110,7 +110,7 @@
               (compile (car args)
                        e
                        s
-                       (list 'ARGUMENT c)))))))
+                       (list 'PUSH c)))))))
 
 (define (compile-lambda vars bodies e s next)
   (let ((proper-vars (dotted->proper vars)))
@@ -134,7 +134,7 @@
   (let ((ee (cons vars free))
         (ss (set-union sets
                        (set-intersect s free)))
-        (next (list 'RETURN)))
+        (next (list 'RET)))
     (let loop ((p bodies))
       (if (null? p)
           next
@@ -176,7 +176,7 @@
         next
       (collect-free (cdr vars) e
                     (compile-refer (car vars) e
-                                   (list 'ARGUMENT next))))))
+                                   (list 'PUSH next))))))
 
 (define (find-setses xs v)
   (let loop ((b '())
@@ -217,9 +217,9 @@
 (define compile-refer
   (lambda (x e next)
     (compile-lookup x e
-                    (lambda (n)   (list 'REFER-LOCAL n next))
-                    (lambda (n)   (list 'REFER-FREE n next))
-                    (lambda (sym) (list 'REFER-GLOBAL sym next)))))
+                    (lambda (n)   (list 'LREF n next))
+                    (lambda (n)   (list 'FREF n next))
+                    (lambda (sym) (list 'GREF sym next)))))
 
 (define (find-index x ls)
   (let loop ((ls ls)
@@ -238,7 +238,7 @@
 
 (define tail?
   (lambda (next)
-    (eq? (car next) 'RETURN)))
+    (eq? (car next) 'RET)))
 
 ;;; Macro
 
@@ -350,19 +350,19 @@
                        a)
                  (UNDEF (x)
                         (VM '() x f c s))
-                 (REFER-LOCAL (n x)
-                              (VM (index f n) x f c s))
-                 (REFER-FREE (n x)
-                             (VM (index-closure c n) x f c s))
-                 (REFER-GLOBAL (sym x)
-                               (receive (v exist?) (refer-global sym)
-                                        (unless exist?
-                                                (runtime-error #`"unbound variable: `,sym`"))
-                                        (VM v x f c s)))
-                 (INDIRECT (x)
-                           (VM (unbox a) x f c s))
-                 (CONSTANT (obj x)
-                           (VM obj x f c s))
+                 (LREF (n x)
+                       (VM (index f n) x f c s))
+                 (FREF (n x)
+                       (VM (index-closure c n) x f c s))
+                 (GREF (sym x)
+                       (receive (v exist?) (refer-global sym)
+                         (unless exist?
+                           (runtime-error #`"unbound variable: `,sym`"))
+                         (VM v x f c s)))
+                 (UNBOX (x)
+                        (VM (unbox a) x f c s))
+                 (CONST (obj x)
+                        (VM obj x f c s))
                  (CLOSE (nparam nfree body x)
                         (let ((min (car nparam))
                               (max (cadr nparam)))
@@ -372,31 +372,31 @@
                       (VM a x f c s))
                  (TEST (then else)
                        (VM a (if (true? a) then else) f c s))
-                 (ASSIGN-LOCAL (n x)
-                               (set-box! (index f n) a)
-                               (VM a x f c s))
-                 (ASSIGN-FREE (n x)
-                              (set-box! (index-closure c n) a)
-                              (VM a x f c s))
-                 (ASSIGN-GLOBAL (sym x)
-                                (assign-global! sym a)
-                                (VM a x f c s))
+                 (LSET (n x)
+                       (set-box! (index f n) a)
+                       (VM a x f c s))
+                 (FSET (n x)
+                       (set-box! (index-closure c n) a)
+                       (VM a x f c s))
+                 (GSET (sym x)
+                       (assign-global! sym a)
+                       (VM a x f c s))
                  (CONTI (x)
                         (VM (continuation s) x f c s))
                  (NUATE (stack x)
                         (VM a x f c (restore-stack stack)))
                  (FRAME (ret x)
                         (VM a x f c (make-frame ret f c s)))
-                 (ARGUMENT (x)
-                           (VM a x f c (push a s)))
+                 (PUSH (x)
+                       (VM a x f c (push a s)))
                  (SHIFT (n x)
                         (let ((callee-argnum (index f -1)))
                           (VM a x f c (shift-args n callee-argnum s))))
                  (APPLY (argnum)
                         (do-apply argnum a s))
-                 (RETURN ()
-                         (let ((argnum (index s 0)))
-                           (do-return a (- s 1) argnum)))
+                 (RET ()
+                      (let ((argnum (index s 0)))
+                        (do-return a (- s 1) argnum)))
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
@@ -443,7 +443,7 @@
 (define continuation
   (lambda (s)
     (closure
-     (list 'REFER-LOCAL 0 (list 'NUATE (save-stack s) '(RETURN)))
+     (list 'LREF 0 (list 'NUATE (save-stack s) '(RET)))
      s
      s
      0 1)))

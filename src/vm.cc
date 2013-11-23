@@ -15,24 +15,24 @@ namespace yalp {
 enum Opcode {
   HALT,
   UNDEF,
-  REFER_LOCAL,
-  REFER_FREE,
-  REFER_GLOBAL,
-  INDIRECT,
-  CONSTANT,
+  LREF,
+  FREF,
+  GREF,
+  UNBOX,
+  CONST,
   CLOSE,
   BOX,
   TEST,
-  ASSIGN_LOCAL,
-  ASSIGN_FREE,
-  ASSIGN_GLOBAL,
+  LSET,
+  FSET,
+  GSET,
   CONTI,
   NUATE,
   FRAME,
-  ARGUMENT,
+  PUSH,
   SHIFT,
   APPLY,
-  RETURN,
+  RET,
 
   NUMBER_OF_OPCODE
 };
@@ -199,24 +199,24 @@ Vm::Vm(State* state)
   opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[UNDEF] = state_->intern("UNDEF");
-  opcodes_[REFER_LOCAL] = state_->intern("REFER-LOCAL");
-  opcodes_[REFER_FREE] = state_->intern("REFER-FREE");
-  opcodes_[REFER_GLOBAL] = state_->intern("REFER-GLOBAL");
-  opcodes_[INDIRECT] = state_->intern("INDIRECT");
-  opcodes_[CONSTANT] = state_->intern("CONSTANT");
+  opcodes_[LREF] = state_->intern("LREF");
+  opcodes_[FREF] = state_->intern("FREF");
+  opcodes_[GREF] = state_->intern("GREF");
+  opcodes_[UNBOX] = state_->intern("UNBOX");
+  opcodes_[CONST] = state_->intern("CONST");
   opcodes_[CLOSE] = state_->intern("CLOSE");
   opcodes_[BOX] = state_->intern("BOX");
   opcodes_[TEST] = state_->intern("TEST");
-  opcodes_[ASSIGN_LOCAL] = state_->intern("ASSIGN-LOCAL");
-  opcodes_[ASSIGN_FREE] = state_->intern("ASSIGN-FREE");
-  opcodes_[ASSIGN_GLOBAL] = state_->intern("ASSIGN-GLOBAL");
+  opcodes_[LSET] = state_->intern("LSET");
+  opcodes_[FSET] = state_->intern("FSET");
+  opcodes_[GSET] = state_->intern("GSET");
   opcodes_[CONTI] = state_->intern("CONTI");
   opcodes_[NUATE] = state_->intern("NUATE");
   opcodes_[FRAME] = state_->intern("FRAME");
-  opcodes_[ARGUMENT] = state_->intern("ARGUMENT");
+  opcodes_[PUSH] = state_->intern("PUSH");
   opcodes_[SHIFT] = state_->intern("SHIFT");
   opcodes_[APPLY] = state_->intern("APPLY");
-  opcodes_[RETURN] = state_->intern("RETURN");
+  opcodes_[RET] = state_->intern("RET");
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
@@ -245,23 +245,23 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     x = CAR(x);
     a = state_->nil();
     goto again;
-  case CONSTANT:
+  case CONST:
     a = CAR(x);
     x = CADR(x);
     goto again;
-  case INDIRECT:
+  case UNBOX:
     x = CAR(x);
     assert(a.getType() == TT_BOX);
     a = static_cast<Box*>(a.toObject())->get();
     goto again;
-  case REFER_LOCAL:
+  case LREF:
     {
       int n = CAR(x).toFixnum();
       x = CADR(x);
       a = index(f, n);
     }
     goto again;
-  case REFER_FREE:
+  case FREF:
     {
       int n = CAR(x).toFixnum();
       x = CADR(x);
@@ -269,7 +269,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       a = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
     }
     goto again;
-  case REFER_GLOBAL:
+  case GREF:
     {
       Svalue sym = CAR(x);
       x = CADR(x);
@@ -310,7 +310,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = state_->isTrue(a) ? thn : els;
     }
     goto again;
-  case ASSIGN_LOCAL:
+  case LSET:
     {
       int n = CAR(x).toFixnum();
       x = CADR(x);
@@ -319,7 +319,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       static_cast<Box*>(box.toObject())->set(a);
     }
     goto again;
-  case ASSIGN_FREE:
+  case FSET:
     {
       int n = CAR(x).toFixnum();
       x = CADR(x);
@@ -328,7 +328,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       static_cast<Box*>(box.toObject())->set(a);
     }
     goto again;
-  case ASSIGN_GLOBAL:
+  case GSET:
     {
       Svalue sym = CAR(x);
       x = CADR(x);
@@ -362,7 +362,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       s = shiftArgs(n, calleeArgnum, s);
     }
     goto again;
-  case ARGUMENT:
+  case PUSH:
     {
       x = CAR(x);
       s = push(a, s);
@@ -415,7 +415,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       }
     }
     goto again;
-  case RETURN:
+  case RET:
     {
       int argnum = index(s, 0).toFixnum();
       s -= argnum + 1;
@@ -451,13 +451,13 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 Svalue Vm::createContinuation(int s) {
   Svalue zero = state_->fixnumValue(0);
   Svalue body = list(state_,
-                     opcodes_[REFER_LOCAL],
+                     opcodes_[LREF],
                      zero,
                      list(state_,
                           opcodes_[NUATE],
                           saveStack(s),
                           list(state_,
-                               opcodes_[RETURN])));
+                               opcodes_[RET])));
   return createClosure(body, s, s, 0, 1);
 }
 
