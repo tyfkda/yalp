@@ -75,11 +75,11 @@
   (if (symbolp x)
         (compile-refer x e
                        (if (set-member? x s)
-                           (liset 'INDIRECT next)
+                           (liset 'UNBOX next)
                            next))
       (consp x)
         (record-case x
-                     (quote (obj) (list 'CONSTANT obj next))
+                     (quote (obj) (list 'CONST obj next))
                      (^ (vars . bodies)
                         (compile-lambda vars bodies e s next))
                      (if (test then . rest)
@@ -92,12 +92,12 @@
                            (compile test e s (list 'TEST thenc elsec))))
                      (set! (var x)
                            (compile-lookup var e
-                                           (^(n)   (compile x e s (list 'ASSIGN-LOCAL n next)))
-                                           (^(n)   (compile x e s (list 'ASSIGN-FREE n next)))
-                                           (^(sym) (compile x e s (list 'ASSIGN-GLOBAL sym next)))))
+                                           (^(n)   (compile x e s (list 'LSET n next)))
+                                           (^(n)   (compile x e s (list 'FSET n next)))
+                                           (^(sym) (compile x e s (list 'GSET sym next)))))
                      (call/cc (x)
                               (let c (list 'CONTI
-                                           (list 'ARGUMENT
+                                           (list 'PUSH
                                                  (compile x e s
                                                           (if (tail? next)
                                                               (list 'SHIFT
@@ -116,7 +116,7 @@
                         (if (macro? func)
                             (compile-apply-macro func args e s next)
                             (compile-apply func args e s next)))))
-        (list 'CONSTANT x next)))
+        (list 'CONST x next)))
 
 (defn compile-undef (e s next)
   (list 'UNDEF next))
@@ -132,7 +132,7 @@
                     (compile (car args)
                              e
                              s
-                             (list 'ARGUMENT c)))))
+                             (list 'PUSH c)))))
      args
      (compile func e s
               (if (tail? next)
@@ -162,7 +162,7 @@
   (with (ee (cons vars free)
          ss (set-union sets
                        (set-intersect s free))
-         next (list 'RETURN))
+         next (list 'RET))
     ((afn (p)
           (if (no p)
               next
@@ -205,7 +205,7 @@
       next
     (collect-free (cdr vars) e
                   (compile-refer (car vars) e
-                                 (list 'ARGUMENT next)))))
+                                 (list 'PUSH next)))))
 
 (defn find-setses (xs v)
   ((afn (b p)
@@ -246,9 +246,9 @@
 
 (defn compile-refer (x e next)
   (compile-lookup x e
-                  (^(n)   (list 'REFER-LOCAL n next))
-                  (^(n)   (list 'REFER-FREE n next))
-                  (^(sym) (list 'REFER-GLOBAL sym next))))
+                  (^(n)   (list 'LREF n next))
+                  (^(n)   (list 'FREF n next))
+                  (^(sym) (list 'GREF sym next))))
 
 (defn find-index (x ls)
   ((afn (ls idx)
@@ -265,7 +265,7 @@
          (return-global x))))
 
 (defn tail? (next)
-  (is (car next) 'RETURN))
+  (is (car next) 'RET))
 
 ;; Macro
 (defn macro? (name)
