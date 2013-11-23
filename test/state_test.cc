@@ -19,22 +19,22 @@ protected:
 
 TEST_F(YalpTest, Fixnum) {
   Svalue s = state_->fixnumValue(123);
-  ASSERT_TRUE(state_->fixnumValue(123).eq(s)) << s;
+  ASSERT_TRUE(state_->fixnumValue(123).eq(s));
 }
 
 TEST_F(YalpTest, Symbol) {
   Svalue s = state_->intern("symbol");
-  ASSERT_TRUE(state_->intern("symbol").eq(s)) << s;
-  ASSERT_FALSE(state_->intern("otherSymbol").eq(s)) << s;
+  ASSERT_TRUE(state_->intern("symbol").eq(s));
+  ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
 }
 
 TEST_F(YalpTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
-  ASSERT_TRUE(state_->fixnumValue(1).eq(state_->car(v))) << v;
-  ASSERT_TRUE(state_->fixnumValue(2).eq(state_->cdr(v))) << v;
-  ASSERT_TRUE(v.eq(v)) << v;
-  ASSERT_TRUE(v.equal(v)) << v;
+  ASSERT_TRUE(state_->fixnumValue(1).eq(state_->car(v)));
+  ASSERT_TRUE(state_->fixnumValue(2).eq(state_->cdr(v)));
+  ASSERT_TRUE(v.eq(v));
+  ASSERT_TRUE(v.equal(v));
 
   Svalue v2 = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_FALSE(v.eq(v2));
@@ -76,15 +76,15 @@ TEST_F(YalpTest, Nreverse) {
 
   Svalue s = list(state_, a);
   Svalue reversed = nreverse(state_, s);
-  ASSERT_TRUE(state_->cons(a, state_->nil()).equal(reversed)) << reversed;
+  ASSERT_TRUE(state_->cons(a, state_->nil()).equal(reversed));
 
   Svalue s2 = list(state_, a, b, c);
   Svalue reversed2 = nreverse(state_, s2);
-  ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed2)) << reversed2;
+  ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed2));
 
   Svalue s3 = state_->cons(a, state_->cons(b,  state_->cons(c, d)));
   Svalue reversed3 = nreverse(state_, s3);
-  ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed3)) << reversed3;
+  ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed3));
 }
 
 TEST_F(YalpTest, length) {

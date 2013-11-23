@@ -232,7 +232,7 @@ static Svalue s_greaterEqual(State* state) {
 
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
-  std::cout << x;
+  x.output(state, std::cout);
   return state->nil();
 }
 

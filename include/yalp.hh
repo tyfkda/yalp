@@ -52,7 +52,7 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  friend std::ostream& operator<<(std::ostream& o, Svalue v);
+  void output(State* state, std::ostream& o) const;
 
   long getId() const  { return v_; }
 

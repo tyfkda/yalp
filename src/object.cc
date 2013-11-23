@@ -17,8 +17,8 @@ Symbol::Symbol(const char* name)
 
 Type Symbol::getType() const  { return TT_SYMBOL; }
 
-std::ostream& Symbol::operator<<(std::ostream& o) const {
-  return o << name_;
+void Symbol::output(State*, std::ostream& o) const {
+  o << name_;
 }
 
 //=============================================================================
@@ -32,16 +32,21 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
-std::ostream& Cell::operator<<(std::ostream& o) const {
+void Cell::output(State* state, std::ostream& o) const {
   char c = '(';
   const Cell* p;
   for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
-    o << c << p->car_;
+    o << c;
+    p->car_.output(state, o);
     if (p->cdr_.getType() != TT_CELL)
       break;
     c = ' ';
   }
-  return o << " . " << p->cdr_ << ')';
+  if (!p->cdr_.eq(state->nil())) {
+    o << " . ";
+    p->cdr_.output(state, o);
+  }
+  o << ')';
 }
 
 void Cell::rplaca(Svalue a) {
@@ -66,7 +71,7 @@ bool String::equal(const Sobject* target) const {
   return strcmp(string_, p->string_) == 0;
 }
 
-std::ostream& String::operator<<(std::ostream& o) const {
+void String::output(State*, std::ostream& o) const {
   o << '"';
   for (const char* p = string_; *p != '\0'; ) {
     char c = *p++;
@@ -91,7 +96,7 @@ std::ostream& String::operator<<(std::ostream& o) const {
       break;
     }
   }
-  return o << '"';
+  o << '"';
 }
 
 //=============================================================================

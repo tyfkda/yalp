@@ -41,16 +41,17 @@ Type Svalue::getType() const {
   }
 }
 
-std::ostream& operator<<(std::ostream& o, Svalue v) {
-  switch (v.v_ & TAG_MASK) {
+void Svalue::output(State* state, std::ostream& o) const {
+  switch (v_ & TAG_MASK) {
   default:
     assert(false);
-    return o;
+    break;
   case TAG_FIXNUM:
-    o << v.toFixnum();
-    return o;
+    o << toFixnum();
+    break;
   case TAG_OBJECT:
-    return o << *v.toObject();
+    toObject()->output(state, o);
+    break;
   }
 }
 

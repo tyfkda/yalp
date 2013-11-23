@@ -24,16 +24,12 @@ public:
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
 
-  virtual std::ostream& operator<<(std::ostream& o) const = 0;
+  virtual void output(State* state, std::ostream& o) const = 0;
 
 protected:
   // Prevent to call destructor from outside.
   ~Sobject()  {}
 };
-
-inline std::ostream& operator<<(std::ostream& o, Sobject& object) {
-  return object.operator<<(o);
-}
 
 // Symbol class.
 class Symbol : public Sobject {
@@ -42,7 +38,7 @@ public:
 
   const char* c_str() const  { return name_; }
 
-  virtual std::ostream& operator<<(std::ostream& o) const override;
+  virtual void output(State* state, std::ostream& o) const override;
 
 protected:
   Symbol(const char* name);
@@ -64,7 +60,7 @@ public:
   void rplaca(Svalue a);
   void rplacd(Svalue d);
 
-  virtual std::ostream& operator<<(std::ostream& o) const override;
+  virtual void output(State* state, std::ostream& o) const override;
 
 protected:
   Cell(Svalue a, Svalue d);
@@ -82,7 +78,7 @@ public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
 
-  virtual std::ostream& operator<<(std::ostream& o) const override;
+  virtual void output(State* state, std::ostream& o) const override;
 
 protected:
   // The given string is allocated in heap and be taken ownership.
