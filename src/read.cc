@@ -85,7 +85,7 @@ ReadError Reader::readList(Svalue* pValue) {
       break;
     value = state_->cons(v, value);
   }
-  
+
   switch (err) {
   case EXTRA_CLOSE_PAREN:
     *pValue = nreverse(state_, value);
@@ -133,7 +133,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   int c = getc();
   if (!isdigit(c))
     return ILLEGAL_CHAR;
-  
+
   char buffer[256];
   char* p = buffer;
   do {
@@ -142,7 +142,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   } while (isdigit(c));
   *p++ = '\0';
   assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
-  
+
   int n = atoi(buffer);
   switch (c) {
   case '=':

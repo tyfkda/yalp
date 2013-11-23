@@ -33,7 +33,7 @@
 ;      then argument number is pushed to stack:
 ;     [c][f][ret][b1]f[argnum]s
 
-(add-load-path ".") 
+(add-load-path ".")
 (load "util.scm")
 
 ;; Compiles lisp code into vm code.

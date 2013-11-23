@@ -55,7 +55,7 @@ public:
 
 void runBinary(State* state, std::istream& istrm) {
   Reader reader(state, istrm);
-  
+
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
