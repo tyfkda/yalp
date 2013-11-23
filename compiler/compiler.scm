@@ -347,7 +347,7 @@
     (record-case x
                  (HALT () a)
                  (UNDEF (x)
-                        (VM 'nil x f c s))
+                        (VM '() x f c s))
                  (REFER-LOCAL (n x)
                               (VM (index f n) x f c s))
                  (REFER-FREE (n x)
@@ -403,8 +403,7 @@
   (push ret (push f (push c s))))
 
 (define (true? x)
-  (not (or (eq? x 'nil)
-           (eq? x '()))))
+  (not (eq? x '())))
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)
@@ -590,8 +589,9 @@
   (define (convert x)
     (case x
       ((#t) 't)
-      ((#f) 'nil)
-      ((()) 'nil)
+      ((#f) '())
+      ((nil) '())
+      ;((()) 'nil)
       (else x)))
   (define (convert-result f)
     (lambda args
@@ -607,7 +607,7 @@
                :max-arg-num max-arg-num)))
       (assign-global! sym f)))
 
-  (assign-global! 'nil 'nil)
+  (assign-global! 'nil '())
   (assign-global! 't 't)
 
   (assign-native! 'cons cons 2 2)
@@ -616,7 +616,9 @@
   (assign-native! 'list list 0 -1)
   (assign-native! 'list* list* 0 -1)
   (assign-native! 'consp pair? 1 1)
-  (assign-native! 'symbolp symbol? 1 1)
+  (assign-native! 'symbolp (lambda (x)
+                             (or (symbol? x)
+                                 (eq? x '()))) 1 1)
   (assign-native! 'append append 0 -1)
   (assign-native! '+ + 0 -1)
   (assign-native! '- - 0 -1)
@@ -633,7 +635,8 @@
 
   (assign-native! 'print print 1 1)
   (assign-native! 'display display 1 1)
-  (assign-native! 'write write 1 1)
+  (assign-native! 'write (lambda (x)
+                           (write (if (eq? x '()) 'nil x))) 1 1)
   (assign-native! 'newline newline 0 0)
 
   (assign-native! 'uniq gensym 0 0)
