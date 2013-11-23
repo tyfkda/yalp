@@ -15,24 +15,24 @@ namespace yalp {
 enum Opcode {
   HALT,
   UNDEF,
+  CONST,
   LREF,
   FREF,
   GREF,
-  UNBOX,
-  CONST,
-  CLOSE,
-  BOX,
-  TEST,
   LSET,
   FSET,
   GSET,
-  CONTI,
-  NUATE,
-  FRAME,
   PUSH,
-  SHIFT,
+  TEST,
+  CLOSE,
+  FRAME,
   APPLY,
   RET,
+  SHIFT,
+  BOX,
+  UNBOX,
+  CONTI,
+  NUATE,
 
   NUMBER_OF_OPCODE
 };
@@ -199,24 +199,24 @@ Vm::Vm(State* state)
   opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
   opcodes_[HALT] = state_->intern("HALT");
   opcodes_[UNDEF] = state_->intern("UNDEF");
+  opcodes_[CONST] = state_->intern("CONST");
   opcodes_[LREF] = state_->intern("LREF");
   opcodes_[FREF] = state_->intern("FREF");
   opcodes_[GREF] = state_->intern("GREF");
-  opcodes_[UNBOX] = state_->intern("UNBOX");
-  opcodes_[CONST] = state_->intern("CONST");
-  opcodes_[CLOSE] = state_->intern("CLOSE");
-  opcodes_[BOX] = state_->intern("BOX");
-  opcodes_[TEST] = state_->intern("TEST");
   opcodes_[LSET] = state_->intern("LSET");
   opcodes_[FSET] = state_->intern("FSET");
   opcodes_[GSET] = state_->intern("GSET");
-  opcodes_[CONTI] = state_->intern("CONTI");
-  opcodes_[NUATE] = state_->intern("NUATE");
-  opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[PUSH] = state_->intern("PUSH");
-  opcodes_[SHIFT] = state_->intern("SHIFT");
+  opcodes_[TEST] = state_->intern("TEST");
+  opcodes_[CLOSE] = state_->intern("CLOSE");
+  opcodes_[FRAME] = state_->intern("FRAME");
   opcodes_[APPLY] = state_->intern("APPLY");
   opcodes_[RET] = state_->intern("RET");
+  opcodes_[SHIFT] = state_->intern("SHIFT");
+  opcodes_[BOX] = state_->intern("BOX");
+  opcodes_[UNBOX] = state_->intern("UNBOX");
+  opcodes_[CONTI] = state_->intern("CONTI");
+  opcodes_[NUATE] = state_->intern("NUATE");
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
@@ -249,11 +249,6 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     a = CAR(x);
     x = CADR(x);
     goto again;
-  case UNBOX:
-    x = CAR(x);
-    assert(a.getType() == TT_BOX);
-    a = static_cast<Box*>(a.toObject())->get();
-    goto again;
   case LREF:
     {
       int n = CAR(x).toFixnum();
@@ -284,32 +279,6 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       a = aa;
     }
     goto again;
-  case CLOSE:
-    {
-      Svalue nparam = CAR(x);
-      int nfree = CADR(x).toFixnum();
-      Svalue body = CADDR(x);
-      x = CADDDR(x);
-      int min = CAR(nparam).toFixnum();
-      int max = CADR(nparam).toFixnum();
-      a = createClosure(body, nfree, s, min, max);
-      s -= nfree;
-    }
-    goto again;
-  case BOX:
-    {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      indexSet(f, n, box(index(f, n)));
-    }
-    goto again;
-  case TEST:
-    {
-      Svalue thn = CAR(x);
-      Svalue els = CADR(x);
-      x = state_->isTrue(a) ? thn : els;
-    }
-    goto again;
   case LSET:
     {
       int n = CAR(x).toFixnum();
@@ -336,15 +305,29 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       assignGlobal(sym, a);
     }
     goto again;
-  case CONTI:
-    x = CAR(x);
-    a = createContinuation(s);
-    goto again;
-  case NUATE:
+  case PUSH:
     {
-      Svalue stack = CAR(x);
-      x = CADR(x);
-      s = restoreStack(stack);
+      x = CAR(x);
+      s = push(a, s);
+    }
+    goto again;
+  case TEST:
+    {
+      Svalue thn = CAR(x);
+      Svalue els = CADR(x);
+      x = state_->isTrue(a) ? thn : els;
+    }
+    goto again;
+  case CLOSE:
+    {
+      Svalue nparam = CAR(x);
+      int nfree = CADR(x).toFixnum();
+      Svalue body = CADDR(x);
+      x = CADDDR(x);
+      int min = CAR(nparam).toFixnum();
+      int max = CADR(nparam).toFixnum();
+      a = createClosure(body, nfree, s, min, max);
+      s -= nfree;
     }
     goto again;
   case FRAME:
@@ -352,20 +335,6 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue ret = CAR(x);
       x = CADR(x);
       s = push(ret, push(state_->fixnumValue(f), push(c, s)));
-    }
-    goto again;
-  case SHIFT:
-    {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      int calleeArgnum = index(f, -1).toFixnum();
-      s = shiftArgs(n, calleeArgnum, s);
-    }
-    goto again;
-  case PUSH:
-    {
-      x = CAR(x);
-      s = push(a, s);
     }
     goto again;
   case APPLY:
@@ -423,6 +392,37 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       f = index(s, 1).toFixnum();
       c = index(s, 2);
       s -= 3;
+    }
+    goto again;
+  case SHIFT:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      int calleeArgnum = index(f, -1).toFixnum();
+      s = shiftArgs(n, calleeArgnum, s);
+    }
+    goto again;
+  case BOX:
+    {
+      int n = CAR(x).toFixnum();
+      x = CADR(x);
+      indexSet(f, n, box(index(f, n)));
+    }
+    goto again;
+  case UNBOX:
+    x = CAR(x);
+    assert(a.getType() == TT_BOX);
+    a = static_cast<Box*>(a.toObject())->get();
+    goto again;
+  case CONTI:
+    x = CAR(x);
+    a = createContinuation(s);
+    goto again;
+  case NUATE:
+    {
+      Svalue stack = CAR(x);
+      x = CADR(x);
+      s = restoreStack(stack);
     }
     goto again;
   default:
