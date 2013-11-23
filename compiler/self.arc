@@ -66,6 +66,11 @@
 
 ;;; Compiler
 
+;; Compiles lisp code into vm code.
+;;   x : code to be compiled.
+;;   e : current environment, ((local-vars ...) free-vars ...)
+;;   s : sets variables, (sym1 sym2 ...)
+;;   @result : compiled code (list)
 (defn compile (x e s next)
   (if (symbolp x)
         (compile-refer x e
