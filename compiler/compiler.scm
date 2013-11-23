@@ -345,7 +345,9 @@
   (lambda (a x f c s)
     ;(print `(run stack= ,s x= ,x))
     (record-case x
-                 (HALT () a)
+                 (HALT ()
+                       (set! %running-stack-pointer s)
+                       a)
                  (UNDEF (x)
                         (VM '() x f c s))
                  (REFER-LOCAL (n x)

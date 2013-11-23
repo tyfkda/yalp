@@ -238,6 +238,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   int opidx = findOpcode(op);
   switch (opidx) {
   case HALT:
+    stackPointer_ = s;
     return a;
   case UNDEF:
     x = CAR(x);
