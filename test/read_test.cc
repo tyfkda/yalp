@@ -71,6 +71,16 @@ TEST_F(ReadTest, List) {
                    state_->fixnumValue(3)).equal(s3));
 }
 
+TEST_F(ReadTest, DottedList) {
+  Svalue s;
+  ASSERT_EQ(DOT_AT_BASE, read(".", &s)) << "Dot is not a symbol";
+
+  ASSERT_EQ(READ_SUCCESS, read("(1 2 . 3)", &s));
+  ASSERT_TRUE(state_->cons(state_->fixnumValue(1),
+                           state_->cons(state_->fixnumValue(2),
+                                        state_->fixnumValue(3))).equal(s));
+}
+
 TEST_F(ReadTest, Quote) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("'(x y z)", &s));
@@ -108,5 +118,7 @@ TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
   ASSERT_EQ(EXTRA_CLOSE_PAREN, read(")", &s));
+  ASSERT_EQ(ILLEGAL_CHAR, read("(. 1)", &s));
+  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 . 2 3)", &s));
   ASSERT_EQ(NO_CLOSE_STRING, read("\"string", &s));
 }

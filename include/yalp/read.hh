@@ -17,6 +17,7 @@ enum ReadError {
   NO_CLOSE_PAREN,
   EXTRA_CLOSE_PAREN,
   NO_CLOSE_STRING,
+  DOT_AT_BASE,  // `.' is appeared at base text.
   ILLEGAL_CHAR,
 };
 
@@ -29,7 +30,7 @@ public:
   ReadError read(Svalue* pValue);
 
 private:
-  Svalue readSymbolOrNumber();
+  ReadError readSymbolOrNumber(Svalue* pValue);
   ReadError readList(Svalue* pValue);
   ReadError readQuote(Svalue* pValue);
   ReadError readSpecial(Svalue* pValue);

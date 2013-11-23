@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "yalp/read.hh"
+#include "yalp/object.hh"
 #include <assert.h>
 
 namespace yalp {
@@ -38,14 +39,14 @@ ReadError Reader::read(Svalue* pValue) {
   default:
     if (!isDelimiter(c)) {
       putback(c);
-      *pValue = readSymbolOrNumber();
+      return readSymbolOrNumber(pValue);
       return READ_SUCCESS;
     }
     return ILLEGAL_CHAR;
   }
 }
 
-Svalue Reader::readSymbolOrNumber() {
+ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
   char buffer[256];
   char* p = buffer;
   bool hasSymbolChar = false;
@@ -63,11 +64,15 @@ Svalue Reader::readSymbolOrNumber() {
   putback(c);
   *p++ = '\0';
   assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
-  
+
+  if (strcmp(buffer, ".") == 0)
+    return DOT_AT_BASE;
+
   if (hasSymbolChar || !hasDigit)
-    return state_->intern(buffer);
+    *pValue = state_->intern(buffer);
   else
-    return state_->fixnumValue(atol(buffer));
+    *pValue = state_->fixnumValue(atol(buffer));
+  return READ_SUCCESS;
 }
 
 ReadError Reader::readList(Svalue* pValue) {
@@ -88,6 +93,29 @@ ReadError Reader::readList(Svalue* pValue) {
   case END_OF_FILE:
     *pValue = nreverse(state_, value);
     return NO_CLOSE_PAREN;
+  case DOT_AT_BASE:
+    {
+      if (value.eq(state_->nil()))
+        return ILLEGAL_CHAR;
+
+      Svalue tail;
+      err = read(&tail);
+      if (err != READ_SUCCESS)
+        return err;
+
+      skipSpaces();
+      int c = getc();
+      if (c != ')') {
+        putback(c);
+        return NO_CLOSE_PAREN;
+      }
+
+      Svalue lastPair = value;
+      *pValue = nreverse(state_, value);
+      static_cast<Cell*>(lastPair.toObject())->rplacd(tail);
+      return READ_SUCCESS;
+    }
+    break;
   default:
     return err;
   }
