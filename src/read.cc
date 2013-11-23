@@ -7,9 +7,6 @@
 
 namespace yalp {
 
-// Inner value.
-const ReadError CLOSE_PAREN = (ReadError)(ILLEGAL_CHAR + 1);
-
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)
   , sharedStructures_(new std::map<int, Svalue>()) {
@@ -26,7 +23,7 @@ ReadError Reader::read(Svalue* pValue) {
   case '(':
     return readList(pValue);
   case ')':
-    return CLOSE_PAREN;
+    return EXTRA_CLOSE_PAREN;
   case ';':
     skipUntilNextLine();
     return read(pValue);
@@ -84,13 +81,14 @@ ReadError Reader::readList(Svalue* pValue) {
     value = state_->cons(v, value);
   }
   
-  if (err == CLOSE_PAREN) {
+  switch (err) {
+  case EXTRA_CLOSE_PAREN:
     *pValue = nreverse(state_, value);
     return READ_SUCCESS;
-  } else if (err == END_OF_FILE) {
+  case END_OF_FILE:
     *pValue = nreverse(state_, value);
     return NO_CLOSE_PAREN;
-  } else {
+  default:
     return err;
   }
 }

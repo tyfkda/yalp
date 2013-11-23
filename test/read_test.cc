@@ -107,5 +107,6 @@ TEST_F(ReadTest, String) {
 TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
+  ASSERT_EQ(EXTRA_CLOSE_PAREN, read(")", &s));
   ASSERT_EQ(NO_CLOSE_STRING, read("\"string", &s));
 }
