@@ -3,6 +3,7 @@
 #include "yalp/read.hh"
 #include <fstream>
 #include <iostream>
+#include <unistd.h>  // for isatty()
 
 using namespace std;
 using namespace yalp;
@@ -65,6 +66,28 @@ void runBinary(State* state, std::istream& istrm) {
     cerr << "Read error: " << err << endl;
 }
 
+static void repl(State* state, std::istream& istrm, bool tty) {
+  if (tty)
+    cout << "type ':q' to quit" << endl;
+  Svalue q = state->intern(":q");
+  Reader reader(state, istrm);
+  for (;;) {
+    if (tty)
+      cout << "> " << std::flush;
+    Svalue s;
+    ReadError err = reader.read(&s);
+    if (err == END_OF_FILE || s.eq(q))
+      break;
+    Svalue result = state->runBinary(state->compile(s));
+    if (tty) {
+      result.output(state, cout);
+      cout << endl;
+    }
+  }
+  if (tty)
+    cout << "bye" << endl;
+}
+
 int main(int argc, char* argv[]) {
   MyAllocator myAllocator;
   State* state = State::create(&myAllocator);
@@ -93,8 +116,8 @@ int main(int argc, char* argv[]) {
   if (ii >= argc) {
     if (bBinary)
       runBinary(state, cin);
-    //else
-    //  repl(state, cin);
+    else
+      repl(state, cin, isatty(0));
   } else {
     for (int i = ii; i < argc; ++i) {
       if (bBinary)
