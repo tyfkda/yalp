@@ -30,3 +30,6 @@ $(OBJPATH)/%.o:	$(SRCPATH)/%.cc
 
 check-length:
 	wc -l src/* include/**/* | sort -nr
+
+boot-bin:
+	cd compiler && gosh compiler.scm -c boot.arc self.arc > ../boot.bin

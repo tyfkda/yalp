@@ -5,10 +5,12 @@
 #include "yalp.hh"
 #include "yalp/mem.hh"
 #include "yalp/object.hh"
+#include "yalp/read.hh"
 #include "basic.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
 #include <assert.h>
+#include <fstream>
 #include <iostream>
 
 namespace yalp {
@@ -116,8 +118,43 @@ State::~State() {
   symbolManager_->release();
 }
 
+Svalue State::compile(Svalue exp) {
+  Svalue fn = referGlobal(intern("compile"));
+  return funcall(fn, 1, &exp);
+}
+
 Svalue State::runBinary(Svalue code) {
   return vm_->run(code);
+}
+
+Svalue State::runFromFile(const char* filename) {
+  std::ifstream strm(filename);
+  Reader reader(this, strm);
+
+  Svalue result;
+  Svalue exp;
+  ReadError err;
+  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+    result = runBinary(compile(exp));
+  }
+  if (err != END_OF_FILE)
+    std::cerr << "Read error: " << err << std::endl;
+  return result;
+}
+
+Svalue State::runBinaryFromFile(const char* filename) {
+  std::ifstream strm(filename);
+  Reader reader(this, strm);
+
+  Svalue result;
+  Svalue bin;
+  ReadError err;
+  while ((err = reader.read(&bin)) == READ_SUCCESS) {
+    result = runBinary(bin);
+  }
+  if (err != END_OF_FILE)
+    std::cerr << "Read error: " << err << std::endl;
+  return result;
 }
 
 Svalue State::intern(const char* name) {

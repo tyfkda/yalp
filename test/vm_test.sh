@@ -11,7 +11,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(echo "(write ((^() $3)))" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp)
+  result=$(echo "(write ((^() $3)))" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp -b)
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
@@ -20,7 +20,7 @@ function run() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp 2>& /dev/null
+  echo "$2" | gosh -I ../compiler ../compiler/compiler.scm -c | ../yalp -b 2>& /dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi
