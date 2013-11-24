@@ -562,7 +562,7 @@
 (define evaluate
   (lambda (x)
     (let1 code (compile x '(()) '() '(HALT))
-      (VM '() code 0 '() 0))))
+      (VM '() code 0 '() %running-stack-pointer))))
 
 
 ;;; main
