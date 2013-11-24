@@ -76,12 +76,14 @@ static void compileFile(State* state, const char* filename) {
     Svalue code = state->compile(exp);
     code.output(state, cout);
     cout << endl;
+
+    state->runBinary(code);
   }
   if (err != END_OF_FILE)
     cerr << "Read error: " << err << endl;
 }
 
-static void repl(State* state, std::istream& istrm, bool tty, bool bCompileOnly) {
+static void repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
@@ -93,11 +95,12 @@ static void repl(State* state, std::istream& istrm, bool tty, bool bCompileOnly)
     ReadError err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
-    Svalue result;
-    result = state->compile(s);
-    if (!bCompileOnly)
-      result = state->runBinary(result);
-    if (tty || bCompileOnly) {
+    Svalue code = state->compile(s);
+    Svalue result = state->runBinary(code);
+    if (bCompile) {
+      code.output(state, cout);
+      cout << endl;
+    } else if (tty) {
       result.output(state, cout);
       cout << endl;
     }
@@ -106,13 +109,20 @@ static void repl(State* state, std::istream& istrm, bool tty, bool bCompileOnly)
     cout << "bye" << endl;
 }
 
+static Svalue runMain(State* state) {
+  Svalue main = state->referGlobal(state->intern("main"));
+  if (!state->isTrue(main))
+    return main;
+  return state->funcall(main, 0, NULL);
+}
+
 int main(int argc, char* argv[]) {
   MyAllocator myAllocator;
   State* state = State::create(&myAllocator);
 
   bool bOutMemResult = false;
   bool bBinary = false;
-  bool bCompileOnly = false;
+  bool bCompile = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -126,7 +136,7 @@ int main(int argc, char* argv[]) {
       bBinary = true;
       break;
     case 'c':
-      bCompileOnly = true;
+      bCompile = true;
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
@@ -139,10 +149,10 @@ int main(int argc, char* argv[]) {
     if (bBinary)
       runBinary(state, cin);
     else
-      repl(state, cin, isatty(0), bCompileOnly);
+      repl(state, cin, isatty(0), bCompile);
   } else {
     for (int i = ii; i < argc; ++i) {
-      if (bCompileOnly)
+      if (bCompile)
         compileFile(state, argv[i]);
       else if (bBinary)
         state->runBinaryFromFile(argv[i]);
@@ -150,6 +160,8 @@ int main(int argc, char* argv[]) {
         state->runFromFile(argv[i]);
     }
   }
+  if (!bCompile)
+    runMain(state);
 
   state->release();
 
