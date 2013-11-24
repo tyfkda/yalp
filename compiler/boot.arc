@@ -56,7 +56,7 @@
     ,@(map cadr (pair parms))))
 
 (defmacro let (var val . body)
-  `(with (,var ,val) ,@body))
+  `((^(,var) ,@body) ,val))
 
 (defmacro do body
   `((^() ,@body)))
