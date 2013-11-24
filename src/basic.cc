@@ -31,6 +31,20 @@ static Svalue s_cdr(State* state) {
   return state->cdr(cell);
 }
 
+static Svalue s_rplaca(State* state) {
+  Svalue s = state->getArg(0);
+  Svalue value = state->getArg(1);
+  static_cast<Cell*>(s.toObject())->rplaca(value);
+  return value;
+}
+
+static Svalue s_rplacd(State* state) {
+  Svalue s = state->getArg(0);
+  Svalue value = state->getArg(1);
+  static_cast<Cell*>(s.toObject())->rplacd(value);
+  return value;
+}
+
 static Svalue s_list(State* state) {
   int n = state->getArgNum();
   Svalue res = state->nil();
@@ -360,6 +374,8 @@ void installBasicFunctions(State* state) {
   state->assignNative("cons", s_cons, 2);
   state->assignNative("car", s_car, 1);
   state->assignNative("cdr", s_cdr, 1);
+  state->assignNative("rplaca", s_rplaca, 2);
+  state->assignNative("rplacd", s_rplacd, 2);
   state->assignNative("list", s_list, 0, -1);
   state->assignNative("list*", s_listStar, 0, -1);
   state->assignNative("consp", s_consp, 1);

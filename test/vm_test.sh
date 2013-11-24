@@ -71,6 +71,8 @@ run global-var 111 '((^()
 run cons '(1 . 2)' '(cons 1 2)'
 run car '1' "(car '(1 2 3))"
 run cdr '(2 3)' "(cdr '(1 2 3))"
+run rplaca '(3 2)' "((^(x) (rplaca x 3) x) '(1 2))"
+run rplacd '(1 . 3)' "((^(x) (rplacd x 3) x) '(1 2))"
 run list '(1 2 (3 4))' "(list 1 2 '(3 4))"
 run 'list*' '(1 2 3 4)' "(list* 1 2 '(3 4))"
 run consp 't' "(consp '(1 2))"
