@@ -54,7 +54,7 @@ public:
   }
 };
 
-void runBinary(State* state, std::istream& istrm) {
+static void runBinary(State* state, std::istream& istrm) {
   Reader reader(state, istrm);
 
   Svalue bin;
