@@ -644,6 +644,7 @@
   (assign-native! 'uniq gensym 0 0)
   (assign-native! 'macroexpand my-macroexpand 1 1)
   (assign-native! 'apply my-apply 2 -1)
+  (assign-native! 'read read 0 0)
   )
 
 (define (compile-all codes)

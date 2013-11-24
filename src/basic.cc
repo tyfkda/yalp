@@ -5,6 +5,7 @@
 #include "basic.hh"
 #include "yalp.hh"
 #include "yalp/object.hh"
+#include "yalp/read.hh"
 #include "vm.hh"
 #include <iostream>
 
@@ -285,6 +286,15 @@ static Svalue s_apply(State* state) {
   return a;
 }
 
+static Svalue s_read(State* state) {
+  Reader reader(state, std::cin);
+  Svalue exp;
+  ReadError err = reader.read(&exp);
+  if (err != READ_SUCCESS)
+    state->runtimeError("Read error");
+  return exp;
+}
+
 void installBasicFunctions(State* state) {
   state->assignGlobal(state->nil(), state->nil());
   state->assignGlobal(state->t(), state->t());
@@ -316,6 +326,7 @@ void installBasicFunctions(State* state) {
 
   state->assignNative("uniq", s_uniq, 0);
   state->assignNative("apply", s_apply, 1, -1);
+  state->assignNative("read", s_read, 0);
 }
 
 }  // namespace yalp
