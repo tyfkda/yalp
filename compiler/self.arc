@@ -117,8 +117,8 @@
                       (with (func (car x)
                              args (cdr x))
                         (if (macro? func)
-                            (compile-apply-macro func args e s next)
-                            (compile-apply func args e s next)))))
+                            (compile-apply-macro x e s next)
+                          (compile-apply func args e s next)))))
         (list 'CONST x next)))
 
 (defn compile-undef (e s next)
@@ -270,15 +270,42 @@
 (defn tail? (next)
   (is (car next) 'RET))
 
-;; Macro
+;;; Macro
+
+;; Macro hash table, (symbol => closure)
+(def *macro-table* (make-hash-table))
+
+;; Compile (defmacro name (vars ...) bodies) syntax.
 (defn register-macro (name vars bodies)
-  )
+  (let closure (eval `(^ ,vars ,@bodies))
+    (hash-table-put! *macro-table* name closure)))
 
+;; Whether the given name is macro.
 (defn macro? (name)
-  nil)
+  (hash-table-exists? *macro-table* name))
 
+;; Expand macro and compile the result.
+(defn compile-apply-macro (exp e s next)
+  (let result (macroexpand exp)
+    (compile-recur result e s next)))
+
+;; Expand macro.
+(defn macroexpand (exp)
+  (with (name (car exp)
+         args (cdr exp))
+    (let closure (hash-table-get *macro-table* name)
+      (apply closure args))))
+
+;; Expand macro all if the given parameter is macro expression,
+;; otherwise return itself.
 (defn expand-macro-if-so (x)
-  x)
+  (if (and (consp x)
+           (macro? (car x)))
+      (let expanded (macroexpand x)
+        (if (iso expanded x)
+            x
+          (expand-macro-if-so expanded)))
+    x))
 
 ;;
 
