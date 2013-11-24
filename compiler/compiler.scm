@@ -258,7 +258,7 @@
     (hash-table-put! *macro-table* name closure)))
 
 (define (macro? name)
-  "Whther the given name is macro."
+  "Whether the given name is macro."
   (hash-table-exists? *macro-table* name))
 
 (define (compile-apply-macro exp e s next)
