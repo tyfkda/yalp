@@ -111,8 +111,7 @@
                                     c
                                     (list 'FRAME next c))))
                      (defmacro (name vars . bodies)
-                       (register-macro name vars bodies)
-                       (compile-recur `(quote ,name) e s next))
+                       (compile-defmacro name vars bodies next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -272,17 +271,18 @@
 
 ;;; Macro
 
-;; Macro hash table, (symbol => closure)
-(def *macro-table* (make-hash-table))
-
-;; Compile (defmacro name (vars ...) bodies) syntax.
-(defn register-macro (name vars bodies)
-  (let closure (eval `(^ ,vars ,@bodies))
-    (hash-table-put! *macro-table* name closure)))
-
-;; Whether the given name is macro.
-(defn macro? (name)
-  (hash-table-exists? *macro-table* name))
+(defn compile-defmacro (name vars bodies next)
+  (let proper-vars (dotted->proper vars)
+    (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
+           max (if (is vars proper-vars) (len vars) -1)
+           body-code (compile-lambda-bodies proper-vars bodies (list proper-vars) '() '()))
+      ;; Macro registeration will be done in other place.
+      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+      (list 'MACRO
+            name
+            (list min max)
+            body-code
+            next))))
 
 ;; Expand macro and compile the result.
 (defn compile-apply-macro (exp e s next)
@@ -293,8 +293,10 @@
 (defn macroexpand (exp)
   (with (name (car exp)
          args (cdr exp))
-    (let closure (hash-table-get *macro-table* name)
-      (apply closure args))))
+    (if (macro? name)
+        (let closure (hash-table-get *macro-table* name)
+          (apply closure args))
+      exp)))
 
 ;; Expand macro all if the given parameter is macro expression,
 ;; otherwise return itself.

@@ -1,3 +1,17 @@
+;; Macro hash table, (symbol => closure)
+(set! *macro-table* (make-hash-table))
+
+;; Compile (defmacro name (vars ...) bodies) syntax.
+(set! register-macro
+      (^(name closure)
+        (hash-table-put! *macro-table* name closure)))
+
+;; Whether the given name is macro.
+(set! macro?
+      (^(name)
+        (hash-table-exists? *macro-table* name)))
+
+
 (set! null
       (^(x)
         (if x

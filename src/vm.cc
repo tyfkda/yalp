@@ -33,6 +33,7 @@ enum Opcode {
   UNBOX,
   CONTI,
   NUATE,
+  MACRO,
 
   NUMBER_OF_OPCODE
 };
@@ -217,6 +218,7 @@ Vm::Vm(State* state)
   opcodes_[UNBOX] = state_->intern("UNBOX");
   opcodes_[CONTI] = state_->intern("CONTI");
   opcodes_[NUATE] = state_->intern("NUATE");
+  opcodes_[MACRO] = state_->intern("MACRO");
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
@@ -423,6 +425,20 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       Svalue stack = CAR(x);
       x = CADR(x);
       s = restoreStack(stack);
+    }
+    goto again;
+  case MACRO:
+    {
+      Svalue name = CAR(x);
+      Svalue nparam = CADR(x);
+      Svalue body = CADDR(x);
+      x = CADDDR(x);
+      int min = CAR(nparam).toFixnum();
+      int max = CADR(nparam).toFixnum();
+      Svalue closure = createClosure(body, 0, s, min, max);
+
+      Svalue args[] = { name, closure };
+      funcall(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
     }
     goto again;
   default:

@@ -84,8 +84,7 @@
                                   c
                                 (list 'FRAME next c))))
                    (defmacro (name vars . bodies)
-                     (register-macro name vars bodies)
-                     (compile-recur `(quote ,name) e s next))
+                     (compile-defmacro name vars bodies next))
                    (else
                     (let ((func (car x))
                           (args (cdr x)))
@@ -249,13 +248,25 @@
 
 ;;; Macro
 
+(define (compile-defmacro name vars bodies next)
+  (let ((proper-vars (dotted->proper vars)))
+    (let ((min (if (eq? vars proper-vars) (length vars) (- (length proper-vars) 1)))
+          (max (if (eq? vars proper-vars) (length vars) -1))
+          (body-code (compile-lambda-bodies proper-vars bodies (list proper-vars) '() '())))
+      ;; Macro registeration will be done in other place.
+      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+      (list 'MACRO
+            name
+            (list min max)
+            body-code
+            next))))
+
 ;; Macro hash table, (symbol => closure)
 (define *macro-table* (make-hash-table))
 
-(define (register-macro name vars bodies)
+(define (register-macro name closure)
   "Compile (defmacro name (vars ...) bodies) syntax."
-  (let ((closure (evaluate `(^ ,vars ,@bodies))))
-    (hash-table-put! *macro-table* name closure)))
+  (hash-table-put! *macro-table* name closure))
 
 (define (macro? name)
   "Whether the given name is macro."
@@ -404,6 +415,11 @@
                         (VM (continuation s) x f c s))
                  (NUATE (stack x)
                         (VM a x f c (restore-stack stack)))
+                 (MACRO (name nparam body x)
+                        (let ((min (car nparam))
+                              (max (cadr nparam)))
+                          (register-macro name (closure body 0 s min max))
+                          (VM a x f c s)))
                  (else
                   (display #`"Unknown op ,x\n")
                   (exit 1)))))
