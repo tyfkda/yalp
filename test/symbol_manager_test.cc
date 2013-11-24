@@ -1,14 +1,24 @@
 #include "gtest/gtest.h"
-#include "symbol_manager.hh"
+#include "../src/symbol_manager.hh"
+#include "yalp/mem.hh"
 
 using namespace yalp;
 
 class SymbolManagerTest : public ::testing::Test {
 protected:
-  SymbolManager symbolManager_;
+  virtual void SetUp() override {
+    symbolManager_ = SymbolManager::create(Allocator::getDefaultAllocator());
+  }
+
+  virtual void TearDown() override {
+    symbolManager_->release();
+  }
+
+  SymbolManager* symbolManager_;
 };
 
 TEST_F(SymbolManagerTest, Fixnum) {
-  Svalue symbol = symbolManager_.intern("symbol");
-  ASSERT_TRUE(symbolManager_.intern("symbol").eq(symbol));
+  Symbol* symbol1 = symbolManager_->intern("symbol");
+  Symbol* symbol2 = symbolManager_->intern("symbol");
+  ASSERT_EQ(symbol1, symbol2);
 }

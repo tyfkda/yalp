@@ -18,9 +18,6 @@
                         (record (cdr ,g1) ,vars ,@exprs)))))
                 args)))))
 
-(define-macro (recur . args)
-  `(let ,@args))
-
 ;;; dotted pair -> proper list
 (define (dotted->proper ls)
   (if (list? ls)
@@ -68,4 +65,3 @@
       (if (set-member? (car s1) s2)
           (cons (car s1) (set-intersect (cdr s1) s2))
         (set-intersect (cdr s1) s2)))))
-

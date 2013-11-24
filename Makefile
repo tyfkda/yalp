@@ -1,19 +1,35 @@
 PROJECT=yalp
 
-OBJS=\
-	main.o\
-	read.o\
-	symbol_manager.o\
-	vm.o\
-	yalp.o\
+SRCPATH=src
+INCPATH=include
+OBJPATH=obj
 
-CXXFLAGS += -Wall -Wextra -Werror -std=c++0x
+SRCS=$(wildcard $(SRCPATH)/*.cc)
+OBJS=$(subst $(SRCPATH),$(OBJPATH),$(SRCS:%.cc=%.o))
+DEPS=$(subst $(SRCPATH),$(OBJPATH),$(SRCS:%.cc=%.d))
+
+CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCPATH)
 
 all:	$(PROJECT)
 
 clean:
-	rm -f $(OBJS)
+	rm -rf $(OBJPATH)
 	rm -f $(PROJECT)
+
+-include $(DEPS)
 
 $(PROJECT):	$(OBJS)
 	g++ -o $(PROJECT) $(OBJS)
+
+$(OBJPATH)/%.o:	$(SRCPATH)/%.cc
+	@if ! [ -e $(OBJPATH) ]; then\
+	  mkdir $(OBJPATH);\
+	fi
+	g++ $(CXXFLAGS) -o $@ -c $<
+
+
+check-length:
+	wc -l src/* include/**/* | sort -nr
+
+boot-bin:
+	cd compiler && gosh compiler.scm -c boot.arc self.arc > ../boot.bin
