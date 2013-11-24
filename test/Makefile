@@ -117,5 +117,3 @@ vm-test:
 
 ../yalp:
 	cd .. && make
-
-#

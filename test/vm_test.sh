@@ -109,5 +109,3 @@ fail too-many-arg-lambda '((^(x y)) 1 2 3)'
 # All tests succeeded.
 
 echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
-
-#

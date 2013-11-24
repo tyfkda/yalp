@@ -284,5 +284,3 @@
 
 (defn eval (x)
   (run-binary (compile x)))
-
-;;

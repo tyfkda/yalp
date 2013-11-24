@@ -102,7 +102,7 @@
 
 (defmacro caselet (var expr . args)
   (let ex (afn (args)
-            (if (no (cdr args)) 
+            (if (no (cdr args))
                 (car args)
                 `(if (is ,var ',(car args))
                      ,(cadr args)
@@ -137,5 +137,3 @@
               (self d c)
               c)))
    ls '()))
-
-;;
