@@ -30,6 +30,16 @@ ReadError Reader::read(Svalue* pValue) {
     return read(pValue);
   case '\'':
     return readQuote(pValue);
+  case '`':
+    return readQuasiQuote(pValue);
+  case ',':
+    {
+      c = getc();
+      if (c == '@')
+        return readUnquoteSplicing(pValue);
+      putback(c);
+      return readUnquote(pValue);
+    }
   case '"':
     return readString(c, pValue);
   case '#':
@@ -125,6 +135,16 @@ ReadError Reader::readQuote(Svalue* pValue) {
   ReadError err = read(pValue);
   if (err == READ_SUCCESS) {
     *pValue = state_->quote(*pValue);
+  }
+  return err;
+}
+
+ReadError Reader::readAbbrev(const char* funcname, Svalue* pValue) {
+  ReadError err = read(pValue);
+  if (err == READ_SUCCESS) {
+    *pValue = list(state_,
+                   state_->intern(funcname),
+                   *pValue);
   }
   return err;
 }

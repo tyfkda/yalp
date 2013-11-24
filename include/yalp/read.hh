@@ -33,6 +33,10 @@ private:
   ReadError readSymbolOrNumber(Svalue* pValue);
   ReadError readList(Svalue* pValue);
   ReadError readQuote(Svalue* pValue);
+  ReadError readQuasiQuote(Svalue* pValue)  { return readAbbrev("quasiquote", pValue); }
+  ReadError readUnquote(Svalue* pValue)  { return readAbbrev("unquote", pValue); }
+  ReadError readUnquoteSplicing(Svalue* pValue)  { return readAbbrev("unquote-splicing", pValue); }
+  ReadError readAbbrev(const char* funcname, Svalue* pValue);
   ReadError readSpecial(Svalue* pValue);
   ReadError readString(char closeChar, Svalue* pValue);
   void storeShared(int id, Svalue value);

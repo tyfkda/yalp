@@ -92,6 +92,24 @@ TEST_F(ReadTest, Quote) {
                         state_->intern("z"))).equal(s));
 }
 
+TEST_F(ReadTest, quasiquote) {
+  Svalue s;
+  ASSERT_EQ(READ_SUCCESS, read("`x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("quasiquote"),
+                   state_->intern("x")).equal(s));
+
+  ASSERT_EQ(READ_SUCCESS, read(",x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("unquote"),
+                   state_->intern("x")).equal(s));
+
+  ASSERT_EQ(READ_SUCCESS, read(",@x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("unquote-splicing"),
+                   state_->intern("x")).equal(s));
+}
+
 TEST_F(ReadTest, SharedStructure) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("(#0=(a) #0#)", &s));
