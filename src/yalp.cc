@@ -81,7 +81,7 @@ static void compileFile(State* state, const char* filename) {
     cerr << "Read error: " << err << endl;
 }
 
-static void repl(State* state, std::istream& istrm, bool tty) {
+static void repl(State* state, std::istream& istrm, bool tty, bool bCompileOnly) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
@@ -93,8 +93,11 @@ static void repl(State* state, std::istream& istrm, bool tty) {
     ReadError err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
-    Svalue result = state->runBinary(state->compile(s));
-    if (tty) {
+    Svalue result;
+    result = state->compile(s);
+    if (!bCompileOnly)
+      result = state->runBinary(result);
+    if (tty || bCompileOnly) {
       result.output(state, cout);
       cout << endl;
     }
@@ -109,7 +112,7 @@ int main(int argc, char* argv[]) {
 
   bool bOutMemResult = false;
   bool bBinary = false;
-  bool bCompile = false;
+  bool bCompileOnly = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -123,7 +126,7 @@ int main(int argc, char* argv[]) {
       bBinary = true;
       break;
     case 'c':
-      bCompile = true;
+      bCompileOnly = true;
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
@@ -136,10 +139,10 @@ int main(int argc, char* argv[]) {
     if (bBinary)
       runBinary(state, cin);
     else
-      repl(state, cin, isatty(0));
+      repl(state, cin, isatty(0), bCompileOnly);
   } else {
     for (int i = ii; i < argc; ++i) {
-      if (bCompile)
+      if (bCompileOnly)
         compileFile(state, argv[i]);
       else if (bBinary)
         state->runBinaryFromFile(argv[i]);
