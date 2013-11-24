@@ -585,7 +585,10 @@
 (define evaluate
   (lambda (x)
     (let1 code (compile x)
-      (VM '() code 0 '() %running-stack-pointer))))
+      (run-binary code))))
+
+(define (run-binary code)
+  (VM '() code 0 '() %running-stack-pointer))
 
 
 ;;; main
@@ -612,9 +615,6 @@
 
 (define (my-compile x)
   (compile x '(()) '() '(HALT)))
-
-(define (my-run-binary code)
-  (VM '() code 0 '() %running-stack-pointer))
 
 (define (install-native-functions)
   (define (convert x)
@@ -677,7 +677,7 @@
   (assign-native! 'apply my-apply 2 -1)
   (assign-native! 'read read 0 0)
   (assign-native! 'compile my-compile 1 1)
-  (assign-native! 'run-binary my-run-binary 1 1)
+  (assign-native! 'run-binary run-binary 1 1)
 
   (assign-native! 'make-hash-table make-hash-table 0 0)
   (assign-native! 'hash-table-get hash-table-get 2 2)
@@ -693,7 +693,7 @@
              (compiled (compile (car codes))))
         (write/ss compiled)
         (newline)
-        (VM '() compiled 0 '() 0)
+        (run-binary compiled)
         (loop (cdr codes))))))
 
 (define (repl tty?)
@@ -740,7 +740,7 @@
     (cond (is-compile (compile-all (read-all restargs))
                       (exit 0))
           (bin (dolist (code (read-all restargs))
-                 (VM '() code 0 '() 0))
+                 (run-binary code))
                (run-main)
                (exit 0))
           ((null? restargs)
