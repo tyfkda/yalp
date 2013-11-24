@@ -107,9 +107,9 @@
                                 (if (tail? next)
                                     c
                                     (list 'FRAME next c))))
-                     ;(defmacro (name vars . bodies)
-                     ;  (register-macro name vars bodies)
-                     ;  (compile `(quote ,name) e s next))
+                     (defmacro (name vars . bodies)
+                       (register-macro name vars bodies)
+                       (compile `(quote ,name) e s next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -268,6 +268,9 @@
   (is (car next) 'RET))
 
 ;; Macro
+(defn register-macro (name vars bodies)
+  )
+
 (defn macro? (name)
   nil)
 
