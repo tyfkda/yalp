@@ -662,6 +662,12 @@
   (assign-native! 'read read 0 0)
   (assign-native! 'compile my-compile 1 1)
   (assign-native! 'run-binary my-run-binary 1 1)
+
+  (assign-native! 'make-hash-table make-hash-table 0 0)
+  (assign-native! 'hash-table-get hash-table-get 2 2)
+  (assign-native! 'hash-table-put! hash-table-put! 3 3)
+  (assign-native! 'hash-table-exists? hash-table-exists? 2 2)
+  (assign-native! 'hash-table-delete! hash-table-delete! 2 2)
   )
 
 (define (compile-all codes)

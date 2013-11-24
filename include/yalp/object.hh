@@ -14,6 +14,7 @@ because yalp uses GC and destructor is not called.
 
 #include "yalp.hh"
 
+#include <map>
 #include <ostream>
 
 namespace yalp {
@@ -86,6 +87,26 @@ protected:
   ~String()  {}
 private:
   const char* string_;
+
+  friend State;
+};
+
+// HashTable class.
+class HashTable : public Sobject {
+public:
+  virtual Type getType() const override;
+
+  virtual void output(State* state, std::ostream& o) const override;
+
+  void put(Svalue key, Svalue value);
+  bool get(Svalue key, Svalue* pValue) const;
+  bool erase(Svalue key);
+
+protected:
+  HashTable();
+  ~HashTable()  {}
+private:
+  std::map<long, Svalue> table_;
 
   friend State;
 };

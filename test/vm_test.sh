@@ -96,6 +96,12 @@ run '>=' t '(>= 2 2)'
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 
+# Hash table
+run hash-table 123 "((^(h)
+                        (hash-table-put! h 'key 123)
+                        (hash-table-get h 'key))
+                     (make-hash-table))"
+
 # Fail cases
 fail unbound 'abc'
 fail no-global '((^(x) y) 123)'

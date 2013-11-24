@@ -187,6 +187,12 @@ Svalue State::quote(Svalue x) {
   return list(this, quote_, x);
 }
 
+Svalue State::createHashTable() {
+  void* memory = allocator_->alloc(sizeof(HashTable));
+  HashTable* h = new(memory) HashTable();
+  return Svalue(h);
+}
+
 Svalue State::stringValue(const char* string) {
   int len = strlen(string);
   void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));

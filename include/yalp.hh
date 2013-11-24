@@ -35,6 +35,7 @@ enum Type {
   TT_NATIVEFUNC,
   TT_BOX,
   TT_VECTOR,
+  TT_HASH_TABLE,
 };
 
 // S-value: bit embedded type value.
@@ -55,6 +56,7 @@ public:
   void output(State* state, std::ostream& o) const;
 
   long getId() const  { return v_; }
+  long calcHash() const  { return v_; }
 
 private:
   explicit Svalue(Sfixnum i);
@@ -117,6 +119,8 @@ public:
 
   // Wrap a value with quote.
   Svalue quote(Svalue x);
+
+  Svalue createHashTable();
 
   Allocator* getAllocator() const  { return allocator_; }
 

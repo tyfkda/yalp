@@ -101,4 +101,39 @@ void String::output(State*, std::ostream& o) const {
 
 //=============================================================================
 
+HashTable::HashTable()
+  : Sobject()
+  , table_() {
+}
+
+Type HashTable::getType() const  { return TT_HASH_TABLE; }
+
+void HashTable::output(State*, std::ostream& o) const {
+  o << "#<hash-table:" << this << ">";
+}
+
+void HashTable::put(Svalue key, Svalue value) {
+  table_[key.calcHash()] = value;
+}
+
+bool HashTable::get(Svalue key, Svalue* pValue) const {
+  auto it = table_.find(key.calcHash());
+  if (it == table_.end())
+    return false;
+
+  *pValue = it->second;
+  return true;
+}
+
+bool HashTable::erase(Svalue key) {
+  auto it = table_.find(key.calcHash());
+  if (it == table_.end())
+    return false;
+
+  table_.erase(it);
+  return true;
+}
+
+//=============================================================================
+
 }  // namespace yalp

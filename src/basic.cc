@@ -4,6 +4,7 @@
 
 #include "basic.hh"
 #include "yalp.hh"
+#include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "vm.hh"
@@ -305,6 +306,53 @@ static Svalue s_run_binary(State* state) {
   return state->runBinary(code);
 }
 
+static Svalue s_make_hash_table(State* state) {
+  return state->createHashTable();
+}
+
+static Svalue s_hash_table_get(State* state) {
+  Svalue h = state->getArg(0);
+  Svalue key = state->getArg(1);
+  if (h.getType() != TT_HASH_TABLE) {
+    state->runtimeError("Hash table expected");
+  }
+  Svalue result;
+  if (!static_cast<HashTable*>(h.toObject())->get(key, &result)) {
+    return state->nil();
+  }
+  return result;
+}
+
+static Svalue s_hash_table_put(State* state) {
+  Svalue h = state->getArg(0);
+  Svalue key = state->getArg(1);
+  Svalue value = state->getArg(2);
+  if (h.getType() != TT_HASH_TABLE) {
+    state->runtimeError("Hash table expected");
+  }
+  static_cast<HashTable*>(h.toObject())->put(key, value);
+  return value;
+}
+
+static Svalue s_hash_table_exists(State* state) {
+  Svalue h = state->getArg(0);
+  Svalue key = state->getArg(1);
+  if (h.getType() != TT_HASH_TABLE) {
+    state->runtimeError("Hash table expected");
+  }
+  Svalue result;
+  return state->boolValue(static_cast<HashTable*>(h.toObject())->get(key, &result));
+}
+
+static Svalue s_hash_table_delete(State* state) {
+  Svalue h = state->getArg(0);
+  Svalue key = state->getArg(1);
+  if (h.getType() != TT_HASH_TABLE) {
+    state->runtimeError("Hash table expected");
+  }
+  return state->boolValue(static_cast<HashTable*>(h.toObject())->erase(key));
+}
+
 void installBasicFunctions(State* state) {
   state->assignGlobal(state->nil(), state->nil());
   state->assignGlobal(state->t(), state->t());
@@ -339,6 +387,12 @@ void installBasicFunctions(State* state) {
   state->assignNative("read", s_read, 0);
   state->assignNative("compile", s_compile, 1);
   state->assignNative("run-binary", s_run_binary, 1);
+
+  state->assignNative("make-hash-table", s_make_hash_table, 0);
+  state->assignNative("hash-table-get", s_hash_table_get, 2);
+  state->assignNative("hash-table-put!", s_hash_table_put, 3);
+  state->assignNative("hash-table-exists?", s_hash_table_exists, 2);
+  state->assignNative("hash-table-delete!", s_hash_table_delete, 2);
 }
 
 }  // namespace yalp
