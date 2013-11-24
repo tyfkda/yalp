@@ -36,12 +36,15 @@
 (add-load-path ".")
 (load "util.scm")
 
+(define (compile x)
+  (compile-recur x '(()) '() '(HALT)))
+
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
 ;;   e : current environment, ((local-vars ...) free-vars ...)
 ;;   s : sets variables, (sym1 sym2 ...)
 ;;   @result : compiled code (list)
-(define compile
+(define compile-recur
   (lambda (x e s next)
     (cond
      ((symbol? x)
@@ -55,34 +58,34 @@
                    (^ (vars . bodies)
                      (compile-lambda vars bodies e s next))
                    (if (test then . rest)
-                       (let ((thenc (compile then e s next))
+                       (let ((thenc (compile-recur then e s next))
                              (elsec (cond ((null? rest)
                                            (compile-undef e s next))
                                           ((null? (cdr rest))
-                                           (compile (car rest) e s next))
+                                           (compile-recur (car rest) e s next))
                                           (else
-                                           (compile `(if ,@rest) e s next)))))
-                         (compile test e s (list 'TEST thenc elsec))))
+                                           (compile-recur `(if ,@rest) e s next)))))
+                         (compile-recur test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
-                                         (lambda (n)   (compile x e s (list 'LSET n next)))
-                                         (lambda (n)   (compile x e s (list 'FSET n next)))
-                                         (lambda (sym) (compile x e s (list 'GSET sym next)))))
+                                         (lambda (n)   (compile-recur x e s (list 'LSET n next)))
+                                         (lambda (n)   (compile-recur x e s (list 'FSET n next)))
+                                         (lambda (sym) (compile-recur x e s (list 'GSET sym next)))))
                    (call/cc (x)
                             (let ((c (list 'CONTI
                                            (list 'PUSH
-                                                 (compile x e s
-                                                          (if (tail? next)
-                                                              (list 'SHIFT
-                                                                    1
-                                                                    '(APPLY 1))
-                                                            '(APPLY 1)))))))
+                                                 (compile-recur x e s
+                                                                (if (tail? next)
+                                                                    (list 'SHIFT
+                                                                          1
+                                                                          '(APPLY 1))
+                                                                  '(APPLY 1)))))))
                               (if (tail? next)
                                   c
                                 (list 'FRAME next c))))
                    (defmacro (name vars . bodies)
                      (register-macro name vars bodies)
-                     (compile `(quote ,name) e s next))
+                     (compile-recur `(quote ,name) e s next))
                    (else
                     (let ((func (car x))
                           (args (cdr x)))
@@ -97,20 +100,20 @@
 (define (compile-apply func args e s next)
   (let ((argnum (length args)))
     (let loop ((args args)
-               (c (compile func e s
-                           (if (tail? next)
-                               `(SHIFT ,argnum
-                                       (APPLY ,argnum))
-                             `(APPLY ,argnum)))))
+               (c (compile-recur func e s
+                                 (if (tail? next)
+                                     `(SHIFT ,argnum
+                                             (APPLY ,argnum))
+                                   `(APPLY ,argnum)))))
       (if (null? args)
           (if (tail? next)
               c
             (list 'FRAME next c))
         (loop (cdr args)
-              (compile (car args)
-                       e
-                       s
-                       (list 'PUSH c)))))))
+              (compile-recur (car args)
+                             e
+                             s
+                             (list 'PUSH c)))))))
 
 (define (compile-lambda vars bodies e s next)
   (let ((proper-vars (dotted->proper vars)))
@@ -138,8 +141,8 @@
     (let loop ((p bodies))
       (if (null? p)
           next
-        (compile (car p) ee ss
-                 (loop (cdr p)))))))
+        (compile-recur (car p) ee ss
+                       (loop (cdr p)))))))
 
 (define (find-frees xs b vars)
   (let ((bb (set-union (dotted->proper vars) b)))
@@ -261,7 +264,7 @@
 (define (compile-apply-macro exp e s next)
   "Expand macro and compile the result."
   (let ((result (expand-macro exp %running-stack-pointer)))
-    (compile result e s next)))
+    (compile-recur result e s next)))
 
 (define (expand-macro exp s)
   (define (push-args args s)
@@ -565,7 +568,7 @@
 
 (define evaluate
   (lambda (x)
-    (let1 code (compile x '(()) '() '(HALT))
+    (let1 code (compile x)
       (VM '() code 0 '() %running-stack-pointer))))
 
 
@@ -657,7 +660,7 @@
   (let loop ((codes codes))
     (unless (null? codes)
       (let* ((code (car codes))
-             (compiled (compile (car codes) '(()) '() '(HALT))))
+             (compiled (compile (car codes))))
         (write/ss compiled)
         (newline)
         (when (and (pair? code)
@@ -698,11 +701,11 @@
 (define (main args)
   (install-native-functions)
   (let-args (cdr args)
-      ((compile "c|compile-only")
-       (bin     "b|run-binary")
+      ((compile-only "c|compile-only")
+       (bin          "b|run-binary")
        . restargs)
-    (cond (compile (compile-all (read-all restargs))
-                   (exit 0))
+    (cond (compile-only (compile-all (read-all restargs))
+                        (exit 0))
           (bin (dolist (code (read-all restargs))
                  (VM '() code 0 '() 0))
                (exit 0))

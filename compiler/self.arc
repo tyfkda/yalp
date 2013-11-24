@@ -66,12 +66,15 @@
 
 ;;; Compiler
 
+(defn compile (x)
+  (compile-recur x '(()) '() '(HALT)))
+
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
 ;;   e : current environment, ((local-vars ...) free-vars ...)
 ;;   s : sets variables, (sym1 sym2 ...)
 ;;   @result : compiled code (list)
-(defn compile (x e s next)
+(defn compile-recur (x e s next)
   (if (symbolp x)
         (compile-refer x e
                        (if (set-member? x s)
@@ -83,33 +86,33 @@
                      (^ (vars . bodies)
                         (compile-lambda vars bodies e s next))
                      (if (test then . rest)
-                         (with (thenc (compile then e s next)
+                         (with (thenc (compile-recur then e s next)
                                 elsec (if (no rest)
                                             (compile-undef e s next)
                                           (no (cdr rest))
-                                            (compile (car rest) e s next)
-                                          (compile `(if ,@rest) e s next)))
-                           (compile test e s (list 'TEST thenc elsec))))
+                                            (compile-recur (car rest) e s next)
+                                          (compile-recur `(if ,@rest) e s next)))
+                           (compile-recur test e s (list 'TEST thenc elsec))))
                      (set! (var x)
                            (compile-lookup var e
-                                           (^(n)   (compile x e s (list 'LSET n next)))
-                                           (^(n)   (compile x e s (list 'FSET n next)))
-                                           (^(sym) (compile x e s (list 'GSET sym next)))))
+                                           (^(n)   (compile-recur x e s (list 'LSET n next)))
+                                           (^(n)   (compile-recur x e s (list 'FSET n next)))
+                                           (^(sym) (compile-recur x e s (list 'GSET sym next)))))
                      (call/cc (x)
                               (let c (list 'CONTI
                                            (list 'PUSH
-                                                 (compile x e s
-                                                          (if (tail? next)
-                                                              (list 'SHIFT
-                                                                    1
-                                                                    '(APPLY 1))
-                                                              '(APPLY 1)))))
+                                                 (compile-recur x e s
+                                                                (if (tail? next)
+                                                                    (list 'SHIFT
+                                                                          1
+                                                                          '(APPLY 1))
+                                                                  '(APPLY 1)))))
                                 (if (tail? next)
                                     c
                                     (list 'FRAME next c))))
                      (defmacro (name vars . bodies)
                        (register-macro name vars bodies)
-                       (compile `(quote ,name) e s next))
+                       (compile-recur `(quote ,name) e s next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -129,16 +132,16 @@
                   c
                   (list 'FRAME next c))
               (self (cdr args)
-                    (compile (car args)
-                             e
-                             s
-                             (list 'PUSH c)))))
+                    (compile-recur (car args)
+                                   e
+                                   s
+                                   (list 'PUSH c)))))
      args
-     (compile func e s
-              (if (tail? next)
-                  `(SHIFT ,argnum
-                          (APPLY ,argnum))
-                  `(APPLY ,argnum))))))
+     (compile-recur func e s
+                    (if (tail? next)
+                        `(SHIFT ,argnum
+                                (APPLY ,argnum))
+                      `(APPLY ,argnum))))))
 
 (defn compile-lambda (vars bodies e s next)
   (let proper-vars (dotted->proper vars)
@@ -166,8 +169,8 @@
     ((afn (p)
           (if (no p)
               next
-              (compile (car p) ee ss
-                       (self (cdr p)))))
+              (compile-recur (car p) ee ss
+                             (self (cdr p)))))
      bodies)))
 
 (defn find-frees (xs b vars)
@@ -279,11 +282,11 @@
 
 ;;
 
-;(print (compile 123 '(()) '() '(HALT)))
-;(print (compile '(quote xyz) '(()) '() '(HALT)))
-;(print (compile '(if 1 2 3) '(()) '() '(HALT)))
-;(print (compile '(set! x 123) '(()) '() '(HALT)))
-(print (compile '(print (((^(x) (^(y) (set! x y))) 1) 2)) '(()) '() '(HALT)))
-;(print (compile '(call/cc (^(cc) (cc 1))) '(()) '() '(HALT)))
+;(print (compile 123))
+;(print (compile '(quote xyz)))
+;(print (compile '(if 1 2 3)))
+;(print (compile '(set! x 123)))
+(print (compile '(print (((^(x) (^(y) (set! x y))) 1) 2))))
+;(print (compile '(call/cc (^(cc) (cc 1)))))
 
 ;;
