@@ -78,7 +78,7 @@
   (if (symbolp x)
         (compile-refer x e
                        (if (set-member? x s)
-                           (liset 'UNBOX next)
+                           (list 'UNBOX next)
                            next))
       (consp x)
         (record-case x
