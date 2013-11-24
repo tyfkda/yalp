@@ -282,11 +282,7 @@
 
 ;;
 
-;(print (compile 123))
-;(print (compile '(quote xyz)))
-;(print (compile '(if 1 2 3)))
-;(print (compile '(set! x 123)))
-(print (compile '(print (((^(x) (^(y) (set! x y))) 1) 2))))
-;(print (compile '(call/cc (^(cc) (cc 1)))))
+(defn eval (x)
+  (run-binary (compile x)))
 
 ;;

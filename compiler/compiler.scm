@@ -594,6 +594,12 @@
           (else
            (runtime-error #`"invalid application: ,f")))))
 
+(define (my-compile x)
+  (compile x '(()) '() '(HALT)))
+
+(define (my-run-binary code)
+  (VM '() code 0 '() %running-stack-pointer))
+
 (define (install-native-functions)
   (define (convert x)
     (case x
@@ -654,6 +660,8 @@
   (assign-native! 'macroexpand my-macroexpand 1 1)
   (assign-native! 'apply my-apply 2 -1)
   (assign-native! 'read read 0 0)
+  (assign-native! 'compile my-compile 1 1)
+  (assign-native! 'run-binary my-run-binary 1 1)
   )
 
 (define (compile-all codes)

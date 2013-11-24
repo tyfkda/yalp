@@ -70,6 +70,7 @@ int main(int argc, char* argv[]) {
   State* state = State::create(&myAllocator);
 
   bool bOutMemResult = false;
+  bool bBinary = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -79,16 +80,28 @@ int main(int argc, char* argv[]) {
     case 'm':
       bOutMemResult = true;
       break;
+    case 'b':
+      bBinary = true;
+      break;
     default:
       cerr << "Unknown option: " << arg << endl;
     }
   }
 
+  state->runBinaryFromFile("boot.bin");
+
   if (ii >= argc) {
-    runBinary(state, cin);
+    if (bBinary)
+      runBinary(state, cin);
+    //else
+    //  repl(state, cin);
   } else {
-    std::ifstream strm(argv[ii]);
-    runBinary(state, strm);
+    for (int i = ii; i < argc; ++i) {
+      if (bBinary)
+        state->runBinaryFromFile(argv[ii]);
+      else
+        state->runFromFile(argv[ii]);
+    }
   }
 
   state->release();

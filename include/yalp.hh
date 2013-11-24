@@ -76,8 +76,13 @@ public:
   // Delete.
   void release();
 
+  Svalue compile(Svalue exp);
+
   // Execute compiled code.
   Svalue runBinary(Svalue code);
+
+  Svalue runFromFile(const char* filename);
+  Svalue runBinaryFromFile(const char* filename);
 
   Svalue nil() const  { return nil_; }
   Svalue t() const  { return t_; }
