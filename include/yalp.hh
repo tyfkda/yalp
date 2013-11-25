@@ -78,7 +78,7 @@ public:
   // Delete.
   void release();
 
-  Svalue compile(Svalue exp);
+  bool compile(Svalue exp, Svalue* pValue);
 
   // Execute compiled code.
   Svalue runBinary(Svalue code);

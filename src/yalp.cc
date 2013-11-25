@@ -80,7 +80,11 @@ static bool compileFile(State* state, const char* filename) {
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
-    Svalue code = state->compile(exp);
+    Svalue code;
+    if (!state->compile(exp, &code)) {
+      cerr << "`compile` is not enabled" << endl;
+      return false;
+    }
     state->funcall(writess, 1, &code);
     cout << endl;
 
@@ -109,7 +113,11 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
 
     if (err != READ_SUCCESS)
       return false;
-    Svalue code = state->compile(s);
+    Svalue code;
+    if (!state->compile(s, &code)) {
+      cerr << "`compile` is not enabled" << endl;
+      return false;
+    }
     Svalue result = state->runBinary(code);
     if (bCompile) {
       state->funcall(writess, 1, &code);

@@ -118,9 +118,12 @@ State::~State() {
   symbolManager_->release();
 }
 
-Svalue State::compile(Svalue exp) {
+bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
-  return funcall(fn, 1, &exp);
+  if (fn.eq(nil()))
+    return false;
+  *pValue = funcall(fn, 1, &exp);
+  return true;
 }
 
 Svalue State::runBinary(Svalue code) {
@@ -139,7 +142,10 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
-    result = runBinary(compile(exp));
+    Svalue code;
+    if (!compile(exp, &code))
+      return false;
+    result = runBinary(code);
   }
   if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
