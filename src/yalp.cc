@@ -54,22 +54,28 @@ public:
   }
 };
 
-static void runBinary(State* state, std::istream& istrm) {
-  Reader reader(state, istrm);
-
+static bool runBinary(State* state, std::istream& strm) {
+  Reader reader(state, strm);
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
     state->runBinary(bin);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
+    return false;
+  }
+  return true;
 }
 
-static void compileFile(State* state, const char* filename) {
-  std::ifstream istrm(filename);
-  Reader reader(state, istrm);
+static bool compileFile(State* state, const char* filename) {
+  std::ifstream strm(filename);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
 
+  Reader reader(state, strm);
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
@@ -79,11 +85,14 @@ static void compileFile(State* state, const char* filename) {
 
     state->runBinary(code);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
+    return false;
+  }
+  return true;
 }
 
-static void repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
+static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
@@ -95,6 +104,9 @@ static void repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
     ReadError err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
+
+    if (err != READ_SUCCESS)
+      return false;
     Svalue code = state->compile(s);
     Svalue result = state->runBinary(code);
     if (bCompile) {
@@ -107,6 +119,7 @@ static void repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
   }
   if (tty)
     cout << "bye" << endl;
+  return true;
 }
 
 static Svalue runMain(State* state) {
@@ -146,18 +159,25 @@ int main(int argc, char* argv[]) {
   state->runBinaryFromFile("boot.bin");
 
   if (ii >= argc) {
-    if (bBinary)
-      runBinary(state, cin);
-    else
-      repl(state, cin, isatty(0), bCompile);
+    if (bBinary) {
+      if (!runBinary(state, cin))
+        exit(1);
+    } else {
+      if (!repl(state, cin, isatty(0), bCompile))
+        exit(1);
+    }
   } else {
     for (int i = ii; i < argc; ++i) {
-      if (bCompile)
-        compileFile(state, argv[i]);
-      else if (bBinary)
-        state->runBinaryFromFile(argv[i]);
-      else
-        state->runFromFile(argv[i]);
+      if (bCompile) {
+        if (!compileFile(state, argv[i]))
+          exit(1);
+      } else if (bBinary) {
+        if (!state->runBinaryFromFile(argv[i]))
+          exit(1);
+      } else {
+        if (!state->runFromFile(argv[i]))
+          exit(1);
+      }
     }
   }
   if (!bCompile)

@@ -83,8 +83,8 @@ public:
   // Execute compiled code.
   Svalue runBinary(Svalue code);
 
-  Svalue runFromFile(const char* filename);
-  Svalue runBinaryFromFile(const char* filename);
+  bool runFromFile(const char* filename, Svalue* pResult = NULL);
+  bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
   Svalue nil() const  { return nil_; }
   Svalue t() const  { return t_; }

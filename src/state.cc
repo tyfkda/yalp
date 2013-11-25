@@ -127,34 +127,50 @@ Svalue State::runBinary(Svalue code) {
   return vm_->run(code);
 }
 
-Svalue State::runFromFile(const char* filename) {
+bool State::runFromFile(const char* filename, Svalue* pResult) {
   std::ifstream strm(filename);
-  Reader reader(this, strm);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
 
+  Reader reader(this, strm);
   Svalue result;
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
     result = runBinary(compile(exp));
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
-  return result;
+    return false;
+  }
+  if (pResult != NULL)
+    *pResult = result;
+  return true;
 }
 
-Svalue State::runBinaryFromFile(const char* filename) {
+bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   std::ifstream strm(filename);
-  Reader reader(this, strm);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
 
+  Reader reader(this, strm);
   Svalue result;
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
     result = runBinary(bin);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
-  return result;
+    return false;
+  }
+  if (pResult != NULL)
+    *pResult = result;
+  return true;
 }
 
 Svalue State::intern(const char* name) {
