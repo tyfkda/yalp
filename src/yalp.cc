@@ -97,6 +97,7 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
+  Svalue writess = state->referGlobal(state->intern("write/ss"));
   Reader reader(state, istrm);
   for (;;) {
     if (tty)
@@ -111,7 +112,7 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
     Svalue code = state->compile(s);
     Svalue result = state->runBinary(code);
     if (bCompile) {
-      code.output(state, cout, true);
+      state->funcall(writess, 1, &code);
       cout << endl;
     } else if (tty) {
       result.output(state, cout, true);
