@@ -44,19 +44,43 @@
 (set! cddr (^(x) (cdr (cdr x))))
 (set! caadr (^(x) (car (cadr x))))
 
+(set! qq-expand
+      (^(x)
+        (if (consp x)
+            ((^(m)
+               (if (is m 'unquote)
+                     (cadr x)
+                   (is m 'unquote-splicing)
+                     (error "Illegal")
+                   (is m 'quasiquote)
+                     (qq-expand
+                      (qq-expand (cadr x)))
+                 (list 'append
+                       (qq-expand-list (car x))
+                       (qq-expand (cdr x)))))
+             (car x))
+          (list 'quote x))))
+
+(set! qq-expand-list
+      (^(x)
+        (if (consp x)
+            ((^(m)
+               (if (is m 'unquote)
+                     (list 'list (cadr x))
+                   (is m 'unquote-splicing)
+                     (cadr x)
+                   (is m 'quasiquote)
+                     (qq-expand-list
+                      (qq-expand (cadr x)))
+                 (list 'list
+                       (list 'append
+                             (qq-expand-list (car x))
+                             (qq-expand (cdr x))))))
+             (car x))
+          (list 'quote (list x)))))
+
 (defmacro quasiquote (x)
-  ((^(loop)
-     (set! loop (^(x)
-                  (if (no (consp x))  (list 'quote (list x))
-                    (is (car x) 'unquote)  (list 'list (cadr x))
-                    (is (car x) 'unquote-splicing)  (cadr x)
-                    (list 'list (cons 'append (map loop x))))))
-     ((^(res)
-        (if (is (car res) 'list) (cadr res)
-          (if (is (car res) 'quote) (list 'quote (caadr res))
-            (error "unexpected"))))
-      (loop x)))
-   nil))
+  (qq-expand x))
 
 (defmacro def (name value)
   `(set! ,name ,value))
