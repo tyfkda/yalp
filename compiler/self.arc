@@ -22,15 +22,15 @@
 
 ;;; dotted pair -> proper list
 (defn dotted->proper (ls)
-  (if (or (no ls)
-          (no (cdr (last-pair ls))))
+  (if (and (consp ls)
+           (no (cdr (last-pair ls))))
       ls
     ((afn (p acc)
           (if (consp p)
               (self (cdr p)
                     (cons (car p) acc))
               (reverse! (cons p acc))))
-     ls nil)))
+     ls '())))
 
 ;;;; set
 
@@ -291,12 +291,14 @@
 
 ;; Expand macro.
 (defn macroexpand-1 (exp)
-  (with (name (car exp)
-         args (cdr exp))
-    (if (macro? name)
-        (let closure (hash-table-get *macro-table* name)
-          (apply closure args))
-      exp)))
+  (if (consp exp)
+      (with (name (car exp)
+             args (cdr exp))
+        (if (macro? name)
+            (let closure (hash-table-get *macro-table* name)
+              (apply closure args))
+            exp))
+    exp))
 
 (defn macroexpand (exp)
   (let expanded (macroexpand-1 exp)

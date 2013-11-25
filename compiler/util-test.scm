@@ -5,6 +5,7 @@
 (test-section "dotted->proper")
 (test* "proper" '(1 2 3) (dotted->proper '(1 2 3)))
 (test* "dotted" '(1 2 3) (dotted->proper '(1 2 . 3)))
+(test* "symbol" '(abc)   (dotted->proper 'abc))
 
 (test-section "set")
 (test* "member-yes" #t (set-member? 'b '(a b c)))

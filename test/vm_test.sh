@@ -66,6 +66,8 @@ run global-var 111 '((^()
                        ((^()
                           (set! global 111)))
                        global))'
+run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
+run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
 
 # Test native functions
 run cons '(1 . 2)' '(cons 1 2)'

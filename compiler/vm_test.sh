@@ -75,6 +75,8 @@ run global-var 111 '((^()
                        ((^()
                           (set! global 111)))
                        global))'
+run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
+run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
 
 # Macro
 run_raw nil! nil "(defmacro nil! (sym)
