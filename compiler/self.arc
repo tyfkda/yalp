@@ -290,13 +290,19 @@
     (compile-recur result e s next)))
 
 ;; Expand macro.
-(defn macroexpand (exp)
+(defn macroexpand-1 (exp)
   (with (name (car exp)
          args (cdr exp))
     (if (macro? name)
         (let closure (hash-table-get *macro-table* name)
           (apply closure args))
       exp)))
+
+(defn macroexpand (exp)
+  (let expanded (macroexpand-1 exp)
+    (if (iso expanded exp)
+        exp
+      (macroexpand expanded))))
 
 ;; Expand macro all if the given parameter is macro expression,
 ;; otherwise return itself.
