@@ -28,7 +28,7 @@
         (if ls
             (cons (f (car ls))
                   (map f (cdr ls)))
-            '())))
+            ())))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (set! pair
@@ -117,7 +117,7 @@
 (defmacro caselet (var expr . args)
   (let ex (afn (args)
             (if (no args)
-                  '()
+                  ()
                 (no (cdr args))
                   (car args)
                 `(if (is ,var ',(car args))
@@ -153,5 +153,5 @@
               (if (consp d)
                   (self d c)
                   c)))
-       ls '())
+       ls ())
     ls))
