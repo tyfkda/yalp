@@ -82,24 +82,29 @@ static Svalue s_symbolp(State* state) {
 
 static Svalue s_append(State* state) {
   int n = state->getArgNum();
-  Svalue res;
-  if (n <= 0) {
-    res = state->nil();
-  } else {
-    res = state->getArg(n - 1);
-    struct Local {
-      static Svalue loop(State* state, Svalue a, Svalue d) {
-        if (a.getType() != TT_CELL)
-          return d;
-        return state->cons(state->car(a), loop(state, state->cdr(a), d));
-      }
-    };
-    for (int i = n - 1; --i >= 0; ) {
-      Svalue a = state->getArg(i);
-      res = Local::loop(state, a, res);
-    }
+  Svalue nil = state->nil();
+  Svalue last = nil;
+  int lastIndex;
+  for (lastIndex = n; --lastIndex >= 0; ) {
+    last = state->getArg(lastIndex);
+    if (!last.eq(nil))
+      break;
   }
-  return res;
+  if (lastIndex < 0)
+    return nil;
+
+  Svalue copied = nil;
+  for (int i = 0; i < lastIndex; ++i) {
+    Svalue ls = state->getArg(i);
+    for (; ls.getType() == TT_CELL; ls = state->cdr(ls))
+      copied = state->cons(state->car(ls), copied);
+  }
+  if (copied.eq(nil))
+    return last;
+
+  Svalue fin = nreverse(state, copied);
+  static_cast<Cell*>(copied.toObject())->rplacd(last);
+  return fin;
 }
 
 static Svalue s_add(State* state) {
