@@ -10,11 +10,12 @@ namespace yalp {
 
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)
-  , sharedStructures_(new std::map<int, Svalue>()) {
+  , sharedStructures_(NULL) {
 }
 
 Reader::~Reader() {
-  delete sharedStructures_;
+  if (sharedStructures_ != NULL)
+    delete sharedStructures_;
 }
 
 ReadError Reader::read(Svalue* pValue) {
@@ -174,13 +175,14 @@ ReadError Reader::readSpecial(Svalue* pValue) {
       return READ_SUCCESS;
     }
   case '#':
-    {
+    if (sharedStructures_ != NULL) {
       auto it = sharedStructures_->find(n);
       if (it == sharedStructures_->end())
         return ILLEGAL_CHAR;
       *pValue = it->second;
       return READ_SUCCESS;
     }
+    // Fall
   default:
     return ILLEGAL_CHAR;
   }
@@ -219,6 +221,8 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 }
 
 void Reader::storeShared(int id, Svalue value) {
+  if (sharedStructures_ == NULL)
+    sharedStructures_ = new std::map<int, Svalue>();
   (*sharedStructures_)[id] = value;
 }
 
