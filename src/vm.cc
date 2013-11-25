@@ -632,6 +632,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
     }
     break;
   default:
+    fn.output(state_, std::cerr, true);
     state_->runtimeError("Can't call");
     result = state_->nil();
     break;

@@ -153,12 +153,25 @@ int main(int argc, char* argv[]) {
     case 'c':
       bCompile = true;
       break;
+    case 'l':  // Library.
+      if (++ii >= argc) {
+        cerr << "'-l' takes parameter" << endl;
+        exit(1);
+      }
+      state->runFromFile(argv[ii]);
+      break;
+    case 'L':  // Binary library.
+      if (++ii >= argc) {
+        cerr << "'-L' takes parameter" << endl;
+        exit(1);
+      }
+      state->runBinaryFromFile(argv[ii]);
+      break;
     default:
       cerr << "Unknown option: " << arg << endl;
+      exit(1);
     }
   }
-
-  state->runBinaryFromFile("boot.bin");
 
   if (ii >= argc) {
     if (bBinary) {
