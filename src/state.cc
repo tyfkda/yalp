@@ -43,7 +43,7 @@ Type Svalue::getType() const {
   }
 }
 
-void Svalue::output(State* state, std::ostream& o) const {
+void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
@@ -52,7 +52,7 @@ void Svalue::output(State* state, std::ostream& o) const {
     o << toFixnum();
     break;
   case TAG_OBJECT:
-    toObject()->output(state, o);
+    toObject()->output(state, o, inspect);
     break;
   }
 }

@@ -80,7 +80,7 @@ static bool compileFile(State* state, const char* filename) {
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
     Svalue code = state->compile(exp);
-    code.output(state, cout);
+    code.output(state, cout, true);
     cout << endl;
 
     state->runBinary(code);
@@ -110,10 +110,10 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
     Svalue code = state->compile(s);
     Svalue result = state->runBinary(code);
     if (bCompile) {
-      code.output(state, cout);
+      code.output(state, cout, true);
       cout << endl;
     } else if (tty) {
-      result.output(state, cout);
+      result.output(state, cout, true);
       cout << endl;
     }
   }

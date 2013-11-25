@@ -17,7 +17,7 @@ Symbol::Symbol(const char* name)
 
 Type Symbol::getType() const  { return TT_SYMBOL; }
 
-void Symbol::output(State*, std::ostream& o) const {
+void Symbol::output(State*, std::ostream& o, bool) const {
   o << name_;
 }
 
@@ -32,19 +32,19 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
-void Cell::output(State* state, std::ostream& o) const {
+void Cell::output(State* state, std::ostream& o, bool inspect) const {
   char c = '(';
   const Cell* p;
   for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
     o << c;
-    p->car_.output(state, o);
+    p->car_.output(state, o, inspect);
     if (p->cdr_.getType() != TT_CELL)
       break;
     c = ' ';
   }
   if (!p->cdr_.eq(state->nil())) {
     o << " . ";
-    p->cdr_.output(state, o);
+    p->cdr_.output(state, o, inspect);
   }
   o << ')';
 }
@@ -71,7 +71,12 @@ bool String::equal(const Sobject* target) const {
   return strcmp(string_, p->string_) == 0;
 }
 
-void String::output(State*, std::ostream& o) const {
+void String::output(State*, std::ostream& o, bool inspect) const {
+  if (!inspect) {
+    o << string_;
+    return;
+  }
+
   o << '"';
   for (const char* p = string_; *p != '\0'; ) {
     char c = *p++;
@@ -108,7 +113,7 @@ HashTable::HashTable()
 
 Type HashTable::getType() const  { return TT_HASH_TABLE; }
 
-void HashTable::output(State*, std::ostream& o) const {
+void HashTable::output(State*, std::ostream& o, bool) const {
   o << "#<hash-table:" << this << ">";
 }
 

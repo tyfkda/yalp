@@ -53,7 +53,7 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, std::ostream& o) const;
+  void output(State* state, std::ostream& o, bool inspect) const;
 
   long getId() const  { return v_; }
   long calcHash() const  { return v_; }

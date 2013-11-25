@@ -248,14 +248,20 @@ static Svalue s_greaterEqual(State* state) {
 
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
-  x.output(state, std::cout);
-  return state->nil();
+  x.output(state, std::cout, true);
+  return x;
+}
+
+static Svalue s_display(State* state) {
+  Svalue x = state->getArg(0);
+  x.output(state, std::cout, false);
+  return x;
 }
 
 static Svalue s_print(State* state) {
-  s_write(state);
+  Svalue x = s_display(state);
   std::cout << std::endl;
-  return state->nil();
+  return x;
 }
 
 static Svalue s_newline(State* state) {
@@ -394,7 +400,7 @@ void installBasicFunctions(State* state) {
   state->assignNative(">=", s_greaterEqual, 2, -1);
 
   state->assignNative("print", s_print, 1);
-  state->assignNative("display", s_write, 1);
+  state->assignNative("display", s_display, 1);
   state->assignNative("write", s_write, 1);
   state->assignNative("newline", s_newline, 0);
 

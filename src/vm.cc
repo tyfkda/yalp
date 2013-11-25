@@ -77,7 +77,7 @@ public:
     return freeVariables_[index];
   }
 
-  virtual void output(State*, std::ostream& o) const override {
+  virtual void output(State*, std::ostream& o, bool) const override {
     o << "#<closure:" << this << ">";
   }
 
@@ -107,7 +107,7 @@ public:
     return func_(state);
   }
 
-  virtual void output(State*, std::ostream& o) const override {
+  virtual void output(State*, std::ostream& o, bool) const override {
     o << "#<procedure:" << this << ">";
   }
 
@@ -128,8 +128,8 @@ public:
   void set(Svalue x)  { x_ = x; }
   Svalue get()  { return x_; }
 
-  virtual void output(State* state, std::ostream& o) const override {
-    x_.output(state, o);
+  virtual void output(State* state, std::ostream& o, bool inspect) const override {
+    x_.output(state, o, inspect);
   }
 
 protected:
@@ -158,12 +158,12 @@ public:
     buffer_[index] = x;
   }
 
-  virtual void output(State* state, std::ostream& o) const override {
+  virtual void output(State* state, std::ostream& o, bool inspect) const override {
     o << "#";
     char c = '(';
     for (int i = 0; i < size_; ++i) {
       o << c;
-      buffer_[i].output(state, o);
+      buffer_[i].output(state, o, inspect);
       c = ' ';
     }
     o << ")";
@@ -274,7 +274,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
       if (!exist) {
-        sym.output(state_, std::cerr);
+        sym.output(state_, std::cerr, true);
         std::cerr << ": ";
         state_->runtimeError("Unbound");
       }
@@ -442,7 +442,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     }
     goto again;
   default:
-    op.output(state_, std::cerr);
+    op.output(state_, std::cerr, true);
     std::cerr << ": ";
     state_->runtimeError("Unknown op");
     return a;
