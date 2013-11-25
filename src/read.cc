@@ -123,7 +123,7 @@ ReadError Reader::readList(Svalue* pValue) {
 
       Svalue lastPair = value;
       *pValue = nreverse(state_, value);
-      static_cast<Cell*>(lastPair.toObject())->rplacd(tail);
+      static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       return READ_SUCCESS;
     }
     break;

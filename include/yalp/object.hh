@@ -58,8 +58,8 @@ public:
 
   Svalue car() const  { return car_; }
   Svalue cdr() const  { return cdr_; }
-  void rplaca(Svalue a);
-  void rplacd(Svalue d);
+  void setCar(Svalue a);
+  void setCdr(Svalue d);
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
 

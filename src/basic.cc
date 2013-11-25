@@ -31,17 +31,17 @@ static Svalue s_cdr(State* state) {
   return state->cdr(cell);
 }
 
-static Svalue s_rplaca(State* state) {
+static Svalue s_set_car(State* state) {
   Svalue s = state->getArg(0);
   Svalue value = state->getArg(1);
-  static_cast<Cell*>(s.toObject())->rplaca(value);
+  static_cast<Cell*>(s.toObject())->setCar(value);
   return value;
 }
 
-static Svalue s_rplacd(State* state) {
+static Svalue s_set_cdr(State* state) {
   Svalue s = state->getArg(0);
   Svalue value = state->getArg(1);
-  static_cast<Cell*>(s.toObject())->rplacd(value);
+  static_cast<Cell*>(s.toObject())->setCdr(value);
   return value;
 }
 
@@ -103,7 +103,7 @@ static Svalue s_append(State* state) {
     return last;
 
   Svalue fin = nreverse(state, copied);
-  static_cast<Cell*>(copied.toObject())->rplacd(last);
+  static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
 }
 
@@ -375,8 +375,8 @@ void installBasicFunctions(State* state) {
   state->assignNative("cons", s_cons, 2);
   state->assignNative("car", s_car, 1);
   state->assignNative("cdr", s_cdr, 1);
-  state->assignNative("rplaca", s_rplaca, 2);
-  state->assignNative("rplacd", s_rplacd, 2);
+  state->assignNative("set-car!", s_set_car, 2);
+  state->assignNative("set-cdr!", s_set_cdr, 2);
   state->assignNative("list", s_list, 0, -1);
   state->assignNative("list*", s_listStar, 0, -1);
   state->assignNative("consp", s_consp, 1);

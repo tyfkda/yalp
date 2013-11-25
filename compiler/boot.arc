@@ -174,7 +174,7 @@
   (if (consp ls)
       ((afn (c p)
             (let d (cdr c)
-              (rplacd c p)
+              (set-cdr! c p)
               (if (consp d)
                   (self d c)
                   c)))

@@ -277,7 +277,7 @@ Svalue nreverse(State* state, Svalue v) {
   for (;;) {
     Cell* cell = static_cast<Cell*>(v.toObject());
     Svalue d = cell->cdr();
-    cell->rplacd(tail);
+    cell->setCdr(tail);
     if (d.getType() != TT_CELL)
       return v;
     tail = v;

@@ -49,11 +49,11 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
   o << ')';
 }
 
-void Cell::rplaca(Svalue a) {
+void Cell::setCar(Svalue a) {
   car_ = a;
 }
 
-void Cell::rplacd(Svalue d) {
+void Cell::setCdr(Svalue d) {
   cdr_ = d;
 }
 
