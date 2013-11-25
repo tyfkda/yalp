@@ -155,3 +155,52 @@
                   c)))
        ls ())
     ls))
+
+
+;; Write shared structure.
+(defn write/ss (s)
+  (let h (make-hash-table)
+    (hash-table-put! h 'index 0)
+    (write/ss-print s (write/ss-loop s h))))
+
+(defn write/ss-loop (s h)
+  (if (consp s)
+      (if (no (hash-table-exists? h s))
+          ;; Put nil for the first appeared object.
+          (do (hash-table-put! h s nil)
+              ;; And check children recursively.
+              (write/ss-loop (car s) (write/ss-loop (cdr s) h)))
+        (do (when (no (hash-table-get h s))
+              ;; Assign index for the object appeared more than 1 time.
+              (let i (hash-table-get h 'index)
+                (hash-table-put! h s i)
+                (hash-table-put! h 'index (+ 1 i))))
+            h))
+    h))
+
+(defn write/ss-print (s h)
+  (if (consp s)
+      (let index (hash-table-get h s)
+        (if (and index (< index 0))
+            (do (display "#")
+                (display (- -1 index))
+                (display "#"))
+          (do (when index
+                (do (display "#")
+                    (display index)
+                    (display "=")
+                    (hash-table-put! h s (- -1 index))))
+              ((afn (c s)
+                    (if (no s)
+                        (display ")")
+                      (do (display c)
+                          (write/ss-print (car s) h)
+                          (if (or (and (consp (cdr s))
+                                       (no (hash-table-get h (cdr s))))
+                                  (no (cdr s)))
+                              (self " " (cdr s))
+                            (do (display " . ")
+                                (write/ss-print (cdr s) h)
+                                (display ")"))))))
+               "(" s))))
+    (write s)))

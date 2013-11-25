@@ -75,12 +75,13 @@ static bool compileFile(State* state, const char* filename) {
     return false;
   }
 
+  Svalue writess = state->referGlobal(state->intern("write/ss"));
   Reader reader(state, strm);
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
     Svalue code = state->compile(exp);
-    code.output(state, cout, true);
+    state->funcall(writess, 1, &code);
     cout << endl;
 
     state->runBinary(code);
