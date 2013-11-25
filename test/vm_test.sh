@@ -18,6 +18,15 @@ function run() {
   echo ok
 }
 
+function run_raw() {
+  echo -n "Testing $1 ... "
+  result=$(cd .. && echo "$3" | ./yalp)
+  if [ "$result" != "$2" ]; then
+    error_exit "$2 expected, but got '$result'"
+  fi
+  echo ok
+}
+
 function fail() {
   echo -n "Testing $1 ... "
   cd .. && echo "$2" | ./yalp 2>& /dev/null
@@ -70,6 +79,12 @@ run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
 run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
 run empty-body nil '((^ ()))'
 
+# Macro
+run_raw nil! nil "(defmacro nil! (sym)
+                    (list 'set! sym nil))
+                  (nil! xyz)
+                  (write xyz)"
+
 # Test native functions
 run cons '(1 . 2)' '(cons 1 2)'
 run car '1' "(car '(1 2 3))"
@@ -82,6 +97,7 @@ run consp 't' "(consp '(1 2))"
 run consp2 'nil' "(consp 'symbol)"
 run symbolp 't' "(symbolp 'symbol)"
 run symbolp2 'nil' "(symbolp '(1 2))"
+run symbolp-nil 't' "(symbolp nil)"
 run append '(1 2 3 4 5 6)' "(append '(1 2) '(3 4) '(5 6))"
 run + '15' '(+ 1 2 3 4 5)'
 run - '7' '(- 10 3)'
@@ -106,6 +122,10 @@ run hash-table 123 "((^(h)
                         (hash-table-put! h 'key 123)
                         (hash-table-get h 'key))
                      (make-hash-table))"
+
+# Scheme - yalp value differences
+run '() is false' 3 '(if () 2 3)'
+run '() is nil' t '(is () nil)'
 
 # Fail cases
 fail unbound 'abc'

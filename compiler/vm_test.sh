@@ -13,7 +13,7 @@ function run() {
   echo -n "Testing $1 ... "
   result=$(echo "(write ((^() $3)))" | gosh compiler.scm)
   if [ "$result" != "$2" ]; then
-    error_exit "$2 expected, but got $result"
+    error_exit "$2 expected, but got '$result'"
   fi
   echo ok
 }
@@ -22,7 +22,7 @@ function run_raw() {
   echo -n "Testing $1 ... "
   result=$(echo "$3" | gosh compiler.scm)
   if [ "$result" != "$2" ]; then
-    error_exit "$2 expected, but got $result"
+    error_exit "$2 expected, but got '$result'"
   fi
   echo ok
 }
