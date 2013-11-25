@@ -100,9 +100,10 @@
 (defmacro and args
   (if args
       (if (cdr args)
-          `(if ,(car args) (and ,@(cdr args)))
-          (car args))
-      't))
+          `(if ,(car args) (and ,@(cdr args))
+               )  ; Eliminating else-value relies on UNDEF = false
+        (car args))
+    't))  ; (and) = true
 
 (defmacro or args
   (and args
