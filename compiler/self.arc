@@ -88,7 +88,7 @@
                      (if (test then . rest)
                          (with (thenc (compile-recur then e s next)
                                 elsec (if (no rest)
-                                            (compile-undef e s next)
+                                            (compile-undef next)
                                           (no (cdr rest))
                                             (compile-recur (car rest) e s next)
                                           (compile-recur `(if ,@rest) e s next)))
@@ -120,7 +120,7 @@
                           (compile-apply func args e s next)))))
         (list 'CONST x next)))
 
-(defn compile-undef (e s next)
+(defn compile-undef (next)
   (list 'UNDEF next))
 
 (defn compile-apply (func args e s next)
@@ -165,12 +165,14 @@
          ss (set-union sets
                        (set-intersect s free))
          next (list 'RET))
-    ((afn (p)
-          (if (no p)
-              next
-              (compile-recur (car p) ee ss
-                             (self (cdr p)))))
-     bodies)))
+    (if (no bodies)
+        (compile-undef next)
+      ((afn (p)
+            (if (no p)
+                next
+                (compile-recur (car p) ee ss
+                               (self (cdr p)))))
+       bodies))))
 
 (defn find-frees (xs b vars)
   (let bb (set-union (dotted->proper vars) b)
