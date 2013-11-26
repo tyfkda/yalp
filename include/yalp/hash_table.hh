@@ -15,9 +15,8 @@ namespace yalp {
 template <class Key, class Value, class Policy>
 class HashTable {
 public:
-  explicit HashTable(const Policy& policy)
-    : policy_(policy)
-    , array_(NULL)
+  explicit HashTable()
+    : array_(NULL)
     , arraySize_(0) {
   }
 
@@ -64,12 +63,12 @@ private:
   Link* find(const Key key, Link** pPrev = NULL, unsigned int* pIndex = NULL) const {
     if (array_ == NULL)
       return NULL;
-    unsigned int hash = policy_.hash(key);
+    unsigned int hash = Policy::hash(key);
     unsigned int index = hash % arraySize_;
     Link* prev = NULL;
     for (Link* link = array_[index]; link != NULL;
          prev = link, link = link->next) {
-      if (policy_.equal(key, link->key)) {
+      if (Policy::equal(key, link->key)) {
         if (pPrev != NULL)
           *pPrev = prev;
         if (pIndex != NULL)
@@ -89,7 +88,7 @@ private:
       array_ = newArray;
       arraySize_ = newSize;
     }
-    unsigned int hash = policy_.hash(key);
+    unsigned int hash = Policy::hash(key);
     Link* link = new Link();
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
@@ -98,7 +97,6 @@ private:
     return link;
   }
 
-  Policy policy_;
   Link** array_;
   unsigned int arraySize_;
 };

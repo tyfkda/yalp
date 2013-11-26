@@ -20,7 +20,7 @@ protected:
 };
 
 TEST_F(HashTableTest, Construct) {
-  HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>(Policy());
+  HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>();
 
   ASSERT_TRUE(NULL == ht.get("foo")) << "get is failed for empty table";
 

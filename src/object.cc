@@ -108,7 +108,7 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 SHashTable::SHashTable()
   : Sobject()
-  , table_(Policy()) {
+  , table_() {
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
