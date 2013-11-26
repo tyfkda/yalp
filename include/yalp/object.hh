@@ -13,8 +13,8 @@ because yalp uses GC and destructor is not called.
 #define _OBJECT_HH_
 
 #include "yalp.hh"
+#include "yalp/hash_table.hh"
 
-#include <map>
 #include <ostream>
 
 namespace yalp {
@@ -94,6 +94,7 @@ private:
 // HashTable class.
 class SHashTable : public Sobject {
 public:
+  SHashTable();
   virtual Type getType() const override;
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
@@ -103,10 +104,14 @@ public:
   bool remove(Svalue key);
 
 protected:
-  SHashTable();
   ~SHashTable()  {}
 private:
-  std::map<long, Svalue> table_;
+  struct Policy {
+    static int hash(const Svalue a)  { return a.calcHash(); }
+    static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
+  };
+
+  HashTable<Svalue, Svalue, Policy> table_;
 
   friend State;
 };

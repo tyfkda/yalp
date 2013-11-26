@@ -196,30 +196,36 @@ Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
   , stackPointer_(0), argNum_(0) {
+  {
+    void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
+    opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
+    opcodes_[HALT] = state_->intern("HALT");
+    opcodes_[UNDEF] = state_->intern("UNDEF");
+    opcodes_[CONST] = state_->intern("CONST");
+    opcodes_[LREF] = state_->intern("LREF");
+    opcodes_[FREF] = state_->intern("FREF");
+    opcodes_[GREF] = state_->intern("GREF");
+    opcodes_[LSET] = state_->intern("LSET");
+    opcodes_[FSET] = state_->intern("FSET");
+    opcodes_[GSET] = state_->intern("GSET");
+    opcodes_[PUSH] = state_->intern("PUSH");
+    opcodes_[TEST] = state_->intern("TEST");
+    opcodes_[CLOSE] = state_->intern("CLOSE");
+    opcodes_[FRAME] = state_->intern("FRAME");
+    opcodes_[APPLY] = state_->intern("APPLY");
+    opcodes_[RET] = state_->intern("RET");
+    opcodes_[SHIFT] = state_->intern("SHIFT");
+    opcodes_[BOX] = state_->intern("BOX");
+    opcodes_[UNBOX] = state_->intern("UNBOX");
+    opcodes_[CONTI] = state_->intern("CONTI");
+    opcodes_[NUATE] = state_->intern("NUATE");
+    opcodes_[MACRO] = state_->intern("MACRO");
+  }
 
-  void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
-  opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
-  opcodes_[HALT] = state_->intern("HALT");
-  opcodes_[UNDEF] = state_->intern("UNDEF");
-  opcodes_[CONST] = state_->intern("CONST");
-  opcodes_[LREF] = state_->intern("LREF");
-  opcodes_[FREF] = state_->intern("FREF");
-  opcodes_[GREF] = state_->intern("GREF");
-  opcodes_[LSET] = state_->intern("LSET");
-  opcodes_[FSET] = state_->intern("FSET");
-  opcodes_[GSET] = state_->intern("GSET");
-  opcodes_[PUSH] = state_->intern("PUSH");
-  opcodes_[TEST] = state_->intern("TEST");
-  opcodes_[CLOSE] = state_->intern("CLOSE");
-  opcodes_[FRAME] = state_->intern("FRAME");
-  opcodes_[APPLY] = state_->intern("APPLY");
-  opcodes_[RET] = state_->intern("RET");
-  opcodes_[SHIFT] = state_->intern("SHIFT");
-  opcodes_[BOX] = state_->intern("BOX");
-  opcodes_[UNBOX] = state_->intern("UNBOX");
-  opcodes_[CONTI] = state_->intern("CONTI");
-  opcodes_[NUATE] = state_->intern("NUATE");
-  opcodes_[MACRO] = state_->intern("MACRO");
+  {
+    void* memory = state_->getAllocator()->alloc(sizeof(SHashTable));
+    globalVariableTable_ = new(memory) SHashTable();
+  }
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
@@ -543,19 +549,15 @@ void Vm::unshiftArgs(int argNum, int s) {
 }
 
 Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
-  auto it = globalVariableTable_.find(sym.getId());
-  if (it == globalVariableTable_.end()) {
-    if (pExist != NULL)
-      *pExist = false;
-    return state_->nil();
-  }
+  Svalue result;
+  bool exist = globalVariableTable_->get(sym, &result);
   if (pExist != NULL)
-    *pExist = true;
-  return it->second;
+    *pExist = exist;
+  return exist ? result : state_->nil();
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {
-  globalVariableTable_[sym.getId()] = value;
+  globalVariableTable_->put(sym, value);
 }
 
 Svalue Vm::saveStack(int s) {
