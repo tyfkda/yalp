@@ -94,7 +94,6 @@ private:
 // HashTable class.
 class SHashTable : public Sobject {
 public:
-  SHashTable();
   virtual Type getType() const override;
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
@@ -104,6 +103,7 @@ public:
   bool remove(Svalue key);
 
 protected:
+  SHashTable();
   ~SHashTable()  {}
 private:
   struct Policy {
@@ -114,6 +114,7 @@ private:
   HashTable<Svalue, Svalue, Policy> table_;
 
   friend State;
+  friend Vm;
 };
 
 }  // namespace yalp
