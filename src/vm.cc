@@ -549,11 +549,10 @@ void Vm::unshiftArgs(int argNum, int s) {
 }
 
 Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
-  Svalue result;
-  bool exist = globalVariableTable_->get(sym, &result);
+  const Svalue* result = globalVariableTable_->get(sym);
   if (pExist != NULL)
-    *pExist = exist;
-  return exist ? result : state_->nil();
+    *pExist = result != NULL;
+  return result != NULL ? *result : state_->nil();
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {

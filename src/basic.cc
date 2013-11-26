@@ -331,11 +331,10 @@ static Svalue s_hash_table_get(State* state) {
   if (h.getType() != TT_HASH_TABLE) {
     state->runtimeError("Hash table expected");
   }
-  Svalue result;
-  if (!static_cast<SHashTable*>(h.toObject())->get(key, &result)) {
+  const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
+  if (result == NULL)
     return state->nil();
-  }
-  return result;
+  return *result;
 }
 
 static Svalue s_hash_table_put(State* state) {
@@ -356,7 +355,7 @@ static Svalue s_hash_table_exists(State* state) {
     state->runtimeError("Hash table expected");
   }
   Svalue result;
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key, &result));
+  return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
 
 static Svalue s_hash_table_delete(State* state) {

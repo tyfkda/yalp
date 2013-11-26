@@ -121,13 +121,8 @@ void SHashTable::put(Svalue key, Svalue value) {
   table_.put(key, value);
 }
 
-bool SHashTable::get(Svalue key, Svalue* pValue) const {
-  const Svalue* result = table_.get(key);
-  if (result == NULL)
-    return false;
-
-  *pValue = *result;
-  return true;
+const Svalue* SHashTable::get(Svalue key) const {
+  return table_.get(key);
 }
 
 bool SHashTable::remove(Svalue key) {

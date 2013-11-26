@@ -100,7 +100,7 @@ public:
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
 
   void put(Svalue key, Svalue value);
-  bool get(Svalue key, Svalue* pValue) const;
+  const Svalue* get(Svalue key) const;
   bool remove(Svalue key);
 
 protected:
