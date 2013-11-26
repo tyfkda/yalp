@@ -3,6 +3,8 @@
 //=============================================================================
 
 #include "yalp/object.hh"
+#include "yalp/mem.hh"
+#include "hash_table.hh"
 
 namespace yalp {
 
@@ -106,9 +108,11 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 //=============================================================================
 
-SHashTable::SHashTable()
-  : Sobject()
-  , table_() {
+SHashTable::SHashTable(Allocator* allocator)
+  : Sobject() {
+  void* memory = allocator->alloc(sizeof(HashTable<Svalue, Svalue, Policy>()));
+  table_ = new(memory) HashTable<Svalue, Svalue, Policy>();
+  // TODO: Ensure table_ is released on destructor.
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -118,15 +122,15 @@ void SHashTable::output(State*, std::ostream& o, bool) const {
 }
 
 void SHashTable::put(Svalue key, Svalue value) {
-  table_.put(key, value);
+  table_->put(key, value);
 }
 
 const Svalue* SHashTable::get(Svalue key) const {
-  return table_.get(key);
+  return table_->get(key);
 }
 
 bool SHashTable::remove(Svalue key) {
-  return table_.remove(key);
+  return table_->remove(key);
 }
 
 //=============================================================================

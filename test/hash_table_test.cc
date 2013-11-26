@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "yalp/hash_table.hh"
+#include "hash_table.hh"
 
 using namespace yalp;
 

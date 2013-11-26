@@ -13,11 +13,13 @@ because yalp uses GC and destructor is not called.
 #define _OBJECT_HH_
 
 #include "yalp.hh"
-#include "yalp/hash_table.hh"
 
 #include <ostream>
 
 namespace yalp {
+
+template <class Key, class Value, class Policy>
+class HashTable;
 
 // Base class.
 class Sobject {
@@ -103,7 +105,7 @@ public:
   bool remove(Svalue key);
 
 protected:
-  SHashTable();
+  explicit SHashTable(Allocator* allocator);
   ~SHashTable()  {}
 private:
   struct Policy {
@@ -111,7 +113,7 @@ private:
     static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
   };
 
-  HashTable<Svalue, Svalue, Policy> table_;
+  HashTable<Svalue, Svalue, Policy>* table_;
 
   friend State;
   friend Vm;

@@ -224,7 +224,7 @@ Vm::Vm(State* state)
 
   {
     void* memory = state_->getAllocator()->alloc(sizeof(SHashTable));
-    globalVariableTable_ = new(memory) SHashTable();
+    globalVariableTable_ = new(memory) SHashTable(state_->getAllocator());
   }
 }
 

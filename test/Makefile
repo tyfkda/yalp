@@ -17,14 +17,14 @@
 GTEST_DIR = /usr/local/gtest
 
 # Where to find user code.
-USER_DIR = ..
+SRC_DIR = ../src
 INC_DIR = ../include
 OBJ_DIR = ../obj
 
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR)
+CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD

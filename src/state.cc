@@ -211,7 +211,7 @@ Svalue State::quote(Svalue x) {
 
 Svalue State::createHashTable() {
   void* memory = allocator_->alloc(sizeof(SHashTable));
-  SHashTable* h = new(memory) SHashTable();
+  SHashTable* h = new(memory) SHashTable(allocator_);
   return Svalue(h);
 }
 
