@@ -194,7 +194,8 @@ Vm::~Vm() {
 
 Vm::Vm(State* state)
   : state_(state)
-  , stack_(NULL), stackSize_(0) {
+  , stack_(NULL), stackSize_(0)
+  , stackPointer_(0), argNum_(0) {
 
   void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
   opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
