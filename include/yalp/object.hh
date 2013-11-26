@@ -1,5 +1,5 @@
 //=============================================================================
-/// object
+/// Object
 /**
 
 Derived classes should hide their destructor,
@@ -9,8 +9,8 @@ because yalp uses GC and destructor is not called.
  */
 //=============================================================================
 
-#ifndef _VALUE_HH_
-#define _VALUE_HH_
+#ifndef _OBJECT_HH_
+#define _OBJECT_HH_
 
 #include "yalp.hh"
 
