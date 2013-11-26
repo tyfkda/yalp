@@ -108,7 +108,7 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 SHashTable::SHashTable()
   : Sobject()
-  , table_() {
+  , table_(Policy()) {
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -118,25 +118,20 @@ void SHashTable::output(State*, std::ostream& o, bool) const {
 }
 
 void SHashTable::put(Svalue key, Svalue value) {
-  table_[key.calcHash()] = value;
+  table_.put(key, value);
 }
 
 bool SHashTable::get(Svalue key, Svalue* pValue) const {
-  auto it = table_.find(key.calcHash());
-  if (it == table_.end())
+  const Svalue* result = table_.get(key);
+  if (result == NULL)
     return false;
 
-  *pValue = it->second;
+  *pValue = *result;
   return true;
 }
 
 bool SHashTable::remove(Svalue key) {
-  auto it = table_.find(key.calcHash());
-  if (it == table_.end())
-    return false;
-
-  table_.erase(it);
-  return true;
+  return table_.remove(key);
 }
 
 //=============================================================================

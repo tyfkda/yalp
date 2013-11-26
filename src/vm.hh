@@ -6,9 +6,10 @@
 #define _VM_HH_
 
 #include "yalp.hh"
-#include <map>
 
 namespace yalp {
+
+class SHashTable;
 
 // Vm class.
 class Vm {
@@ -65,7 +66,7 @@ private:
   Svalue* opcodes_;
 
   // Global variables
-  std::map<long, Svalue> globalVariableTable_;
+  SHashTable* globalVariableTable_;
 
   // For native function call.
   int stackPointer_;
