@@ -106,22 +106,22 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 //=============================================================================
 
-HashTable::HashTable()
+SHashTable::SHashTable()
   : Sobject()
   , table_() {
 }
 
-Type HashTable::getType() const  { return TT_HASH_TABLE; }
+Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
-void HashTable::output(State*, std::ostream& o, bool) const {
+void SHashTable::output(State*, std::ostream& o, bool) const {
   o << "#<hash-table:" << this << ">";
 }
 
-void HashTable::put(Svalue key, Svalue value) {
+void SHashTable::put(Svalue key, Svalue value) {
   table_[key.calcHash()] = value;
 }
 
-bool HashTable::get(Svalue key, Svalue* pValue) const {
+bool SHashTable::get(Svalue key, Svalue* pValue) const {
   auto it = table_.find(key.calcHash());
   if (it == table_.end())
     return false;
@@ -130,7 +130,7 @@ bool HashTable::get(Svalue key, Svalue* pValue) const {
   return true;
 }
 
-bool HashTable::erase(Svalue key) {
+bool SHashTable::erase(Svalue key) {
   auto it = table_.find(key.calcHash());
   if (it == table_.end())
     return false;

@@ -92,7 +92,7 @@ private:
 };
 
 // HashTable class.
-class HashTable : public Sobject {
+class SHashTable : public Sobject {
 public:
   virtual Type getType() const override;
 
@@ -103,8 +103,8 @@ public:
   bool erase(Svalue key);
 
 protected:
-  HashTable();
-  ~HashTable()  {}
+  SHashTable();
+  ~SHashTable()  {}
 private:
   std::map<long, Svalue> table_;
 

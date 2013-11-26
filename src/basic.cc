@@ -332,7 +332,7 @@ static Svalue s_hash_table_get(State* state) {
     state->runtimeError("Hash table expected");
   }
   Svalue result;
-  if (!static_cast<HashTable*>(h.toObject())->get(key, &result)) {
+  if (!static_cast<SHashTable*>(h.toObject())->get(key, &result)) {
     return state->nil();
   }
   return result;
@@ -345,7 +345,7 @@ static Svalue s_hash_table_put(State* state) {
   if (h.getType() != TT_HASH_TABLE) {
     state->runtimeError("Hash table expected");
   }
-  static_cast<HashTable*>(h.toObject())->put(key, value);
+  static_cast<SHashTable*>(h.toObject())->put(key, value);
   return value;
 }
 
@@ -356,7 +356,7 @@ static Svalue s_hash_table_exists(State* state) {
     state->runtimeError("Hash table expected");
   }
   Svalue result;
-  return state->boolValue(static_cast<HashTable*>(h.toObject())->get(key, &result));
+  return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key, &result));
 }
 
 static Svalue s_hash_table_delete(State* state) {
@@ -365,7 +365,7 @@ static Svalue s_hash_table_delete(State* state) {
   if (h.getType() != TT_HASH_TABLE) {
     state->runtimeError("Hash table expected");
   }
-  return state->boolValue(static_cast<HashTable*>(h.toObject())->erase(key));
+  return state->boolValue(static_cast<SHashTable*>(h.toObject())->erase(key));
 }
 
 void installBasicFunctions(State* state) {
