@@ -130,7 +130,7 @@ bool SHashTable::get(Svalue key, Svalue* pValue) const {
   return true;
 }
 
-bool SHashTable::erase(Svalue key) {
+bool SHashTable::remove(Svalue key) {
   auto it = table_.find(key.calcHash());
   if (it == table_.end())
     return false;

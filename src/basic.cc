@@ -365,7 +365,7 @@ static Svalue s_hash_table_delete(State* state) {
   if (h.getType() != TT_HASH_TABLE) {
     state->runtimeError("Hash table expected");
   }
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->erase(key));
+  return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
 void installBasicFunctions(State* state) {

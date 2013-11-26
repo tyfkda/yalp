@@ -100,7 +100,7 @@ public:
 
   void put(Svalue key, Svalue value);
   bool get(Svalue key, Svalue* pValue) const;
-  bool erase(Svalue key);
+  bool remove(Svalue key);
 
 protected:
   SHashTable();
