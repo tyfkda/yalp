@@ -263,17 +263,6 @@ static Svalue s_display(State* state) {
   return x;
 }
 
-static Svalue s_print(State* state) {
-  Svalue x = s_display(state);
-  std::cout << std::endl;
-  return x;
-}
-
-static Svalue s_newline(State* state) {
-  std::cout << std::endl;
-  return state->nil();
-}
-
 static Svalue s_uniq(State* state) {
   return state->gensym();
 }
@@ -393,10 +382,8 @@ void installBasicFunctions(State* state) {
   state->assignNative("<=", s_lessEqual, 2, -1);
   state->assignNative(">=", s_greaterEqual, 2, -1);
 
-  state->assignNative("print", s_print, 1);
   state->assignNative("display", s_display, 1);
   state->assignNative("write", s_write, 1);
-  state->assignNative("newline", s_newline, 0);
 
   state->assignNative("uniq", s_uniq, 0);
   state->assignNative("apply", s_apply, 1, -1);

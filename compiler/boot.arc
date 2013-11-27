@@ -181,6 +181,10 @@
        ls ())
     ls))
 
+(defn print (x)
+  (display x)
+  (display "\n")
+  x)
 
 ;; Write shared structure.
 (defn write/ss (s)

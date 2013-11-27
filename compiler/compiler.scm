@@ -672,7 +672,6 @@
   (assign-native! 'display display 1 1)
   (assign-native! 'write (lambda (x)
                            (write (if (eq? x ()) 'nil x))) 1 1)
-  (assign-native! 'newline newline 0 0)
 
   (assign-native! 'uniq gensym 0 0)
   (assign-native! 'macroexpand my-macroexpand 1 1)
