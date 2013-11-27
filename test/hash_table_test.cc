@@ -42,3 +42,29 @@ TEST_F(HashTableTest, Construct) {
   ASSERT_TRUE(NULL == ht.get("bar"));
   ASSERT_FALSE(ht.remove("baz"));
 }
+
+TEST_F(HashTableTest, Each) {
+  HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>();
+
+  ht.put("1", "one");
+  ht.put("22", "two");
+  ht.put("333", "three");
+
+  HashTable<Key, Value, Policy>::Iterator it = ht.begin();
+  ASSERT_NE(ht.end(), it);
+  ASSERT_STREQ("1", it->key);
+  ASSERT_STREQ("one", it->value);
+
+  ++it;
+  ASSERT_NE(ht.end(), it);
+  ASSERT_STREQ("22", it->key);
+  ASSERT_STREQ("two", it->value);
+
+  ++it;
+  ASSERT_NE(ht.end(), it);
+  ASSERT_STREQ("333", it->key);
+  ASSERT_STREQ("three", it->value);
+
+  ++it;
+  ASSERT_EQ(ht.end(), it);
+}

@@ -65,6 +65,56 @@ private:
     Value value;
   };
 
+public:
+  // Iterator
+  class Iterator {
+  public:
+    const Iterator& operator++() {
+      link = link->next;
+      if (link == NULL) {
+        do {
+          if (++index >= ht->arraySize_)
+            break;
+          link = ht->array_[index];
+        } while (link == NULL);
+      }
+      return *this;
+    }
+
+    bool operator==(const Iterator& it) const  { return link == it.link; }
+    bool operator!=(const Iterator& it) const  { return link != it.link; }
+
+    const Link* operator->() const  { return link; }
+
+  private:
+    Iterator(const HashTable* ht, unsigned int index, Link* link) {
+      this->ht = ht;
+      this->index = index;
+      this->link = link;
+    }
+
+    const HashTable* ht;
+    unsigned int index;
+    Link* link;
+    friend class HashTable;
+  };
+
+  Iterator begin() const {
+    Link* link = NULL;
+    unsigned int index = 0;
+    for (index = 0; index < arraySize_; ++index) {
+      link = array_[index];
+      if (link != NULL)
+        break;
+    }
+    Iterator it(this, index, link);
+    return it;
+  }
+  Iterator end() const {
+    return Iterator(this, arraySize_, NULL);
+  }
+
+private:
   Link* find(const Key key, Link** pPrev = NULL, unsigned int* pIndex = NULL) const {
     if (array_ == NULL)
       return NULL;
