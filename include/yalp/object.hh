@@ -114,7 +114,7 @@ protected:
   ~SHashTable()  {}
 private:
   struct Policy {
-    static int hash(const Svalue a)  { return a.calcHash(); }
+    static unsigned int hash(const Svalue a)  { return a.calcHash(); }
     static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
   };
 
