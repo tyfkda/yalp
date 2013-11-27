@@ -3,8 +3,8 @@
 
 using namespace yalp;
 
-typedef char* Key;
-typedef char* Value;
+typedef const char* Key;
+typedef const char* Value;
 
 struct Policy {
   static unsigned int hash(const Key a) {
