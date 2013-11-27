@@ -69,12 +69,15 @@ Sobject* Svalue::toObject() const {
 }
 
 bool Svalue::equal(Svalue target) const {
+  if (eq(target))
+    return true;
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
     return false;
   case TAG_FIXNUM:
-    return eq(target);
+    return false;
   case TAG_OBJECT:
     {
       Type t1 = getType();
