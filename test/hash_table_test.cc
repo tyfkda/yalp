@@ -19,7 +19,7 @@ class HashTableTest : public ::testing::Test {
 protected:
 };
 
-TEST_F(HashTableTest, Construct) {
+TEST_F(HashTableTest, PutGet) {
   HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>();
 
   ASSERT_TRUE(NULL == ht.get("foo")) << "get is failed for empty table";
