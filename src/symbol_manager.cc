@@ -11,6 +11,22 @@
 
 namespace yalp {
 
+static unsigned int strHash(const char* s) {
+  unsigned int v = 0;
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
+       *p != '\0'; ++p)
+    v = v * 17 + 1 + *p;
+  return v;
+}
+
+unsigned int SymbolManager::HashPolicy::hash(const char* a) {
+  return strHash(a);
+}
+
+bool SymbolManager::HashPolicy::equal(const char* a, const char* b) {
+  return strcmp(a, b) == 0;
+}
+
 SymbolManager* SymbolManager::create(Allocator* allocator) {
   void* memory = allocator->alloc(sizeof(SymbolManager));
   return new(memory) SymbolManager(allocator);
@@ -26,20 +42,20 @@ SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
   , table_()
   , gensymIndex_(0) {
-  table_.reserve(100);
 }
 
 SymbolManager::~SymbolManager() {
-  for (auto symbol : table_) {
+  for (auto it = table_.begin(); it != table_.end(); ++it) {
+    Symbol* symbol = it->value;
     allocator_->free(const_cast<char*>(symbol->c_str()));
     allocator_->free(symbol);
   }
 }
 
 Symbol* SymbolManager::intern(const char* name) {
-  for (auto symbol : table_)
-    if (strcmp(symbol->c_str(), name) == 0)
-      return symbol;
+  Symbol* const* result = table_.get(name);
+  if (result != NULL)
+    return *result;
   return generate(name);
 }
 
@@ -54,7 +70,7 @@ Symbol* SymbolManager::generate(const char* name) {
   const char* copied = copyString(name);
   void* memory = allocator_->alloc(sizeof(Symbol));
   Symbol* symbol = new(memory) Symbol(copied);
-  table_.push_back(symbol);
+  table_.put(symbol->c_str(), symbol);
   return symbol;
 }
 
@@ -67,11 +83,11 @@ const char* SymbolManager::copyString(const char* name) {
 }
 
 void SymbolManager::reportDebugInfo() const {
-  std::cout << "Symbols: #" << table_.size() << std::endl << "  ";
-  for (auto symbol : table_) {
-    std::cout << symbol->c_str() << " ";
-  }
-  std::cout << std::endl;
+  std::cout << "Symbols:" << std::endl;
+  std::cout << "  capacity: #" << table_.getCapacity() << std::endl;
+  std::cout << "  entry:    #" << table_.getEntryCount() << std::endl;
+  std::cout << "  conflict: #" << table_.getConflictCount() << std::endl;
+  std::cout << "  maxdepth: #" << table_.getMaxDepth() << std::endl;
 }
 
 }  // namespace yalp

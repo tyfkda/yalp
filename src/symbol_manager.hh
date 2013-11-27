@@ -5,7 +5,7 @@
 #ifndef _SYMBOL_MANAGER_HH_
 #define _SYMBOL_MANAGER_HH_
 
-#include <vector>
+#include "hash_table.hh"
 
 namespace yalp {
 
@@ -27,13 +27,18 @@ public:
   void reportDebugInfo() const;
 
 private:
+  struct HashPolicy {
+    static unsigned int hash(const char* a);
+    static bool equal(const char* a, const char* b);
+  };
+
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
   Symbol* generate(const char* name);
   const char* copyString(const char* name);
 
   Allocator* allocator_;
-  std::vector<Symbol*> table_;
+  HashTable<const char*, Symbol*, HashPolicy> table_;
   int gensymIndex_;
 };
 
