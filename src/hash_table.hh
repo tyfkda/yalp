@@ -1,5 +1,41 @@
 //=============================================================================
 /// Hash table
+/*
+ * Map Key to Value in O(1) using hash function.
+ *
+ * Variable declaration:
+ *   HashTable<K, V, P> ht;
+ *
+ * Put element:
+ *   ht.put(k, v);
+ *
+ * Get element:
+ *   V* pv = ht.get(k);
+ *
+ * Remove element for key:
+ *   ht.remove(k);
+ *
+ * Each:
+ *   for (HashTable<K, V, P>::Iterator it = ht.begin();
+ *        it != ht.end(); ++it) {
+ *     // Key access: it->key
+ *     // Value access: it->value
+ *   }
+ *
+ *
+ * Policy:
+ *   Policy class determines the behavior of hash table.
+ *   it must implement following 2 static functions:
+ *
+ *   struct Policy {
+ *     static unsigned int hash(const Key a) {
+ *       // return some unsigned integer to distribute keys.
+ *     }
+ *     static bool equal(const Key a, const Key b) {
+ *       // return true if 2 keys are same.
+ *     }
+ *   };
+ */
 //=============================================================================
 
 #ifndef _HASH_TABLE_HH_
