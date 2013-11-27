@@ -34,6 +34,8 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
+  void reportDebugInfo() const;
+
 private:
   Vm(State* state);
   ~Vm();

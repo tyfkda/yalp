@@ -6,6 +6,7 @@
 #include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include <assert.h>
+#include <iostream>
 #include <string.h>
 
 namespace yalp {
@@ -63,6 +64,14 @@ const char* SymbolManager::copyString(const char* name) {
   memcpy(copied, name, len);
   copied[len] = '\0';
   return copied;
+}
+
+void SymbolManager::reportDebugInfo() const {
+  std::cout << "Symbols: #" << table_.size() << std::endl << "  ";
+  for (auto symbol : table_) {
+    std::cout << symbol->c_str() << " ";
+  }
+  std::cout << std::endl;
 }
 
 }  // namespace yalp

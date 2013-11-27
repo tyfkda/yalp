@@ -228,6 +228,14 @@ Vm::Vm(State* state)
   }
 }
 
+void Vm::reportDebugInfo() const {
+  std::cout << "Global variables:" << std::endl;
+  std::cout << "  capacity: #" << globalVariableTable_->getCapacity() << std::endl;
+  std::cout << "  entry:    #" << globalVariableTable_->getEntryCount() << std::endl;
+  std::cout << "  conflict: #" << globalVariableTable_->getConflictCount() << std::endl;
+  std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
+}
+
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);

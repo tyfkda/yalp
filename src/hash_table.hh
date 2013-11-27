@@ -16,14 +16,19 @@ template <class Key, class Value, class Policy>
 class HashTable {
 public:
   explicit HashTable()
-    : array_(NULL)
-    , arraySize_(0) {
+    : array_(NULL), arraySize_(0)
+    , entryCount_(0), conflictCount_(0) {
   }
 
   ~HashTable() {
     if (array_ != NULL)
       delete[] array_;
   }
+
+  unsigned int getCapacity() const  { return arraySize_; }
+  int getEntryCount() const  { return entryCount_; }
+  int getConflictCount() const  { return conflictCount_; }
+  int getMaxDepth() const  { return calcMaxDepth(); }
 
   void put(const Key key, const Value& value) {
     Link* link = find(key);
@@ -93,12 +98,29 @@ private:
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
+    if (array_[index] != NULL)
+      ++conflictCount_;
     array_[index] = link;
+    ++entryCount_;
     return link;
+  }
+
+  int calcMaxDepth() const {
+    int max = 0;
+    for (unsigned int i = 0; i < arraySize_; ++i) {
+      int depth = 0;
+      for (Link* link = array_[i]; link != NULL; link = link->next)
+        ++depth;
+      if (depth > max)
+        max = depth;
+    }
+    return max;
   }
 
   Link** array_;
   unsigned int arraySize_;
+  int entryCount_;  // Number of entries.
+  int conflictCount_;  // Number of hash index conflicts.
 };
 
 }  // namespace yalp

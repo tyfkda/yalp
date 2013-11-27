@@ -133,6 +133,8 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
+  void reportDebugInfo() const;
+
 private:
   State(Allocator* allocator);
   ~State();

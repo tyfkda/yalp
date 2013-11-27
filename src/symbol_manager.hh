@@ -24,6 +24,8 @@ public:
   // Generate new symbol.
   Symbol* gensym();
 
+  void reportDebugInfo() const;
+
 private:
   SymbolManager(Allocator* allocator);
   ~SymbolManager();

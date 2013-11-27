@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
   MyAllocator myAllocator;
   State* state = State::create(&myAllocator);
 
-  bool bOutMemResult = false;
+  bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
   int ii;
@@ -152,8 +152,8 @@ int main(int argc, char* argv[]) {
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
-    case 'm':
-      bOutMemResult = true;
+    case 'd':
+      bDebug = true;
       break;
     case 'b':
       bBinary = true;
@@ -206,11 +206,14 @@ int main(int argc, char* argv[]) {
   if (!bCompile)
     runMain(state);
 
+  if (bDebug)
+    state->reportDebugInfo();
   state->release();
 
-  if (bOutMemResult) {
-    printf("#new: %d, #delete: %d\n", nnew, ndelete);
-    printf("#alloc: %d, #free: %d\n", myAllocator.nalloc, myAllocator.nfree);
+  if (bDebug) {
+    cout << "Memory allocation:" << endl;
+    cout << "  #new: " << nnew << ", #delete: " << ndelete << endl;
+    cout << "  #alloc: " << myAllocator.nalloc << ", #free: " << myAllocator.nfree << endl;
   }
   return 0;
 }

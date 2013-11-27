@@ -110,7 +110,7 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 SHashTable::SHashTable(Allocator* allocator)
   : Sobject() {
-  void* memory = allocator->alloc(sizeof(HashTable<Svalue, Svalue, Policy>()));
+  void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) HashTable<Svalue, Svalue, Policy>();
   // TODO: Ensure table_ is released on destructor.
 }
@@ -120,6 +120,11 @@ Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 void SHashTable::output(State*, std::ostream& o, bool) const {
   o << "#<hash-table:" << this << ">";
 }
+
+int SHashTable::getCapacity() const  { return table_->getCapacity(); }
+int SHashTable::getEntryCount() const  { return table_->getEntryCount(); }
+int SHashTable::getConflictCount() const  { return table_->getConflictCount(); }
+int SHashTable::getMaxDepth() const  { return table_->getMaxDepth(); }
 
 void SHashTable::put(Svalue key, Svalue value) {
   table_->put(key, value);

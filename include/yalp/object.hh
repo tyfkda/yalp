@@ -104,6 +104,11 @@ public:
   const Svalue* get(Svalue key) const;
   bool remove(Svalue key);
 
+  int getCapacity() const;
+  int getEntryCount() const;
+  int getConflictCount() const;
+  int getMaxDepth() const;
+
 protected:
   explicit SHashTable(Allocator* allocator);
   ~SHashTable()  {}
