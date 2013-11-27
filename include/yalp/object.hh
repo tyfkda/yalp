@@ -95,7 +95,15 @@ private:
 
 // HashTable class.
 class SHashTable : public Sobject {
+private:
+  struct Policy {
+    static unsigned int hash(const Svalue a)  { return a.calcHash(); }
+    static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
+  };
+
 public:
+  typedef HashTable<Svalue, Svalue, Policy> TableType;
+
   virtual Type getType() const override;
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
@@ -109,16 +117,13 @@ public:
   int getConflictCount() const;
   int getMaxDepth() const;
 
+  const TableType* getHashTable() const  { return table_; }
+
 protected:
   explicit SHashTable(Allocator* allocator);
   ~SHashTable()  {}
 private:
-  struct Policy {
-    static unsigned int hash(const Svalue a)  { return a.calcHash(); }
-    static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
-  };
-
-  HashTable<Svalue, Svalue, Policy>* table_;
+  TableType* table_;
 
   friend State;
   friend Vm;

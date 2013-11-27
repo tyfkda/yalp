@@ -7,6 +7,7 @@
 #include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "hash_table.hh"
 #include "vm.hh"
 #include <iostream>
 
@@ -356,6 +357,20 @@ static Svalue s_hash_table_delete(State* state) {
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
+static Svalue s_hash_table_keys(State* state) {
+  Svalue h = state->getArg(0);
+  if (h.getType() != TT_HASH_TABLE) {
+    state->runtimeError("Hash table expected");
+  }
+
+  const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
+  Svalue result = state->nil();
+  for (auto it = ht->begin(); it != ht->end(); ++it) {
+    result = state->cons(it->key, result);
+  }
+  return result;
+}
+
 void installBasicFunctions(State* state) {
   state->assignGlobal(state->nil(), state->nil());
   state->assignGlobal(state->t(), state->t());
@@ -394,6 +409,7 @@ void installBasicFunctions(State* state) {
   state->assignNative("hash-table-put!", s_hash_table_put, 3);
   state->assignNative("hash-table-exists?", s_hash_table_exists, 2);
   state->assignNative("hash-table-delete!", s_hash_table_delete, 2);
+  state->assignNative("hash-table-keys", s_hash_table_keys, 1);
 }
 
 }  // namespace yalp
