@@ -5,10 +5,11 @@ test/*.a
 
 yalp
 
+test/hash_table_test
 test/object_test
+test/read_test
 test/state_test
 test/symbol_manager_test
-test/read_test
 
 # GTAGS
 GPATH
