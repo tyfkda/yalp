@@ -58,8 +58,15 @@ public:
     virtual bool equal(const Key a, const Key b) = 0;
   };
 
+  static constexpr int INITIAL_BUFFER_SIZE = 5;
+
   explicit HashTable(Policy* policy)
     : policy_(policy), array_(NULL), arraySize_(0)
+    , entryCount_(0), conflictCount_(0) {
+  }
+
+  explicit HashTable(Policy* policy, unsigned int capacity)
+    : policy_(policy), array_(NULL), arraySize_(capacity)
     , entryCount_(0), conflictCount_(0) {
   }
 
@@ -178,13 +185,11 @@ private:
   }
 
   Link* createLink(const Key key) {
-    if (array_ == NULL) {
-      unsigned int newSize = 113;  // Prime number
-      Link** newArray = new Link*[newSize];
-      for (unsigned int i = 0; i < newSize; ++i)
-        newArray[i] = NULL;
-      array_ = newArray;
-      arraySize_ = newSize;
+    if (array_ == NULL || entryCount_ >= arraySize_) {
+      Link** oldArray = array_;
+      unsigned int oldSize = arraySize_;
+      expand();
+      rehash(oldArray, oldSize);
     }
     unsigned int hash = policy_->hash(key);
     Link* link = new Link();
@@ -196,6 +201,41 @@ private:
     array_[index] = link;
     ++entryCount_;
     return link;
+  }
+
+  void expand() {
+    unsigned int newSize = arraySize_;
+    if (newSize < INITIAL_BUFFER_SIZE)
+      newSize = INITIAL_BUFFER_SIZE;
+    else if (newSize < 128)
+      newSize <<= 1;
+    else
+      newSize = newSize + (newSize >> 1);  // x 1.5
+    newSize += 1 - (newSize & 1);  // Force odd number.
+
+    Link** newArray = new Link*[newSize];
+    for (unsigned int i = 0; i < newSize; ++i)
+      newArray[i] = NULL;
+
+    array_ = newArray;
+    arraySize_ = newSize;
+    conflictCount_ = 0;
+    // Keeps entryCount_
+  }
+
+  void rehash(Link** oldArray, unsigned int oldSize) {
+    if (oldArray == NULL || oldSize == 0)
+      return;
+    for (unsigned int i = 0; i < oldSize; ++i) {
+      for (Link* link = oldArray[i]; link != NULL; ) {
+        Link* next = link->next;
+        unsigned int hash = policy_->hash(link->key);
+        unsigned int index = hash % arraySize_;
+        link->next = array_[index];
+        array_[index] = link;
+        link = next;
+      }
+    }
   }
 
   int calcMaxDepth() const {
@@ -213,8 +253,8 @@ private:
   Policy* policy_;
   Link** array_;
   unsigned int arraySize_;
-  int entryCount_;  // Number of entries.
-  int conflictCount_;  // Number of hash index conflicts.
+  unsigned int entryCount_;  // Number of entries.
+  unsigned int conflictCount_;  // Number of hash index conflicts.
 };
 
 // Hash function
