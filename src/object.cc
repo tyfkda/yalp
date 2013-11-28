@@ -13,11 +13,19 @@ bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
 
+unsigned int Sobject::calcHash() const {
+  return (reinterpret_cast<long>(this) >> 4) * 23;
+}
+
 //=============================================================================
 Symbol::Symbol(const char* name)
   : Sobject(), name_(name) {}
 
 Type Symbol::getType() const  { return TT_SYMBOL; }
+
+unsigned int Symbol::calcHash() const {
+  return strHash(name_);
+}
 
 void Symbol::output(State*, std::ostream& o, bool) const {
   o << name_;
@@ -71,6 +79,10 @@ Type String::getType() const  { return TT_STRING; }
 bool String::equal(const Sobject* target) const {
   const String* p = static_cast<const String*>(target);
   return strcmp(string_, p->string_) == 0;
+}
+
+unsigned int String::calcHash() const {
+  return strHash(string_);
 }
 
 void String::output(State*, std::ostream& o, bool inspect) const {

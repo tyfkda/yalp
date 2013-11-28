@@ -56,7 +56,7 @@ public:
   void output(State* state, std::ostream& o, bool inspect) const;
 
   long getId() const  { return v_; }
-  long calcHash() const  { return v_; }
+  unsigned int calcHash() const;
 
 private:
   explicit Svalue(Sfixnum i);

@@ -43,6 +43,18 @@ Type Svalue::getType() const {
   }
 }
 
+unsigned int Svalue::calcHash() const {
+  switch (v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return TT_UNKNOWN;
+  case TAG_FIXNUM:
+    return toFixnum() * 19;
+  case TAG_OBJECT:
+    return toObject()->calcHash();
+  }
+}
+
 void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   switch (v_ & TAG_MASK) {
   default:

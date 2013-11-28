@@ -26,6 +26,7 @@ class Sobject {
 public:
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
+  virtual unsigned int calcHash() const;
 
   virtual void output(State* state, std::ostream& o, bool inspect) const = 0;
 
@@ -38,6 +39,7 @@ protected:
 class Symbol : public Sobject {
 public:
   virtual Type getType() const override;
+  virtual unsigned int calcHash() const override;
 
   const char* c_str() const  { return name_; }
 
@@ -80,6 +82,7 @@ class String : public Sobject {
 public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
+  virtual unsigned int calcHash() const override;
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
 
