@@ -75,6 +75,11 @@ Sfixnum Svalue::toFixnum() const {
   return reinterpret_cast<Sfixnum>(v_ >> TAG_SHIFT);
 }
 
+Sfloat Svalue::toFloat() const {
+  assert(getType() == TT_FLOAT);
+  return static_cast<Float*>(toObject())->toFloat();
+}
+
 Sobject* Svalue::toObject() const {
   assert((v_ & TAG_MASK) == TAG_OBJECT);
   return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
@@ -239,6 +244,12 @@ Svalue State::stringValue(const char* string) {
   void* memory = allocator_->alloc(sizeof(String));
   String* s = new(memory) String(copiedString);
   return Svalue(s);
+}
+
+Svalue State::floatValue(Sfloat f) {
+  void* memory = allocator_->alloc(sizeof(Float));
+  Float* p = new(memory) Float(f);
+  return Svalue(p);
 }
 
 int State::getArgNum() const {

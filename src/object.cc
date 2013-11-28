@@ -120,6 +120,24 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 //=============================================================================
 
+Float::Float(Sfloat v)
+  : Sobject()
+  , v_(v) {
+}
+
+Type Float::getType() const  { return TT_FLOAT; }
+
+bool Float::equal(const Sobject* target) const {
+  const Float* p = static_cast<const Float*>(target);
+  return v_ == p->v_;
+}
+
+void Float::output(State*, std::ostream& o, bool) const {
+  o << v_;
+}
+
+//=============================================================================
+
 struct SHashTable::Policy : public SHashTable::TableType::Policy {
   virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
   virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }

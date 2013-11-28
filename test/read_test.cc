@@ -132,6 +132,16 @@ TEST_F(ReadTest, String) {
   ASSERT_TRUE(state_->stringValue("'\"foobar\"'").equal(s));
 }
 
+TEST_F(ReadTest, Float) {
+  Svalue s;
+  ASSERT_EQ(READ_SUCCESS, read("1.23", &s));
+  ASSERT_TRUE(s.getType() == TT_FLOAT);
+  ASSERT_EQ(1.23f, s.toFloat());
+
+  ASSERT_EQ(READ_SUCCESS, read("-1.23", &s));
+  ASSERT_TRUE(state_->floatValue(-1.23f).equal(s));
+}
+
 TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));

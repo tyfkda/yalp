@@ -108,82 +108,101 @@ static Svalue s_append(State* state) {
   return fin;
 }
 
-static Svalue s_add(State* state) {
-  int n = state->getArgNum();
-  Sfixnum a = 0;
-  for (int i = 0; i < n; ++i) {
-    Svalue x = state->getArg(i);
-    if (x.getType() != TT_FIXNUM) {
-      state->runtimeError("Fixnum expected");
+template <class Op>
+struct BinOp {
+  static Svalue calc(State* state) {
+    int n = state->getArgNum();
+    if (n <= 0)
+      return state->fixnumValue(Op::base());
+    Svalue x = state->getArg(0);
+    Sfixnum acc;
+    switch (x.getType()) {
+    case TT_FIXNUM:
+      acc = x.toFixnum();
+      break;
+    case TT_FLOAT:
+      return calcf(state, 1, x.toFloat());
+      break;
+    default:
+      state->runtimeError("Number expected");
+      break;
     }
-    a += x.toFixnum();
+    if (n == 1)
+      return state->fixnumValue(Op::single(acc));
+
+    for (int i = 1; i < n; ++i) {
+      Svalue x = state->getArg(i);
+      switch (x.getType()) {
+      case TT_FIXNUM:
+        acc = Op::op(acc, x.toFixnum());
+        break;
+      case TT_FLOAT:
+        return calcf(state, i, static_cast<Sfloat>(acc));
+      default:
+        state->runtimeError("Number expected");
+        break;
+      }
+    }
+    return state->fixnumValue(acc);
   }
-  return state->fixnumValue(a);
+
+  static Svalue calcf(State* state, int i, Sfloat acc) {
+    int n = state->getArgNum();
+    if (n == 1)
+      return state->floatValue(Op::single(acc));
+
+    for (; i < n; ++i) {
+      Svalue x = state->getArg(i);
+      switch (x.getType()) {
+      case TT_FIXNUM:
+        acc = Op::op(acc, x.toFixnum());
+        break;
+      case TT_FLOAT:
+        acc = Op::op(acc, x.toFloat());
+        break;
+      default:
+        state->runtimeError("Number expected");
+        break;
+      }
+    }
+    return state->floatValue(acc);
+  }
+};
+
+static Svalue s_add(State* state) {
+  struct Add {
+    static Sfixnum base()  { return 0; }
+    template <class X> static X single(X x)  { return x; }
+    template <class X, class Y> static X op(X x, Y y)  { return x + y; }
+  };
+  return BinOp<Add>::calc(state);
 }
 
 static Svalue s_sub(State* state) {
-  int n = state->getArgNum();
-  Sfixnum a;
-  if (n <= 0) {
-    a = 0;
-  } else {
-    Svalue x = state->getArg(0);
-    if (x.getType() != TT_FIXNUM) {
-      state->runtimeError("Fixnum expected");
-    }
-    a = x.toFixnum();
-    if (n == 1) {
-      a = -a;
-    } else {
-      for (int i = 1; i < n; ++i) {
-        Svalue x = state->getArg(i);
-        if (x.getType() != TT_FIXNUM) {
-          state->runtimeError("Fixnum expected");
-        }
-        a -= x.toFixnum();
-      }
-    }
-  }
-  return state->fixnumValue(a);
+  struct Sub {
+    static Sfixnum base()  { return 0; }
+    template <class X> static X single(X x)  { return -x; }
+    template <class X, class Y> static X op(X x, Y y)  { return x - y; }
+  };
+  return BinOp<Sub>::calc(state);
 }
 
 static Svalue s_mul(State* state) {
-  int n = state->getArgNum();
-  Sfixnum a = 1;
-  for (int i = 0; i < n; ++i) {
-    Svalue x = state->getArg(i);
-    if (x.getType() != TT_FIXNUM) {
-      state->runtimeError("Fixnum expected");
-    }
-    a *= x.toFixnum();
-  }
-  return state->fixnumValue(a);
+  struct Mul {
+    static Sfixnum base()  { return 1; }
+    template <class X> static X single(X x)  { return x; }
+    template <class X, class Y> static X op(X x, Y y)  { return x * y; }
+  };
+  return BinOp<Mul>::calc(state);
 }
 
 static Svalue s_div(State* state) {
-  int n = state->getArgNum();
-  Sfixnum a;
-  if (n <= 0) {
-    a = 1;
-  } else {
-    Svalue x = state->getArg(0);
-    if (x.getType() != TT_FIXNUM) {
-      state->runtimeError("Fixnum expected");
-    }
-    a = x.toFixnum();
-    if (n == 1) {
-      a = 1 / a;
-    } else {
-      for (int i = 1; i < n; ++i) {
-        Svalue x = state->getArg(i);
-        if (x.getType() != TT_FIXNUM) {
-          state->runtimeError("Fixnum expected");
-        }
-        a /= x.toFixnum();
-      }
-    }
-  }
-  return state->fixnumValue(a);
+  struct Div {
+    static Sfixnum base()  { return 1; }
+    template <class X> static X single(X x)  { return 1 / x; }
+    template <class X, class Y> static X op(X x, Y y)  { return x / y; }
+  };
+  return BinOp<Div>::calc(state);
 }
 
 static Svalue s_is(State* state) {

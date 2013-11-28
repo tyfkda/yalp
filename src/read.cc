@@ -70,10 +70,13 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
   char* p = buffer;
   bool hasSymbolChar = false;
   bool hasDigit = false;
+  bool hasDot = false;
   int c;
   while (!isDelimiter(c = getc())) {
     if (isdigit(c)) {
       hasDigit = true;
+    } else if (c == '.') {
+      hasDot = true;
     } else {
       if (p != buffer || (c != '-' && c != '+'))
         hasSymbolChar = true;
@@ -89,6 +92,8 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
 
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
+  else if (hasDot)
+    *pValue = state_->floatValue(static_cast<float>(atof(buffer)));
   else
     *pValue = state_->fixnumValue(atol(buffer));
   return READ_SUCCESS;

@@ -96,6 +96,24 @@ private:
   friend State;
 };
 
+// Floating point number class.
+class Float : public Sobject {
+public:
+  virtual Type getType() const override;
+  virtual bool equal(const Sobject* target) const override;
+
+  Sfloat toFloat() const  { return v_; }
+
+  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+
+protected:
+  Float(Sfloat v);
+
+  Sfloat v_;
+
+  friend State;
+};
+
 // HashTable class.
 class SHashTable : public Sobject {
 public:

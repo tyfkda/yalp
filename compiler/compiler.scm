@@ -619,6 +619,10 @@
   (compile x '(()) () '(HALT)))
 
 (define (install-native-functions)
+  (define (all f ls)
+    (cond ((null? ls) #t)
+          ((f (car ls)) (all f (cdr ls)))
+          (else #f)))
   (define (convert x)
     (case x
       ((#t) 't)
@@ -658,7 +662,10 @@
   (assign-native! '+ + 0 -1)
   (assign-native! '- - 0 -1)
   (assign-native! '* * 0 -1)
-  (assign-native! '/ quotient 0 -1)
+  (assign-native! '/ (lambda args
+                       (if (all (cut is-a? <> <integer>) args)
+                           (apply quotient args)
+                         (exact->inexact (apply / args)))) 0 -1)
 
   (assign-native! 'is (convert-inputs eq?) 2 2)
   (assign-native! 'iso (convert-inputs equal?) 2 2)

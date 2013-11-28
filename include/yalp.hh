@@ -24,6 +24,7 @@ class Vm;
 
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
+typedef float Sfloat;
 
 enum Type {
   TT_UNKNOWN,
@@ -31,6 +32,7 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
+  TT_FLOAT,
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_BOX,
@@ -47,6 +49,7 @@ public:
   Type getType() const;
 
   Sfixnum toFixnum() const;
+  Sfloat toFloat() const;
   class Sobject* toObject() const;
 
   // Object euality.
@@ -108,6 +111,9 @@ public:
 
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
+
+  // Floating point number.
+  Svalue floatValue(Sfloat f);
 
   // Gets argument number for current native function.
   int getArgNum() const;
