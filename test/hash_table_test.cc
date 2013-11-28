@@ -6,21 +6,22 @@ using namespace yalp;
 typedef const char* Key;
 typedef const char* Value;
 
-struct Policy {
-  static unsigned int hash(const Key a) {
+struct Policy : public HashTable<Key, Value>::Policy {
+  virtual unsigned int hash(const Key a) override {
     return strlen(a);
   }
-  static bool equal(const Key a, const Key b) {
+  virtual bool equal(const Key a, const Key b) override {
     return strcmp(a, b) == 0;
   }
 };
 
 class HashTableTest : public ::testing::Test {
 protected:
+  Policy policy_;
 };
 
 TEST_F(HashTableTest, PutGet) {
-  HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>();
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_);
 
   ASSERT_TRUE(NULL == ht.get("foo")) << "get is failed for empty table";
 
@@ -44,13 +45,13 @@ TEST_F(HashTableTest, PutGet) {
 }
 
 TEST_F(HashTableTest, Each) {
-  HashTable<Key, Value, Policy> ht = HashTable<Key, Value, Policy>();
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_);
 
   ht.put("1", "one");
   ht.put("22", "two");
   ht.put("333", "three");
 
-  HashTable<Key, Value, Policy>::Iterator it = ht.begin();
+  HashTable<Key, Value>::Iterator it = ht.begin();
   ASSERT_NE(ht.end(), it);
   ASSERT_STREQ("1", it->key);
   ASSERT_STREQ("one", it->value);

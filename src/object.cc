@@ -108,10 +108,17 @@ void String::output(State*, std::ostream& o, bool inspect) const {
 
 //=============================================================================
 
+struct SHashTable::Policy : public SHashTable::TableType::Policy {
+  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
+  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+};
+
+SHashTable::Policy SHashTable::s_policy;
+
 SHashTable::SHashTable(Allocator* allocator)
   : Sobject() {
   void* memory = allocator->alloc(sizeof(*table_));
-  table_ = new(memory) HashTable<Svalue, Svalue, Policy>();
+  table_ = new(memory) SHashTable::TableType(&s_policy);
   // TODO: Ensure table_ is released on destructor.
 }
 

@@ -14,6 +14,9 @@ class Symbol;
 
 class SymbolManager {
 public:
+  typedef HashTable<const char*, Symbol*> TableType;
+  struct HashPolicy;
+
   static SymbolManager* create(Allocator* allocator);
   // Delete.
   void release();
@@ -27,18 +30,15 @@ public:
   void reportDebugInfo() const;
 
 private:
-  struct HashPolicy {
-    static unsigned int hash(const char* a);
-    static bool equal(const char* a, const char* b);
-  };
-
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
   Symbol* generate(const char* name);
   const char* copyString(const char* name);
 
+  static HashPolicy s_hashPolicy;
+
   Allocator* allocator_;
-  HashTable<const char*, Symbol*, HashPolicy> table_;
+  TableType table_;
   int gensymIndex_;
 };
 

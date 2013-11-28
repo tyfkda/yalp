@@ -18,7 +18,7 @@ because yalp uses GC and destructor is not called.
 
 namespace yalp {
 
-template <class Key, class Value, class Policy>
+template <class Key, class Value>
 class HashTable;
 
 // Base class.
@@ -95,14 +95,9 @@ private:
 
 // HashTable class.
 class SHashTable : public Sobject {
-private:
-  struct Policy {
-    static unsigned int hash(const Svalue a)  { return a.calcHash(); }
-    static bool equal(const Svalue a, const Svalue b)  { return a.eq(b); }
-  };
-
 public:
-  typedef HashTable<Svalue, Svalue, Policy> TableType;
+  typedef HashTable<Svalue, Svalue> TableType;
+  struct Policy;
 
   virtual Type getType() const override;
 
@@ -123,6 +118,7 @@ protected:
   explicit SHashTable(Allocator* allocator);
   ~SHashTable()  {}
 private:
+  static Policy s_policy;
   TableType* table_;
 
   friend State;

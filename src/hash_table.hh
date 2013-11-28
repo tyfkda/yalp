@@ -48,11 +48,18 @@ namespace yalp {
 #endif
 
 // Hash table
-template <class Key, class Value, class Policy>
+template <class Key, class Value>
 class HashTable {
 public:
-  explicit HashTable()
-    : array_(NULL), arraySize_(0)
+  struct Policy {
+    // return some unsigned integer to distribute keys.
+    virtual unsigned int hash(const Key a) = 0;
+    // return true if 2 keys are same.
+    virtual bool equal(const Key a, const Key b) = 0;
+  };
+
+  explicit HashTable(Policy* policy)
+    : policy_(policy), array_(NULL), arraySize_(0)
     , entryCount_(0), conflictCount_(0) {
   }
 
@@ -154,12 +161,12 @@ private:
   Link* find(const Key key, Link** pPrev = NULL, unsigned int* pIndex = NULL) const {
     if (array_ == NULL)
       return NULL;
-    unsigned int hash = Policy::hash(key);
+    unsigned int hash = policy_->hash(key);
     unsigned int index = hash % arraySize_;
     Link* prev = NULL;
     for (Link* link = array_[index]; link != NULL;
          prev = link, link = link->next) {
-      if (Policy::equal(key, link->key)) {
+      if (policy_->equal(key, link->key)) {
         if (pPrev != NULL)
           *pPrev = prev;
         if (pIndex != NULL)
@@ -179,7 +186,7 @@ private:
       array_ = newArray;
       arraySize_ = newSize;
     }
-    unsigned int hash = Policy::hash(key);
+    unsigned int hash = policy_->hash(key);
     Link* link = new Link();
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
@@ -203,6 +210,7 @@ private:
     return max;
   }
 
+  Policy* policy_;
   Link** array_;
   unsigned int arraySize_;
   int entryCount_;  // Number of entries.

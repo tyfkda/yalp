@@ -19,13 +19,12 @@ static unsigned int strHash(const char* s) {
   return v;
 }
 
-unsigned int SymbolManager::HashPolicy::hash(const char* a) {
-  return strHash(a);
-}
+struct SymbolManager::HashPolicy : public SymbolManager::TableType::Policy {
+  virtual unsigned int hash(const char* a) override  { return strHash(a); }
+  virtual bool equal(const char* a, const char* b) override  { return strcmp(a, b) == 0; }
+};
 
-bool SymbolManager::HashPolicy::equal(const char* a, const char* b) {
-  return strcmp(a, b) == 0;
-}
+SymbolManager::HashPolicy SymbolManager::s_hashPolicy;
 
 SymbolManager* SymbolManager::create(Allocator* allocator) {
   void* memory = allocator->alloc(sizeof(SymbolManager));
@@ -40,7 +39,7 @@ void SymbolManager::release() {
 
 SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
-  , table_()
+  , table_(&s_hashPolicy)
   , gensymIndex_(0) {
 }
 
