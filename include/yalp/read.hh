@@ -7,9 +7,11 @@
 
 #include "yalp.hh"
 #include <istream>
-#include <map>
 
 namespace yalp {
+
+template <class Key, class Value>
+class HashTable;
 
 enum ReadError {
   READ_SUCCESS,
@@ -47,9 +49,12 @@ private:
   static bool isSpace(char c);
   static bool isDelimiter(char c);
 
+  struct HashPolicy;
+  static HashPolicy s_hashPolicy;
+
   State* state_;
   std::istream& istrm_;
-  std::map<int, Svalue>* sharedStructures_;
+  HashTable<int, Svalue>* sharedStructures_;
 };
 
 }  // namespace yalp

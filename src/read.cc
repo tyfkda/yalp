@@ -4,9 +4,17 @@
 
 #include "yalp/read.hh"
 #include "yalp/object.hh"
+#include "hash_table.hh"
 #include <assert.h>
 
 namespace yalp {
+
+struct Reader::HashPolicy : public HashTable<int, Svalue>::Policy {
+  virtual unsigned int hash(int a) override  { return a; }
+  virtual bool equal(int a, int b) override  { return a == b; }
+};
+
+Reader::HashPolicy Reader::s_hashPolicy;
 
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)
@@ -176,10 +184,10 @@ ReadError Reader::readSpecial(Svalue* pValue) {
     }
   case '#':
     if (sharedStructures_ != NULL) {
-      auto it = sharedStructures_->find(n);
-      if (it == sharedStructures_->end())
+      const Svalue* p = sharedStructures_->get(n);
+      if (p == NULL)
         return ILLEGAL_CHAR;
-      *pValue = it->second;
+      *pValue = *p;
       return READ_SUCCESS;
     }
     // Fall
@@ -222,8 +230,8 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 
 void Reader::storeShared(int id, Svalue value) {
   if (sharedStructures_ == NULL)
-    sharedStructures_ = new std::map<int, Svalue>();
-  (*sharedStructures_)[id] = value;
+    sharedStructures_ = new HashTable<int, Svalue>(&s_hashPolicy);
+  sharedStructures_->put(id, value);
 }
 
 void Reader::skipSpaces() {
