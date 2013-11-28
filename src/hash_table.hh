@@ -217,6 +217,9 @@ private:
   int conflictCount_;  // Number of hash index conflicts.
 };
 
+// Hash function
+unsigned int strHash(const char* s);
+
 }  // namespace yalp
 
 #endif

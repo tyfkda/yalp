@@ -11,14 +11,6 @@
 
 namespace yalp {
 
-static unsigned int strHash(const char* s) {
-  unsigned int v = 0;
-  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
-       *p != '\0'; ++p)
-    v = v * 17 + 1 + *p;
-  return v;
-}
-
 struct SymbolManager::HashPolicy : public SymbolManager::TableType::Policy {
   virtual unsigned int hash(const char* a) override  { return strHash(a); }
   virtual bool equal(const char* a, const char* b) override  { return strcmp(a, b) == 0; }
