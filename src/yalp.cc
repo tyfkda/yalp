@@ -1,5 +1,4 @@
 #include "yalp.hh"
-#include "yalp/mem.hh"
 #include "yalp/read.hh"
 #include <fstream>
 #include <iostream>
@@ -34,24 +33,20 @@ void operator delete[](void* p) noexcept {
   free(p);
 }
 
-class MyAllocator : public Allocator {
-public:
-  int nalloc, nfree;
-  MyAllocator() : nalloc(0), nfree(0) {}
+static int nalloc, nfree;
 
-  virtual void* alloc(size_t size) override {
-    ++nalloc;
-    return ::malloc(size);
-  }
-  virtual void* realloc(void* p, size_t size) override {
-    if (p == NULL)
-      ++nalloc;
-    return ::realloc(p, size);
-  }
-  virtual void free(void* p) override {
-    ::free(p);
+static void* myAllocFunc(void* p, size_t size) {
+  if (size <= 0) {
+    free(p);
     ++nfree;
+    return NULL;
   }
+
+  if (p == NULL) {
+    ++nalloc;
+    return malloc(size);
+  }
+  return realloc(p, size);
 };
 
 static bool runBinary(State* state, std::istream& strm) {
@@ -140,8 +135,7 @@ static Svalue runMain(State* state) {
 }
 
 int main(int argc, char* argv[]) {
-  MyAllocator myAllocator;
-  State* state = State::create(&myAllocator);
+  State* state = State::create(&myAllocFunc);
 
   bool bDebug = false;
   bool bBinary = false;
@@ -213,7 +207,7 @@ int main(int argc, char* argv[]) {
   if (bDebug) {
     cout << "Memory allocation:" << endl;
     cout << "  #new: " << nnew << ", #delete: " << ndelete << endl;
-    cout << "  #alloc: " << myAllocator.nalloc << ", #free: " << myAllocator.nfree << endl;
+    cout << "  #alloc: " << nalloc << ", #free: " << nfree << endl;
   }
   return 0;
 }

@@ -100,19 +100,19 @@ run-tests:	$(TESTS)
 	  "./$$test"; \
 	done
 
-hash_table_test:	hash_table_test.o $(OBJ_DIR)/mem.o gtest_main.a
+hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 vm-test:

@@ -26,6 +26,8 @@ class Vm;
 typedef long Sfixnum;
 typedef float Sfloat;
 
+typedef void* (*AllocFunc)(void*p, size_t size);
+
 enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,
@@ -77,7 +79,7 @@ typedef Svalue (*NativeFuncType)(State* state);
 class State {
 public:
   static State* create();
-  static State* create(Allocator* allocator);
+  static State* create(AllocFunc allocFunc);
   // Delete.
   void release();
 
@@ -138,7 +140,7 @@ public:
 
   Svalue createHashTable();
 
-  Allocator* getAllocator() const  { return allocator_; }
+  Allocator* getAllocator()  { return allocator_; }
 
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void assignGlobal(Svalue sym, Svalue value);
@@ -152,7 +154,7 @@ public:
   void reportDebugInfo() const;
 
 private:
-  State(Allocator* allocator);
+  State(AllocFunc allocFunc);
   ~State();
 
   Allocator* allocator_;

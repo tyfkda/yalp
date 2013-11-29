@@ -3,7 +3,6 @@
 //=============================================================================
 
 #include "yalp/object.hh"
-#include "yalp/mem.hh"
 #include "hash_table.hh"
 #include <assert.h>
 

@@ -41,7 +41,7 @@
 #ifndef _HASH_TABLE_HH_
 #define _HASH_TABLE_HH_
 
-#include "yalp/mem.hh"
+#include "allocator.hh"
 
 namespace yalp {
 

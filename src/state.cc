@@ -3,7 +3,6 @@
 //=============================================================================
 
 #include "yalp.hh"
-#include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "basic.hh"
@@ -109,23 +108,23 @@ bool Svalue::equal(Svalue target) const {
 
 //=============================================================================
 State* State::create() {
-  return create(Allocator::getDefaultAllocator());
+  return create(getDefaultAllocFunc());
 }
 
-State* State::create(Allocator* allocator) {
-  void* memory = allocator->alloc(sizeof(State));
-  return new(memory) State(allocator);
+State* State::create(AllocFunc allocFunc) {
+  void* memory = allocFunc(NULL, sizeof(State));
+  return new(memory) State(allocFunc);
 }
 
 void State::release() {
-  Allocator* allocator = allocator_;
+  AllocFunc allocFunc = allocator_->allocFunc_;
   this->~State();
-  allocator->free(this);
+  allocFunc(this, 0);
 }
 
-State::State(Allocator* allocator)
-  : allocator_(allocator)
-  , symbolManager_(SymbolManager::create(allocator))
+State::State(AllocFunc allocFunc)
+  : allocator_(new(allocFunc(NULL, sizeof(*allocator_))) Allocator(this, allocFunc))
+  , symbolManager_(SymbolManager::create(allocator_))
   , vm_(NULL) {
   static const char* constSymbols[SINGLE_HALT] = {
     "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
@@ -140,6 +139,8 @@ State::State(Allocator* allocator)
 
 State::~State() {
   symbolManager_->release();
+  allocator_->release();
+  allocator_->free(allocator_);
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {
@@ -212,7 +213,7 @@ Svalue State::gensym() {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  void* memory = allocator_->alloc(sizeof(Cell));
+  void* memory = allocator_->objAlloc(sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);
   return Svalue(cell);
 }
@@ -230,7 +231,7 @@ Svalue State::cdr(Svalue s) {
 }
 
 Svalue State::createHashTable() {
-  void* memory = allocator_->alloc(sizeof(SHashTable));
+  void* memory = allocator_->objAlloc(sizeof(SHashTable));
   SHashTable* h = new(memory) SHashTable(allocator_);
   return Svalue(h);
 }
@@ -241,13 +242,13 @@ Svalue State::stringValue(const char* string) {
   char* copiedString = new(stringBuffer) char[len + 1];
   strcpy(copiedString, string);
 
-  void* memory = allocator_->alloc(sizeof(String));
+  void* memory = allocator_->objAlloc(sizeof(String));
   String* s = new(memory) String(copiedString);
   return Svalue(s);
 }
 
 Svalue State::floatValue(Sfloat f) {
-  void* memory = allocator_->alloc(sizeof(Float));
+  void* memory = allocator_->objAlloc(sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
 }
