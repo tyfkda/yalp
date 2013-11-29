@@ -95,7 +95,7 @@ public:
     return &link->value;
   }
 
-  bool remove(const Key key) const {
+  bool remove(const Key key) {
     Link* prev;
     unsigned int index;
     Link* link = find(key, &prev, &index);
