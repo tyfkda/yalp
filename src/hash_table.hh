@@ -41,6 +41,8 @@
 #ifndef _HASH_TABLE_HH_
 #define _HASH_TABLE_HH_
 
+#include "yalp/mem.hh"
+
 namespace yalp {
 
 #ifndef NULL
@@ -53,10 +55,6 @@ struct HashPolicy {
   virtual unsigned int hash(const Key a) = 0;
   // return true if 2 keys are same.
   virtual bool equal(const Key a, const Key b) = 0;
-
-  // Allocate memory
-  virtual void* alloc(unsigned int size) = 0;
-  virtual void free(void* p) = 0;
 };
 
 // Hash table
@@ -65,8 +63,9 @@ class HashTable {
 public:
   static constexpr int INITIAL_BUFFER_SIZE = 5;
 
-  explicit HashTable(HashPolicy<Key>* policy)
-    : policy_(policy), array_(NULL), arraySize_(0)
+  explicit HashTable(HashPolicy<Key>* policy, Allocator* allocator)
+    : policy_(policy), allocator_(allocator)
+    , array_(NULL), arraySize_(0)
     , entryCount_(0), conflictCount_(0) {
   }
 
@@ -263,10 +262,11 @@ private:
     return max;
   }
 
-  void* alloc(unsigned int size)  { return policy_->alloc(size); }
-  void free(void* p)  { policy_->free(p); }
+  void* alloc(unsigned int size)  { return allocator_->alloc(size); }
+  void free(void* p)  { allocator_->free(p); }
 
   HashPolicy<Key>* policy_;
+  Allocator* allocator_;
   Link** array_;
   unsigned int arraySize_;
   unsigned int entryCount_;  // Number of entries.

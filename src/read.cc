@@ -12,9 +12,6 @@ namespace yalp {
 struct Reader::IntHashPolicy : public HashPolicy<int> {
   virtual unsigned int hash(int a) override  { return a; }
   virtual bool equal(int a, int b) override  { return a == b; }
-
-  virtual void* alloc(unsigned int size)  { return new char[size]; }
-  virtual void free(void* p)  { delete[] static_cast<char*>(p); }
 };
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
@@ -237,7 +234,8 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 
 void Reader::storeShared(int id, Svalue value) {
   if (sharedStructures_ == NULL)
-    sharedStructures_ = new HashTable<int, Svalue>(&s_hashPolicy);
+    sharedStructures_ = new HashTable<int, Svalue>(&s_hashPolicy,
+                                                   state_->getAllocator());
   sharedStructures_->put(id, value);
 }
 

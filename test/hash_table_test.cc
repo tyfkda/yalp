@@ -1,12 +1,13 @@
 #include "gtest/gtest.h"
 #include "hash_table.hh"
+#include "yalp/mem.hh"
 
 using namespace yalp;
 
 typedef const char* Key;
 typedef const char* Value;
 
-struct Policy : public HashTable<Key, Value>::Policy {
+struct TestHashPolicy : public HashPolicy<Key> {
   virtual unsigned int hash(const Key a) override {
     return strlen(a);
   }
@@ -17,11 +18,11 @@ struct Policy : public HashTable<Key, Value>::Policy {
 
 class HashTableTest : public ::testing::Test {
 protected:
-  Policy policy_;
+  TestHashPolicy policy_;
 };
 
 TEST_F(HashTableTest, PutGet) {
-  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_);
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, Allocator::getDefaultAllocator());
 
   ASSERT_TRUE(NULL == ht.get("foo")) << "get is failed for empty table";
 
@@ -45,7 +46,7 @@ TEST_F(HashTableTest, PutGet) {
 }
 
 TEST_F(HashTableTest, Each) {
-  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_);
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, Allocator::getDefaultAllocator());
 
   ht.put("1", "one");
   ht.put("22", "two");
