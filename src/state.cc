@@ -139,6 +139,7 @@ State::State(AllocFunc allocFunc)
 
 State::~State() {
   symbolManager_->release();
+  allocator_->release();
   allocator_->free(allocator_);
 }
 
@@ -212,7 +213,7 @@ Svalue State::gensym() {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  void* memory = allocator_->alloc(sizeof(Cell));
+  void* memory = allocator_->objAlloc(sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);
   return Svalue(cell);
 }
@@ -230,7 +231,7 @@ Svalue State::cdr(Svalue s) {
 }
 
 Svalue State::createHashTable() {
-  void* memory = allocator_->alloc(sizeof(SHashTable));
+  void* memory = allocator_->objAlloc(sizeof(SHashTable));
   SHashTable* h = new(memory) SHashTable(allocator_);
   return Svalue(h);
 }
@@ -241,13 +242,13 @@ Svalue State::stringValue(const char* string) {
   char* copiedString = new(stringBuffer) char[len + 1];
   strcpy(copiedString, string);
 
-  void* memory = allocator_->alloc(sizeof(String));
+  void* memory = allocator_->objAlloc(sizeof(String));
   String* s = new(memory) String(copiedString);
   return Svalue(s);
 }
 
 Svalue State::floatValue(Sfloat f) {
-  void* memory = allocator_->alloc(sizeof(Float));
+  void* memory = allocator_->objAlloc(sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
 }

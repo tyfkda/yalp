@@ -116,7 +116,7 @@ Vm::Vm(State* state)
   }
 
   {
-    void* memory = state_->getAllocator()->alloc(sizeof(SHashTable));
+    void* memory = state_->getAllocator()->objAlloc(sizeof(SHashTable));
     globalVariableTable_ = new(memory) SHashTable(state_->getAllocator());
   }
 }
@@ -130,7 +130,7 @@ void Vm::reportDebugInfo() const {
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
+  void* memory = state_->getAllocator()->objAlloc(sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
@@ -365,7 +365,7 @@ int Vm::findOpcode(Svalue op) {
 }
 
 Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->alloc(sizeof(Closure));
+  void* memory = state_->getAllocator()->objAlloc(sizeof(Closure));
   Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
@@ -386,7 +386,7 @@ Svalue Vm::createContinuation(int s) {
 }
 
 Svalue Vm::box(Svalue x) {
-  void* memory = state_->getAllocator()->alloc(sizeof(Box));
+  void* memory = state_->getAllocator()->objAlloc(sizeof(Box));
   return Svalue(new(memory) Box(x));
 }
 
@@ -462,7 +462,7 @@ void Vm::assignGlobal(Svalue sym, Svalue value) {
 
 Svalue Vm::saveStack(int s) {
   Allocator* allocator = state_->getAllocator();
-  void* memory = allocator->alloc(sizeof(Vector));
+  void* memory = allocator->objAlloc(sizeof(Vector));
   Vector* v = new(memory) Vector(allocator, s);
   for (int i = 0; i < s; ++i) {
     v->set(i, stack_[i]);
