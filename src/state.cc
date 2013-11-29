@@ -79,8 +79,12 @@ Sfloat Svalue::toFloat() const {
   return static_cast<Float*>(toObject())->toFloat();
 }
 
+bool Svalue::isObject() const {
+  return (v_ & TAG_MASK) == TAG_OBJECT;
+}
+
 Sobject* Svalue::toObject() const {
-  assert((v_ & TAG_MASK) == TAG_OBJECT);
+  assert(isObject());
   return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
 }
 

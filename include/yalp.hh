@@ -53,6 +53,7 @@ public:
 
   Sfixnum toFixnum() const;
   Sfloat toFloat() const;
+  bool isObject() const;
   Sobject* toObject() const;
 
   // Object euality.
