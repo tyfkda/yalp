@@ -186,12 +186,8 @@ private:
   }
 
   Link* createLink(const Key key) {
-    if (array_ == NULL || entryCount_ >= arraySize_) {
-      Link** oldArray = array_;
-      unsigned int oldSize = arraySize_;
+    if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
-      rehash(oldArray, oldSize);
-    }
     unsigned int hash = policy_->hash(key);
     Link* link = new Link();
     unsigned int index = hash % arraySize_;
@@ -217,23 +213,27 @@ private:
     Link** newArray = new Link*[newSize];
     for (unsigned int i = 0; i < newSize; ++i)
       newArray[i] = NULL;
+    rehash(array_, arraySize_, newArray, newSize, policy_);
 
+    if (array_ != NULL)
+      delete[] array_;
     array_ = newArray;
     arraySize_ = newSize;
     conflictCount_ = 0;
     // Keeps entryCount_
   }
 
-  void rehash(Link** oldArray, unsigned int oldSize) {
+  static void rehash(Link** oldArray, unsigned int oldSize,
+                     Link** newArray, unsigned int newSize, HashPolicy<Key>* policy) {
     if (oldArray == NULL || oldSize == 0)
       return;
     for (unsigned int i = 0; i < oldSize; ++i) {
       for (Link* link = oldArray[i]; link != NULL; ) {
         Link* next = link->next;
-        unsigned int hash = policy_->hash(link->key);
-        unsigned int index = hash % arraySize_;
-        link->next = array_[index];
-        array_[index] = link;
+        unsigned int hash = policy->hash(link->key);
+        unsigned int index = hash % newSize;
+        link->next = newArray[index];
+        newArray[index] = link;
         link = next;
       }
     }
