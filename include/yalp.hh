@@ -18,6 +18,7 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 namespace yalp {
 
 class Allocator;
+class Sobject;
 class State;
 class SymbolManager;
 class Vm;
@@ -52,7 +53,7 @@ public:
 
   Sfixnum toFixnum() const;
   Sfloat toFloat() const;
-  class Sobject* toObject() const;
+  Sobject* toObject() const;
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
@@ -65,12 +66,12 @@ public:
 
 private:
   explicit Svalue(Sfixnum i);
-  explicit Svalue(class Sobject* object);
+  explicit Svalue(Sobject* object);
 
   Sfixnum v_;
 
   friend State;
-  friend class Vm;
+  friend Vm;
 };
 
 typedef Svalue (*NativeFuncType)(State* state);
