@@ -48,75 +48,6 @@ enum Opcode {
 #define CADDDR(x)  (CAR(CDDDR(x)))
 #define CDDDDR(x)  (CDR(CDDDR(x)))
 
-// Closure class.
-class Closure : public Sobject {
-public:
-  Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
-    : Sobject()
-    , body_(body)
-    , freeVariables_(NULL)
-    , minArgNum_(minArgNum)
-    , maxArgNum_(maxArgNum) {
-    if (freeVarCount > 0) {
-      void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
-      freeVariables_ = new(memory) Svalue[freeVarCount];
-    }
-  }
-  virtual Type getType() const override  { return TT_CLOSURE; }
-
-  Svalue getBody() const  { return body_; }
-  int getMinArgNum() const  { return minArgNum_; }
-  int getMaxArgNum() const  { return maxArgNum_; }
-  bool hasRestParam() const  { return maxArgNum_ < 0; }
-
-  void setFreeVariable(int index, Svalue value) {
-    freeVariables_[index] = value;
-  }
-
-  Svalue getFreeVariable(int index) const {
-    return freeVariables_[index];
-  }
-
-  virtual void output(State*, std::ostream& o, bool) const override {
-    o << "#<closure:" << this << ">";
-  }
-
-protected:
-  Svalue body_;
-  Svalue* freeVariables_;
-  int minArgNum_;
-  int maxArgNum_;
-};
-
-// Native function class.
-class NativeFunc : public Sobject {
-public:
-  NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
-    : Sobject()
-    , func_(func)
-    , minArgNum_(minArgNum)
-    , maxArgNum_(maxArgNum) {}
-  virtual Type getType() const override  { return TT_NATIVEFUNC; }
-
-  Svalue call(State* state, int argNum) {
-    if (argNum < minArgNum_) {
-      state->runtimeError("Too few arguments");
-    } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
-      state->runtimeError("Too many arguments");
-    }
-    return func_(state);
-  }
-
-  virtual void output(State*, std::ostream& o, bool) const override {
-    o << "#<procedure:" << this << ">";
-  }
-
-protected:
-  NativeFuncType func_;
-  int minArgNum_;
-  int maxArgNum_;
-};
-
 // Box class.
 class Box : public Sobject {
 public:
@@ -134,44 +65,6 @@ public:
 
 protected:
   Svalue x_;
-};
-
-// Vector class.
-class Vector : public Sobject {
-public:
-  Vector(int size)
-    : Sobject()
-    , size_(size) {
-    buffer_ = new Svalue[size_];
-  }
-  virtual Type getType() const override  { return TT_VECTOR; }
-
-  int size() const  { return size_; }
-
-  Svalue get(int index)  {
-    assert(0 <= index && index < size_);
-    return buffer_[index];
-  }
-
-  void set(int index, Svalue x)  {
-    assert(0 <= index && index < size_);
-    buffer_[index] = x;
-  }
-
-  virtual void output(State* state, std::ostream& o, bool inspect) const override {
-    o << "#";
-    char c = '(';
-    for (int i = 0; i < size_; ++i) {
-      o << c;
-      buffer_[i].output(state, o, inspect);
-      c = ' ';
-    }
-    o << ")";
-  }
-
-protected:
-  Svalue* buffer_;
-  int size_;
 };
 
 //=============================================================================

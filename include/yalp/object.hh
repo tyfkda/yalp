@@ -117,6 +117,28 @@ protected:
   friend State;
 };
 
+// Vector class.
+class Vector : public Sobject {
+public:
+  virtual Type getType() const override;
+
+  int size() const  { return size_; }
+
+  Svalue get(int index);
+  void set(int index, Svalue x);
+
+  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+
+protected:
+  Vector(int size);
+
+  Svalue* buffer_;
+  int size_;
+
+  friend State;
+  friend Vm;
+};
+
 // HashTable class.
 class SHashTable : public Sobject {
 public:
@@ -147,6 +169,51 @@ private:
 
   friend State;
   friend Vm;
+};
+
+// Closure class.
+class Closure : public Sobject {
+public:
+  Closure(State* state, Svalue body, int freeVarCount,
+          int minArgNum, int maxArgNum);
+  virtual Type getType() const override;
+
+  Svalue getBody() const  { return body_; }
+  int getMinArgNum() const  { return minArgNum_; }
+  int getMaxArgNum() const  { return maxArgNum_; }
+  bool hasRestParam() const  { return maxArgNum_ < 0; }
+
+  void setFreeVariable(int index, Svalue value) {
+    freeVariables_[index] = value;
+  }
+
+  Svalue getFreeVariable(int index) const {
+    return freeVariables_[index];
+  }
+
+  virtual void output(State*, std::ostream& o, bool) const override;
+
+protected:
+  Svalue body_;
+  Svalue* freeVariables_;
+  int minArgNum_;
+  int maxArgNum_;
+};
+
+// Native function class.
+class NativeFunc : public Sobject {
+public:
+  NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum);
+  virtual Type getType() const override;
+
+  Svalue call(State* state, int argNum);
+
+  virtual void output(State*, std::ostream& o, bool) const override;
+
+protected:
+  NativeFuncType func_;
+  int minArgNum_;
+  int maxArgNum_;
 };
 
 }  // namespace yalp

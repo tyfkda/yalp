@@ -5,6 +5,7 @@
 #include "yalp/object.hh"
 #include "yalp/mem.hh"
 #include "hash_table.hh"
+#include <assert.h>
 
 namespace yalp {
 
@@ -167,6 +168,37 @@ void Float::output(State*, std::ostream& o, bool) const {
 
 //=============================================================================
 
+Vector::Vector(int size)
+  : Sobject()
+  , size_(size) {
+  buffer_ = new Svalue[size_];
+}
+
+Type Vector::getType() const { return TT_VECTOR; }
+
+void Vector::output(State* state, std::ostream& o, bool inspect) const {
+  o << "#";
+  char c = '(';
+  for (int i = 0; i < size_; ++i) {
+    o << c;
+    buffer_[i].output(state, o, inspect);
+    c = ' ';
+  }
+  o << ")";
+}
+
+Svalue Vector::get(int index)  {
+  assert(0 <= index && index < size_);
+  return buffer_[index];
+}
+
+void Vector::set(int index, Svalue x)  {
+  assert(0 <= index && index < size_);
+  buffer_[index] = x;
+}
+
+//=============================================================================
+
 struct SHashTable::HashPolicyEq : public HashPolicy<Svalue> {
   virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
   virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
@@ -202,6 +234,48 @@ const Svalue* SHashTable::get(Svalue key) const {
 
 bool SHashTable::remove(Svalue key) {
   return table_->remove(key);
+}
+
+//=============================================================================
+// Closure class.
+Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
+  : Sobject()
+  , body_(body)
+  , freeVariables_(NULL)
+  , minArgNum_(minArgNum)
+  , maxArgNum_(maxArgNum) {
+  if (freeVarCount > 0) {
+    void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
+    freeVariables_ = new(memory) Svalue[freeVarCount];
+  }
+}
+Type Closure::getType() const  { return TT_CLOSURE; }
+
+void Closure::output(State*, std::ostream& o, bool) const {
+  o << "#<closure:" << this << ">";
+}
+
+//=============================================================================
+
+NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
+  : Sobject()
+  , func_(func)
+  , minArgNum_(minArgNum)
+  , maxArgNum_(maxArgNum) {}
+
+Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
+
+Svalue NativeFunc::call(State* state, int argNum) {
+  if (argNum < minArgNum_) {
+    state->runtimeError("Too few arguments");
+  } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
+    state->runtimeError("Too many arguments");
+  }
+  return func_(state);
+}
+
+void NativeFunc::output(State*, std::ostream& o, bool) const {
+  o << "#<procedure:" << this << ">";
 }
 
 //=============================================================================
