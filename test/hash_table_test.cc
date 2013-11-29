@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "hash_table.hh"
-#include "yalp/mem.hh"
 
 using namespace yalp;
 
@@ -18,11 +17,20 @@ struct TestHashPolicy : public HashPolicy<Key> {
 
 class HashTableTest : public ::testing::Test {
 protected:
+  virtual void SetUp() override {
+    allocator_ = new Allocator(NULL, getDefaultAllocFunc());
+  }
+
+  virtual void TearDown() override {
+    delete allocator_;
+  }
+
   TestHashPolicy policy_;
+  Allocator* allocator_;
 };
 
 TEST_F(HashTableTest, PutGet) {
-  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, Allocator::getDefaultAllocator());
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, allocator_);
 
   ASSERT_TRUE(NULL == ht.get("foo")) << "get is failed for empty table";
 
@@ -46,7 +54,7 @@ TEST_F(HashTableTest, PutGet) {
 }
 
 TEST_F(HashTableTest, Each) {
-  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, Allocator::getDefaultAllocator());
+  HashTable<Key, Value> ht = HashTable<Key, Value>(&policy_, allocator_);
 
   ht.put("1", "one");
   ht.put("22", "two");
