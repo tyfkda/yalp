@@ -19,12 +19,12 @@ unsigned int Sobject::calcHash() const {
 
 //=============================================================================
 Symbol::Symbol(const char* name)
-  : Sobject(), name_(name) {}
+  : Sobject(), name_(name), hash_(strHash(name)) {}
 
 Type Symbol::getType() const  { return TT_SYMBOL; }
 
 unsigned int Symbol::calcHash() const {
-  return strHash(name_);
+  return hash_;
 }
 
 void Symbol::output(State*, std::ostream& o, bool) const {

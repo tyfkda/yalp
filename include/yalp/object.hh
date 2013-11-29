@@ -50,6 +50,7 @@ protected:
   ~Symbol()  {}
 private:
   const char* name_;
+  unsigned int hash_;  // Pre-calculated hash value.
 
   friend class SymbolManager;
 };
