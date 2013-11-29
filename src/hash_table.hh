@@ -53,6 +53,10 @@ struct HashPolicy {
   virtual unsigned int hash(const Key a) = 0;
   // return true if 2 keys are same.
   virtual bool equal(const Key a, const Key b) = 0;
+
+  // Allocate memory
+  virtual void* alloc(unsigned int size) = 0;
+  virtual void free(void* p) = 0;
 };
 
 // Hash table
@@ -72,8 +76,16 @@ public:
   }
 
   ~HashTable() {
-    if (array_ != NULL)
-      delete[] array_;
+    if (array_ != NULL) {
+      for (unsigned int i = 0; i < arraySize_; ++i) {
+        for (Link* link = array_[i]; link != NULL; ) {
+          Link* next = link->next;
+          free(link);
+          link = next;
+        }
+      }
+      free(array_);
+    }
   }
 
   unsigned int getCapacity() const  { return arraySize_; }
@@ -105,7 +117,7 @@ public:
       array_[index] = link->next;
     else
       prev->next = link->next;
-    delete link;
+    free(link);
     return true;
   }
 
@@ -189,7 +201,7 @@ private:
     if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
     unsigned int hash = policy_->hash(key);
-    Link* link = new Link();
+    Link* link = new(alloc(sizeof(*link))) Link();
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
@@ -210,13 +222,13 @@ private:
       newSize = newSize + (newSize >> 1);  // x 1.5
     newSize += 1 - (newSize & 1);  // Force odd number.
 
-    Link** newArray = new Link*[newSize];
+    Link** newArray = static_cast<Link**>(alloc(sizeof(Link*) * newSize));
     for (unsigned int i = 0; i < newSize; ++i)
       newArray[i] = NULL;
     rehash(array_, arraySize_, newArray, newSize, policy_);
 
     if (array_ != NULL)
-      delete[] array_;
+      free(array_);
     array_ = newArray;
     arraySize_ = newSize;
     conflictCount_ = 0;
@@ -250,6 +262,9 @@ private:
     }
     return max;
   }
+
+  void* alloc(unsigned int size)  { return policy_->alloc(size); }
+  void free(void* p)  { policy_->free(p); }
 
   HashPolicy<Key>* policy_;
   Link** array_;

@@ -14,6 +14,9 @@ namespace yalp {
 struct SymbolManager::StrHashPolicy : public HashPolicy<const char*> {
   virtual unsigned int hash(const char* a) override  { return strHash(a); }
   virtual bool equal(const char* a, const char* b) override  { return strcmp(a, b) == 0; }
+
+  virtual void* alloc(unsigned int size)  { return new char[size]; }
+  virtual void free(void* p)  { delete[] static_cast<char*>(p); }
 };
 
 SymbolManager::StrHashPolicy SymbolManager::s_hashPolicy;

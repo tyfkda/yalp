@@ -170,6 +170,9 @@ void Float::output(State*, std::ostream& o, bool) const {
 struct SHashTable::HashPolicyEq : public HashPolicy<Svalue> {
   virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
   virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+
+  virtual void* alloc(unsigned int size)  { return new char[size]; }
+  virtual void free(void* p)  { delete[] static_cast<char*>(p); }
 };
 
 SHashTable::HashPolicyEq SHashTable::s_policy;
