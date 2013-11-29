@@ -461,7 +461,9 @@ void Vm::assignGlobal(Svalue sym, Svalue value) {
 }
 
 Svalue Vm::saveStack(int s) {
-  Vector* v = new Vector(s);
+  Allocator* allocator = state_->getAllocator();
+  void* memory = allocator->alloc(sizeof(Vector));
+  Vector* v = new(memory) Vector(allocator, s);
   for (int i = 0; i < s; ++i) {
     v->set(i, stack_[i]);
   }

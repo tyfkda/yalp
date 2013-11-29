@@ -168,10 +168,11 @@ void Float::output(State*, std::ostream& o, bool) const {
 
 //=============================================================================
 
-Vector::Vector(int size)
+Vector::Vector(Allocator* allocator, int size)
   : Sobject()
   , size_(size) {
-  buffer_ = new Svalue[size_];
+  void* memory = allocator->alloc(sizeof(Svalue) * size_);
+  buffer_ = new(memory) Svalue[size_];
 }
 
 Type Vector::getType() const { return TT_VECTOR; }

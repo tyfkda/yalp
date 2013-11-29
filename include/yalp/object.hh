@@ -130,7 +130,7 @@ public:
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
 
 protected:
-  Vector(int size);
+  Vector(Allocator* allocator, int size);
 
   Svalue* buffer_;
   int size_;
