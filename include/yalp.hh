@@ -89,11 +89,6 @@ public:
   bool runFromFile(const char* filename, Svalue* pResult = NULL);
   bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
-  Svalue nil() const  { return nil_; }
-  Svalue t() const  { return t_; }
-  bool isTrue(Svalue x) const  { return !x.eq(nil_); }
-  bool isFalse(Svalue x) const  { return x.eq(nil_); }
-
   // Converts C++ bool value to lisp bool value.
   Svalue boolValue(bool b) const  { return b ? t() : nil(); }
 
@@ -123,8 +118,22 @@ public:
   // Raises runtime error.
   void runtimeError(const char* msg);
 
-  // Wrap a value with quote.
-  Svalue quote(Svalue x);
+  // Constant
+  enum Constant {
+    NIL,
+    T,
+    QUOTE,
+    QUASIQUOTE,
+    UNQUOTE,
+    UNQUOTE_SPLICING,
+
+    NUMBER_OF_CONSTANT
+  };
+  Svalue getConstant(Constant c) const  { return constant_[c]; }
+  Svalue nil() const  { return constant_[NIL]; }
+  Svalue t() const  { return constant_[T]; }
+  bool isTrue(Svalue x) const  { return !x.eq(nil()); }
+  bool isFalse(Svalue x) const  { return x.eq(nil()); }
 
   Svalue createHashTable();
 
@@ -147,9 +156,7 @@ private:
 
   Allocator* allocator_;
   SymbolManager* symbolManager_;
-  Svalue nil_;
-  Svalue t_;
-  Svalue quote_;
+  Svalue constant_[NUMBER_OF_CONSTANT];
   Vm* vm_;
 };
 

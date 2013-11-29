@@ -43,6 +43,13 @@ bool Cell::equal(const Sobject* target) const {
 }
 
 void Cell::output(State* state, std::ostream& o, bool inspect) const {
+  const char* abbrev = isAbbrev(state);
+  if (abbrev != NULL) {
+    o << abbrev;
+    state->car(cdr()).output(state, o, inspect);
+    return;
+  }
+
   char c = '(';
   const Cell* p;
   for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
@@ -65,6 +72,28 @@ void Cell::setCar(Svalue a) {
 
 void Cell::setCdr(Svalue d) {
   cdr_ = d;
+}
+
+const char* Cell::isAbbrev(State* state) const {
+  if (car().getType() != TT_SYMBOL ||
+      cdr().getType() != TT_CELL ||
+      !state->cdr(cdr()).eq(state->nil()))
+    return NULL;
+
+  struct {
+    State::Constant c;
+    const char* abbrev;
+  } static const Table[] = {
+    { State::QUOTE, "'" },
+    { State::QUASIQUOTE, "`" },
+    { State::UNQUOTE, "," },
+    { State::UNQUOTE_SPLICING, ",@" },
+  };
+  Svalue a = car();
+  for (auto t : Table)
+    if (a.eq(state->getConstant(t.c)))
+      return t.abbrev;
+  return NULL;
 }
 
 //=============================================================================

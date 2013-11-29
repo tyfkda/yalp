@@ -147,9 +147,8 @@ ReadError Reader::readList(Svalue* pValue) {
 
 ReadError Reader::readQuote(Svalue* pValue) {
   ReadError err = read(pValue);
-  if (err == READ_SUCCESS) {
-    *pValue = state_->quote(*pValue);
-  }
+  if (err == READ_SUCCESS)
+    *pValue = list(state_, state_->getConstant(State::QUOTE),*pValue);
   return err;
 }
 

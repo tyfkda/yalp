@@ -126,10 +126,13 @@ void State::release() {
 State::State(Allocator* allocator)
   : allocator_(allocator)
   , symbolManager_(SymbolManager::create(allocator))
-  , nil_(symbolManager_->intern("nil"))
-  , t_(symbolManager_->intern("t"))
-  , quote_(symbolManager_->intern("quote"))
   , vm_(NULL) {
+  static const char* constSymbols[NUMBER_OF_CONSTANT] = {
+    "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
+  };
+  for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
+    constant_[i] = intern(constSymbols[i]);
+
   vm_ = Vm::create(this);
   installBasicFunctions(this);
 }
@@ -223,10 +226,6 @@ Svalue State::cdr(Svalue s) {
   if (s.getType() != TT_CELL)
     runtimeError("Cell expected");
   return static_cast<Cell*>(s.toObject())->cdr();
-}
-
-Svalue State::quote(Svalue x) {
-  return list(this, quote_, x);
 }
 
 Svalue State::createHashTable() {

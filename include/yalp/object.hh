@@ -71,6 +71,8 @@ protected:
   Cell(Svalue a, Svalue d);
   ~Cell()  {}
 private:
+  const char* isAbbrev(State* state) const;
+
   Svalue car_;
   Svalue cdr_;
 
