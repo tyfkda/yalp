@@ -121,7 +121,7 @@ protected:
 class SHashTable : public Sobject {
 public:
   typedef HashTable<Svalue, Svalue> TableType;
-  struct Policy;
+  struct HashPolicyEq;
 
   virtual Type getType() const override;
 
@@ -142,7 +142,7 @@ protected:
   explicit SHashTable(Allocator* allocator);
   ~SHashTable()  {}
 private:
-  static Policy s_policy;
+  static HashPolicyEq s_policy;
   TableType* table_;
 
   friend State;

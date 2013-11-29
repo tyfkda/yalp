@@ -49,8 +49,8 @@ private:
   static bool isSpace(char c);
   static bool isDelimiter(char c);
 
-  struct HashPolicy;
-  static HashPolicy s_hashPolicy;
+  struct IntHashPolicy;
+  static IntHashPolicy s_hashPolicy;
 
   State* state_;
   std::istream& istrm_;

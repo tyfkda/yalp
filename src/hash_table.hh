@@ -47,25 +47,26 @@ namespace yalp {
 #define NULL  (0)
 #endif
 
+template <class Key>
+struct HashPolicy {
+  // return some unsigned integer to distribute keys.
+  virtual unsigned int hash(const Key a) = 0;
+  // return true if 2 keys are same.
+  virtual bool equal(const Key a, const Key b) = 0;
+};
+
 // Hash table
 template <class Key, class Value>
 class HashTable {
 public:
-  struct Policy {
-    // return some unsigned integer to distribute keys.
-    virtual unsigned int hash(const Key a) = 0;
-    // return true if 2 keys are same.
-    virtual bool equal(const Key a, const Key b) = 0;
-  };
-
   static constexpr int INITIAL_BUFFER_SIZE = 5;
 
-  explicit HashTable(Policy* policy)
+  explicit HashTable(HashPolicy<Key>* policy)
     : policy_(policy), array_(NULL), arraySize_(0)
     , entryCount_(0), conflictCount_(0) {
   }
 
-  explicit HashTable(Policy* policy, unsigned int capacity)
+  explicit HashTable(HashPolicy<Key>* policy, unsigned int capacity)
     : policy_(policy), array_(NULL), arraySize_(capacity)
     , entryCount_(0), conflictCount_(0) {
   }
@@ -250,7 +251,7 @@ private:
     return max;
   }
 
-  Policy* policy_;
+  HashPolicy<Key>* policy_;
   Link** array_;
   unsigned int arraySize_;
   unsigned int entryCount_;  // Number of entries.

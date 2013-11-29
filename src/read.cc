@@ -9,12 +9,12 @@
 
 namespace yalp {
 
-struct Reader::HashPolicy : public HashTable<int, Svalue>::Policy {
+struct Reader::IntHashPolicy : public HashPolicy<int> {
   virtual unsigned int hash(int a) override  { return a; }
   virtual bool equal(int a, int b) override  { return a == b; }
 };
 
-Reader::HashPolicy Reader::s_hashPolicy;
+Reader::IntHashPolicy Reader::s_hashPolicy;
 
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)

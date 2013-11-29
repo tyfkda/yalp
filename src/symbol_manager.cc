@@ -11,12 +11,12 @@
 
 namespace yalp {
 
-struct SymbolManager::HashPolicy : public SymbolManager::TableType::Policy {
+struct SymbolManager::StrHashPolicy : public HashPolicy<const char*> {
   virtual unsigned int hash(const char* a) override  { return strHash(a); }
   virtual bool equal(const char* a, const char* b) override  { return strcmp(a, b) == 0; }
 };
 
-SymbolManager::HashPolicy SymbolManager::s_hashPolicy;
+SymbolManager::StrHashPolicy SymbolManager::s_hashPolicy;
 
 SymbolManager* SymbolManager::create(Allocator* allocator) {
   void* memory = allocator->alloc(sizeof(SymbolManager));
