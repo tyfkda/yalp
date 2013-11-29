@@ -126,6 +126,7 @@ public:
     QUASIQUOTE,
     UNQUOTE,
     UNQUOTE_SPLICING,
+    SINGLE_HALT,
 
     NUMBER_OF_CONSTANT
   };

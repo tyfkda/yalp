@@ -601,7 +601,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
     {
-      Svalue ret = list(state_, opcodes_[HALT]);
+      Svalue ret = state_->getConstant(State::SINGLE_HALT);
       Svalue c = state_->nil();
       int s = stackPointer_;
       // Makes frame.

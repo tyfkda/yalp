@@ -127,11 +127,12 @@ State::State(Allocator* allocator)
   : allocator_(allocator)
   , symbolManager_(SymbolManager::create(allocator))
   , vm_(NULL) {
-  static const char* constSymbols[NUMBER_OF_CONSTANT] = {
+  static const char* constSymbols[SINGLE_HALT] = {
     "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
   };
-  for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
+  for (int i = 0; i < SINGLE_HALT; ++i)
     constant_[i] = intern(constSymbols[i]);
+  constant_[SINGLE_HALT] = list(this, intern("HALT"));
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
