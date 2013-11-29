@@ -178,6 +178,12 @@ public:
   Callable();
 
   virtual bool isCallable() const;
+
+  Symbol* getName() const  { return name_; }
+  void setName(Symbol* name);
+
+protected:
+  Symbol* name_;
 };
 
 // Closure class.

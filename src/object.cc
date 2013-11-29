@@ -239,18 +239,20 @@ bool SHashTable::remove(Svalue key) {
 }
 
 //=============================================================================
-Callable::Callable() : Sobject()  {}
+Callable::Callable()
+  : Sobject()
+  , name_(NULL)  {}
 
 bool Callable::isCallable() const  { return true; }
+
+void Callable::setName(Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
 Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
   : Callable()
-  , body_(body)
-  , freeVariables_(NULL)
-  , minArgNum_(minArgNum)
-  , maxArgNum_(maxArgNum) {
+  , body_(body), freeVariables_(NULL)
+  , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
     void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
     freeVariables_ = new(memory) Svalue[freeVarCount];
@@ -259,7 +261,10 @@ Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int
 Type Closure::getType() const  { return TT_CLOSURE; }
 
 void Closure::output(State*, std::ostream& o, bool) const {
-  o << "#<closure:" << this << ">";
+  const char* name = "_noname_";
+  if (name_ != NULL)
+    name = name_->c_str();
+  o << "#<closure " << name << ">";
 }
 
 //=============================================================================
@@ -282,7 +287,10 @@ Svalue NativeFunc::call(State* state, int argNum) {
 }
 
 void NativeFunc::output(State*, std::ostream& o, bool) const {
-  o << "#<procedure:" << this << ">";
+  const char* name = "_noname_";
+  if (name_ != NULL)
+    name = name_->c_str();
+  o << "#<subr " << name << ">";
 }
 
 //=============================================================================

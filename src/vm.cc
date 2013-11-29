@@ -457,7 +457,14 @@ Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {
+  if (sym.getType() != TT_SYMBOL)
+    state_->runtimeError("Must be symbol");
   globalVariableTable_->put(sym, value);
+
+  if (value.isObject() && value.toObject()->isCallable()) {
+    Symbol* name = static_cast<Symbol*>(sym.toObject());
+    static_cast<Callable*>(value.toObject())->setName(name);
+  }
 }
 
 Svalue Vm::saveStack(int s) {
