@@ -30,6 +30,8 @@ public:
 
   virtual void output(State* state, std::ostream& o, bool inspect) const = 0;
 
+  virtual bool isCallable() const;
+
 protected:
   // Prevent to call destructor from outside.
   ~Sobject()  {}
@@ -171,8 +173,15 @@ private:
   friend Vm;
 };
 
+class Callable : public Sobject {
+public:
+  Callable();
+
+  virtual bool isCallable() const;
+};
+
 // Closure class.
-class Closure : public Sobject {
+class Closure : public Callable {
 public:
   Closure(State* state, Svalue body, int freeVarCount,
           int minArgNum, int maxArgNum);
@@ -201,7 +210,7 @@ protected:
 };
 
 // Native function class.
-class NativeFunc : public Sobject {
+class NativeFunc : public Callable {
 public:
   NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum);
   virtual Type getType() const override;

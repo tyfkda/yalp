@@ -17,6 +17,8 @@ unsigned int Sobject::calcHash() const {
   return (reinterpret_cast<long>(this) >> 4) * 23;
 }
 
+bool Sobject::isCallable() const  { return false; }
+
 //=============================================================================
 Symbol::Symbol(const char* name)
   : Sobject(), name_(name), hash_(strHash(name)) {}
@@ -237,9 +239,14 @@ bool SHashTable::remove(Svalue key) {
 }
 
 //=============================================================================
+Callable::Callable() : Sobject()  {}
+
+bool Callable::isCallable() const  { return true; }
+
+//=============================================================================
 // Closure class.
 Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
-  : Sobject()
+  : Callable()
   , body_(body)
   , freeVariables_(NULL)
   , minArgNum_(minArgNum)
@@ -258,7 +265,7 @@ void Closure::output(State*, std::ostream& o, bool) const {
 //=============================================================================
 
 NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
-  : Sobject()
+  : Callable()
   , func_(func)
   , minArgNum_(minArgNum)
   , maxArgNum_(maxArgNum) {}
