@@ -267,6 +267,13 @@ Svalue State::getArg(int index) const {
 
 void State::runtimeError(const char* msg) {
   std::cerr << msg << std::endl;
+
+  const Vm::CallStack* callStack = vm_->getCallStack();
+  for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
+    Symbol* name = callStack[i].functionName;
+    std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
+  }
+
   exit(1);
 }
 

@@ -6,14 +6,20 @@
 #define _VM_HH_
 
 #include "yalp.hh"
+#include <vector>
 
 namespace yalp {
 
 class SHashTable;
+class Symbol;
 
 // Vm class.
 class Vm {
 public:
+  struct CallStack {
+    Symbol* functionName;
+  };
+
   static Vm* create(State* state);
   void release();
 
@@ -33,6 +39,9 @@ public:
   void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+
+  int getCallStackDepth() const  { return callStack_.size(); }
+  const CallStack* getCallStack() const  { return &callStack_[0]; }
 
   void reportDebugInfo() const;
 
@@ -60,6 +69,9 @@ private:
 
   int pushArgs(int argNum, const Svalue* args, int s);
 
+  void pushCallStack(Symbol* functionName);
+  void popCallStack();
+
   State* state_;
   Svalue* stack_;
   int stackSize_;
@@ -73,6 +85,8 @@ private:
   // For native function call.
   int stackPointer_;
   int argNum_;
+
+  std::vector<CallStack> callStack_;
 };
 
 }  // namespace yalp

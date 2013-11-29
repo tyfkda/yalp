@@ -88,7 +88,8 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
-  , stackPointer_(0), argNum_(0) {
+  , stackPointer_(0), argNum_(0)
+  , callStack_() {
   {
     void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
     opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
@@ -250,6 +251,12 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
   case APPLY:
     {
       int argNum = CAR(x).toFixnum();
+      if (!a.isObject() || !a.toObject()->isCallable()) {
+        state_->runtimeError("Can't call");
+      }
+
+      pushCallStack(static_cast<Callable*>(a.toObject())->getName());
+
       switch (a.getType()) {
       case TT_CLOSURE:
         {
@@ -286,10 +293,11 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
           f = index(s, 1).toFixnum();
           c = index(s, 2);
           s -= 3;
+          popCallStack();
         }
         break;
       default:
-        state_->runtimeError("Can't call");
+        assert(!"Must not happen");
         break;
       }
     }
@@ -302,6 +310,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       f = index(s, 1).toFixnum();
       c = index(s, 2);
       s -= 3;
+      popCallStack();
     }
     goto again;
   case SHIFT:
@@ -310,6 +319,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = CADR(x);
       int calleeArgnum = index(f, -1).toFixnum();
       s = shiftArgs(n, calleeArgnum, s);
+      popCallStack();
     }
     goto again;
   case BOX:
@@ -496,6 +506,14 @@ Svalue Vm::getArg(int index) const {
 }
 
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
+  if (!fn.isObject() || !fn.toObject()->isCallable()) {
+    fn.output(state_, std::cerr, true);
+    state_->runtimeError("Can't call");
+    return state_->nil();
+  }
+
+  pushCallStack(static_cast<Callable*>(fn.toObject())->getName());
+
   Svalue result;
   const int prevStackPointer = stackPointer_;
   const int prevArgNum = argNum_;
@@ -541,12 +559,12 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
       argNum_ = argNum;
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       result = native->call(state_, argNum);
+
+      popCallStack();
     }
     break;
   default:
-    fn.output(state_, std::cerr, true);
-    state_->runtimeError("Can't call");
-    result = state_->nil();
+    assert(!"Must not happen");
     break;
   }
 
@@ -559,6 +577,17 @@ int Vm::pushArgs(int argNum, const Svalue* args, int s) {
   for (int i = argNum; --i >= 0; )
     s = push(args[i], s);
   return s;
+}
+
+void Vm::pushCallStack(Symbol* functionName) {
+  CallStack s = {
+    functionName,
+  };
+  callStack_.push_back(s);
+}
+
+void Vm::popCallStack() {
+  callStack_.pop_back();
 }
 
 }  // namespace yalp
