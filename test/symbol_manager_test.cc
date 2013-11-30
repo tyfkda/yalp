@@ -6,7 +6,7 @@ using namespace yalp;
 class SymbolManagerTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    allocator_ = Allocator::create(NULL, getDefaultAllocFunc(), NULL);
+    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL, NULL);
     symbolManager_ = SymbolManager::create(allocator_);
   }
 

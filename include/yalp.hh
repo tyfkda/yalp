@@ -161,6 +161,7 @@ private:
 
   void destructObject(Sobject* obj);
 
+  AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];

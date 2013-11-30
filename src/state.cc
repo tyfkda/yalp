@@ -112,8 +112,9 @@ bool Svalue::equal(Svalue target) const {
 
 //=============================================================================
 struct StateAllocatorCallback : public Allocator::Callback {
-  virtual void destruct(void* memory, State* state) override {
+  virtual void destruct(void* memory, void* userdata) override {
     Sobject* obj = static_cast<Sobject*>(memory);
+    State* state = static_cast<State*>(userdata);
     state->destructObject(obj);
   }
 };
@@ -130,13 +131,14 @@ State* State::create(AllocFunc allocFunc) {
 }
 
 void State::release() {
-  AllocFunc allocFunc = allocator_->allocFunc_;
+  AllocFunc allocFunc = allocFunc_;
   this->~State();
   RAW_FREE(allocFunc, this);
 }
 
 State::State(AllocFunc allocFunc)
-  : allocator_(Allocator::create(this, allocFunc, &stateAllocatorCallback))
+  : allocFunc_(allocFunc)
+  , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
   , vm_(NULL) {
   static const char* constSymbols[SINGLE_HALT] = {

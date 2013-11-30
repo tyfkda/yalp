@@ -5,17 +5,15 @@
 
 namespace yalp {
 
-class State;
-
 typedef void* (*AllocFunc)(void*p, size_t size);
 
 class Allocator {
 public:
   struct Callback {
-    virtual void destruct(void* memory, State* state) = 0;
+    virtual void destruct(void* memory, void* userdata) = 0;
   };
 
-  static Allocator* create(State* state, AllocFunc allocFunc, Callback* callback);
+  static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);
   void release();
 
   // Non managed memory allocation.
@@ -27,20 +25,18 @@ public:
   void* objAlloc(size_t size);
 
 private:
-  Allocator(State* state, AllocFunc allocFunc, Callback* callback);
+  Allocator(AllocFunc allocFunc, Callback* callback, void* userdata);
   ~Allocator();
 
-  State* state_;
   AllocFunc allocFunc_;
   Callback* callback_;
+  void* userdata_;
 
   struct Link {
     Link* next;
     void* memory;
   };
   Link* objectTop_;
-
-  friend State;
 };
 
 AllocFunc getDefaultAllocFunc();
