@@ -10,6 +10,7 @@
 
 namespace yalp {
 
+class Callable;
 class SHashTable;
 class Symbol;
 
@@ -17,7 +18,7 @@ class Symbol;
 class Vm {
 public:
   struct CallStack {
-    Symbol* functionName;
+    Callable* callable;
   };
 
   static Vm* create(State* state);
@@ -69,7 +70,7 @@ private:
 
   int pushArgs(int argNum, const Svalue* args, int s);
 
-  void pushCallStack(Symbol* functionName);
+  void pushCallStack(Callable* callable);
   void popCallStack();
 
   State* state_;

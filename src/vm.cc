@@ -255,7 +255,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         state_->runtimeError("Can't call");
       }
 
-      pushCallStack(static_cast<Callable*>(a.toObject())->getName());
+      pushCallStack(static_cast<Callable*>(a.toObject()));
 
       switch (a.getType()) {
       case TT_CLOSURE:
@@ -512,7 +512,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
     return state_->nil();
   }
 
-  pushCallStack(static_cast<Callable*>(fn.toObject())->getName());
+  pushCallStack(static_cast<Callable*>(fn.toObject()));
 
   Svalue result;
   const int prevStackPointer = stackPointer_;
@@ -579,9 +579,9 @@ int Vm::pushArgs(int argNum, const Svalue* args, int s) {
   return s;
 }
 
-void Vm::pushCallStack(Symbol* functionName) {
+void Vm::pushCallStack(Callable* callable) {
   CallStack s = {
-    functionName,
+    callable,
   };
   callStack_.push_back(s);
 }
