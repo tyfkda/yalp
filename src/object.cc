@@ -221,7 +221,7 @@ SHashTable::HashPolicyEq SHashTable::s_policy;
 SHashTable::SHashTable(Allocator* allocator)
   : Sobject() {
   void* memory = allocator->alloc(sizeof(*table_));
-  table_ = new(memory) SHashTable::TableType(&s_policy, allocator);
+  table_ = new(memory) TableType(&s_policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
