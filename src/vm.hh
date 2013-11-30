@@ -19,6 +19,7 @@ class Vm {
 public:
   struct CallStack {
     Callable* callable;
+    bool isTailCall;
   };
 
   static Vm* create(State* state);
@@ -72,6 +73,7 @@ private:
 
   void pushCallStack(Callable* callable);
   void popCallStack();
+  void shiftCallStack();
 
   State* state_;
   Svalue* stack_;

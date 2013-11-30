@@ -319,7 +319,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
       x = CADR(x);
       int calleeArgnum = index(f, -1).toFixnum();
       s = shiftArgs(n, calleeArgnum, s);
-      popCallStack();
+      shiftCallStack();
     }
     goto again;
   case BOX:
@@ -582,12 +582,27 @@ int Vm::pushArgs(int argNum, const Svalue* args, int s) {
 void Vm::pushCallStack(Callable* callable) {
   CallStack s = {
     callable,
+    false,
   };
   callStack_.push_back(s);
 }
 
 void Vm::popCallStack() {
   callStack_.pop_back();
+  while (!callStack_.empty() && callStack_[callStack_.size() - 1].isTailCall)
+    callStack_.pop_back();
+}
+
+void Vm::shiftCallStack() {
+  assert(!callStack_.empty());
+  size_t n = callStack_.size();
+  if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
+      callStack_[n - 2].isTailCall) {
+    // Self tail recursive case: eliminate call stack.
+    callStack_.pop_back();
+  } else {
+    callStack_[n - 1].isTailCall = true;
+  }
 }
 
 }  // namespace yalp
