@@ -4,6 +4,12 @@
 #include <iostream>
 #include <unistd.h>  // for isatty()
 
+#ifdef LEAK_CHECK
+#include <map>
+#include <string>
+#include <utility>
+#endif
+
 using namespace std;
 using namespace yalp;
 
@@ -34,20 +40,48 @@ void operator delete[](void* p) noexcept {
 }
 
 static int nalloc, nfree;
-
-static void* myAllocFunc(void* p, size_t size) {
+#ifdef LEAK_CHECK
+static map<void*, pair<string, int>> allocated;
+static void* myAllocFunc(void* p, size_t size, const char* filename, int line)
+#else
+static void* myAllocFunc(void* p, size_t size)
+#endif
+{
   if (size <= 0) {
     free(p);
     ++nfree;
+#ifdef LEAK_CHECK
+    //allocated.erase(allocated.find(p));
+#endif
     return NULL;
   }
 
   if (p == NULL) {
     ++nalloc;
-    return malloc(size);
+    void* q = malloc(size);
+#ifdef LEAK_CHECK
+    allocated[q] = make_pair(filename ? filename : "unknown", line);
+#endif
+    return q;
   }
-  return realloc(p, size);
+  void* q = realloc(p, size);
+#ifdef LEAK_CHECK
+  allocated.erase(allocated.find(p));
+  allocated[q] = make_pair(filename ? filename : "unknown", line);
+#endif
+  return q;
 };
+
+#ifdef LEAK_CHECK
+static void dumpLeakedMemory() {
+  map<string, int> left;
+  for (auto p : allocated)
+    left[p.second.first + "(" + to_string(p.second.second) + ")"] += 1;
+  cout << "Left: " << allocated.size() << endl;
+  for (auto p : left)
+    cout << "  " << p.first << ": #" << p.second << endl;
+}
+#endif
 
 static bool runBinary(State* state, std::istream& strm) {
   Reader reader(state, strm);
@@ -208,6 +242,9 @@ int main(int argc, char* argv[]) {
     cout << "Memory allocation:" << endl;
     cout << "  #new: " << nnew << ", #delete: " << ndelete << endl;
     cout << "  #alloc: " << nalloc << ", #free: " << nfree << endl;
+#ifdef LEAK_CHECK
+    dumpLeakedMemory();
+#endif
   }
   return 0;
 }
