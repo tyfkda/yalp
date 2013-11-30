@@ -22,8 +22,10 @@ Reader::Reader(State* state, std::istream& istrm)
 }
 
 Reader::~Reader() {
-  if (sharedStructures_ != NULL)
+  if (sharedStructures_ != NULL) {
+    sharedStructures_->~HashTable<int, Svalue>();
     state_->getAllocator()->free(sharedStructures_);
+  }
 }
 
 ReadError Reader::read(Svalue* pValue) {
