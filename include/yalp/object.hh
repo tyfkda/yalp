@@ -35,6 +35,9 @@ public:
 protected:
   // Prevent to call destructor from outside.
   ~Sobject()  {}
+  virtual void destruct(Allocator* allocator);
+
+  friend State;
 };
 
 // Symbol class.
@@ -96,6 +99,8 @@ protected:
   String(const char* string);
   ~String()  {}
 private:
+  virtual void destruct(Allocator* allocator) override;
+
   const char* string_;
 
   friend State;
@@ -113,6 +118,7 @@ public:
 
 protected:
   Float(Sfloat v);
+  ~Float()  {}
 
   Sfloat v_;
 
@@ -133,6 +139,8 @@ public:
 
 protected:
   Vector(Allocator* allocator, int size);
+  ~Vector()  {}
+  virtual void destruct(Allocator* allocator) override;
 
   Svalue* buffer_;
   int size_;
@@ -164,8 +172,10 @@ public:
 
 protected:
   explicit SHashTable(Allocator* allocator);
-  ~SHashTable()  {}
+  ~SHashTable();
 private:
+  virtual void destruct(Allocator* allocator) override;
+
   static HashPolicyEq s_policy;
   TableType* table_;
 
@@ -209,6 +219,9 @@ public:
   virtual void output(State*, std::ostream& o, bool) const override;
 
 protected:
+  ~Closure()  {}
+  virtual void destruct(Allocator* allocator) override;
+
   Svalue body_;
   Svalue* freeVariables_;
   int minArgNum_;
@@ -226,6 +239,8 @@ public:
   virtual void output(State*, std::ostream& o, bool) const override;
 
 protected:
+  ~NativeFunc()  {}
+
   NativeFuncType func_;
   int minArgNum_;
   int maxArgNum_;

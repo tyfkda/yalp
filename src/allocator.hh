@@ -11,7 +11,11 @@ typedef void* (*AllocFunc)(void*p, size_t size);
 
 class Allocator {
 public:
-  static Allocator* create(State* state, AllocFunc allocFunc);
+  struct Callback {
+    virtual void destruct(void* memory, State* state) = 0;
+  };
+
+  static Allocator* create(State* state, AllocFunc allocFunc, Callback* callback);
   void release();
 
   // Non managed memory allocation.
@@ -23,11 +27,12 @@ public:
   void* objAlloc(size_t size);
 
 private:
-  Allocator(State* state, AllocFunc allocFunc);
+  Allocator(State* state, AllocFunc allocFunc, Callback* callback);
   ~Allocator();
 
   State* state_;
   AllocFunc allocFunc_;
+  Callback* callback_;
 
   struct Link {
     Link* next;

@@ -159,10 +159,14 @@ private:
   State(AllocFunc allocFunc);
   ~State();
 
+  void destructObject(Sobject* obj);
+
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
   Vm* vm_;
+
+  friend struct StateAllocatorCallback;
 };
 
 // Helper functions.

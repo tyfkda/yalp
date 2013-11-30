@@ -16,9 +16,9 @@ void* defaultAllocFunc(void* p, size_t size) {
 
 AllocFunc getDefaultAllocFunc()  { return defaultAllocFunc; }
 
-Allocator* Allocator::create(State* state, AllocFunc allocFunc) {
+Allocator* Allocator::create(State* state, AllocFunc allocFunc, Callback* callback) {
   void* memory = allocFunc(NULL, sizeof(Allocator));
-  return new(memory) Allocator(state, allocFunc);
+  return new(memory) Allocator(state, allocFunc, callback);
 }
 
 void Allocator::release() {
@@ -27,8 +27,9 @@ void Allocator::release() {
   allocFunc(this, 0);
 }
 
-Allocator::Allocator(State* state, AllocFunc allocFunc)
-  : state_(state), allocFunc_(allocFunc), objectTop_(NULL) {
+Allocator::Allocator(State* state, AllocFunc allocFunc, Callback* callback)
+  : state_(state), allocFunc_(allocFunc), callback_(callback)
+  , objectTop_(NULL) {
 }
 
 Allocator::~Allocator() {

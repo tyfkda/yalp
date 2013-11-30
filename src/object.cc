@@ -9,6 +9,8 @@
 namespace yalp {
 
 //=============================================================================
+void Sobject::destruct(Allocator*)  {}
+
 bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
@@ -105,6 +107,10 @@ String::String(const char* string)
   , string_(string) {
 }
 
+void String::destruct(Allocator* allocator) {
+  allocator->free(const_cast<char*>(string_));
+}
+
 Type String::getType() const  { return TT_STRING; }
 
 bool String::equal(const Sobject* target) const {
@@ -176,6 +182,10 @@ Vector::Vector(Allocator* allocator, int size)
   buffer_ = new(memory) Svalue[size_];
 }
 
+void Vector::destruct(Allocator* allocator) {
+  allocator->free(buffer_);
+}
+
 Type Vector::getType() const { return TT_VECTOR; }
 
 void Vector::output(State* state, std::ostream& o, bool inspect) const {
@@ -213,6 +223,10 @@ SHashTable::SHashTable(Allocator* allocator)
   void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) SHashTable::TableType(&s_policy, allocator);
   // TODO: Ensure table_ is released on destructor.
+}
+
+void SHashTable::destruct(Allocator* allocator) {
+  allocator->free(table_);
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -258,6 +272,11 @@ Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int
     freeVariables_ = new(memory) Svalue[freeVarCount];
   }
 }
+
+void Closure::destruct(Allocator* allocator) {
+  allocator->free(freeVariables_);
+}
+
 Type Closure::getType() const  { return TT_CLOSURE; }
 
 void Closure::output(State*, std::ostream& o, bool) const {
