@@ -79,11 +79,11 @@ public:
       for (unsigned int i = 0; i < arraySize_; ++i) {
         for (Link* link = array_[i]; link != NULL; ) {
           Link* next = link->next;
-          free(link);
+          FREE(allocator_, link);
           link = next;
         }
       }
-      free(array_);
+      FREE(allocator_, array_);
     }
   }
 
@@ -116,7 +116,7 @@ public:
       array_[index] = link->next;
     else
       prev->next = link->next;
-    free(link);
+    FREE(allocator_, link);
     return true;
   }
 
@@ -200,7 +200,7 @@ private:
     if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
     unsigned int hash = policy_->hash(key);
-    Link* link = new(alloc(sizeof(*link))) Link();
+    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link();
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
@@ -221,13 +221,13 @@ private:
       newSize = newSize + (newSize >> 1);  // x 1.5
     newSize += 1 - (newSize & 1);  // Force odd number.
 
-    Link** newArray = static_cast<Link**>(alloc(sizeof(Link*) * newSize));
+    Link** newArray = static_cast<Link**>(ALLOC(allocator_, sizeof(Link*) * newSize));
     for (unsigned int i = 0; i < newSize; ++i)
       newArray[i] = NULL;
     rehash(array_, arraySize_, newArray, newSize, policy_);
 
     if (array_ != NULL)
-      free(array_);
+      FREE(allocator_, array_);
     array_ = newArray;
     arraySize_ = newSize;
     conflictCount_ = 0;
@@ -261,9 +261,6 @@ private:
     }
     return max;
   }
-
-  void* alloc(unsigned int size)  { return allocator_->alloc(size); }
-  void free(void* p)  { allocator_->free(p); }
 
   HashPolicy<Key>* policy_;
   Allocator* allocator_;

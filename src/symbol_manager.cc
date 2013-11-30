@@ -18,14 +18,14 @@ struct SymbolManager::StrHashPolicy : public HashPolicy<const char*> {
 SymbolManager::StrHashPolicy SymbolManager::s_hashPolicy;
 
 SymbolManager* SymbolManager::create(Allocator* allocator) {
-  void* memory = allocator->alloc(sizeof(SymbolManager));
+  void* memory = ALLOC(allocator, sizeof(SymbolManager));
   return new(memory) SymbolManager(allocator);
 }
 
 void SymbolManager::release() {
   Allocator* allocator = allocator_;
   this->~SymbolManager();
-  allocator->free(this);
+  FREE(allocator, this);
 }
 
 SymbolManager::SymbolManager(Allocator* allocator)
@@ -37,8 +37,8 @@ SymbolManager::SymbolManager(Allocator* allocator)
 SymbolManager::~SymbolManager() {
   for (auto it = table_.begin(); it != table_.end(); ++it) {
     Symbol* symbol = it->value;
-    allocator_->free(const_cast<char*>(symbol->c_str()));
-    allocator_->free(symbol);
+    FREE(allocator_, const_cast<char*>(symbol->c_str()));
+    FREE(allocator_, symbol);
   }
 }
 
@@ -58,7 +58,7 @@ Symbol* SymbolManager::gensym() {
 
 Symbol* SymbolManager::generate(const char* name) {
   const char* copied = copyString(name);
-  void* memory = allocator_->alloc(sizeof(Symbol));
+  void* memory = ALLOC(allocator_, sizeof(Symbol));
   Symbol* symbol = new(memory) Symbol(copied);
   table_.put(symbol->c_str(), symbol);
   return symbol;
@@ -66,7 +66,7 @@ Symbol* SymbolManager::generate(const char* name) {
 
 const char* SymbolManager::copyString(const char* name) {
   int len = strlen(name);
-  char* copied = static_cast<char*>(allocator_->alloc(len + 1));
+  char* copied = static_cast<char*>(ALLOC(allocator_, len + 1));
   memcpy(copied, name, len);
   copied[len] = '\0';
   return copied;

@@ -108,7 +108,7 @@ String::String(const char* string)
 }
 
 void String::destruct(Allocator* allocator) {
-  allocator->free(const_cast<char*>(string_));
+  FREE(allocator, const_cast<char*>(string_));
 }
 
 Type String::getType() const  { return TT_STRING; }
@@ -178,12 +178,12 @@ void Float::output(State*, std::ostream& o, bool) const {
 Vector::Vector(Allocator* allocator, int size)
   : Sobject()
   , size_(size) {
-  void* memory = allocator->alloc(sizeof(Svalue) * size_);
+  void* memory = ALLOC(allocator, sizeof(Svalue) * size_);
   buffer_ = new(memory) Svalue[size_];
 }
 
 void Vector::destruct(Allocator* allocator) {
-  allocator->free(buffer_);
+  FREE(allocator, buffer_);
 }
 
 Type Vector::getType() const { return TT_VECTOR; }
@@ -220,13 +220,13 @@ SHashTable::HashPolicyEq SHashTable::s_policy;
 
 SHashTable::SHashTable(Allocator* allocator)
   : Sobject() {
-  void* memory = allocator->alloc(sizeof(*table_));
+  void* memory = ALLOC(allocator, sizeof(*table_));
   table_ = new(memory) TableType(&s_policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
   table_->~TableType();
-  allocator->free(table_);
+  FREE(allocator, table_);
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -268,14 +268,14 @@ Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int
   , body_(body), freeVariables_(NULL)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
-    void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
+    void* memory = ALLOC(state->getAllocator(), sizeof(Svalue) * freeVarCount);
     freeVariables_ = new(memory) Svalue[freeVarCount];
   }
 }
 
 void Closure::destruct(Allocator* allocator) {
   if (freeVariables_ != NULL)
-    allocator->free(freeVariables_);
+    FREE(allocator, freeVariables_);
 }
 
 Type Closure::getType() const  { return TT_CLOSURE; }

@@ -70,20 +70,20 @@ protected:
 //=============================================================================
 
 Vm* Vm::create(State* state) {
-  void* memory = state->getAllocator()->alloc(sizeof(Vm));
+  void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
   return new(memory) Vm(state);
 }
 
 void Vm::release() {
   Allocator* allocator = state_->getAllocator();
   this->~Vm();
-  allocator->free(this);
+  FREE(allocator, this);
 }
 
 Vm::~Vm() {
   if (stack_ != NULL)
-    state_->getAllocator()->free(stack_);
-  state_->getAllocator()->free(opcodes_);
+    FREE(state_->getAllocator(), stack_);
+  FREE(state_->getAllocator(), opcodes_);
 }
 
 Vm::Vm(State* state)
@@ -92,7 +92,7 @@ Vm::Vm(State* state)
   , stackPointer_(0), argNum_(0)
   , callStack_() {
   {
-    void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
+    void* memory = ALLOC(state_->getAllocator(), sizeof(Svalue) * NUMBER_OF_OPCODE);
     opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
     opcodes_[HALT] = state_->intern("HALT");
     opcodes_[UNDEF] = state_->intern("UNDEF");
@@ -118,7 +118,7 @@ Vm::Vm(State* state)
   }
 
   {
-    void* memory = state_->getAllocator()->objAlloc(sizeof(SHashTable));
+    void* memory = OBJALLOC(state_->getAllocator(), sizeof(SHashTable));
     globalVariableTable_ = new(memory) SHashTable(state_->getAllocator());
   }
 }
@@ -132,7 +132,7 @@ void Vm::reportDebugInfo() const {
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->objAlloc(sizeof(NativeFunc));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
@@ -376,7 +376,7 @@ int Vm::findOpcode(Svalue op) {
 }
 
 Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->objAlloc(sizeof(Closure));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Closure));
   Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
@@ -397,7 +397,7 @@ Svalue Vm::createContinuation(int s) {
 }
 
 Svalue Vm::box(Svalue x) {
-  void* memory = state_->getAllocator()->objAlloc(sizeof(Box));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
   return Svalue(new(memory) Box(x));
 }
 
@@ -410,7 +410,7 @@ int Vm::push(Svalue x, int s) {
 
 void Vm::expandStack() {
   int newSize = stackSize_ + 16;
-  void* memory = state_->getAllocator()->realloc(stack_, sizeof(Svalue) * newSize);
+  void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
   Svalue* newStack = static_cast<Svalue*>(memory);
   if (newStack == NULL) {
     std::cerr << "Can't expand stack! size=" << newSize << std::endl;
@@ -480,7 +480,7 @@ void Vm::assignGlobal(Svalue sym, Svalue value) {
 
 Svalue Vm::saveStack(int s) {
   Allocator* allocator = state_->getAllocator();
-  void* memory = allocator->objAlloc(sizeof(Vector));
+  void* memory = OBJALLOC(allocator, sizeof(Vector));
   Vector* v = new(memory) Vector(allocator, s);
   for (int i = 0; i < s; ++i) {
     v->set(i, stack_[i]);

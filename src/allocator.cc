@@ -17,14 +17,14 @@ void* defaultAllocFunc(void* p, size_t size) {
 AllocFunc getDefaultAllocFunc()  { return defaultAllocFunc; }
 
 Allocator* Allocator::create(State* state, AllocFunc allocFunc, Callback* callback) {
-  void* memory = allocFunc(NULL, sizeof(Allocator));
+  void* memory = RAW_ALLOC(allocFunc, sizeof(Allocator));
   return new(memory) Allocator(state, allocFunc, callback);
 }
 
 void Allocator::release() {
   AllocFunc allocFunc = allocFunc_;
   this->~Allocator();
-  allocFunc(this, 0);
+  RAW_FREE(allocFunc, this);
 }
 
 Allocator::Allocator(State* state, AllocFunc allocFunc, Callback* callback)
@@ -37,8 +37,8 @@ Allocator::~Allocator() {
     Link* link = objectTop_;
     objectTop_ = link->next;
     callback_->destruct(link->memory, state_);
-    free(link->memory);
-    free(link);
+    FREE(this, link->memory);
+    FREE(this, link);
   }
 }
 
@@ -55,7 +55,7 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
-  void* memory = allocFunc_(NULL, size);
+  void* memory = RAW_ALLOC(allocFunc_, size);
   Link* link = static_cast<Link*>(allocFunc_(NULL, sizeof(Link)));
   link->next = objectTop_;
   link->memory = memory;

@@ -24,7 +24,7 @@ Reader::Reader(State* state, std::istream& istrm)
 Reader::~Reader() {
   if (sharedStructures_ != NULL) {
     sharedStructures_->~HashTable<int, Svalue>();
-    state_->getAllocator()->free(sharedStructures_);
+    FREE(state_->getAllocator(), sharedStructures_);
   }
 }
 
@@ -236,7 +236,7 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 
 void Reader::storeShared(int id, Svalue value) {
   if (sharedStructures_ == NULL) {
-    void* memory = state_->getAllocator()->alloc(sizeof(*sharedStructures_));
+    void* memory = ALLOC(state_->getAllocator(), sizeof(*sharedStructures_));
     sharedStructures_ = new(memory) HashTable<int, Svalue>(&s_hashPolicy,
                                                            state_->getAllocator());
   }

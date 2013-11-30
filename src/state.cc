@@ -125,14 +125,14 @@ State* State::create() {
 }
 
 State* State::create(AllocFunc allocFunc) {
-  void* memory = allocFunc(NULL, sizeof(State));
+  void* memory = RAW_ALLOC(allocFunc, sizeof(State));
   return new(memory) State(allocFunc);
 }
 
 void State::release() {
   AllocFunc allocFunc = allocator_->allocFunc_;
   this->~State();
-  allocFunc(this, 0);
+  RAW_FREE(allocFunc, this);
 }
 
 State::State(AllocFunc allocFunc)
@@ -226,7 +226,7 @@ Svalue State::gensym() {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  void* memory = allocator_->objAlloc(sizeof(Cell));
+  void* memory = OBJALLOC(allocator_, sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);
   return Svalue(cell);
 }
@@ -244,24 +244,24 @@ Svalue State::cdr(Svalue s) {
 }
 
 Svalue State::createHashTable() {
-  void* memory = allocator_->objAlloc(sizeof(SHashTable));
+  void* memory = OBJALLOC(allocator_, sizeof(SHashTable));
   SHashTable* h = new(memory) SHashTable(allocator_);
   return Svalue(h);
 }
 
 Svalue State::stringValue(const char* string) {
   int len = strlen(string);
-  void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
+  void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
   strcpy(copiedString, string);
 
-  void* memory = allocator_->objAlloc(sizeof(String));
+  void* memory = OBJALLOC(allocator_, sizeof(String));
   String* s = new(memory) String(copiedString);
   return Svalue(s);
 }
 
 Svalue State::floatValue(Sfloat f) {
-  void* memory = allocator_->objAlloc(sizeof(Float));
+  void* memory = OBJALLOC(allocator_, sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
 }
