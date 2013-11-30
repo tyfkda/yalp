@@ -1,4 +1,5 @@
 #include "allocator.hh"
+#include <new>
 #include <stdlib.h>  // for malloc, free
 
 namespace yalp {
@@ -15,11 +16,22 @@ void* defaultAllocFunc(void* p, size_t size) {
 
 AllocFunc getDefaultAllocFunc()  { return defaultAllocFunc; }
 
+Allocator* Allocator::create(State* state, AllocFunc allocFunc) {
+  void* memory = allocFunc(NULL, sizeof(Allocator));
+  return new(memory) Allocator(state, allocFunc);
+}
+
+void Allocator::release() {
+  AllocFunc allocFunc = allocFunc_;
+  this->~Allocator();
+  allocFunc(this, 0);
+}
+
 Allocator::Allocator(State* state, AllocFunc allocFunc)
   : state_(state), allocFunc_(allocFunc), objectTop_(NULL) {
 }
 
-void Allocator::release() {
+Allocator::~Allocator() {
   while (objectTop_ != NULL) {
     Link* link = objectTop_;
     objectTop_ = link->next;

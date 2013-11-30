@@ -11,7 +11,7 @@ typedef void* (*AllocFunc)(void*p, size_t size);
 
 class Allocator {
 public:
-  Allocator(State* state, AllocFunc allocFunc);
+  static Allocator* create(State* state, AllocFunc allocFunc);
   void release();
 
   // Non managed memory allocation.
@@ -23,6 +23,9 @@ public:
   void* objAlloc(size_t size);
 
 private:
+  Allocator(State* state, AllocFunc allocFunc);
+  ~Allocator();
+
   State* state_;
   AllocFunc allocFunc_;
 

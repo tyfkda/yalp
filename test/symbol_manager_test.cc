@@ -6,13 +6,13 @@ using namespace yalp;
 class SymbolManagerTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    allocator_ = new Allocator(NULL, getDefaultAllocFunc());
+    allocator_ = Allocator::create(NULL, getDefaultAllocFunc());
     symbolManager_ = SymbolManager::create(allocator_);
   }
 
   virtual void TearDown() override {
     symbolManager_->release();
-    delete allocator_;
+    allocator_->release();
   }
 
   SymbolManager* symbolManager_;

@@ -127,7 +127,7 @@ void State::release() {
 }
 
 State::State(AllocFunc allocFunc)
-  : allocator_(new(allocFunc(NULL, sizeof(*allocator_))) Allocator(this, allocFunc))
+  : allocator_(Allocator::create(this, allocFunc))
   , symbolManager_(SymbolManager::create(allocator_))
   , vm_(NULL) {
   static const char* constSymbols[SINGLE_HALT] = {
@@ -145,7 +145,6 @@ State::~State() {
   vm_->release();
   symbolManager_->release();
   allocator_->release();
-  allocator_->free(allocator_);
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {

@@ -18,11 +18,11 @@ struct TestHashPolicy : public HashPolicy<Key> {
 class HashTableTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    allocator_ = new Allocator(NULL, getDefaultAllocFunc());
+    allocator_ = Allocator::create(NULL, getDefaultAllocFunc());
   }
 
   virtual void TearDown() override {
-    delete allocator_;
+    allocator_->release();
   }
 
   TestHashPolicy policy_;
