@@ -142,6 +142,7 @@ State::State(AllocFunc allocFunc)
 }
 
 State::~State() {
+  vm_->release();
   symbolManager_->release();
   allocator_->release();
   allocator_->free(allocator_);

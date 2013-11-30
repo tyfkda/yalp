@@ -81,7 +81,8 @@ void Vm::release() {
 }
 
 Vm::~Vm() {
-  free(stack_);
+  if (stack_ != NULL)
+    state_->getAllocator()->free(stack_);
   state_->getAllocator()->free(opcodes_);
 }
 
