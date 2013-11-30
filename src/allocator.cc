@@ -36,6 +36,7 @@ Allocator::~Allocator() {
   while (objectTop_ != NULL) {
     Link* link = objectTop_;
     objectTop_ = link->next;
+    callback_->destruct(link->memory, state_);
     free(link->memory);
     free(link);
   }

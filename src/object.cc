@@ -222,10 +222,10 @@ SHashTable::SHashTable(Allocator* allocator)
   : Sobject() {
   void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) SHashTable::TableType(&s_policy, allocator);
-  // TODO: Ensure table_ is released on destructor.
 }
 
 void SHashTable::destruct(Allocator* allocator) {
+  table_->~TableType();
   allocator->free(table_);
 }
 
@@ -274,7 +274,8 @@ Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int
 }
 
 void Closure::destruct(Allocator* allocator) {
-  allocator->free(freeVariables_);
+  if (freeVariables_ != NULL)
+    allocator->free(freeVariables_);
 }
 
 Type Closure::getType() const  { return TT_CLOSURE; }
