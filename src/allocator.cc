@@ -30,13 +30,15 @@ void Allocator::release() {
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
   : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
   , objectTop_(NULL) {
+  (void)callback_;
+  (void)userdata_;
 }
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
     GcObject* gcobj = objectTop_;
     objectTop_ = gcobj->next_;
-    callback_->destruct(gcobj, userdata_);
+    gcobj->destruct(this);
     FREE(this, gcobj);
   }
 }

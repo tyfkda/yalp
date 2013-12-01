@@ -11,7 +11,6 @@ typedef void* (*AllocFunc)(void*p, size_t size);
 class Allocator {
 public:
   struct Callback {
-    virtual void destruct(void* memory, void* userdata) = 0;
   };
 
   static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);

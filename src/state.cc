@@ -114,11 +114,6 @@ bool Svalue::equal(Svalue target) const {
 
 //=============================================================================
 struct StateAllocatorCallback : public Allocator::Callback {
-  virtual void destruct(void* memory, void* userdata) override {
-    Sobject* obj = static_cast<Sobject*>(memory);
-    State* state = static_cast<State*>(userdata);
-    state->destructObject(obj);
-  }
 };
 
 static StateAllocatorCallback stateAllocatorCallback;
@@ -309,10 +304,6 @@ Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {
 void State::reportDebugInfo() const {
   vm_->reportDebugInfo();
   symbolManager_->reportDebugInfo();
-}
-
-void State::destructObject(Sobject* obj) {
-  obj->destruct(allocator_);
 }
 
 //=============================================================================

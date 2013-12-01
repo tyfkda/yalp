@@ -159,8 +159,6 @@ private:
   State(AllocFunc allocFunc);
   ~State();
 
-  void destructObject(Sobject* obj);
-
   AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
