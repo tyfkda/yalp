@@ -148,6 +148,7 @@ fail too-few-arg-native '(cons 1)'
 fail too-many-arg-native '(cons 1 2 3)'
 fail too-few-arg-lambda '((^(x y)) 1)'
 fail too-many-arg-lambda '((^(x y)) 1 2 3)'
+fail empty-param-not-rest-param '((^() nil) 1 2 3)'
 
 ################################################################
 # All tests succeeded.

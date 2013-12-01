@@ -22,8 +22,9 @@
 
 ;;; dotted pair -> proper list
 (defn dotted->proper (ls)
-  (if (and (consp ls)
-           (no (cdr (last-pair ls))))
+  (if (or (no ls)
+          (and (consp ls)
+               (no (cdr (last-pair ls)))))
       ls
     ((afn (p acc)
           (if (consp p)
