@@ -1,6 +1,7 @@
 #ifndef _ALLOCATOR_HH_
 #define _ALLOCATOR_HH_
 
+#include "yalp/gc_object.hh"
 #include <stdio.h>  // for size_t
 
 namespace yalp {
@@ -32,11 +33,7 @@ private:
   Callback* callback_;
   void* userdata_;
 
-  struct Link {
-    Link* next;
-    void* memory;
-  };
-  Link* objectTop_;
+  GcObject* objectTop_;
 };
 
 AllocFunc getDefaultAllocFunc();

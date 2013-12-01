@@ -13,6 +13,7 @@ because yalp uses GC and destructor is not called.
 #define _OBJECT_HH_
 
 #include "yalp.hh"
+#include "yalp/gc_object.hh"
 
 #include <ostream>
 
@@ -22,7 +23,7 @@ template <class Key, class Value>
 class HashTable;
 
 // Base class.
-class Sobject {
+class Sobject : public GcObject {
 public:
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
@@ -34,6 +35,7 @@ public:
 
 protected:
   // Prevent to call destructor from outside.
+  Sobject()  {}  // Empty construct needed, otherwise member cleared.
   ~Sobject()  {}
   virtual void destruct(Allocator* allocator);
 

@@ -34,11 +34,10 @@ Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
-    Link* link = objectTop_;
-    objectTop_ = link->next;
-    callback_->destruct(link->memory, userdata_);
-    FREE(this, link->memory);
-    FREE(this, link);
+    GcObject* gcobj = objectTop_;
+    objectTop_ = gcobj->next_;
+    callback_->destruct(gcobj, userdata_);
+    FREE(this, gcobj);
   }
 }
 
@@ -55,12 +54,11 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
-  void* memory = ALLOC(this, size);
-  Link* link = static_cast<Link*>(ALLOC(this, sizeof(Link)));
-  link->next = objectTop_;
-  link->memory = memory;
-  objectTop_ = link;
-  return memory;
+  GcObject* gcobj = static_cast<GcObject*>(ALLOC(this, size));
+  gcobj->next_ = objectTop_;
+  gcobj->marked_ = false;
+  objectTop_ = gcobj;
+  return gcobj;
 }
 
 }  // namespace yalp
