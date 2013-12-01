@@ -118,8 +118,9 @@ Vm::Vm(State* state)
   }
 
   {
-    void* memory = OBJALLOC(state_->getAllocator(), sizeof(SHashTable));
-    globalVariableTable_ = new(memory) SHashTable(state_->getAllocator());
+    Svalue ht = state_->createHashTable();
+    assert(ht.getType() == TT_HASH_TABLE);
+    globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 }
 
