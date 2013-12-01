@@ -65,6 +65,10 @@ public:
   long getId() const  { return v_; }
   unsigned int calcHash() const;
 
+  friend std::ostream& operator<<(std::ostream& o, Svalue s) {
+    s.output(NULL, o, true); return o;
+  }
+
 private:
   explicit Svalue(Sfixnum i);
   explicit Svalue(Sobject* object);

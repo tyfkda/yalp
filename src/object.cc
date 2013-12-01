@@ -45,11 +45,13 @@ bool Cell::equal(const Sobject* target) const {
 }
 
 void Cell::output(State* state, std::ostream& o, bool inspect) const {
-  const char* abbrev = isAbbrev(state);
-  if (abbrev != NULL) {
-    o << abbrev;
-    state->car(cdr()).output(state, o, inspect);
-    return;
+  if (state != NULL) {
+    const char* abbrev = isAbbrev(state);
+    if (abbrev != NULL) {
+      o << abbrev;
+      state->car(cdr()).output(state, o, inspect);
+      return;
+    }
   }
 
   char c = '(';
@@ -61,7 +63,7 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
       break;
     c = ' ';
   }
-  if (!p->cdr_.eq(state->nil())) {
+  if (state == NULL || !p->cdr_.eq(state->nil())) {
     o << " . ";
     p->cdr_.output(state, o, inspect);
   }
