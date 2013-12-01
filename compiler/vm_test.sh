@@ -71,6 +71,9 @@ run closure-set 23 '((^(x)
 run call/cc 123 '(call/cc
                    (^(cc)
                      (cc 123)))'
+run call/cc-nil nil '(call/cc
+                       (^(cc)
+                         (cc)))'
 run global-var 111 '((^()
                        ((^()
                           (set! global 111)))

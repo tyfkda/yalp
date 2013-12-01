@@ -403,8 +403,8 @@
                  (APPLY (argnum)
                         (do-apply argnum a s))
                  (RET ()
-                      (let ((argnum (index s 0)))
-                        (do-return a (- s 1) argnum)))
+                      (let ((argnum (index f -1)))
+                        (do-return a f argnum)))
                  (SHIFT (n x)
                         (let ((callee-argnum (index f -1)))
                           (VM a x f c (shift-args n callee-argnum s))))
@@ -416,7 +416,9 @@
                  (CONTI (x)
                         (VM (continuation s) x f c s))
                  (NUATE (stack x)
-                        (VM a x f c (restore-stack stack)))
+                        (let* ((argnum (index f -1))
+                               (a (if (eq? argnum 0) 'nil (index f 0))))
+                          (VM a x f c (restore-stack stack))))
                  (MACRO (name nparam body x)
                         (let ((min (car nparam))
                               (max (cadr nparam)))
@@ -468,7 +470,7 @@
 (define continuation
   (lambda (s)
     (closure
-     (list 'LREF 0 (list 'NUATE (save-stack s) '(RET)))
+     (list 'NUATE (save-stack s) '(RET))
      s
      s
      0 1)))

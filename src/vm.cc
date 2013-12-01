@@ -306,8 +306,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case RET:
     {
-      int argnum = index(s, 0).toFixnum();
-      s -= argnum + 1;
+      int argnum = index(f, -1).toFixnum();
+      s = f - argnum;
       x = index(s, 0);
       f = index(s, 1).toFixnum();
       c = index(s, 2);
@@ -344,6 +344,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     {
       Svalue stack = CAR(x);
       x = CADR(x);
+      int argnum = index(f, -1).toFixnum();
+      a = (argnum == 0) ? state_->nil() : index(f, 0);
       s = restoreStack(stack);
     }
     goto again;
@@ -385,15 +387,11 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 }
 
 Svalue Vm::createContinuation(int s) {
-  Svalue zero = state_->fixnumValue(0);
   Svalue body = list(state_,
-                     opcodes_[LREF],
-                     zero,
+                     opcodes_[NUATE],
+                     saveStack(s),
                      list(state_,
-                          opcodes_[NUATE],
-                          saveStack(s),
-                          list(state_,
-                               opcodes_[RET])));
+                          opcodes_[RET]));
   return createClosure(body, s, s, 0, 1);
 }
 
