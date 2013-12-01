@@ -24,7 +24,7 @@
 (defn dotted->proper (ls)
   (if (or (no ls)
           (and (consp ls)
-               (no (cdr (last-pair ls)))))
+               (no (cdr (last ls)))))
       ls
     ((afn (p acc)
           (if (consp p)

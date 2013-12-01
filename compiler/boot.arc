@@ -165,10 +165,11 @@
             n))
    x 0))
 
-(defn last-pair (ls)
+;; Returns last pair
+(defn last (ls)
   (if (consp (cdr ls))
-      (last-pair (cdr ls))
-      ls))
+      (last (cdr ls))
+    ls))
 
 (defn reverse! (ls)
   (if (consp ls)
