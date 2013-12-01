@@ -89,7 +89,7 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
-  , stackPointer_(0), argNum_(0)
+  , argNum_(0), s_(0)
   , callStack_() {
   {
     void* memory = ALLOC(state_->getAllocator(), sizeof(Svalue) * NUMBER_OF_OPCODE);
@@ -140,47 +140,50 @@ void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int 
 
 Svalue Vm::run(Svalue code) {
   Svalue nil = state_->nil();
-  return run(nil, code, 0, nil, 0);
+  a_ = nil;
+  x_ = code;
+  c_ = nil;
+  f_ = 0;
+  return runLoop();
 }
 
-Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
+Svalue Vm::runLoop() {
  again:
-  //std::cout << "run: stack=" << s << ", x="; x.output(state_, std::cout, true); std::cout << std::endl;
+  //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
 
-  Svalue op = CAR(x);
-  x = CDR(x);
+  Svalue op = CAR(x_);
+  x_ = CDR(x_);
   int opidx = findOpcode(op);
   switch (opidx) {
   case HALT:
-    stackPointer_ = s;
-    return a;
+    return a_;
   case UNDEF:
-    x = CAR(x);
-    a = state_->nil();
+    x_ = CAR(x_);
+    a_ = state_->nil();
     goto again;
   case CONST:
-    a = CAR(x);
-    x = CADR(x);
+    a_ = CAR(x_);
+    x_ = CADR(x_);
     goto again;
   case LREF:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      a = index(f, n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      a_ = index(f_, n);
     }
     goto again;
   case FREF:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      assert(c.getType() == TT_CLOSURE);
-      a = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      assert(c_.getType() == TT_CLOSURE);
+      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
     }
     goto again;
   case GREF:
     {
-      Svalue sym = CAR(x);
-      x = CADR(x);
+      Svalue sym = CAR(x_);
+      x_ = CADR(x_);
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
@@ -189,80 +192,81 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
         std::cerr << ": ";
         state_->runtimeError("Unbound");
       }
-      a = aa;
+      a_ = aa;
     }
     goto again;
   case LSET:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      Svalue box = index(f, n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      Svalue box = index(f_, n);
       assert(box.getType() == TT_BOX);
-      static_cast<Box*>(box.toObject())->set(a);
+      static_cast<Box*>(box.toObject())->set(a_);
     }
     goto again;
   case FSET:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      Svalue box = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      assert(c_.getType() == TT_CLOSURE);
+      Svalue box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
-      static_cast<Box*>(box.toObject())->set(a);
+      static_cast<Box*>(box.toObject())->set(a_);
     }
     goto again;
   case GSET:
     {
-      Svalue sym = CAR(x);
-      x = CADR(x);
+      Svalue sym = CAR(x_);
+      x_ = CADR(x_);
       assert(sym.getType() == TT_SYMBOL);
-      assignGlobal(sym, a);
+      assignGlobal(sym, a_);
     }
     goto again;
   case PUSH:
     {
-      x = CAR(x);
-      s = push(a, s);
+      x_ = CAR(x_);
+      s_ = push(a_, s_);
     }
     goto again;
   case TEST:
     {
-      Svalue thn = CAR(x);
-      Svalue els = CADR(x);
-      x = state_->isTrue(a) ? thn : els;
+      Svalue thn = CAR(x_);
+      Svalue els = CADR(x_);
+      x_ = state_->isTrue(a_) ? thn : els;
     }
     goto again;
   case CLOSE:
     {
-      Svalue nparam = CAR(x);
-      int nfree = CADR(x).toFixnum();
-      Svalue body = CADDR(x);
-      x = CADDDR(x);
+      Svalue nparam = CAR(x_);
+      int nfree = CADR(x_).toFixnum();
+      Svalue body = CADDR(x_);
+      x_ = CADDDR(x_);
       int min = CAR(nparam).toFixnum();
       int max = CADR(nparam).toFixnum();
-      a = createClosure(body, nfree, s, min, max);
-      s -= nfree;
+      a_ = createClosure(body, nfree, s_, min, max);
+      s_ -= nfree;
     }
     goto again;
   case FRAME:
     {
-      Svalue ret = CAR(x);
-      x = CADR(x);
-      s = push(ret, push(state_->fixnumValue(f), push(c, s)));
+      Svalue ret = CAR(x_);
+      x_ = CADR(x_);
+      s_ = push(ret, push(state_->fixnumValue(f_), push(c_, s_)));
     }
     goto again;
   case APPLY:
     {
-      int argNum = CAR(x).toFixnum();
-      if (!a.isObject() || !a.toObject()->isCallable()) {
+      int argNum = CAR(x_).toFixnum();
+      if (!a_.isObject() || !a_.toObject()->isCallable()) {
         state_->runtimeError("Can't call");
       }
 
-      pushCallStack(static_cast<Callable*>(a.toObject()));
+      pushCallStack(static_cast<Callable*>(a_.toObject()));
 
-      switch (a.getType()) {
+      switch (a_.getType()) {
       case TT_CLOSURE:
         {
-          Closure* closure = static_cast<Closure*>(a.toObject());
+          Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
           if (argNum < min) {
             state_->runtimeError("Too few arguments");
@@ -272,29 +276,28 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
 
           int ds = 0;
           if (closure->hasRestParam())
-            ds = modifyRestParams(argNum, min, s);
-          s += ds;
+            ds = modifyRestParams(argNum, min, s_);
+          s_ += ds;
           argNum += ds;
-          x = closure->getBody();
-          f = s;
-          c = a;
-          s = push(state_->fixnumValue(argNum), s);
+          x_ = closure->getBody();
+          f_ = s_;
+          c_ = a_;
+          s_ = push(state_->fixnumValue(argNum), s_);
         }
         break;
       case TT_NATIVEFUNC:
         {
           // Store current state in member variable for native function call.
-          stackPointer_ = s;
           argNum_ = argNum;
-          NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
-          a = native->call(state_, argNum);
+          NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
+          a_ = native->call(state_, argNum);
 
           // do-return
-          s -= argNum;
-          x = index(s, 0);
-          f = index(s, 1).toFixnum();
-          c = index(s, 2);
-          s -= 3;
+          s_ -= argNum;
+          x_ = index(s_, 0);
+          f_ = index(s_, 1).toFixnum();
+          c_ = index(s_, 2);
+          s_ -= 3;
           popCallStack();
         }
         break;
@@ -306,58 +309,58 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case RET:
     {
-      int argnum = index(s, 0).toFixnum();
-      s -= argnum + 1;
-      x = index(s, 0);
-      f = index(s, 1).toFixnum();
-      c = index(s, 2);
-      s -= 3;
+      int argnum = index(s_, 0).toFixnum();
+      s_ -= argnum + 1;
+      x_ = index(s_, 0);
+      f_ = index(s_, 1).toFixnum();
+      c_ = index(s_, 2);
+      s_ -= 3;
       popCallStack();
     }
     goto again;
   case SHIFT:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      int calleeArgnum = index(f, -1).toFixnum();
-      s = shiftArgs(n, calleeArgnum, s);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      int calleeArgnum = index(f_, -1).toFixnum();
+      s_ = shiftArgs(n, calleeArgnum, s_);
       shiftCallStack();
     }
     goto again;
   case BOX:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      indexSet(f, n, box(index(f, n)));
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      indexSet(f_, n, box(index(f_, n)));
     }
     goto again;
   case UNBOX:
-    x = CAR(x);
-    assert(a.getType() == TT_BOX);
-    a = static_cast<Box*>(a.toObject())->get();
+    x_ = CAR(x_);
+    assert(a_.getType() == TT_BOX);
+    a_ = static_cast<Box*>(a_.toObject())->get();
     goto again;
   case CONTI:
-    x = CAR(x);
-    a = createContinuation(s);
+    x_ = CAR(x_);
+    a_ = createContinuation(s_);
     goto again;
   case NUATE:
     {
-      Svalue stack = CAR(x);
-      x = CADR(x);
-      int argnum = index(f, -1).toFixnum();
-      a = (argnum == 0) ? state_->nil() : index(f, 0);
-      s = restoreStack(stack);
+      Svalue stack = CAR(x_);
+      x_ = CADR(x_);
+      int argnum = index(f_, -1).toFixnum();
+      a_ = (argnum == 0) ? state_->nil() : index(f_, 0);
+      s_ = restoreStack(stack);
     }
     goto again;
   case MACRO:
     {
-      Svalue name = CAR(x);
-      Svalue nparam = CADR(x);
-      Svalue body = CADDR(x);
-      x = CADDDR(x);
+      Svalue name = CAR(x_);
+      Svalue nparam = CADR(x_);
+      Svalue body = CADDR(x_);
+      x_ = CADDDR(x_);
       int min = CAR(nparam).toFixnum();
       int max = CADR(nparam).toFixnum();
-      Svalue closure = createClosure(body, 0, s, min, max);
+      Svalue closure = createClosure(body, 0, s_, min, max);
 
       Svalue args[] = { name, closure };
       funcall(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
@@ -367,7 +370,7 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     op.output(state_, std::cerr, true);
     std::cerr << ": ";
     state_->runtimeError("Unknown op");
-    return a;
+    return a_;
   }
 }
 
@@ -502,7 +505,7 @@ int Vm::getArgNum() const {
 }
 
 Svalue Vm::getArg(int index) const {
-  return this->index(stackPointer_, index);
+  return this->index(s_, index);
 }
 
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
@@ -515,19 +518,21 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   pushCallStack(static_cast<Callable*>(fn.toObject()));
 
   Svalue result;
-  const int prevStackPointer = stackPointer_;
   const int prevArgNum = argNum_;
 
   switch (fn.getType()) {
   case TT_CLOSURE:
     {
+      // Save old running code.
+      s_ = push(x_, s_);
+
       Svalue ret = state_->getConstant(State::SINGLE_HALT);
       Svalue c = state_->nil();
-      int s = stackPointer_;
+      //int s = stackPointer_;
       // Makes frame.
-      s = push(ret, push(state_->fixnumValue(s), push(c, s)));
+      s_ = push(ret, push(state_->fixnumValue(s_), push(c, s_)));
 
-      s = pushArgs(argNum, args, s);
+      s_ = pushArgs(argNum, args, s_);
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
@@ -539,28 +544,33 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
 
       int ds = 0;
       if (closure->hasRestParam())
-        ds = modifyRestParams(argNum, min, s);
-      s += ds;
+        ds = modifyRestParams(argNum, min, s_);
+      s_ += ds;
       argNum += ds;
-      Svalue x = closure->getBody();
-      int f = s;
-      s = push(state_->fixnumValue(argNum), s);
-      result = run(fn, x, f, fn, s);
+      x_ = closure->getBody();
+      f_ = s_;
+      s_ = push(state_->fixnumValue(argNum), s_);
+      a_ = c_ = fn;
+      result = runLoop();
+
+      // Restore old running code.
+      x_ = index(s_, 0);
+      s_ -= 1;
     }
     break;
   case TT_NATIVEFUNC:
     {
       // No frame.
-      int s = stackPointer_;
-      s = pushArgs(argNum, args, s);
+      s_ = pushArgs(argNum, args, s_);
 
       // Store current state in member variable for native function call.
-      stackPointer_ = s;
       argNum_ = argNum;
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       result = native->call(state_, argNum);
 
       popCallStack();
+
+      s_ -= argNum;
     }
     break;
   default:
@@ -568,7 +578,6 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
     break;
   }
 
-  stackPointer_ = prevStackPointer;
   argNum_ = prevArgNum;
   return result;
 }

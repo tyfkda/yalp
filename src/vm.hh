@@ -51,7 +51,7 @@ private:
   Vm(State* state);
   ~Vm();
   void installNativeFunctions();
-  Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
+  Svalue runLoop();
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
@@ -86,8 +86,13 @@ private:
   SHashTable* globalVariableTable_;
 
   // For native function call.
-  int stackPointer_;
   int argNum_;
+
+  Svalue a_;  // Accumulator.
+  Svalue x_;  // Running code.
+  int f_;     // Frame pointer.
+  Svalue c_;  // Current closure.
+  int s_;     // Stack pointer.
 
   std::vector<CallStack> callStack_;
 };
