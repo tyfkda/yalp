@@ -106,11 +106,13 @@
   `(if (not ,test) (do ,@body)))
 
 (defmacro aif (expr . body)
-  `(let it ,expr
-     (if it
-         ,@(if (cddr body)
-               `(,(car body) (aif ,@(cdr body)))
-               body))))
+  (if (no body)
+      expr
+    `(let it ,expr
+       (if it
+           ,@(if (cdr body)
+                 `(,(car body) (aif ,@(cdr body)))
+               body)))))
 
 (defmacro w/uniq (names . body)
   (if (consp names)
