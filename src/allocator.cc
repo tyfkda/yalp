@@ -29,7 +29,7 @@ void Allocator::release() {
 
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
   : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
-  , objectTop_(NULL) {
+  , objectTop_(NULL), objectCount_(0) {
   (void)callback_;
   (void)userdata_;
 }
@@ -44,11 +44,25 @@ Allocator::~Allocator() {
 }
 
 void* Allocator::alloc(size_t size) {
-  return RAW_ALLOC(allocFunc_, size);
+  void* q = RAW_ALLOC(allocFunc_, size);
+  if (q == NULL) {
+    collectGarbage();
+    q = RAW_ALLOC(allocFunc_, size);
+    if (q == NULL)
+      callback_->allocFailed(NULL, size, userdata_);
+  }
+  return q;
 }
 
 void* Allocator::realloc(void* p, size_t size) {
-  return RAW_REALLOC(allocFunc_, p, size);
+  void* q = RAW_REALLOC(allocFunc_, p, size);
+  if (q == NULL) {
+    collectGarbage();
+    q = RAW_REALLOC(allocFunc_, p, size);
+    if (q == NULL)
+      callback_->allocFailed(NULL, size, userdata_);
+  }
+  return q;
 }
 
 void Allocator::free(void* p) {
@@ -60,7 +74,37 @@ void* Allocator::objAlloc(size_t size) {
   gcobj->next_ = objectTop_;
   gcobj->marked_ = false;
   objectTop_ = gcobj;
+  ++objectCount_;
   return gcobj;
+}
+
+void Allocator::collectGarbage() {
+  callback_->markRoot(userdata_);
+  sweep();
+}
+
+void Allocator::sweep() {
+  int n = 0;
+  GcObject* prev = NULL;
+  for (GcObject* gcobj = objectTop_; gcobj != NULL; ) {
+    if (gcobj->marked_) {
+      prev = gcobj;
+      gcobj->marked_ = false;
+      gcobj = gcobj->next_;
+      ++n;
+      continue;
+    }
+
+    GcObject* next = gcobj->next_;
+    if (prev == NULL)
+      objectTop_ = next;
+    else
+      prev->next_ = next;
+    gcobj->destruct(this);
+    FREE(this, gcobj);
+    gcobj = next;
+  }
+  objectCount_ = n;
 }
 
 }  // namespace yalp

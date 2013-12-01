@@ -45,6 +45,8 @@ public:
   int getCallStackDepth() const  { return callStack_.size(); }
   const CallStack* getCallStack() const  { return &callStack_[0]; }
 
+  void markRoot();
+
   void reportDebugInfo() const;
 
 private:

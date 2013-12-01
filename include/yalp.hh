@@ -69,6 +69,8 @@ public:
     s.output(NULL, o, true); return o;
   }
 
+  void mark();
+
 private:
   explicit Svalue(Sfixnum i);
   explicit Svalue(Sobject* object);
@@ -157,11 +159,16 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
+  void collectGarbage();
+
   void reportDebugInfo() const;
 
 private:
   State(AllocFunc allocFunc);
   ~State();
+
+  void markRoot();
+  void allocFailed(void* p, size_t size);
 
   AllocFunc allocFunc_;
   Allocator* allocator_;

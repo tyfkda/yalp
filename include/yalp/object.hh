@@ -39,6 +39,7 @@ protected:
   ~Sobject()  {}
 
   friend State;
+  friend Svalue;
 };
 
 // Symbol class.
@@ -77,6 +78,8 @@ public:
 protected:
   Cell(Svalue a, Svalue d);
   ~Cell()  {}
+  virtual void mark();
+
 private:
   const char* isAbbrev(State* state) const;
 
@@ -142,6 +145,7 @@ protected:
   Vector(Allocator* allocator, int size);
   ~Vector()  {}
   virtual void destruct(Allocator* allocator) override;
+  virtual void mark();
 
   Svalue* buffer_;
   int size_;
@@ -174,6 +178,8 @@ public:
 protected:
   explicit SHashTable(Allocator* allocator);
   ~SHashTable();
+  virtual void mark();
+
 private:
   virtual void destruct(Allocator* allocator) override;
 
@@ -222,9 +228,11 @@ public:
 protected:
   ~Closure()  {}
   virtual void destruct(Allocator* allocator) override;
+  virtual void mark();
 
   Svalue body_;
   Svalue* freeVariables_;
+  int freeVarCount_;
   int minArgNum_;
   int maxArgNum_;
 };

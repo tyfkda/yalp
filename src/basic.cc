@@ -389,6 +389,11 @@ static Svalue s_hash_table_keys(State* state) {
   return result;
 }
 
+static Svalue s_collect_garbage(State* state) {
+  state->collectGarbage();
+  return state->nil();
+}
+
 void installBasicFunctions(State* state) {
   state->assignGlobal(state->nil(), state->nil());
   state->assignGlobal(state->t(), state->t());
@@ -428,6 +433,8 @@ void installBasicFunctions(State* state) {
   state->assignNative("hash-table-exists?", s_hash_table_exists, 2);
   state->assignNative("hash-table-delete!", s_hash_table_delete, 2);
   state->assignNative("hash-table-keys", s_hash_table_keys, 1);
+
+  state->assignNative("collect-garbage", s_collect_garbage, 0);
 }
 
 }  // namespace yalp

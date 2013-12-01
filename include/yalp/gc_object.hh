@@ -11,6 +11,9 @@ protected:
   ~GcObject()  {}
   virtual void destruct(Allocator*)  {}
 
+  virtual void mark()  { marked_ = true; }
+  bool isMarked() const  { return marked_; }
+
 private:
   GcObject* next_;
   bool marked_;

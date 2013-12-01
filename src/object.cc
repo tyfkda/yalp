@@ -70,6 +70,14 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
   o << ')';
 }
 
+void Cell::mark() {
+  if (isMarked())
+    return;
+  Sobject::mark();
+  car_.mark();
+  cdr_.mark();
+}
+
 void Cell::setCar(Svalue a) {
   car_ = a;
 }
@@ -201,6 +209,14 @@ void Vector::output(State* state, std::ostream& o, bool inspect) const {
   o << ")";
 }
 
+void Vector::mark() {
+  if (isMarked())
+    return;
+  Sobject::mark();
+  for (int n = size_, i = 0; i < n; ++i)
+    buffer_[i].mark();
+}
+
 Svalue Vector::get(int index)  {
   assert(0 <= index && index < size_);
   return buffer_[index];
@@ -238,6 +254,14 @@ void SHashTable::output(State*, std::ostream& o, bool) const {
   o << "#<hash-table:" << this << ">";
 }
 
+void SHashTable::mark() {
+  if (isMarked())
+    return;
+  Sobject::mark();
+  for (auto it = table_->begin(); it != table_->end(); ++it)
+    const_cast<Svalue*>(&it->value)->mark();
+}
+
 int SHashTable::getCapacity() const  { return table_->getCapacity(); }
 int SHashTable::getEntryCount() const  { return table_->getEntryCount(); }
 int SHashTable::getConflictCount() const  { return table_->getConflictCount(); }
@@ -268,7 +292,7 @@ void Callable::setName(Symbol* name)  { name_ = name; }
 // Closure class.
 Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
   : Callable()
-  , body_(body), freeVariables_(NULL)
+  , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
     void* memory = ALLOC(state->getAllocator(), sizeof(Svalue) * freeVarCount);
@@ -289,6 +313,15 @@ void Closure::output(State*, std::ostream& o, bool) const {
   if (name_ != NULL)
     name = name_->c_str();
   o << "#<closure " << name << ">";
+}
+
+void Closure::mark() {
+  if (isMarked())
+    return;
+  Callable::mark();
+  body_.mark();
+  for (int n = freeVarCount_, i = 0; i < n; ++i)
+    freeVariables_[i].mark();
 }
 
 //=============================================================================

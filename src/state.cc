@@ -56,6 +56,11 @@ unsigned int Svalue::calcHash() const {
   }
 }
 
+void Svalue::mark() {
+  if (isObject())
+    toObject()->mark();
+}
+
 void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   switch (v_ & TAG_MASK) {
   default:
@@ -114,6 +119,14 @@ bool Svalue::equal(Svalue target) const {
 
 //=============================================================================
 struct StateAllocatorCallback : public Allocator::Callback {
+  virtual void allocFailed(void* p, size_t size, void* userdata) override {
+    State* state = static_cast<State*>(userdata);
+    state->allocFailed(p, size);
+  }
+  virtual void markRoot(void* userdata) override {
+    State* state = static_cast<State*>(userdata);
+    state->markRoot();
+  }
 };
 
 static StateAllocatorCallback stateAllocatorCallback;
@@ -299,6 +312,21 @@ void State::assignNative(const char* name, NativeFuncType func, int minArgNum, i
 
 Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {
   return vm_->funcall(fn, argNum, args);
+}
+
+void State::collectGarbage() {
+  allocator_->collectGarbage();
+}
+
+void State::markRoot() {
+  for (int i = SINGLE_HALT; i < NUMBER_OF_CONSTANT; ++i)
+    constant_[i].mark();
+
+  vm_->markRoot();
+}
+
+void State::allocFailed(void*, size_t) {
+  runtimeError("allocFailed");
 }
 
 void State::reportDebugInfo() const {

@@ -124,6 +124,17 @@ Vm::Vm(State* state)
   }
 }
 
+void Vm::markRoot() {
+  globalVariableTable_->mark();
+  // Mark stack.
+  for (int n = s_, i = 0; i < n; ++i)
+    stack_[i].mark();
+  // Mark a registers.
+  a_.mark();
+  c_.mark();
+  x_.mark();
+}
+
 void Vm::reportDebugInfo() const {
   std::cout << "Global variables:" << std::endl;
   std::cout << "  capacity: #" << globalVariableTable_->getCapacity() << std::endl;

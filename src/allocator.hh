@@ -11,6 +11,8 @@ typedef void* (*AllocFunc)(void*p, size_t size);
 class Allocator {
 public:
   struct Callback {
+    virtual void allocFailed(void* p, size_t size, void* userdata) = 0;
+    virtual void markRoot(void* userdata) = 0;
   };
 
   static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);
@@ -24,15 +26,20 @@ public:
   // Managed memory allocation.
   void* objAlloc(size_t size);
 
+  void collectGarbage();
+
 private:
   Allocator(AllocFunc allocFunc, Callback* callback, void* userdata);
   ~Allocator();
+
+  void sweep();
 
   AllocFunc allocFunc_;
   Callback* callback_;
   void* userdata_;
 
   GcObject* objectTop_;
+  int objectCount_;
 };
 
 AllocFunc getDefaultAllocFunc();
