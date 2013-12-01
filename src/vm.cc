@@ -306,8 +306,8 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
     goto again;
   case RET:
     {
-      int argnum = index(f, -1).toFixnum();
-      s = f - argnum;
+      int argnum = index(s, 0).toFixnum();
+      s -= argnum + 1;
       x = index(s, 0);
       f = index(s, 1).toFixnum();
       c = index(s, 2);
