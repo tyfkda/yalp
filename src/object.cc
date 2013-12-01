@@ -9,7 +9,9 @@
 namespace yalp {
 
 //=============================================================================
-void Sobject::destruct(Allocator*)  {}
+void Sobject::destruct(Allocator* allocator) {
+  GcObject::destruct(allocator);
+}
 
 bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
@@ -109,6 +111,7 @@ String::String(const char* string)
 
 void String::destruct(Allocator* allocator) {
   FREE(allocator, const_cast<char*>(string_));
+  Sobject::destruct(allocator);
 }
 
 Type String::getType() const  { return TT_STRING; }
@@ -184,6 +187,7 @@ Vector::Vector(Allocator* allocator, int size)
 
 void Vector::destruct(Allocator* allocator) {
   FREE(allocator, buffer_);
+  Sobject::destruct(allocator);
 }
 
 Type Vector::getType() const { return TT_VECTOR; }
@@ -227,6 +231,7 @@ SHashTable::SHashTable(Allocator* allocator)
 void SHashTable::destruct(Allocator* allocator) {
   table_->~TableType();
   FREE(allocator, table_);
+  Sobject::destruct(allocator);
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -276,6 +281,7 @@ Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int
 void Closure::destruct(Allocator* allocator) {
   if (freeVariables_ != NULL)
     FREE(allocator, freeVariables_);
+  Callable::destruct(allocator);
 }
 
 Type Closure::getType() const  { return TT_CLOSURE; }
