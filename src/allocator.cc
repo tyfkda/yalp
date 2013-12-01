@@ -43,20 +43,20 @@ Allocator::~Allocator() {
 }
 
 void* Allocator::alloc(size_t size) {
-  return allocFunc_(NULL, size);
+  return RAW_ALLOC(allocFunc_, size);
 }
 
 void* Allocator::realloc(void* p, size_t size) {
-  return allocFunc_(p, size);
+  return RAW_REALLOC(allocFunc_, p, size);
 }
 
 void Allocator::free(void* p) {
-  allocFunc_(p, 0);
+  RAW_FREE(allocFunc_, p);
 }
 
 void* Allocator::objAlloc(size_t size) {
-  void* memory = RAW_ALLOC(allocFunc_, size);
-  Link* link = static_cast<Link*>(allocFunc_(NULL, sizeof(Link)));
+  void* memory = ALLOC(this, size);
+  Link* link = static_cast<Link*>(ALLOC(this, sizeof(Link)));
   link->next = objectTop_;
   link->memory = memory;
   objectTop_ = link;

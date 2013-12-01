@@ -41,8 +41,9 @@ private:
 
 AllocFunc getDefaultAllocFunc();
 
-#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, size))
-#define RAW_FREE(allocFunc, ptr)  (allocFunc(ptr, 0))
+#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
+#define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
+#define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
 
 #define ALLOC(allocator, size)  ((allocator)->alloc((size)))
 #define REALLOC(allocator, ptr, size)  ((allocator)->realloc((ptr), (size)))
