@@ -37,7 +37,6 @@ protected:
   // Prevent to call destructor from outside.
   Sobject()  {}  // Empty construct needed, otherwise member cleared.
   ~Sobject()  {}
-  virtual void destruct(Allocator* allocator);
 
   friend State;
 };

@@ -9,10 +9,6 @@
 namespace yalp {
 
 //=============================================================================
-void Sobject::destruct(Allocator* allocator) {
-  GcObject::destruct(allocator);
-}
-
 bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
