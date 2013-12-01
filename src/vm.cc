@@ -145,7 +145,7 @@ Svalue Vm::run(Svalue code) {
 
 Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
  again:
-  //std::cout << "run: stack=" << s << ", x=" << x << std::endl;
+  //std::cout << "run: stack=" << s << ", x="; x.output(state_, std::cout, true); std::cout << std::endl;
 
   Svalue op = CAR(x);
   x = CDR(x);
