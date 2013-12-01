@@ -20,6 +20,8 @@ const Sfixnum TAG_FIXNUM = 0;
 const Sfixnum TAG_OBJECT = 1;
 
 //=============================================================================
+// Svalue: tagged pointer representation.
+
 Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }

@@ -43,7 +43,7 @@ enum Type {
   TT_HASH_TABLE,
 };
 
-// S-value: bit embedded type value.
+// Variant type.
 class Svalue {
 public:
   Svalue();
