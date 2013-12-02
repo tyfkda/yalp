@@ -72,7 +72,9 @@ SymbolId SymbolManager::intern(const char* name) {
   const SymbolId* result = table_.get(name);
   if (result != NULL)
     return *result;
-  return generate(name);
+  SymbolId symbolId = generate(name);
+  table_.put(get(symbolId)->c_str(), symbolId);
+  return symbolId;
 }
 
 SymbolId SymbolManager::gensym() {
@@ -95,7 +97,6 @@ SymbolId SymbolManager::generate(const char* name) {
     expandPage(symbolId);
 
   Symbol* symbol = new(pageTop_->symbolBuffer[offset]) Symbol(copied);
-  table_.put(symbol->c_str(), symbolId);
   array_[symbolId] = symbol;
   return symbolId;
 }
