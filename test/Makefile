@@ -17,17 +17,17 @@
 GTEST_DIR = /usr/local/gtest
 
 # Where to find user code.
-USER_DIR = ..
+SRC_DIR = ../src
 INC_DIR = ../include
 OBJ_DIR = ../obj
 
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR)
+CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pthread -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
+CXXFLAGS += -g -Wall -Wextra -Werror -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
 
 SRCS=\
 	symbol_manager_test.cc\
@@ -39,7 +39,7 @@ DEPS:=$(SRCS:%.cc=%.d)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = symbol_manager_test object_test read_test state_test
+TESTS = hash_table_test symbol_manager_test object_test read_test state_test
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -100,16 +100,19 @@ run-tests:	$(TESTS)
 	  "./$$test"; \
 	done
 
-symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/object.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/state.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/mem.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+
+state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 vm-test:
@@ -117,5 +120,3 @@ vm-test:
 
 ../yalp:
 	cd .. && make
-
-#

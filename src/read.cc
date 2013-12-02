@@ -4,17 +4,28 @@
 
 #include "yalp/read.hh"
 #include "yalp/object.hh"
+#include "hash_table.hh"
 #include <assert.h>
 
 namespace yalp {
 
+struct Reader::IntHashPolicy : public HashPolicy<int> {
+  virtual unsigned int hash(int a) override  { return a; }
+  virtual bool equal(int a, int b) override  { return a == b; }
+};
+
+Reader::IntHashPolicy Reader::s_hashPolicy;
+
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)
-  , sharedStructures_(new std::map<int, Svalue>()) {
+  , sharedStructures_(NULL) {
 }
 
 Reader::~Reader() {
-  delete sharedStructures_;
+  if (sharedStructures_ != NULL) {
+    sharedStructures_->~HashTable<int, Svalue>();
+    FREE(state_->getAllocator(), sharedStructures_);
+  }
 }
 
 ReadError Reader::read(Svalue* pValue) {
@@ -30,6 +41,16 @@ ReadError Reader::read(Svalue* pValue) {
     return read(pValue);
   case '\'':
     return readQuote(pValue);
+  case '`':
+    return readQuasiQuote(pValue);
+  case ',':
+    {
+      c = getc();
+      if (c == '@')
+        return readUnquoteSplicing(pValue);
+      putback(c);
+      return readUnquote(pValue);
+    }
   case '"':
     return readString(c, pValue);
   case '#':
@@ -51,10 +72,13 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
   char* p = buffer;
   bool hasSymbolChar = false;
   bool hasDigit = false;
+  bool hasDot = false;
   int c;
   while (!isDelimiter(c = getc())) {
     if (isdigit(c)) {
       hasDigit = true;
+    } else if (c == '.') {
+      hasDot = true;
     } else {
       if (p != buffer || (c != '-' && c != '+'))
         hasSymbolChar = true;
@@ -70,6 +94,8 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
 
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
+  else if (hasDot)
+    *pValue = state_->floatValue(static_cast<float>(atof(buffer)));
   else
     *pValue = state_->fixnumValue(atol(buffer));
   return READ_SUCCESS;
@@ -112,7 +138,7 @@ ReadError Reader::readList(Svalue* pValue) {
 
       Svalue lastPair = value;
       *pValue = nreverse(state_, value);
-      static_cast<Cell*>(lastPair.toObject())->rplacd(tail);
+      static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       return READ_SUCCESS;
     }
     break;
@@ -123,8 +149,17 @@ ReadError Reader::readList(Svalue* pValue) {
 
 ReadError Reader::readQuote(Svalue* pValue) {
   ReadError err = read(pValue);
+  if (err == READ_SUCCESS)
+    *pValue = list(state_, state_->getConstant(State::QUOTE),*pValue);
+  return err;
+}
+
+ReadError Reader::readAbbrev(const char* funcname, Svalue* pValue) {
+  ReadError err = read(pValue);
   if (err == READ_SUCCESS) {
-    *pValue = state_->quote(*pValue);
+    *pValue = list(state_,
+                   state_->intern(funcname),
+                   *pValue);
   }
   return err;
 }
@@ -154,13 +189,14 @@ ReadError Reader::readSpecial(Svalue* pValue) {
       return READ_SUCCESS;
     }
   case '#':
-    {
-      auto it = sharedStructures_->find(n);
-      if (it == sharedStructures_->end())
+    if (sharedStructures_ != NULL) {
+      const Svalue* p = sharedStructures_->get(n);
+      if (p == NULL)
         return ILLEGAL_CHAR;
-      *pValue = it->second;
+      *pValue = *p;
       return READ_SUCCESS;
     }
+    // Fall
   default:
     return ILLEGAL_CHAR;
   }
@@ -199,7 +235,12 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 }
 
 void Reader::storeShared(int id, Svalue value) {
-  (*sharedStructures_)[id] = value;
+  if (sharedStructures_ == NULL) {
+    void* memory = ALLOC(state_->getAllocator(), sizeof(*sharedStructures_));
+    sharedStructures_ = new(memory) HashTable<int, Svalue>(&s_hashPolicy,
+                                                           state_->getAllocator());
+  }
+  sharedStructures_->put(id, value);
 }
 
 void Reader::skipSpaces() {
@@ -236,7 +277,7 @@ bool Reader::isSpace(char c) {
 bool Reader::isDelimiter(char c) {
   switch (c) {
   case ' ': case '\t': case '\n': case '\0': case -1:
-  case '(': case ')': case '\'': case '#':
+  case '(': case ')':
     return true;
   default:
     return false;

@@ -1,17 +1,18 @@
-obj/*
-test/*.o
-test/*.d
-test/*.a
+/obj/*
+/test/*.o
+/test/*.d
+/test/*.a
 
-yalp
+/yalp
 
-test/object_test
-test/state_test
-test/symbol_manager_test
-test/read_test
+/test/hash_table_test
+/test/object_test
+/test/read_test
+/test/state_test
+/test/symbol_manager_test
 
 # GTAGS
-GPATH
-GRTAGS
-GTAGS
-HTML
+/GPATH
+/GRTAGS
+/GTAGS
+/HTML

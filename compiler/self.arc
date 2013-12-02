@@ -23,14 +23,15 @@
 ;;; dotted pair -> proper list
 (defn dotted->proper (ls)
   (if (or (no ls)
-          (no (cdr (last-pair ls))))
+          (and (consp ls)
+               (no (cdr (last ls)))))
       ls
     ((afn (p acc)
           (if (consp p)
               (self (cdr p)
                     (cons (car p) acc))
               (reverse! (cons p acc))))
-     ls nil)))
+     ls ())))
 
 ;;;; set
 
@@ -52,14 +53,14 @@
 
 (defn set-minus (s1 s2)
   (if (no s1)
-        '()
+        ()
       (set-member? (car s1) s2)
         (set-minus (cdr s1) s2)
       (cons (car s1) (set-minus (cdr s1) s2))))
 
 (defn set-intersect (s1 s2)
   (if (no s1)
-        '()
+        ()
       (set-member? (car s1) s2)
         (cons (car s1) (set-intersect (cdr s1) s2))
       (set-intersect (cdr s1) s2)))
@@ -67,7 +68,7 @@
 ;;; Compiler
 
 (defn compile (x)
-  (compile-recur x '(()) '() '(HALT)))
+  (compile-recur x '(()) () '(HALT)))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -78,7 +79,7 @@
   (if (symbolp x)
         (compile-refer x e
                        (if (set-member? x s)
-                           (liset 'UNBOX next)
+                           (list 'UNBOX next)
                            next))
       (consp x)
         (record-case x
@@ -88,7 +89,7 @@
                      (if (test then . rest)
                          (with (thenc (compile-recur then e s next)
                                 elsec (if (no rest)
-                                            (compile-undef e s next)
+                                            (compile-undef next)
                                           (no (cdr rest))
                                             (compile-recur (car rest) e s next)
                                           (compile-recur `(if ,@rest) e s next)))
@@ -111,17 +112,16 @@
                                     c
                                     (list 'FRAME next c))))
                      (defmacro (name vars . bodies)
-                       (register-macro name vars bodies)
-                       (compile-recur `(quote ,name) e s next))
+                       (compile-defmacro name vars bodies next))
                      (else
                       (with (func (car x)
                              args (cdr x))
                         (if (macro? func)
-                            (compile-apply-macro func args e s next)
-                            (compile-apply func args e s next)))))
+                            (compile-apply-macro x e s next)
+                          (compile-apply func args e s next)))))
         (list 'CONST x next)))
 
-(defn compile-undef (e s next)
+(defn compile-undef (next)
   (list 'UNDEF next))
 
 (defn compile-apply (func args e s next)
@@ -147,7 +147,7 @@
   (let proper-vars (dotted->proper vars)
     (with (free (set-intersect (set-union (car e)
                                           (cdr e))
-                               (find-frees bodies '() proper-vars))
+                               (find-frees bodies () proper-vars))
            sets (find-setses bodies (dotted->proper proper-vars))
            varnum (if (is vars proper-vars)
                       (list (len vars) (len vars))
@@ -166,12 +166,14 @@
          ss (set-union sets
                        (set-intersect s free))
          next (list 'RET))
-    ((afn (p)
-          (if (no p)
-              next
-              (compile-recur (car p) ee ss
-                             (self (cdr p)))))
-     bodies)))
+    (if (no bodies)
+        (compile-undef next)
+      ((afn (p)
+            (if (no p)
+                next
+                (compile-recur (car p) ee ss
+                               (self (cdr p)))))
+       bodies))))
 
 (defn find-frees (xs b vars)
   (let bb (set-union (dotted->proper vars) b)
@@ -180,28 +182,28 @@
           v
         (self (set-union v (find-free (car p) bb))
               (cdr p))))
-     '() xs)))
+     () xs)))
 
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
 ;; are listed up.
 (defn find-free (x b)
   (if (symbolp x)
-        (if (set-member? x b) '() (list x))
+        (if (set-member? x b) () (list x))
       (consp x)
         (let expanded (expand-macro-if-so x)
           (if (is expanded x)
                 (record-case expanded
                              (^ (vars . bodies)
                                 (find-frees bodies b vars))
-                             (quote (obj) '())
-                             (if      all (find-frees all b '()))
-                             (set!    all (find-frees all b '()))
-                             (call/cc all (find-frees all b '()))
+                             (quote (obj) ())
+                             (if      all (find-frees all b ()))
+                             (set!    all (find-frees all b ()))
+                             (call/cc all (find-frees all b ()))
                              (defmacro (name vars . bodies) (find-frees bodies b vars))
-                             (else        (find-frees expanded b '())))
+                             (else        (find-frees expanded b ())))
               (find-free expanded b)))
-      '()))
+      ()))
 
 (defn collect-free (vars e next)
   (if (no vars)
@@ -216,7 +218,7 @@
             b
             (self (set-union b (find-sets (car p) v))
                   (cdr p))))
-   '() xs))
+   () xs))
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
@@ -227,16 +229,16 @@
             (find-sets expanded v)
           (record-case x
                        (set! (var val)
-                             (set-union (if (set-member? var v) (list var) '())
+                             (set-union (if (set-member? var v) (list var) ())
                                         (find-sets val v)))
                        (^ (vars . bodies)
                           (find-setses bodies (set-minus v (dotted->proper vars))))
-                       (quote   all '())
+                       (quote   all ())
                        (if      all (find-setses all v))
                        (call/cc all (find-setses all v))
                        (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
                        (else        (find-setses x   v)))))
-      '()))
+      ()))
 
 (defn make-boxes (sets vars next)
   ((afn (vars n)
@@ -270,19 +272,55 @@
 (defn tail? (next)
   (is (car next) 'RET))
 
-;; Macro
-(defn register-macro (name vars bodies)
-  )
+;;; Macro
 
-(defn macro? (name)
-  nil)
+(defn compile-defmacro (name vars bodies next)
+  (let proper-vars (dotted->proper vars)
+    (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
+           max (if (is vars proper-vars) (len vars) -1)
+           body-code (compile-lambda-bodies proper-vars bodies (list proper-vars) () ()))
+      ;; Macro registeration will be done in other place.
+      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+      (list 'MACRO
+            name
+            (list min max)
+            body-code
+            next))))
 
+;; Expand macro and compile the result.
+(defn compile-apply-macro (exp e s next)
+  (let result (macroexpand exp)
+    (compile-recur result e s next)))
+
+;; Expand macro.
+(defn macroexpand-1 (exp)
+  (if (consp exp)
+      (with (name (car exp)
+             args (cdr exp))
+        (if (macro? name)
+            (let closure (hash-table-get *macro-table* name)
+              (apply closure args))
+            exp))
+    exp))
+
+(defn macroexpand (exp)
+  (let expanded (macroexpand-1 exp)
+    (if (iso expanded exp)
+        exp
+      (macroexpand expanded))))
+
+;; Expand macro all if the given parameter is macro expression,
+;; otherwise return itself.
 (defn expand-macro-if-so (x)
-  x)
+  (if (and (consp x)
+           (macro? (car x)))
+      (let expanded (macroexpand x)
+        (if (iso expanded x)
+            x
+          (expand-macro-if-so expanded)))
+    x))
 
 ;;
 
 (defn eval (x)
   (run-binary (compile x)))
-
-;;

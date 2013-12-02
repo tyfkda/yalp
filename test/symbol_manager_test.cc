@@ -1,20 +1,22 @@
 #include "gtest/gtest.h"
-#include "../src/symbol_manager.hh"
-#include "yalp/mem.hh"
+#include "symbol_manager.hh"
 
 using namespace yalp;
 
 class SymbolManagerTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    symbolManager_ = SymbolManager::create(Allocator::getDefaultAllocator());
+    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL, NULL);
+    symbolManager_ = SymbolManager::create(allocator_);
   }
 
   virtual void TearDown() override {
     symbolManager_->release();
+    allocator_->release();
   }
 
   SymbolManager* symbolManager_;
+  Allocator* allocator_;
 };
 
 TEST_F(SymbolManagerTest, Fixnum) {

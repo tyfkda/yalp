@@ -4,7 +4,7 @@
 
 using namespace yalp;
 
-class YalpTest : public ::testing::Test {
+class StateTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
     state_ = State::create();
@@ -17,18 +17,18 @@ protected:
   State* state_;
 };
 
-TEST_F(YalpTest, Fixnum) {
+TEST_F(StateTest, Fixnum) {
   Svalue s = state_->fixnumValue(123);
   ASSERT_TRUE(state_->fixnumValue(123).eq(s));
 }
 
-TEST_F(YalpTest, Symbol) {
+TEST_F(StateTest, Symbol) {
   Svalue s = state_->intern("symbol");
   ASSERT_TRUE(state_->intern("symbol").eq(s));
   ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
 }
 
-TEST_F(YalpTest, Cons) {
+TEST_F(StateTest, Cons) {
   Svalue v = state_->cons(state_->fixnumValue(1), state_->fixnumValue(2));
   ASSERT_EQ(TT_CELL, v.getType());
   ASSERT_TRUE(state_->fixnumValue(1).eq(state_->car(v)));
@@ -45,7 +45,7 @@ TEST_F(YalpTest, Cons) {
   ASSERT_FALSE(v.equal(v3));
 }
 
-TEST_F(YalpTest, Funcall) {
+TEST_F(StateTest, Funcall) {
   Svalue args[] = { state_->fixnumValue(1), state_->fixnumValue(2), state_->fixnumValue(3) };
   Svalue fn = state_->referGlobal(state_->intern("+"));
   Svalue result = state_->funcall(fn, sizeof(args) / sizeof(*args), args);
@@ -53,7 +53,7 @@ TEST_F(YalpTest, Funcall) {
   ASSERT_EQ(6, result.toFixnum());
 }
 
-TEST_F(YalpTest, ListFunctions) {
+TEST_F(StateTest, ListFunctions) {
   Svalue a = state_->fixnumValue(1);
   Svalue b = state_->fixnumValue(2);
   Svalue c = state_->fixnumValue(3);
@@ -68,7 +68,7 @@ TEST_F(YalpTest, ListFunctions) {
   ASSERT_TRUE(state_->cons(a, state_->cons(b,  state_->cons(c, state_->nil()))).equal(s3));
 }
 
-TEST_F(YalpTest, Nreverse) {
+TEST_F(StateTest, Nreverse) {
   Svalue a = state_->fixnumValue(1);
   Svalue b = state_->fixnumValue(2);
   Svalue c = state_->fixnumValue(3);
@@ -87,7 +87,7 @@ TEST_F(YalpTest, Nreverse) {
   ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, state_->nil()))).equal(reversed3));
 }
 
-TEST_F(YalpTest, length) {
+TEST_F(StateTest, length) {
   Svalue a = state_->fixnumValue(1);
   ASSERT_EQ(0, length(state_, state_->nil()));
   ASSERT_EQ(3, length(state_, list(state_, a, a, a)));

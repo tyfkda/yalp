@@ -1,8 +1,14 @@
 #include "yalp.hh"
-#include "yalp/mem.hh"
 #include "yalp/read.hh"
 #include <fstream>
 #include <iostream>
+#include <unistd.h>  // for isatty()
+
+#ifdef LEAK_CHECK
+#include <map>
+#include <string>
+#include <utility>
+#endif
 
 using namespace std;
 using namespace yalp;
@@ -33,82 +39,212 @@ void operator delete[](void* p) noexcept {
   free(p);
 }
 
-class MyAllocator : public Allocator {
-public:
-  int nalloc, nfree;
-  MyAllocator() : nalloc(0), nfree(0) {}
-
-  virtual void* alloc(size_t size) override {
-    ++nalloc;
-    return ::malloc(size);
-  }
-  virtual void* realloc(void* p, size_t size) override {
-    if (p == NULL)
-      ++nalloc;
-    return ::realloc(p, size);
-  }
-  virtual void free(void* p) override {
-    ::free(p);
+static int nalloc, nfree;
+#ifdef LEAK_CHECK
+static map<void*, pair<string, int>> allocated;
+static void* myAllocFunc(void* p, size_t size, const char* filename, int line)
+#else
+static void* myAllocFunc(void* p, size_t size)
+#endif
+{
+  if (size <= 0) {
+    free(p);
     ++nfree;
+#ifdef LEAK_CHECK
+    //allocated.erase(allocated.find(p));
+#endif
+    return NULL;
   }
+
+  if (p == NULL) {
+    ++nalloc;
+    void* q = malloc(size);
+#ifdef LEAK_CHECK
+    allocated[q] = make_pair(filename ? filename : "unknown", line);
+#endif
+    return q;
+  }
+  void* q = realloc(p, size);
+#ifdef LEAK_CHECK
+  allocated.erase(allocated.find(p));
+  allocated[q] = make_pair(filename ? filename : "unknown", line);
+#endif
+  return q;
 };
 
-void runBinary(State* state, std::istream& istrm) {
-  Reader reader(state, istrm);
+#ifdef LEAK_CHECK
+static void dumpLeakedMemory() {
+  map<string, int> left;
+  for (auto p : allocated)
+    left[p.second.first + "(" + to_string(p.second.second) + ")"] += 1;
+  cout << "Left: " << allocated.size() << endl;
+  for (auto p : left)
+    cout << "  " << p.first << ": #" << p.second << endl;
+}
+#endif
 
+static bool runBinary(State* state, std::istream& strm) {
+  Reader reader(state, strm);
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
     state->runBinary(bin);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
+    return false;
+  }
+  return true;
+}
+
+static bool compileFile(State* state, const char* filename) {
+  std::ifstream strm(filename);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
+
+  Svalue writess = state->referGlobal(state->intern("write/ss"));
+  Reader reader(state, strm);
+  Svalue exp;
+  ReadError err;
+  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+    Svalue code;
+    if (!state->compile(exp, &code)) {
+      cerr << "`compile` is not enabled" << endl;
+      return false;
+    }
+    state->funcall(writess, 1, &code);
+    cout << endl;
+
+    state->runBinary(code);
+  }
+  if (err != END_OF_FILE) {
+    cerr << "Read error: " << err << endl;
+    return false;
+  }
+  return true;
+}
+
+static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
+  if (tty)
+    cout << "type ':q' to quit" << endl;
+  Svalue q = state->intern(":q");
+  Svalue writess = state->referGlobal(state->intern("write/ss"));
+  Reader reader(state, istrm);
+  for (;;) {
+    if (tty)
+      cout << "> " << std::flush;
+    Svalue s;
+    ReadError err = reader.read(&s);
+    if (err == END_OF_FILE || s.eq(q))
+      break;
+
+    if (err != READ_SUCCESS)
+      return false;
+    Svalue code;
+    if (!state->compile(s, &code)) {
+      cerr << "`compile` is not enabled" << endl;
+      return false;
+    }
+    Svalue result = state->runBinary(code);
+    if (bCompile) {
+      state->funcall(writess, 1, &code);
+      cout << endl;
+    } else if (tty) {
+      result.output(state, cout, true);
+      cout << endl;
+    }
+  }
+  if (tty)
+    cout << "bye" << endl;
+  return true;
+}
+
+static Svalue runMain(State* state) {
+  Svalue main = state->referGlobal(state->intern("main"));
+  if (!state->isTrue(main))
+    return main;
+  return state->funcall(main, 0, NULL);
 }
 
 int main(int argc, char* argv[]) {
-  MyAllocator myAllocator;
-  State* state = State::create(&myAllocator);
+  State* state = State::create(&myAllocFunc);
 
-  bool bOutMemResult = false;
+  bool bDebug = false;
   bool bBinary = false;
+  bool bCompile = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
-    case 'm':
-      bOutMemResult = true;
+    case 'd':
+      bDebug = true;
       break;
     case 'b':
       bBinary = true;
       break;
+    case 'c':
+      bCompile = true;
+      break;
+    case 'l':  // Library.
+      if (++ii >= argc) {
+        cerr << "'-l' takes parameter" << endl;
+        exit(1);
+      }
+      state->runFromFile(argv[ii]);
+      break;
+    case 'L':  // Binary library.
+      if (++ii >= argc) {
+        cerr << "'-L' takes parameter" << endl;
+        exit(1);
+      }
+      state->runBinaryFromFile(argv[ii]);
+      break;
     default:
       cerr << "Unknown option: " << arg << endl;
+      exit(1);
     }
   }
-
-  state->runBinaryFromFile("boot.bin");
 
   if (ii >= argc) {
-    if (bBinary)
-      runBinary(state, cin);
-    //else
-    //  repl(state, cin);
+    if (bBinary) {
+      if (!runBinary(state, cin))
+        exit(1);
+    } else {
+      if (!repl(state, cin, isatty(0), bCompile))
+        exit(1);
+    }
   } else {
     for (int i = ii; i < argc; ++i) {
-      if (bBinary)
-        state->runBinaryFromFile(argv[ii]);
-      else
-        state->runFromFile(argv[ii]);
+      if (bCompile) {
+        if (!compileFile(state, argv[i]))
+          exit(1);
+      } else if (bBinary) {
+        if (!state->runBinaryFromFile(argv[i]))
+          exit(1);
+      } else {
+        if (!state->runFromFile(argv[i]))
+          exit(1);
+      }
     }
   }
+  if (!bCompile)
+    runMain(state);
 
+  if (bDebug)
+    state->reportDebugInfo();
   state->release();
 
-  if (bOutMemResult) {
-    printf("#new: %d, #delete: %d\n", nnew, ndelete);
-    printf("#alloc: %d, #free: %d\n", myAllocator.nalloc, myAllocator.nfree);
+  if (bDebug) {
+    cout << "Memory allocation:" << endl;
+    cout << "  #new: " << nnew << ", #delete: " << ndelete << endl;
+    cout << "  #alloc: " << nalloc << ", #free: " << nfree << endl;
+#ifdef LEAK_CHECK
+    dumpLeakedMemory();
+#endif
   }
   return 0;
 }

@@ -92,6 +92,24 @@ TEST_F(ReadTest, Quote) {
                         state_->intern("z"))).equal(s));
 }
 
+TEST_F(ReadTest, quasiquote) {
+  Svalue s;
+  ASSERT_EQ(READ_SUCCESS, read("`x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("quasiquote"),
+                   state_->intern("x")).equal(s));
+
+  ASSERT_EQ(READ_SUCCESS, read(",x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("unquote"),
+                   state_->intern("x")).equal(s));
+
+  ASSERT_EQ(READ_SUCCESS, read(",@x", &s));
+  ASSERT_TRUE(list(state_,
+                   state_->intern("unquote-splicing"),
+                   state_->intern("x")).equal(s));
+}
+
 TEST_F(ReadTest, SharedStructure) {
   Svalue s;
   ASSERT_EQ(READ_SUCCESS, read("(#0=(a) #0#)", &s));
@@ -112,6 +130,16 @@ TEST_F(ReadTest, String) {
 
   ASSERT_EQ(READ_SUCCESS, read("\"'\\\"foobar\\\"'\"", &s));
   ASSERT_TRUE(state_->stringValue("'\"foobar\"'").equal(s));
+}
+
+TEST_F(ReadTest, Float) {
+  Svalue s;
+  ASSERT_EQ(READ_SUCCESS, read("1.23", &s));
+  ASSERT_TRUE(s.getType() == TT_FLOAT);
+  ASSERT_EQ(1.23f, s.toFloat());
+
+  ASSERT_EQ(READ_SUCCESS, read("-1.23", &s));
+  ASSERT_TRUE(state_->floatValue(-1.23f).equal(s));
 }
 
 TEST_F(ReadTest, Error) {

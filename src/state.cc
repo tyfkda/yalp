@@ -3,7 +3,6 @@
 //=============================================================================
 
 #include "yalp.hh"
-#include "yalp/mem.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "basic.hh"
@@ -21,6 +20,8 @@ const Sfixnum TAG_FIXNUM = 0;
 const Sfixnum TAG_OBJECT = 1;
 
 //=============================================================================
+// Svalue: tagged pointer representation.
+
 Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }
@@ -43,7 +44,24 @@ Type Svalue::getType() const {
   }
 }
 
-void Svalue::output(State* state, std::ostream& o) const {
+unsigned int Svalue::calcHash() const {
+  switch (v_ & TAG_MASK) {
+  default:
+    assert(false);
+    return TT_UNKNOWN;
+  case TAG_FIXNUM:
+    return toFixnum() * 19;
+  case TAG_OBJECT:
+    return toObject()->calcHash();
+  }
+}
+
+void Svalue::mark() {
+  if (isObject())
+    toObject()->mark();
+}
+
+void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
@@ -52,7 +70,7 @@ void Svalue::output(State* state, std::ostream& o) const {
     o << toFixnum();
     break;
   case TAG_OBJECT:
-    toObject()->output(state, o);
+    toObject()->output(state, o, inspect);
     break;
   }
 }
@@ -63,18 +81,30 @@ Sfixnum Svalue::toFixnum() const {
   return reinterpret_cast<Sfixnum>(v_ >> TAG_SHIFT);
 }
 
+Sfloat Svalue::toFloat() const {
+  assert(getType() == TT_FLOAT);
+  return static_cast<Float*>(toObject())->toFloat();
+}
+
+bool Svalue::isObject() const {
+  return (v_ & TAG_MASK) == TAG_OBJECT;
+}
+
 Sobject* Svalue::toObject() const {
-  assert((v_ & TAG_MASK) == TAG_OBJECT);
+  assert(isObject());
   return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
 }
 
 bool Svalue::equal(Svalue target) const {
+  if (eq(target))
+    return true;
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
     return false;
   case TAG_FIXNUM:
-    return eq(target);
+    return false;
   case TAG_OBJECT:
     {
       Type t1 = getType();
@@ -88,73 +118,115 @@ bool Svalue::equal(Svalue target) const {
 }
 
 //=============================================================================
+struct StateAllocatorCallback : public Allocator::Callback {
+  virtual void allocFailed(void* p, size_t size, void* userdata) override {
+    State* state = static_cast<State*>(userdata);
+    state->allocFailed(p, size);
+  }
+  virtual void markRoot(void* userdata) override {
+    State* state = static_cast<State*>(userdata);
+    state->markRoot();
+  }
+};
+
+static StateAllocatorCallback stateAllocatorCallback;
+
 State* State::create() {
-  return create(Allocator::getDefaultAllocator());
+  return create(getDefaultAllocFunc());
 }
 
-State* State::create(Allocator* allocator) {
-  void* memory = allocator->alloc(sizeof(State));
-  return new(memory) State(allocator);
+State* State::create(AllocFunc allocFunc) {
+  void* memory = RAW_ALLOC(allocFunc, sizeof(State));
+  return new(memory) State(allocFunc);
 }
 
 void State::release() {
-  Allocator* allocator = allocator_;
+  AllocFunc allocFunc = allocFunc_;
   this->~State();
-  allocator->free(this);
+  RAW_FREE(allocFunc, this);
 }
 
-State::State(Allocator* allocator)
-  : allocator_(allocator)
-  , symbolManager_(SymbolManager::create(allocator))
-  , nil_(symbolManager_->intern("nil"))
-  , t_(symbolManager_->intern("t"))
-  , quote_(symbolManager_->intern("quote"))
+State::State(AllocFunc allocFunc)
+  : allocFunc_(allocFunc)
+  , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
+  , symbolManager_(SymbolManager::create(allocator_))
   , vm_(NULL) {
+  static const char* constSymbols[SINGLE_HALT] = {
+    "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
+  };
+  for (int i = 0; i < SINGLE_HALT; ++i)
+    constant_[i] = intern(constSymbols[i]);
+  constant_[SINGLE_HALT] = list(this, intern("HALT"));
+
   vm_ = Vm::create(this);
   installBasicFunctions(this);
 }
 
 State::~State() {
+  vm_->release();
   symbolManager_->release();
+  allocator_->release();
 }
 
-Svalue State::compile(Svalue exp) {
+bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
-  return funcall(fn, 1, &exp);
+  if (fn.eq(nil()))
+    return false;
+  *pValue = funcall(fn, 1, &exp);
+  return true;
 }
 
 Svalue State::runBinary(Svalue code) {
   return vm_->run(code);
 }
 
-Svalue State::runFromFile(const char* filename) {
+bool State::runFromFile(const char* filename, Svalue* pResult) {
   std::ifstream strm(filename);
-  Reader reader(this, strm);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
 
+  Reader reader(this, strm);
   Svalue result;
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
-    result = runBinary(compile(exp));
+    Svalue code;
+    if (!compile(exp, &code))
+      return false;
+    result = runBinary(code);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
-  return result;
+    return false;
+  }
+  if (pResult != NULL)
+    *pResult = result;
+  return true;
 }
 
-Svalue State::runBinaryFromFile(const char* filename) {
+bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   std::ifstream strm(filename);
-  Reader reader(this, strm);
+  if (!strm.is_open()) {
+    std::cerr << "File not found: " << filename << std::endl;
+    return false;
+  }
 
+  Reader reader(this, strm);
   Svalue result;
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
     result = runBinary(bin);
   }
-  if (err != END_OF_FILE)
+  if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
-  return result;
+    return false;
+  }
+  if (pResult != NULL)
+    *pResult = result;
+  return true;
 }
 
 Svalue State::intern(const char* name) {
@@ -166,7 +238,7 @@ Svalue State::gensym() {
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
-  void* memory = allocator_->alloc(sizeof(Cell));
+  void* memory = OBJALLOC(allocator_, sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);
   return Svalue(cell);
 }
@@ -183,19 +255,27 @@ Svalue State::cdr(Svalue s) {
   return static_cast<Cell*>(s.toObject())->cdr();
 }
 
-Svalue State::quote(Svalue x) {
-  return list(this, quote_, x);
+Svalue State::createHashTable() {
+  void* memory = OBJALLOC(allocator_, sizeof(SHashTable));
+  SHashTable* h = new(memory) SHashTable(allocator_);
+  return Svalue(h);
 }
 
 Svalue State::stringValue(const char* string) {
   int len = strlen(string);
-  void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
+  void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
   strcpy(copiedString, string);
 
-  void* memory = allocator_->alloc(sizeof(String));
+  void* memory = OBJALLOC(allocator_, sizeof(String));
   String* s = new(memory) String(copiedString);
   return Svalue(s);
+}
+
+Svalue State::floatValue(Sfloat f) {
+  void* memory = OBJALLOC(allocator_, sizeof(Float));
+  Float* p = new(memory) Float(f);
+  return Svalue(p);
 }
 
 int State::getArgNum() const {
@@ -208,6 +288,13 @@ Svalue State::getArg(int index) const {
 
 void State::runtimeError(const char* msg) {
   std::cerr << msg << std::endl;
+
+  const Vm::CallStack* callStack = vm_->getCallStack();
+  for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
+    Symbol* name = callStack[i].callable->getName();
+    std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
+  }
+
   exit(1);
 }
 
@@ -225,6 +312,26 @@ void State::assignNative(const char* name, NativeFuncType func, int minArgNum, i
 
 Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {
   return vm_->funcall(fn, argNum, args);
+}
+
+void State::collectGarbage() {
+  allocator_->collectGarbage();
+}
+
+void State::markRoot() {
+  for (int i = SINGLE_HALT; i < NUMBER_OF_CONSTANT; ++i)
+    constant_[i].mark();
+
+  vm_->markRoot();
+}
+
+void State::allocFailed(void*, size_t) {
+  runtimeError("allocFailed");
+}
+
+void State::reportDebugInfo() const {
+  vm_->reportDebugInfo();
+  symbolManager_->reportDebugInfo();
 }
 
 //=============================================================================
@@ -249,7 +356,7 @@ Svalue nreverse(State* state, Svalue v) {
   for (;;) {
     Cell* cell = static_cast<Cell*>(v.toObject());
     Svalue d = cell->cdr();
-    cell->rplacd(tail);
+    cell->setCdr(tail);
     if (d.getType() != TT_CELL)
       return v;
     tail = v;

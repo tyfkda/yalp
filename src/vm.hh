@@ -6,13 +6,22 @@
 #define _VM_HH_
 
 #include "yalp.hh"
-#include <map>
+#include <vector>
 
 namespace yalp {
+
+class Callable;
+class SHashTable;
+class Symbol;
 
 // Vm class.
 class Vm {
 public:
+  struct CallStack {
+    Callable* callable;
+    bool isTailCall;
+  };
+
   static Vm* create(State* state);
   void release();
 
@@ -33,11 +42,18 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
+  int getCallStackDepth() const  { return callStack_.size(); }
+  const CallStack* getCallStack() const  { return &callStack_[0]; }
+
+  void markRoot();
+
+  void reportDebugInfo() const;
+
 private:
   Vm(State* state);
   ~Vm();
   void installNativeFunctions();
-  Svalue run(Svalue a, Svalue x, int f, Svalue c, int s);
+  Svalue runLoop();
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
@@ -57,6 +73,10 @@ private:
 
   int pushArgs(int argNum, const Svalue* args, int s);
 
+  void pushCallStack(Callable* callable);
+  void popCallStack();
+  void shiftCallStack();
+
   State* state_;
   Svalue* stack_;
   int stackSize_;
@@ -65,11 +85,18 @@ private:
   Svalue* opcodes_;
 
   // Global variables
-  std::map<long, Svalue> globalVariableTable_;
+  SHashTable* globalVariableTable_;
 
   // For native function call.
-  int stackPointer_;
   int argNum_;
+
+  Svalue a_;  // Accumulator.
+  Svalue x_;  // Running code.
+  int f_;     // Frame pointer.
+  Svalue c_;  // Current closure.
+  int s_;     // Stack pointer.
+
+  std::vector<CallStack> callStack_;
 };
 
 }  // namespace yalp

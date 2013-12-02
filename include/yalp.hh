@@ -18,12 +18,16 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 namespace yalp {
 
 class Allocator;
+class Sobject;
 class State;
 class SymbolManager;
 class Vm;
 
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
+typedef float Sfloat;
+
+typedef void* (*AllocFunc)(void*p, size_t size);
 
 enum Type {
   TT_UNKNOWN,
@@ -31,13 +35,15 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
+  TT_FLOAT,
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_BOX,
   TT_VECTOR,
+  TT_HASH_TABLE,
 };
 
-// S-value: bit embedded type value.
+// Variant type.
 class Svalue {
 public:
   Svalue();
@@ -46,24 +52,33 @@ public:
   Type getType() const;
 
   Sfixnum toFixnum() const;
-  class Sobject* toObject() const;
+  Sfloat toFloat() const;
+  bool isObject() const;
+  Sobject* toObject() const;
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, std::ostream& o) const;
+  void output(State* state, std::ostream& o, bool inspect) const;
 
   long getId() const  { return v_; }
+  unsigned int calcHash() const;
+
+  friend std::ostream& operator<<(std::ostream& o, Svalue s) {
+    s.output(NULL, o, true); return o;
+  }
+
+  void mark();
 
 private:
   explicit Svalue(Sfixnum i);
-  explicit Svalue(class Sobject* object);
+  explicit Svalue(Sobject* object);
 
   Sfixnum v_;
 
   friend State;
-  friend class Vm;
+  friend Vm;
 };
 
 typedef Svalue (*NativeFuncType)(State* state);
@@ -72,22 +87,17 @@ typedef Svalue (*NativeFuncType)(State* state);
 class State {
 public:
   static State* create();
-  static State* create(Allocator* allocator);
+  static State* create(AllocFunc allocFunc);
   // Delete.
   void release();
 
-  Svalue compile(Svalue exp);
+  bool compile(Svalue exp, Svalue* pValue);
 
   // Execute compiled code.
   Svalue runBinary(Svalue code);
 
-  Svalue runFromFile(const char* filename);
-  Svalue runBinaryFromFile(const char* filename);
-
-  Svalue nil() const  { return nil_; }
-  Svalue t() const  { return t_; }
-  bool isTrue(Svalue x) const  { return !x.eq(nil_); }
-  bool isFalse(Svalue x) const  { return x.eq(nil_); }
+  bool runFromFile(const char* filename, Svalue* pResult = NULL);
+  bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
   // Converts C++ bool value to lisp bool value.
   Svalue boolValue(bool b) const  { return b ? t() : nil(); }
@@ -107,6 +117,9 @@ public:
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
 
+  // Floating point number.
+  Svalue floatValue(Sfloat f);
+
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.
@@ -115,10 +128,27 @@ public:
   // Raises runtime error.
   void runtimeError(const char* msg);
 
-  // Wrap a value with quote.
-  Svalue quote(Svalue x);
+  // Constant
+  enum Constant {
+    NIL,
+    T,
+    QUOTE,
+    QUASIQUOTE,
+    UNQUOTE,
+    UNQUOTE_SPLICING,
+    SINGLE_HALT,
 
-  Allocator* getAllocator() const  { return allocator_; }
+    NUMBER_OF_CONSTANT
+  };
+  Svalue getConstant(Constant c) const  { return constant_[c]; }
+  Svalue nil() const  { return constant_[NIL]; }
+  Svalue t() const  { return constant_[T]; }
+  bool isTrue(Svalue x) const  { return !x.eq(nil()); }
+  bool isFalse(Svalue x) const  { return x.eq(nil()); }
+
+  Svalue createHashTable();
+
+  Allocator* getAllocator()  { return allocator_; }
 
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void assignGlobal(Svalue sym, Svalue value);
@@ -129,16 +159,24 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
+  void collectGarbage();
+
+  void reportDebugInfo() const;
+
 private:
-  State(Allocator* allocator);
+  State(AllocFunc allocFunc);
   ~State();
 
+  void markRoot();
+  void allocFailed(void* p, size_t size);
+
+  AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
-  Svalue nil_;
-  Svalue t_;
-  Svalue quote_;
+  Svalue constant_[NUMBER_OF_CONSTANT];
   Vm* vm_;
+
+  friend struct StateAllocatorCallback;
 };
 
 // Helper functions.

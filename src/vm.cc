@@ -3,7 +3,7 @@
 //=============================================================================
 
 #include "vm.hh"
-#include "yalp/mem.hh"
+#include "allocator.hh"
 #include "yalp/object.hh"
 #include <assert.h>
 #include <iostream>
@@ -33,6 +33,7 @@ enum Opcode {
   UNBOX,
   CONTI,
   NUATE,
+  MACRO,
 
   NUMBER_OF_OPCODE
 };
@@ -47,75 +48,6 @@ enum Opcode {
 #define CADDDR(x)  (CAR(CDDDR(x)))
 #define CDDDDR(x)  (CDR(CDDDR(x)))
 
-// Closure class.
-class Closure : public Sobject {
-public:
-  Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
-    : Sobject()
-    , body_(body)
-    , freeVariables_(NULL)
-    , minArgNum_(minArgNum)
-    , maxArgNum_(maxArgNum) {
-    if (freeVarCount > 0) {
-      void* memory = state->getAllocator()->alloc(sizeof(Svalue) * freeVarCount);
-      freeVariables_ = new(memory) Svalue[freeVarCount];
-    }
-  }
-  virtual Type getType() const override  { return TT_CLOSURE; }
-
-  Svalue getBody() const  { return body_; }
-  int getMinArgNum() const  { return minArgNum_; }
-  int getMaxArgNum() const  { return maxArgNum_; }
-  bool hasRestParam() const  { return maxArgNum_ < 0; }
-
-  void setFreeVariable(int index, Svalue value) {
-    freeVariables_[index] = value;
-  }
-
-  Svalue getFreeVariable(int index) const {
-    return freeVariables_[index];
-  }
-
-  virtual void output(State*, std::ostream& o) const override {
-    o << "#<closure:" << this << ">";
-  }
-
-protected:
-  Svalue body_;
-  Svalue* freeVariables_;
-  int minArgNum_;
-  int maxArgNum_;
-};
-
-// Native function class.
-class NativeFunc : public Sobject {
-public:
-  NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
-    : Sobject()
-    , func_(func)
-    , minArgNum_(minArgNum)
-    , maxArgNum_(maxArgNum) {}
-  virtual Type getType() const override  { return TT_NATIVEFUNC; }
-
-  Svalue call(State* state, int argNum) {
-    if (argNum < minArgNum_) {
-      state->runtimeError("Too few arguments");
-    } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
-      state->runtimeError("Too many arguments");
-    }
-    return func_(state);
-  }
-
-  virtual void output(State*, std::ostream& o) const override {
-    o << "#<procedure:" << this << ">";
-  }
-
-protected:
-  NativeFuncType func_;
-  int minArgNum_;
-  int maxArgNum_;
-};
-
 // Box class.
 class Box : public Sobject {
 public:
@@ -127,223 +59,225 @@ public:
   void set(Svalue x)  { x_ = x; }
   Svalue get()  { return x_; }
 
-  virtual void output(State* state, std::ostream& o) const override {
-    x_.output(state, o);
+  virtual void output(State* state, std::ostream& o, bool inspect) const override {
+    x_.output(state, o, inspect);
   }
 
 protected:
   Svalue x_;
 };
 
-// Vector class.
-class Vector : public Sobject {
-public:
-  Vector(int size)
-    : Sobject()
-    , size_(size) {
-    buffer_ = new Svalue[size_];
-  }
-  virtual Type getType() const override  { return TT_VECTOR; }
-
-  int size() const  { return size_; }
-
-  Svalue get(int index)  {
-    assert(0 <= index && index < size_);
-    return buffer_[index];
-  }
-
-  void set(int index, Svalue x)  {
-    assert(0 <= index && index < size_);
-    buffer_[index] = x;
-  }
-
-  virtual void output(State* state, std::ostream& o) const override {
-    o << "#";
-    char c = '(';
-    for (int i = 0; i < size_; ++i) {
-      o << c;
-      buffer_[i].output(state, o);
-      c = ' ';
-    }
-    o << ")";
-  }
-
-protected:
-  Svalue* buffer_;
-  int size_;
-};
-
 //=============================================================================
 
 Vm* Vm::create(State* state) {
-  void* memory = state->getAllocator()->alloc(sizeof(Vm));
+  void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
   return new(memory) Vm(state);
 }
 
 void Vm::release() {
   Allocator* allocator = state_->getAllocator();
   this->~Vm();
-  allocator->free(this);
+  FREE(allocator, this);
 }
 
 Vm::~Vm() {
-  free(stack_);
-  state_->getAllocator()->free(opcodes_);
+  if (stack_ != NULL)
+    FREE(state_->getAllocator(), stack_);
+  FREE(state_->getAllocator(), opcodes_);
 }
 
 Vm::Vm(State* state)
   : state_(state)
-  , stack_(NULL), stackSize_(0) {
+  , stack_(NULL), stackSize_(0)
+  , argNum_(0), s_(0)
+  , callStack_() {
+  {
+    void* memory = ALLOC(state_->getAllocator(), sizeof(Svalue) * NUMBER_OF_OPCODE);
+    opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
+    opcodes_[HALT] = state_->intern("HALT");
+    opcodes_[UNDEF] = state_->intern("UNDEF");
+    opcodes_[CONST] = state_->intern("CONST");
+    opcodes_[LREF] = state_->intern("LREF");
+    opcodes_[FREF] = state_->intern("FREF");
+    opcodes_[GREF] = state_->intern("GREF");
+    opcodes_[LSET] = state_->intern("LSET");
+    opcodes_[FSET] = state_->intern("FSET");
+    opcodes_[GSET] = state_->intern("GSET");
+    opcodes_[PUSH] = state_->intern("PUSH");
+    opcodes_[TEST] = state_->intern("TEST");
+    opcodes_[CLOSE] = state_->intern("CLOSE");
+    opcodes_[FRAME] = state_->intern("FRAME");
+    opcodes_[APPLY] = state_->intern("APPLY");
+    opcodes_[RET] = state_->intern("RET");
+    opcodes_[SHIFT] = state_->intern("SHIFT");
+    opcodes_[BOX] = state_->intern("BOX");
+    opcodes_[UNBOX] = state_->intern("UNBOX");
+    opcodes_[CONTI] = state_->intern("CONTI");
+    opcodes_[NUATE] = state_->intern("NUATE");
+    opcodes_[MACRO] = state_->intern("MACRO");
+  }
 
-  void* memory = state_->getAllocator()->alloc(sizeof(Svalue) * NUMBER_OF_OPCODE);
-  opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
-  opcodes_[HALT] = state_->intern("HALT");
-  opcodes_[UNDEF] = state_->intern("UNDEF");
-  opcodes_[CONST] = state_->intern("CONST");
-  opcodes_[LREF] = state_->intern("LREF");
-  opcodes_[FREF] = state_->intern("FREF");
-  opcodes_[GREF] = state_->intern("GREF");
-  opcodes_[LSET] = state_->intern("LSET");
-  opcodes_[FSET] = state_->intern("FSET");
-  opcodes_[GSET] = state_->intern("GSET");
-  opcodes_[PUSH] = state_->intern("PUSH");
-  opcodes_[TEST] = state_->intern("TEST");
-  opcodes_[CLOSE] = state_->intern("CLOSE");
-  opcodes_[FRAME] = state_->intern("FRAME");
-  opcodes_[APPLY] = state_->intern("APPLY");
-  opcodes_[RET] = state_->intern("RET");
-  opcodes_[SHIFT] = state_->intern("SHIFT");
-  opcodes_[BOX] = state_->intern("BOX");
-  opcodes_[UNBOX] = state_->intern("UNBOX");
-  opcodes_[CONTI] = state_->intern("CONTI");
-  opcodes_[NUATE] = state_->intern("NUATE");
+  {
+    Svalue ht = state_->createHashTable();
+    assert(ht.getType() == TT_HASH_TABLE);
+    globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
+  }
+}
+
+void Vm::markRoot() {
+  globalVariableTable_->mark();
+  // Mark stack.
+  for (int n = s_, i = 0; i < n; ++i)
+    stack_[i].mark();
+  // Mark a registers.
+  a_.mark();
+  c_.mark();
+  x_.mark();
+}
+
+void Vm::reportDebugInfo() const {
+  std::cout << "Global variables:" << std::endl;
+  std::cout << "  capacity: #" << globalVariableTable_->getCapacity() << std::endl;
+  std::cout << "  entry:    #" << globalVariableTable_->getEntryCount() << std::endl;
+  std::cout << "  conflict: #" << globalVariableTable_->getConflictCount() << std::endl;
+  std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
 }
 
 void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->alloc(sizeof(NativeFunc));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   assignGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
 Svalue Vm::run(Svalue code) {
   Svalue nil = state_->nil();
-  return run(nil, code, 0, nil, 0);
+  a_ = nil;
+  x_ = code;
+  c_ = nil;
+  f_ = 0;
+  return runLoop();
 }
 
-Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
+Svalue Vm::runLoop() {
  again:
-  //std::cout << "run: stack=" << s << ", x=" << x << std::endl;
+  //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
 
-  Svalue op = CAR(x);
-  x = CDR(x);
+  Svalue op = CAR(x_);
+  x_ = CDR(x_);
   int opidx = findOpcode(op);
   switch (opidx) {
   case HALT:
-    stackPointer_ = s;
-    return a;
+    return a_;
   case UNDEF:
-    x = CAR(x);
-    a = state_->nil();
+    x_ = CAR(x_);
+    a_ = state_->nil();
     goto again;
   case CONST:
-    a = CAR(x);
-    x = CADR(x);
+    a_ = CAR(x_);
+    x_ = CADR(x_);
     goto again;
   case LREF:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      a = index(f, n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      a_ = index(f_, n);
     }
     goto again;
   case FREF:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      assert(c.getType() == TT_CLOSURE);
-      a = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      assert(c_.getType() == TT_CLOSURE);
+      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
     }
     goto again;
   case GREF:
     {
-      Svalue sym = CAR(x);
-      x = CADR(x);
+      Svalue sym = CAR(x_);
+      x_ = CADR(x_);
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
       if (!exist) {
-        sym.output(state_, std::cerr);
+        sym.output(state_, std::cerr, true);
         std::cerr << ": ";
         state_->runtimeError("Unbound");
       }
-      a = aa;
+      a_ = aa;
     }
     goto again;
   case LSET:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      Svalue box = index(f, n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      Svalue box = index(f_, n);
       assert(box.getType() == TT_BOX);
-      static_cast<Box*>(box.toObject())->set(a);
+      static_cast<Box*>(box.toObject())->set(a_);
     }
     goto again;
   case FSET:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      Svalue box = static_cast<Closure*>(c.toObject())->getFreeVariable(n);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      assert(c_.getType() == TT_CLOSURE);
+      Svalue box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
-      static_cast<Box*>(box.toObject())->set(a);
+      static_cast<Box*>(box.toObject())->set(a_);
     }
     goto again;
   case GSET:
     {
-      Svalue sym = CAR(x);
-      x = CADR(x);
+      Svalue sym = CAR(x_);
+      x_ = CADR(x_);
       assert(sym.getType() == TT_SYMBOL);
-      assignGlobal(sym, a);
+      assignGlobal(sym, a_);
     }
     goto again;
   case PUSH:
     {
-      x = CAR(x);
-      s = push(a, s);
+      x_ = CAR(x_);
+      s_ = push(a_, s_);
     }
     goto again;
   case TEST:
     {
-      Svalue thn = CAR(x);
-      Svalue els = CADR(x);
-      x = state_->isTrue(a) ? thn : els;
+      Svalue thn = CAR(x_);
+      Svalue els = CADR(x_);
+      x_ = state_->isTrue(a_) ? thn : els;
     }
     goto again;
   case CLOSE:
     {
-      Svalue nparam = CAR(x);
-      int nfree = CADR(x).toFixnum();
-      Svalue body = CADDR(x);
-      x = CADDDR(x);
+      Svalue nparam = CAR(x_);
+      int nfree = CADR(x_).toFixnum();
+      Svalue body = CADDR(x_);
+      x_ = CADDDR(x_);
       int min = CAR(nparam).toFixnum();
       int max = CADR(nparam).toFixnum();
-      a = createClosure(body, nfree, s, min, max);
-      s -= nfree;
+      a_ = createClosure(body, nfree, s_, min, max);
+      s_ -= nfree;
     }
     goto again;
   case FRAME:
     {
-      Svalue ret = CAR(x);
-      x = CADR(x);
-      s = push(ret, push(state_->fixnumValue(f), push(c, s)));
+      Svalue ret = CAR(x_);
+      x_ = CADR(x_);
+      s_ = push(ret, push(state_->fixnumValue(f_), push(c_, s_)));
     }
     goto again;
   case APPLY:
     {
-      int argNum = CAR(x).toFixnum();
-      switch (a.getType()) {
+      int argNum = CAR(x_).toFixnum();
+      if (!a_.isObject() || !a_.toObject()->isCallable()) {
+        state_->runtimeError("Can't call");
+      }
+
+      pushCallStack(static_cast<Callable*>(a_.toObject()));
+
+      switch (a_.getType()) {
       case TT_CLOSURE:
         {
-          Closure* closure = static_cast<Closure*>(a.toObject());
+          Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
           if (argNum < min) {
             state_->runtimeError("Too few arguments");
@@ -353,83 +287,101 @@ Svalue Vm::run(Svalue a, Svalue x, int f, Svalue c, int s) {
 
           int ds = 0;
           if (closure->hasRestParam())
-            ds = modifyRestParams(argNum, min, s);
-          s += ds;
+            ds = modifyRestParams(argNum, min, s_);
+          s_ += ds;
           argNum += ds;
-          x = closure->getBody();
-          f = s;
-          c = a;
-          s = push(state_->fixnumValue(argNum), s);
+          x_ = closure->getBody();
+          f_ = s_;
+          c_ = a_;
+          s_ = push(state_->fixnumValue(argNum), s_);
         }
         break;
       case TT_NATIVEFUNC:
         {
           // Store current state in member variable for native function call.
-          stackPointer_ = s;
           argNum_ = argNum;
-          NativeFunc* native = static_cast<NativeFunc*>(a.toObject());
-          a = native->call(state_, argNum);
+          NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
+          a_ = native->call(state_, argNum);
 
           // do-return
-          s -= argNum;
-          x = index(s, 0);
-          f = index(s, 1).toFixnum();
-          c = index(s, 2);
-          s -= 3;
+          s_ -= argNum;
+          x_ = index(s_, 0);
+          f_ = index(s_, 1).toFixnum();
+          c_ = index(s_, 2);
+          s_ -= 3;
+          popCallStack();
         }
         break;
       default:
-        state_->runtimeError("Can't call");
+        assert(!"Must not happen");
         break;
       }
     }
     goto again;
   case RET:
     {
-      int argnum = index(s, 0).toFixnum();
-      s -= argnum + 1;
-      x = index(s, 0);
-      f = index(s, 1).toFixnum();
-      c = index(s, 2);
-      s -= 3;
+      int argnum = index(s_, 0).toFixnum();
+      s_ -= argnum + 1;
+      x_ = index(s_, 0);
+      f_ = index(s_, 1).toFixnum();
+      c_ = index(s_, 2);
+      s_ -= 3;
+      popCallStack();
     }
     goto again;
   case SHIFT:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      int calleeArgnum = index(f, -1).toFixnum();
-      s = shiftArgs(n, calleeArgnum, s);
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      int calleeArgnum = index(f_, -1).toFixnum();
+      s_ = shiftArgs(n, calleeArgnum, s_);
+      shiftCallStack();
     }
     goto again;
   case BOX:
     {
-      int n = CAR(x).toFixnum();
-      x = CADR(x);
-      indexSet(f, n, box(index(f, n)));
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      indexSet(f_, n, box(index(f_, n)));
     }
     goto again;
   case UNBOX:
-    x = CAR(x);
-    assert(a.getType() == TT_BOX);
-    a = static_cast<Box*>(a.toObject())->get();
+    x_ = CAR(x_);
+    assert(a_.getType() == TT_BOX);
+    a_ = static_cast<Box*>(a_.toObject())->get();
     goto again;
   case CONTI:
-    x = CAR(x);
-    a = createContinuation(s);
+    x_ = CAR(x_);
+    a_ = createContinuation(s_);
     goto again;
   case NUATE:
     {
-      Svalue stack = CAR(x);
-      x = CADR(x);
-      s = restoreStack(stack);
+      Svalue stack = CAR(x_);
+      x_ = CADR(x_);
+      int argnum = index(f_, -1).toFixnum();
+      a_ = (argnum == 0) ? state_->nil() : index(f_, 0);
+      s_ = restoreStack(stack);
+    }
+    goto again;
+  case MACRO:
+    {
+      Svalue name = CAR(x_);
+      Svalue nparam = CADR(x_);
+      Svalue body = CADDR(x_);
+      x_ = CADDDR(x_);
+      int min = CAR(nparam).toFixnum();
+      int max = CADR(nparam).toFixnum();
+      Svalue closure = createClosure(body, 0, s_, min, max);
+
+      Svalue args[] = { name, closure };
+      funcall(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
     }
     goto again;
   default:
-    op.output(state_, std::cerr);
+    op.output(state_, std::cerr, true);
     std::cerr << ": ";
     state_->runtimeError("Unknown op");
-    return a;
+    return a_;
   }
 }
 
@@ -441,7 +393,7 @@ int Vm::findOpcode(Svalue op) {
 }
 
 Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = state_->getAllocator()->alloc(sizeof(Closure));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Closure));
   Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
@@ -449,20 +401,16 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 }
 
 Svalue Vm::createContinuation(int s) {
-  Svalue zero = state_->fixnumValue(0);
   Svalue body = list(state_,
-                     opcodes_[LREF],
-                     zero,
+                     opcodes_[NUATE],
+                     saveStack(s),
                      list(state_,
-                          opcodes_[NUATE],
-                          saveStack(s),
-                          list(state_,
-                               opcodes_[RET])));
+                          opcodes_[RET]));
   return createClosure(body, s, s, 0, 1);
 }
 
 Svalue Vm::box(Svalue x) {
-  void* memory = state_->getAllocator()->alloc(sizeof(Box));
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
   return Svalue(new(memory) Box(x));
 }
 
@@ -475,7 +423,7 @@ int Vm::push(Svalue x, int s) {
 
 void Vm::expandStack() {
   int newSize = stackSize_ + 16;
-  void* memory = state_->getAllocator()->realloc(stack_, sizeof(Svalue) * newSize);
+  void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
   Svalue* newStack = static_cast<Svalue*>(memory);
   if (newStack == NULL) {
     std::cerr << "Can't expand stack! size=" << newSize << std::endl;
@@ -526,23 +474,27 @@ void Vm::unshiftArgs(int argNum, int s) {
 }
 
 Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
-  auto it = globalVariableTable_.find(sym.getId());
-  if (it == globalVariableTable_.end()) {
-    if (pExist != NULL)
-      *pExist = false;
-    return state_->nil();
-  }
+  const Svalue* result = globalVariableTable_->get(sym);
   if (pExist != NULL)
-    *pExist = true;
-  return it->second;
+    *pExist = result != NULL;
+  return result != NULL ? *result : state_->nil();
 }
 
 void Vm::assignGlobal(Svalue sym, Svalue value) {
-  globalVariableTable_[sym.getId()] = value;
+  if (sym.getType() != TT_SYMBOL)
+    state_->runtimeError("Must be symbol");
+  globalVariableTable_->put(sym, value);
+
+  if (value.isObject() && value.toObject()->isCallable()) {
+    Symbol* name = static_cast<Symbol*>(sym.toObject());
+    static_cast<Callable*>(value.toObject())->setName(name);
+  }
 }
 
 Svalue Vm::saveStack(int s) {
-  Vector* v = new Vector(s);
+  Allocator* allocator = state_->getAllocator();
+  void* memory = OBJALLOC(allocator, sizeof(Vector));
+  Vector* v = new(memory) Vector(allocator, s);
   for (int i = 0; i < s; ++i) {
     v->set(i, stack_[i]);
   }
@@ -564,24 +516,34 @@ int Vm::getArgNum() const {
 }
 
 Svalue Vm::getArg(int index) const {
-  return this->index(stackPointer_, index);
+  return this->index(s_, index);
 }
 
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
+  if (!fn.isObject() || !fn.toObject()->isCallable()) {
+    fn.output(state_, std::cerr, true);
+    state_->runtimeError("Can't call");
+    return state_->nil();
+  }
+
+  pushCallStack(static_cast<Callable*>(fn.toObject()));
+
   Svalue result;
-  const int prevStackPointer = stackPointer_;
   const int prevArgNum = argNum_;
 
   switch (fn.getType()) {
   case TT_CLOSURE:
     {
-      Svalue ret = list(state_, opcodes_[HALT]);
-      Svalue c = state_->nil();
-      int s = stackPointer_;
-      // Makes frame.
-      s = push(ret, push(state_->fixnumValue(s), push(c, s)));
+      // Save old running code.
+      s_ = push(x_, s_);
 
-      s = pushArgs(argNum, args, s);
+      Svalue ret = state_->getConstant(State::SINGLE_HALT);
+      Svalue c = state_->nil();
+      //int s = stackPointer_;
+      // Makes frame.
+      s_ = push(ret, push(state_->fixnumValue(s_), push(c, s_)));
+
+      s_ = pushArgs(argNum, args, s_);
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
@@ -593,35 +555,40 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
 
       int ds = 0;
       if (closure->hasRestParam())
-        ds = modifyRestParams(argNum, min, s);
-      s += ds;
+        ds = modifyRestParams(argNum, min, s_);
+      s_ += ds;
       argNum += ds;
-      Svalue x = closure->getBody();
-      int f = s;
-      s = push(state_->fixnumValue(argNum), s);
-      result = run(fn, x, f, fn, s);
+      x_ = closure->getBody();
+      f_ = s_;
+      s_ = push(state_->fixnumValue(argNum), s_);
+      a_ = c_ = fn;
+      result = runLoop();
+
+      // Restore old running code.
+      x_ = index(s_, 0);
+      s_ -= 1;
     }
     break;
   case TT_NATIVEFUNC:
     {
       // No frame.
-      int s = stackPointer_;
-      s = pushArgs(argNum, args, s);
+      s_ = pushArgs(argNum, args, s_);
 
       // Store current state in member variable for native function call.
-      stackPointer_ = s;
       argNum_ = argNum;
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       result = native->call(state_, argNum);
+
+      popCallStack();
+
+      s_ -= argNum;
     }
     break;
   default:
-    state_->runtimeError("Can't call");
-    result = state_->nil();
+    assert(!"Must not happen");
     break;
   }
 
-  stackPointer_ = prevStackPointer;
   argNum_ = prevArgNum;
   return result;
 }
@@ -630,6 +597,32 @@ int Vm::pushArgs(int argNum, const Svalue* args, int s) {
   for (int i = argNum; --i >= 0; )
     s = push(args[i], s);
   return s;
+}
+
+void Vm::pushCallStack(Callable* callable) {
+  CallStack s = {
+    callable,
+    false,
+  };
+  callStack_.push_back(s);
+}
+
+void Vm::popCallStack() {
+  callStack_.pop_back();
+  while (!callStack_.empty() && callStack_[callStack_.size() - 1].isTailCall)
+    callStack_.pop_back();
+}
+
+void Vm::shiftCallStack() {
+  assert(!callStack_.empty());
+  size_t n = callStack_.size();
+  if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
+      callStack_[n - 2].isTailCall) {
+    // Self tail recursive case: eliminate call stack.
+    callStack_.pop_back();
+  } else {
+    callStack_[n - 1].isTailCall = true;
+  }
 }
 
 }  // namespace yalp

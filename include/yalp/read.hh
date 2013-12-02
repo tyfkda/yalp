@@ -7,9 +7,11 @@
 
 #include "yalp.hh"
 #include <istream>
-#include <map>
 
 namespace yalp {
+
+template <class Key, class Value>
+class HashTable;
 
 enum ReadError {
   READ_SUCCESS,
@@ -33,6 +35,10 @@ private:
   ReadError readSymbolOrNumber(Svalue* pValue);
   ReadError readList(Svalue* pValue);
   ReadError readQuote(Svalue* pValue);
+  ReadError readQuasiQuote(Svalue* pValue)  { return readAbbrev("quasiquote", pValue); }
+  ReadError readUnquote(Svalue* pValue)  { return readAbbrev("unquote", pValue); }
+  ReadError readUnquoteSplicing(Svalue* pValue)  { return readAbbrev("unquote-splicing", pValue); }
+  ReadError readAbbrev(const char* funcname, Svalue* pValue);
   ReadError readSpecial(Svalue* pValue);
   ReadError readString(char closeChar, Svalue* pValue);
   void storeShared(int id, Svalue value);
@@ -43,9 +49,12 @@ private:
   static bool isSpace(char c);
   static bool isDelimiter(char c);
 
+  struct IntHashPolicy;
+  static IntHashPolicy s_hashPolicy;
+
   State* state_;
   std::istream& istrm_;
-  std::map<int, Svalue>* sharedStructures_;
+  HashTable<int, Svalue>* sharedStructures_;
 };
 
 }  // namespace yalp
