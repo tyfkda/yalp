@@ -14,43 +14,51 @@
 
 namespace yalp {
 
+//=============================================================================
+/*
+  Svalue: tagged pointer representation.
+    XXXXXXX0 : Fixnum
+    XXXXXX01 : Object
+ */
+
 const Sfixnum TAG_SHIFT = 2;
 const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
 const Sfixnum TAG_FIXNUM = 0;
 const Sfixnum TAG_OBJECT = 1;
 
-//=============================================================================
-// Svalue: tagged pointer representation.
+inline static bool isFixnum(Sfixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
 Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }
 
 Svalue::Svalue(Sfixnum i)
-  : v_(reinterpret_cast<Sfixnum>(i << TAG_SHIFT) | TAG_FIXNUM) {}
+  : v_(reinterpret_cast<Sfixnum>(i << 1) | TAG_FIXNUM) {}
 
 Svalue::Svalue(class Sobject* object)
   : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
 
 Type Svalue::getType() const {
+  if (isFixnum(v_))
+    return TT_FIXNUM;
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
     return TT_UNKNOWN;
-  case TAG_FIXNUM:
-    return TT_FIXNUM;
   case TAG_OBJECT:
     return toObject()->getType();
   }
 }
 
 unsigned int Svalue::calcHash() const {
+  if (isFixnum(v_))
+    return toFixnum() * 19;
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
     return TT_UNKNOWN;
-  case TAG_FIXNUM:
-    return toFixnum() * 19;
   case TAG_OBJECT:
     return toObject()->calcHash();
   }
@@ -62,12 +70,14 @@ void Svalue::mark() {
 }
 
 void Svalue::output(State* state, std::ostream& o, bool inspect) const {
+  if (isFixnum(v_)) {
+    o << toFixnum();
+    return;
+  }
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
-    break;
-  case TAG_FIXNUM:
-    o << toFixnum();
     break;
   case TAG_OBJECT:
     toObject()->output(state, o, inspect);
@@ -76,9 +86,8 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
 }
 
 Sfixnum Svalue::toFixnum() const {
-  assert((v_ & TAG_MASK) == TAG_FIXNUM);
-  assert(TAG_FIXNUM == 0);
-  return reinterpret_cast<Sfixnum>(v_ >> TAG_SHIFT);
+  assert(isFixnum(v_));
+  return reinterpret_cast<Sfixnum>(v_ >> 1);
 }
 
 Sfloat Svalue::toFloat() const {
@@ -99,11 +108,12 @@ bool Svalue::equal(Svalue target) const {
   if (eq(target))
     return true;
 
+  if (isFixnum(v_))
+    return false;
+
   switch (v_ & TAG_MASK) {
   default:
     assert(false);
-    return false;
-  case TAG_FIXNUM:
     return false;
   case TAG_OBJECT:
     {
