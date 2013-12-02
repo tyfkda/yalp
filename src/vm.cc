@@ -488,7 +488,7 @@ void Vm::assignGlobal(Svalue sym, Svalue value) {
   globalVariableTable_->put(sym, value);
 
   if (value.isObject() && value.toObject()->isCallable()) {
-    Symbol* name = static_cast<Symbol*>(sym.toObject());
+    const Symbol* name = sym.toSymbol(state_);
     static_cast<Callable*>(value.toObject())->setName(name);
   }
 }

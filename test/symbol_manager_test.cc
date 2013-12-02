@@ -20,7 +20,7 @@ protected:
 };
 
 TEST_F(SymbolManagerTest, Fixnum) {
-  Symbol* symbol1 = symbolManager_->intern("symbol");
-  Symbol* symbol2 = symbolManager_->intern("symbol");
+  SymbolId symbol1 = symbolManager_->intern("symbol");
+  SymbolId symbol2 = symbolManager_->intern("symbol");
   ASSERT_EQ(symbol1, symbol2);
 }

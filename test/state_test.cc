@@ -26,6 +26,9 @@ TEST_F(StateTest, Symbol) {
   Svalue s = state_->intern("symbol");
   ASSERT_TRUE(state_->intern("symbol").eq(s));
   ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
+
+  ASSERT_FALSE(s.isObject());
+  ASSERT_STREQ("symbol", s.toSymbol(state_)->c_str());
 }
 
 TEST_F(StateTest, Cons) {

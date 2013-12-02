@@ -35,33 +35,37 @@ SymbolManager::SymbolManager(Allocator* allocator)
 }
 
 SymbolManager::~SymbolManager() {
-  for (auto it = table_.begin(); it != table_.end(); ++it) {
-    Symbol* symbol = it->value;
-    FREE(allocator_, symbol->name_);
-    FREE(allocator_, symbol);
+  for (auto symbol : array_) {
+    FREE(allocator_, symbol.name_);
+    //FREE(allocator_, symbol);
   }
 }
 
-Symbol* SymbolManager::intern(const char* name) {
-  Symbol* const* result = table_.get(name);
+SymbolId SymbolManager::intern(const char* name) {
+  const SymbolId* result = table_.get(name);
   if (result != NULL)
     return *result;
   return generate(name);
 }
 
-Symbol* SymbolManager::gensym() {
+SymbolId SymbolManager::gensym() {
   int no = ++gensymIndex_;
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "#G:%d", no);
   return generate(buffer);
 }
 
-Symbol* SymbolManager::generate(const char* name) {
+const Symbol* SymbolManager::get(SymbolId symbolId) const {
+  return &array_[symbolId];
+}
+
+SymbolId SymbolManager::generate(const char* name) {
   char* copied = copyString(name);
-  void* memory = ALLOC(allocator_, sizeof(Symbol));
-  Symbol* symbol = new(memory) Symbol(copied);
-  table_.put(symbol->c_str(), symbol);
-  return symbol;
+  SymbolId symbolId = array_.size();
+  array_.push_back(Symbol(copied));
+  Symbol* symbol = &array_[symbolId];
+  table_.put(symbol->c_str(), symbolId);
+  return symbolId;
 }
 
 char* SymbolManager::copyString(const char* name) {

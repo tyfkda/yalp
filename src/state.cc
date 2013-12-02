@@ -19,12 +19,18 @@ namespace yalp {
   Svalue: tagged pointer representation.
     XXXXXXX0 : Fixnum
     XXXXXX01 : Object
+    XXXX0011 : Symbol
  */
 
 const Sfixnum TAG_SHIFT = 2;
 const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
 const Sfixnum TAG_FIXNUM = 0;
 const Sfixnum TAG_OBJECT = 1;
+const Sfixnum TAG_OTHER = 3;
+
+const Sfixnum TAG2_SHIFT = 4;
+const Sfixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
+const Sfixnum TAG2_SYMBOL = 3;
 
 inline static bool isFixnum(Sfixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
@@ -38,30 +44,42 @@ Svalue::Svalue(Sfixnum i)
 Svalue::Svalue(class Sobject* object)
   : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
 
+Svalue::Svalue(Sfixnum i, int tag2)
+  : v_(reinterpret_cast<Sfixnum>(i << TAG2_SHIFT) | tag2) {}
+
 Type Svalue::getType() const {
   if (isFixnum(v_))
     return TT_FIXNUM;
 
   switch (v_ & TAG_MASK) {
-  default:
-    assert(false);
-    return TT_UNKNOWN;
   case TAG_OBJECT:
     return toObject()->getType();
+  case TAG_OTHER:
+    switch (v_ & TAG2_MASK) {
+    case TAG2_SYMBOL:
+      return TT_SYMBOL;
+    }
   }
+  assert(!"Must not happen");
+  return TT_UNKNOWN;
 }
 
-unsigned int Svalue::calcHash() const {
+unsigned int Svalue::calcHash(State* state) const {
   if (isFixnum(v_))
     return toFixnum() * 19;
 
   switch (v_ & TAG_MASK) {
-  default:
-    assert(false);
-    return TT_UNKNOWN;
   case TAG_OBJECT:
     return toObject()->calcHash();
+  case TAG_OTHER:
+    switch (v_ & TAG2_MASK) {
+    case TAG2_SYMBOL:
+      return toSymbol(state)->calcHash();
+      break;
+    }
   }
+  assert(!"Must not happen");
+  return 0;
 }
 
 void Svalue::mark() {
@@ -82,6 +100,12 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   case TAG_OBJECT:
     toObject()->output(state, o, inspect);
     break;
+  case TAG_OTHER:
+    switch (v_ & TAG2_MASK) {
+    case TAG2_SYMBOL:
+      return toSymbol(state)->output(state, o, inspect);
+      break;
+    }
   }
 }
 
@@ -104,6 +128,11 @@ Sobject* Svalue::toObject() const {
   return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
 }
 
+const Symbol* Svalue::toSymbol(State* state) const {
+  assert((v_ & TAG2_MASK) == TAG2_SYMBOL);
+  return state->getSymbol(v_ >> TAG2_SHIFT);
+}
+
 bool Svalue::equal(Svalue target) const {
   if (eq(target))
     return true;
@@ -112,9 +141,6 @@ bool Svalue::equal(Svalue target) const {
     return false;
 
   switch (v_ & TAG_MASK) {
-  default:
-    assert(false);
-    return false;
   case TAG_OBJECT:
     {
       Type t1 = getType();
@@ -124,7 +150,14 @@ bool Svalue::equal(Svalue target) const {
 
       return toObject()->equal(target.toObject());
     }
+  case TAG_OTHER:
+    switch (v_ & TAG2_MASK) {
+    case TAG2_SYMBOL:
+      return false;
+    }
   }
+  assert(!"Must not happen");
+  return false;
 }
 
 //=============================================================================
@@ -142,8 +175,13 @@ struct StateAllocatorCallback : public Allocator::Callback {
 static StateAllocatorCallback stateAllocatorCallback;
 
 struct State::HashPolicyEq : public HashPolicy<Svalue> {
-  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
+  HashPolicyEq(State* state) : state_(state)  {}
+
+  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(state_); }
   virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+
+private:
+  State* state_;
 };
 
 State* State::create() {
@@ -165,7 +203,7 @@ State::State(AllocFunc allocFunc)
   : allocFunc_(allocFunc)
   , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
-  , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq())
+  , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , vm_(NULL) {
   static const char* constSymbols[SINGLE_HALT] = {
     "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
@@ -247,11 +285,16 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
 }
 
 Svalue State::intern(const char* name) {
-  return Svalue(symbolManager_->intern(name));
+  SymbolId symbolId = symbolManager_->intern(name);
+  return Svalue(symbolId, TAG2_SYMBOL);
 }
 
 Svalue State::gensym() {
-  return Svalue(symbolManager_->gensym());
+  return Svalue(symbolManager_->gensym(), TAG2_SYMBOL);
+}
+
+const Symbol* State::getSymbol(unsigned int symbolId) const {
+  return symbolManager_->get(symbolId);
 }
 
 Svalue State::cons(Svalue a, Svalue d) {
