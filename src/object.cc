@@ -20,7 +20,7 @@ unsigned int Sobject::calcHash() const {
 bool Sobject::isCallable() const  { return false; }
 
 //=============================================================================
-Symbol::Symbol(const char* name)
+Symbol::Symbol(char* name)
   : Sobject(), name_(name), hash_(strHash(name)) {}
 
 Type Symbol::getType() const  { return TT_SYMBOL; }

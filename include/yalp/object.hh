@@ -55,10 +55,10 @@ public:
   virtual void output(State* state, std::ostream& o, bool inspect) const override;
 
 protected:
-  Symbol(const char* name);
+  Symbol(char* name);
   ~Symbol()  {}
 private:
-  const char* name_;
+  char* name_;
   unsigned int hash_;  // Pre-calculated hash value.
 
   friend class SymbolManager;

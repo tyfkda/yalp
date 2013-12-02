@@ -37,7 +37,7 @@ SymbolManager::SymbolManager(Allocator* allocator)
 SymbolManager::~SymbolManager() {
   for (auto it = table_.begin(); it != table_.end(); ++it) {
     Symbol* symbol = it->value;
-    FREE(allocator_, const_cast<char*>(symbol->c_str()));
+    FREE(allocator_, symbol->name_);
     FREE(allocator_, symbol);
   }
 }
@@ -57,14 +57,14 @@ Symbol* SymbolManager::gensym() {
 }
 
 Symbol* SymbolManager::generate(const char* name) {
-  const char* copied = copyString(name);
+  char* copied = copyString(name);
   void* memory = ALLOC(allocator_, sizeof(Symbol));
   Symbol* symbol = new(memory) Symbol(copied);
   table_.put(symbol->c_str(), symbol);
   return symbol;
 }
 
-const char* SymbolManager::copyString(const char* name) {
+char* SymbolManager::copyString(const char* name) {
   int len = strlen(name);
   char* copied = static_cast<char*>(ALLOC(allocator_, len + 1));
   memcpy(copied, name, len);

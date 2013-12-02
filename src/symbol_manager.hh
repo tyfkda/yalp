@@ -33,7 +33,7 @@ private:
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
   Symbol* generate(const char* name);
-  const char* copyString(const char* name);
+  char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
 
