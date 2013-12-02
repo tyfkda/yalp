@@ -141,6 +141,11 @@ struct StateAllocatorCallback : public Allocator::Callback {
 
 static StateAllocatorCallback stateAllocatorCallback;
 
+struct State::HashPolicyEq : public HashPolicy<Svalue> {
+  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
+  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+};
+
 State* State::create() {
   return create(getDefaultAllocFunc());
 }
@@ -160,6 +165,7 @@ State::State(AllocFunc allocFunc)
   : allocFunc_(allocFunc)
   , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
+  , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq())
   , vm_(NULL) {
   static const char* constSymbols[SINGLE_HALT] = {
     "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
@@ -173,6 +179,7 @@ State::State(AllocFunc allocFunc)
 }
 
 State::~State() {
+  FREE(allocator_, hashPolicyEq_);
   vm_->release();
   symbolManager_->release();
   allocator_->release();
@@ -267,7 +274,7 @@ Svalue State::cdr(Svalue s) {
 
 Svalue State::createHashTable() {
   void* memory = OBJALLOC(allocator_, sizeof(SHashTable));
-  SHashTable* h = new(memory) SHashTable(allocator_);
+  SHashTable* h = new(memory) SHashTable(allocator_, hashPolicyEq_);
   return Svalue(h);
 }
 

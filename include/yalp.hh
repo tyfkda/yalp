@@ -164,6 +164,8 @@ public:
   void reportDebugInfo() const;
 
 private:
+  struct HashPolicyEq;
+
   State(AllocFunc allocFunc);
   ~State();
 
@@ -174,6 +176,7 @@ private:
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
+  HashPolicyEq* hashPolicyEq_;
   Vm* vm_;
 
   friend struct StateAllocatorCallback;

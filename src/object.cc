@@ -229,17 +229,10 @@ void Vector::set(int index, Svalue x)  {
 
 //=============================================================================
 
-struct SHashTable::HashPolicyEq : public HashPolicy<Svalue> {
-  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
-  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
-};
-
-SHashTable::HashPolicyEq SHashTable::s_policy;
-
-SHashTable::SHashTable(Allocator* allocator)
+SHashTable::SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy)
   : Sobject() {
   void* memory = ALLOC(allocator, sizeof(*table_));
-  table_ = new(memory) TableType(&s_policy, allocator);
+  table_ = new(memory) TableType(policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
