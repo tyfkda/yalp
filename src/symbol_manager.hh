@@ -6,7 +6,6 @@
 #define _SYMBOL_MANAGER_HH_
 
 #include "hash_table.hh"
-#include <vector>
 
 namespace yalp {
 
@@ -38,6 +37,7 @@ private:
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
   SymbolId generate(const char* name);
+  void expandPage(SymbolId oldSize);
   char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
@@ -46,7 +46,11 @@ private:
   TableType table_;
   int gensymIndex_;
 
-  std::vector<Symbol> array_;
+  // Memory blocks for Symbol instances.
+  struct Page;
+  Page* pageTop_;
+  Symbol** array_;
+  SymbolId symbolIndex_;
 };
 
 }  // namespace yalp
