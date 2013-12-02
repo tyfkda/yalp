@@ -9,6 +9,13 @@
 namespace yalp {
 
 //=============================================================================
+// Symbol class is not derived from Sobject.
+// Instances are managed by SymbolManager
+// and not be the target of GC.
+Symbol::Symbol(char* name)
+  : name_(name), hash_(strHash(name)) {}
+
+//=============================================================================
 bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
@@ -18,20 +25,6 @@ unsigned int Sobject::calcHash() const {
 }
 
 bool Sobject::isCallable() const  { return false; }
-
-//=============================================================================
-Symbol::Symbol(char* name)
-  : Sobject(), name_(name), hash_(strHash(name)) {}
-
-Type Symbol::getType() const  { return TT_SYMBOL; }
-
-unsigned int Symbol::calcHash() const {
-  return hash_;
-}
-
-void Symbol::output(State*, std::ostream& o, bool) const {
-  o << name_;
-}
 
 //=============================================================================
 Cell::Cell(Svalue a, Svalue d)

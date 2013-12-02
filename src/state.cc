@@ -74,8 +74,7 @@ unsigned int Svalue::calcHash(State* state) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      return toSymbol(state)->calcHash();
-      break;
+      return toSymbol(state)->getHash();
     }
   }
   assert(!"Must not happen");
@@ -103,8 +102,8 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      return toSymbol(state)->output(state, o, inspect);
-      break;
+      o << toSymbol(state)->c_str();
+      return;
     }
   }
 }
