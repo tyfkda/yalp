@@ -308,7 +308,7 @@ void State::runtimeError(const char* msg) {
 
   const Vm::CallStack* callStack = vm_->getCallStack();
   for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
-    Symbol* name = callStack[i].callable->getName();
+    const Symbol* name = callStack[i].callable->getName();
     std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
   }
 

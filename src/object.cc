@@ -279,7 +279,7 @@ Callable::Callable()
 
 bool Callable::isCallable() const  { return true; }
 
-void Callable::setName(Symbol* name)  { name_ = name; }
+void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.

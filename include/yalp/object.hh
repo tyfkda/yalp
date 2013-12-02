@@ -196,11 +196,11 @@ public:
 
   virtual bool isCallable() const;
 
-  Symbol* getName() const  { return name_; }
-  void setName(Symbol* name);
+  const Symbol* getName() const  { return name_; }
+  void setName(const Symbol* name);
 
 protected:
-  Symbol* name_;
+  const Symbol* name_;
 };
 
 // Closure class.
