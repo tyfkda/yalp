@@ -8,7 +8,7 @@ public:
   CellForTest(Svalue a, Svalue d) : Cell(a, d) {}
 };
 
-class ValueTest : public ::testing::Test {
+class ObjectTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
     state_ = State::create();
@@ -21,7 +21,7 @@ protected:
   State* state_;
 };
 
-TEST_F(ValueTest, cell) {
+TEST_F(ObjectTest, cell) {
   Svalue a = state_->fixnumValue(111);
   Svalue d = state_->fixnumValue(222);
   CellForTest cell(a, d);
