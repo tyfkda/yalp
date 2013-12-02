@@ -20,6 +20,7 @@ namespace yalp {
 class Allocator;
 class Sobject;
 class State;
+class Symbol;
 class SymbolManager;
 class Vm;
 
@@ -55,6 +56,7 @@ public:
   Sfloat toFloat() const;
   bool isObject() const;
   Sobject* toObject() const;
+  const Symbol* toSymbol(State* state) const;
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
@@ -63,7 +65,7 @@ public:
   void output(State* state, std::ostream& o, bool inspect) const;
 
   long getId() const  { return v_; }
-  unsigned int calcHash() const;
+  unsigned int calcHash(State* state) const;
 
   friend std::ostream& operator<<(std::ostream& o, Svalue s) {
     s.output(NULL, o, true); return o;
@@ -74,6 +76,7 @@ public:
 private:
   explicit Svalue(Sfixnum i);
   explicit Svalue(Sobject* object);
+  explicit Svalue(Sfixnum i, int tag2);
 
   Sfixnum v_;
 
@@ -108,6 +111,7 @@ public:
   // Returns symbol value.
   Svalue intern(const char* name);
   Svalue gensym();
+  const Symbol* getSymbol(unsigned int symbolId) const;
 
   // Creates cell.
   Svalue cons(Svalue a, Svalue d);

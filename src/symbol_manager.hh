@@ -12,9 +12,11 @@ namespace yalp {
 class Allocator;
 class Symbol;
 
+typedef unsigned int SymbolId;
+
 class SymbolManager {
 public:
-  typedef HashTable<const char*, Symbol*> TableType;
+  typedef HashTable<const char*, SymbolId> TableType;
   struct StrHashPolicy;
 
   static SymbolManager* create(Allocator* allocator);
@@ -22,17 +24,20 @@ public:
   void release();
 
   // Create symbol from c-string.
-  Symbol* intern(const char* name);
+  SymbolId intern(const char* name);
 
   // Generate new symbol.
-  Symbol* gensym();
+  SymbolId gensym();
+
+  const Symbol* get(SymbolId symbolId) const;
 
   void reportDebugInfo() const;
 
 private:
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
-  Symbol* generate(const char* name);
+  SymbolId generate(const char* name);
+  void expandPage(SymbolId oldSize);
   char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
@@ -40,6 +45,12 @@ private:
   Allocator* allocator_;
   TableType table_;
   int gensymIndex_;
+
+  // Memory blocks for Symbol instances.
+  struct Page;
+  Page* pageTop_;
+  Symbol** array_;
+  SymbolId symbolIndex_;
 };
 
 }  // namespace yalp

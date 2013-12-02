@@ -24,6 +24,23 @@ struct HashPolicy;
 template <class Key, class Value>
 class HashTable;
 
+// Symbol class
+class Symbol {
+public:
+  ~Symbol()  {}
+
+  unsigned int getHash() const  { return hash_; }
+  const char* c_str() const  { return name_; }
+
+private:
+  explicit Symbol(char* name);
+
+  char* name_;
+  unsigned int hash_;  // Pre-calculated hash value.
+
+  friend class SymbolManager;
+};
+
 // Base class.
 class Sobject : public GcObject {
 public:
@@ -42,26 +59,6 @@ protected:
 
   friend State;
   friend Svalue;
-};
-
-// Symbol class.
-class Symbol : public Sobject {
-public:
-  virtual Type getType() const override;
-  virtual unsigned int calcHash() const override;
-
-  const char* c_str() const  { return name_; }
-
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
-
-protected:
-  Symbol(char* name);
-  ~Symbol()  {}
-private:
-  char* name_;
-  unsigned int hash_;  // Pre-calculated hash value.
-
-  friend class SymbolManager;
 };
 
 // Cell class.
