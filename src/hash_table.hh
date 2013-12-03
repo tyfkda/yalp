@@ -16,7 +16,7 @@
  *   ht.remove(k);
  *
  * Each:
- *   for (HashTable<K, V, P>::Iterator it = ht.begin();
+ *   for (HashTable<K, V, P>::const_iterator it = ht.begin();
  *        it != ht.end(); ++it) {
  *     // Key access: it->key
  *     // Value access: it->value
@@ -128,10 +128,10 @@ private:
   };
 
 public:
-  // Iterator
-  class Iterator {
+  // const_iterator
+  class const_iterator {
   public:
-    const Iterator& operator++() {
+    const const_iterator& operator++() {
       link = link->next;
       if (link == NULL) {
         do {
@@ -143,13 +143,13 @@ public:
       return *this;
     }
 
-    bool operator==(const Iterator& it) const  { return link == it.link; }
-    bool operator!=(const Iterator& it) const  { return link != it.link; }
+    bool operator==(const const_iterator& it) const  { return link == it.link; }
+    bool operator!=(const const_iterator& it) const  { return link != it.link; }
 
     const Link* operator->() const  { return link; }
 
   private:
-    Iterator(const HashTable* ht, unsigned int index, Link* link) {
+    const_iterator(const HashTable* ht, unsigned int index, Link* link) {
       this->ht = ht;
       this->index = index;
       this->link = link;
@@ -161,7 +161,7 @@ public:
     friend class HashTable;
   };
 
-  Iterator begin() const {
+  const_iterator begin() const {
     Link* link = NULL;
     unsigned int index = 0;
     for (index = 0; index < arraySize_; ++index) {
@@ -169,11 +169,11 @@ public:
       if (link != NULL)
         break;
     }
-    Iterator it(this, index, link);
+    const_iterator it(this, index, link);
     return it;
   }
-  Iterator end() const {
-    return Iterator(this, arraySize_, NULL);
+  const_iterator end() const {
+    return const_iterator(this, arraySize_, NULL);
   }
 
 private:
