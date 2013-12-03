@@ -330,6 +330,11 @@ static Svalue s_read(State* state) {
   return exp;
 }
 
+static Svalue s_run_binary(State* state) {
+  Svalue bin = state->getArg(0);
+  return state->runBinary(bin);
+}
+
 static Svalue s_make_hash_table(State* state) {
   return state->createHashTable();
 }
@@ -426,6 +431,7 @@ void installBasicFunctions(State* state) {
   state->assignNative("uniq", s_uniq, 0);
   state->assignNative("apply", s_apply, 1, -1);
   state->assignNative("read", s_read, 0);
+  state->assignNative("run-binary", s_run_binary, 1);
 
   state->assignNative("make-hash-table", s_make_hash_table, 0);
   state->assignNative("hash-table-get", s_hash_table_get, 2);

@@ -617,9 +617,6 @@
           (else
            (runtime-error #`"invalid application: ,f")))))
 
-(define (my-compile x)
-  (compile x '(()) () '(HALT)))
-
 (define (install-native-functions)
   (define (all f ls)
     (cond ((null? ls) #t)
@@ -686,8 +683,9 @@
   (assign-native! 'macroexpand my-macroexpand 1 1)
   (assign-native! 'apply my-apply 2 -1)
   (assign-native! 'read read 0 0)
-  (assign-native! 'compile my-compile 1 1)
+  (assign-native! 'compile compile 1 1)
   (assign-native! 'run-binary run-binary 1 1)
+  (assign-native! 'eval evaluate 1 1)
 
   (assign-native! 'make-hash-table make-hash-table 0 0)
   (assign-native! 'hash-table-get (lambda (h k)
