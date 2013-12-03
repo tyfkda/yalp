@@ -383,9 +383,8 @@ static Svalue s_hash_table_keys(State* state) {
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
   Svalue result = state->nil();
-  for (auto it = ht->begin(); it != ht->end(); ++it) {
-    result = state->cons(it->key, result);
-  }
+  for (auto kv : *ht)
+    result = state->cons(kv.key, result);
   return result;
 }
 

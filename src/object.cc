@@ -244,8 +244,9 @@ void SHashTable::mark() {
   if (isMarked())
     return;
   Sobject::mark();
-  for (auto it = table_->begin(); it != table_->end(); ++it)
-    const_cast<Svalue*>(&it->value)->mark();
+  TableType& table = *table_;
+  for (auto kv : table)
+    const_cast<Svalue*>(&kv.value)->mark();
 }
 
 int SHashTable::getCapacity() const  { return table_->getCapacity(); }

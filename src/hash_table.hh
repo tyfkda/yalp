@@ -21,6 +21,11 @@
  *     // Key access: it->key
  *     // Value access: it->value
  *   }
+ *     or using range-based for
+ *   for (auto kv : ht) {
+ *     // Key access: kv.key
+ *     // Value access: kv.value
+ *   }
  *
  *
  * Policy:
@@ -147,6 +152,7 @@ public:
     bool operator!=(const const_iterator& it) const  { return link != it.link; }
 
     const Link* operator->() const  { return link; }
+    const Link& operator*() const  { return *link; }
 
   private:
     const_iterator(const HashTable* ht, unsigned int index, Link* link) {
