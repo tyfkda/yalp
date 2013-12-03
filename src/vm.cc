@@ -5,6 +5,7 @@
 #include "vm.hh"
 #include "allocator.hh"
 #include "yalp/object.hh"
+#include "yalp/util.hh"
 #include <assert.h>
 #include <iostream>
 

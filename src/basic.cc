@@ -6,6 +6,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
 #include <iostream>
