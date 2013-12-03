@@ -184,9 +184,12 @@
        ls ())
     ls))
 
+(defn newline ()
+  (display "\n"))
+
 (defn print (x)
   (display x)
-  (display "\n")
+  (newline)
   x)
 
 ;; Write shared structure.
