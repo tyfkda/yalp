@@ -95,25 +95,37 @@ gtest_main.a:	gtest-all.o gtest_main.o
 
 test:	run-tests vm-test
 
-run-tests:	$(TESTS)
+RUN_TESTS = $(addprefix run-,$(TESTS))
+
+run-tests:	$(RUN_TESTS)
 
 hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@ && ./hash_table_test
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-hash_table_test:	hash_table_test
+	./hash_table_test
 
 symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@ && ./symbol_manager_test
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-symbol_manager_test:	symbol_manager_test
+	./symbol_manager_test
 
 object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@ && ./object_test
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-object_test:	object_test
+	./object_test
 
 read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@ && ./read_test
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-read_test:	read_test
+	./read_test
 
 state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@ && ./state_test
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-state_test:	state_test
+	./state_test
 
-vm-test:
-	cd .. && make && cd test && ./vm_test.sh
+vm-test:	yalp
+	./vm_test.sh
 
-../yalp:
-	cd .. && make
+yalp:
+	make --director=..
