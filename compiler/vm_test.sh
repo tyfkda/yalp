@@ -74,6 +74,9 @@ run call/cc 123 '(call/cc
 run call/cc-nil nil '(call/cc
                        (^(cc)
                          (cc)))'
+run_raw invoke-call/cc '1234' '(set! *cc* ())
+                               (display (call/cc (^(cc) (set! *cc* cc) 12)))
+                               (*cc* 34)'
 run global-var 111 '((^()
                        ((^()
                           (set! global 111)))

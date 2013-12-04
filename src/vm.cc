@@ -352,16 +352,24 @@ Svalue Vm::runLoop() {
     a_ = static_cast<Box*>(a_.toObject())->get();
     goto again;
   case CONTI:
-    x_ = CAR(x_);
-    a_ = createContinuation(s_);
+    {
+      int n = CAR(x_).toFixnum();
+      x_ = CADR(x_);
+      a_ = createContinuation(s_ - n);
+    }
     goto again;
   case NUATE:
     {
       Svalue stack = CAR(x_);
-      x_ = CADR(x_);
       int argnum = index(f_, -1).toFixnum();
       a_ = (argnum == 0) ? state_->nil() : index(f_, 0);
       s_ = restoreStack(stack);
+      // do-return
+      x_ = index(s_, 0);
+      f_ = index(s_, 1).toFixnum();
+      c_ = index(s_, 2);
+      s_ -= 3;
+      popCallStack();
     }
     goto again;
   case MACRO:
@@ -404,9 +412,7 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 Svalue Vm::createContinuation(int s) {
   Svalue body = list(state_,
                      opcodes_[NUATE],
-                     saveStack(s),
-                     list(state_,
-                          opcodes_[RET]));
+                     saveStack(s));
   return createClosure(body, s, s, 0, 1);
 }
 

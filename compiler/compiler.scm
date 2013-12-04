@@ -72,7 +72,7 @@
                                          (lambda (n)   (compile-recur x e s (list 'FSET n next)))
                                          (lambda (sym) (compile-recur x e s (list 'GSET sym next)))))
                    (call/cc (x)
-                            (let ((c (list 'CONTI
+                            (let ((c (list 'CONTI (if (tail? next) 1 0)
                                            (list 'PUSH
                                                  (compile-recur x e s
                                                                 (if (tail? next)
@@ -413,12 +413,13 @@
                       (VM a x f c s))
                  (UNBOX (x)
                         (VM (unbox a) x f c s))
-                 (CONTI (x)
-                        (VM (continuation s) x f c s))
-                 (NUATE (stack x)
+                 (CONTI (n x)
+                        (VM (continuation (- s n)) x f c s))
+                 (NUATE (stack)
                         (let* ((argnum (index f -1))
                                (a (if (eq? argnum 0) 'nil (index f 0))))
-                          (VM a x f c (restore-stack stack))))
+                          (let ((s (restore-stack stack)))
+                            (do-return a s 0))))
                  (MACRO (name nparam body x)
                         (let ((min (car nparam))
                               (max (cadr nparam)))
@@ -470,7 +471,7 @@
 (define continuation
   (lambda (s)
     (closure
-     (list 'NUATE (save-stack s) '(RET))
+     (list 'NUATE (save-stack s))
      s
      s
      0 1)))

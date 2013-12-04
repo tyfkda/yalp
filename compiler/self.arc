@@ -100,7 +100,7 @@
                                            (^(n)   (compile-recur x e s (list 'FSET n next)))
                                            (^(sym) (compile-recur x e s (list 'GSET sym next)))))
                      (call/cc (x)
-                              (let c (list 'CONTI
+                              (let c (list 'CONTI (if (tail? next) 1 0)
                                            (list 'PUSH
                                                  (compile-recur x e s
                                                                 (if (tail? next)
