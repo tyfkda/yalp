@@ -90,8 +90,12 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
-  , argNum_(0), s_(0)
+  , argNum_(0)
   , callStack_() {
+  a_ = c_ = state->nil();
+  x_ = state->getConstant(State::END_OF_CODE);
+  f_ = s_ = 0;
+
   {
     void* memory = ALLOC(state_->getAllocator(), sizeof(Svalue) * NUMBER_OF_OPCODE);
     opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
