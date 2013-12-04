@@ -29,11 +29,7 @@ CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -Wall -Wextra -Werror -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
 
-SRCS=\
-	symbol_manager_test.cc\
-	object_test.cc\
-	read_test.cc\
-	state_test.cc\
+SRCS=$(wildcard $(SRCPATH)/*.cc)
 
 DEPS:=$(SRCS:%.cc=%.d)
 
