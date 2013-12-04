@@ -59,9 +59,9 @@ static Svalue s_list(State* state) {
 static Svalue s_listStar(State* state) {
   int n = state->getArgNum();
   Svalue res;
-  if (n <= 0) {
+  if (n <= 0)
     res = state->nil();
-  } else {
+  else {
     res = state->getArg(n - 1);
     for (int i = n - 1; --i >= 0; ) {
       Svalue a = state->getArg(i);
@@ -223,9 +223,8 @@ Svalue compare(State* state, Comparator c) {
   bool b = true;
   if (n >= 1) {
     Svalue x = state->getArg(0);
-    if (x.getType() != TT_FIXNUM) {
+    if (x.getType() != TT_FIXNUM)
       state->runtimeError("Fixnum expected");
-    }
     Sfixnum xx = x.toFixnum();
     for (int i = 1; i < n; ++i) {
       Svalue y = state->getArg(i);
@@ -295,30 +294,28 @@ static Svalue s_apply(State* state) {
   if (n > 1) {
     // Last argument should be a list and its elements are function arguments.
     last = state->getArg(n - 1);
-    if (last.eq(state->nil())) {
+    if (last.eq(state->nil()))
       argNum -= 1;
-    } else if (last.getType() != TT_CELL) {
+    else if (last.getType() != TT_CELL)
       state->runtimeError("pair expected");
-    } else {
+    else
       argNum += length(state, last) - 1;
-    }
   }
 
   Svalue* args = NULL;
   if (argNum > 0)
     args = static_cast<Svalue*>(alloca(sizeof(Svalue*) * argNum));
   for (int i = 0; i < argNum; ++i) {
-    if (i < n - 2) {
+    if (i < n - 2)
       args[i] = state->getArg(i + 1);
-    } else {
+    else {
       args[i] = state->car(last);
       last = state->cdr(last);
     }
   }
 
   Svalue f = state->getArg(0);
-  Svalue a = state->funcall(f, argNum, args);
-  return a;
+  return state->funcall(f, argNum, args);
 }
 
 static Svalue s_read(State* state) {
@@ -342,9 +339,8 @@ static Svalue s_make_hash_table(State* state) {
 static Svalue s_hash_table_get(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE) {
+  if (h.getType() != TT_HASH_TABLE)
     state->runtimeError("Hash table expected");
-  }
   const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
   if (result == NULL)
     return state->nil();
@@ -355,9 +351,8 @@ static Svalue s_hash_table_put(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
   Svalue value = state->getArg(2);
-  if (h.getType() != TT_HASH_TABLE) {
+  if (h.getType() != TT_HASH_TABLE)
     state->runtimeError("Hash table expected");
-  }
   static_cast<SHashTable*>(h.toObject())->put(key, value);
   return value;
 }
@@ -365,9 +360,8 @@ static Svalue s_hash_table_put(State* state) {
 static Svalue s_hash_table_exists(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE) {
+  if (h.getType() != TT_HASH_TABLE)
     state->runtimeError("Hash table expected");
-  }
   Svalue result;
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
@@ -375,17 +369,15 @@ static Svalue s_hash_table_exists(State* state) {
 static Svalue s_hash_table_delete(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE) {
+  if (h.getType() != TT_HASH_TABLE)
     state->runtimeError("Hash table expected");
-  }
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
 static Svalue s_hash_table_keys(State* state) {
   Svalue h = state->getArg(0);
-  if (h.getType() != TT_HASH_TABLE) {
+  if (h.getType() != TT_HASH_TABLE)
     state->runtimeError("Hash table expected");
-  }
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
   Svalue result = state->nil();

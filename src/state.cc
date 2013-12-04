@@ -390,6 +390,4 @@ void State::reportDebugInfo() const {
   symbolManager_->reportDebugInfo();
 }
 
-//=============================================================================
-
 }  // namespace yalp

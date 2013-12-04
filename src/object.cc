@@ -322,11 +322,10 @@ NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
 Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
 
 Svalue NativeFunc::call(State* state, int argNum) {
-  if (argNum < minArgNum_) {
+  if (argNum < minArgNum_)
     state->runtimeError("Too few arguments");
-  } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
+  else if (maxArgNum_ >= 0 && argNum > maxArgNum_)
     state->runtimeError("Too many arguments");
-  }
   return func_(state);
 }
 

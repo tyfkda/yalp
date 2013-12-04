@@ -288,11 +288,10 @@ Svalue Vm::runLoop() {
         {
           Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-          if (argNum < min) {
+          if (argNum < min)
             state_->runtimeError("Too few arguments");
-          } else if (max >= 0 && argNum > max) {
+          else if (max >= 0 && argNum > max)
             state_->runtimeError("Too many arguments");
-          }
 
           int ds = 0;
           if (closure->hasRestParam())
@@ -434,10 +433,6 @@ void Vm::expandStack() {
   int newSize = stackSize_ + 16;
   void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
   Svalue* newStack = static_cast<Svalue*>(memory);
-  if (newStack == NULL) {
-    std::cerr << "Can't expand stack! size=" << newSize << std::endl;
-    exit(1);
-  }
   stack_ = newStack;
   stackSize_ = newSize;
 }
@@ -506,9 +501,8 @@ Svalue Vm::saveStack(int s) {
   Allocator* allocator = state_->getAllocator();
   void* memory = OBJALLOC(allocator, sizeof(Vector));
   Vector* v = new(memory) Vector(allocator, s);
-  for (int i = 0; i < s; ++i) {
+  for (int i = 0; i < s; ++i)
     v->set(i, stack_[i]);
-  }
   return Svalue(v);
 }
 
@@ -516,9 +510,8 @@ int Vm::restoreStack(Svalue v) {
   assert(v.getType() == TT_VECTOR);
   Vector* vv = static_cast<Vector*>(v.toObject());
   int s = vv->size();
-  for (int i = 0; i < s; ++i) {
+  for (int i = 0; i < s; ++i)
     stack_[i] = vv->get(i);
-  }
   return s;
 }
 
@@ -557,11 +550,10 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-      if (argNum < min) {
+      if (argNum < min)
         state_->runtimeError("Too few arguments");
-      } else if (max >= 0 && argNum > max) {
+      else if (max >= 0 && argNum > max)
         state_->runtimeError("Too many arguments");
-      }
 
       int ds = 0;
       if (closure->hasRestParam())
