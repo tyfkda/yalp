@@ -87,6 +87,7 @@ private:
   // Global variables
   SHashTable* globalVariableTable_;
 
+  Svalue endOfCode_;
   Svalue return_;
 
   Svalue a_;  // Accumulator.

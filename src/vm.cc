@@ -92,7 +92,7 @@ Vm::Vm(State* state)
   , stack_(NULL), stackSize_(0)
   , callStack_() {
   a_ = c_ = state->nil();
-  x_ = state->getConstant(State::END_OF_CODE);
+  x_ = endOfCode_;
   f_ = s_ = 0;
 
   {
@@ -127,6 +127,7 @@ Vm::Vm(State* state)
     globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 
+  endOfCode_ = list(state_, opcodes_[HALT]);
   return_ = list(state_, opcodes_[RET]);
 }
 
@@ -139,6 +140,7 @@ void Vm::markRoot() {
   a_.mark();
   c_.mark();
   x_.mark();
+  endOfCode_.mark();
   return_.mark();
 }
 
@@ -545,7 +547,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
       // Save old running code.
       s_ = push(x_, s_);
 
-      Svalue ret = state_->getConstant(State::END_OF_CODE);
+      Svalue ret = endOfCode_;
       Svalue c = state_->nil();
       //int s = stackPointer_;
       // Makes frame.
