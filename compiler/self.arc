@@ -67,9 +67,18 @@
 
 ;;; Compiler
 
+(def *exit-compile* nil)
+
+(def (compile-error . args)
+  (print args)
+  (*exit-compile* nil))
+
 (def (compile x)
-  (compile-recur (macroexpand-all x ())
-                 '(()) () '(HALT)))
+  (call/cc
+   (^(cc)
+     (set! *exit-compile* cc)
+     (compile-recur (macroexpand-all x ())
+                    '(()) () '(HALT)))))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -146,21 +155,23 @@
 
 (def (compile-lambda vars bodies e s next)
   (let proper-vars (dotted->proper vars)
-    (with (free (set-intersect (set-union (car e)
-                                          (cdr e))
-                               (find-frees bodies () proper-vars))
-           sets (find-setses bodies (dotted->proper proper-vars))
-           varnum (if (is vars proper-vars)
-                      (list (len vars) (len vars))
-                    (list (- (len proper-vars) 1)
-                          -1)))
-      (collect-free free e
-                    (list 'CLOSE
-                          varnum
-                          (len free)
-                          (make-boxes sets proper-vars
-                                      (compile-lambda-bodies proper-vars bodies free sets s))
-                          next)))))
+    (aif (find-if (^(x) (no (symbol? x))) proper-vars)
+         (compile-error "Function parameter must be symbol")
+      (with (free (set-intersect (set-union (car e)
+                                            (cdr e))
+                                 (find-frees bodies () proper-vars))
+                  sets (find-setses bodies (dotted->proper proper-vars))
+                  varnum (if (is vars proper-vars)
+                             (list (len vars) (len vars))
+                           (list (- (len proper-vars) 1)
+                                  -1)))
+        (collect-free free e
+                      (list 'CLOSE
+                            varnum
+                            (len free)
+                            (make-boxes sets proper-vars
+                                        (compile-lambda-bodies proper-vars bodies free sets s))
+                            next))))))
 
 (def (compile-lambda-bodies vars bodies free sets s)
   (with (ee (cons vars free)

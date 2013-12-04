@@ -115,6 +115,8 @@ static bool compileFile(State* state, const char* filename) {
       cerr << "`compile` is not enabled" << endl;
       return false;
     }
+    if (state->isFalse(code))  // Compile failed.
+      return false;
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
@@ -149,17 +151,24 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
       cerr << "`compile` is not enabled" << endl;
       return false;
     }
+    if (state->isFalse(code)) {  // Compile failed.
+      if (tty)
+        continue;
+      else
+        return false;
+    }
     Svalue result;
     if (!state->runBinary(code, &result)) {
       if (!tty)
         return false;
       state->resetError();
-      continue;;
+      continue;
     }
     if (bCompile) {
       state->funcall(writess, 1, &code, NULL);
       cout << endl;
     } else if (tty) {
+      cout << "=> ";
       result.output(state, cout, true);
       cout << endl;
     }

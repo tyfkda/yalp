@@ -257,7 +257,7 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
     Svalue code;
-    if (!compile(exp, &code))
+    if (!compile(exp, &code) || isFalse(code))
       return false;
     if (!runBinary(code, &result))
       return false;

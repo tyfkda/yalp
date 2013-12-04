@@ -36,9 +36,23 @@
 (add-load-path ".")
 (load "util.scm")
 
+(define *exit-compile* #f)
+
+(define (compile-error . args)
+  (print args)
+  (*exit-compile* #f))
+
 (define (compile x)
-  (compile-recur (macroexpand-all x ())
-                 '(()) () '(HALT)))
+  (call/cc
+    (lambda (cc)
+      (set! *exit-compile* cc)
+      (compile-recur (macroexpand-all x ())
+                     '(()) () '(HALT)))))
+
+(define (find-if f ls)
+  (cond ((null? ls) #f)
+        ((f (car ls)) ls)
+        (else (find-if f (cdr ls)))))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -117,21 +131,23 @@
 
 (define (compile-lambda vars bodies e s next)
   (let ((proper-vars (dotted->proper vars)))
-    (let ((free (set-intersect (set-union (car e)
-                                          (cdr e))
-                               (find-frees bodies () proper-vars)))
-          (sets (find-setses bodies (dotted->proper proper-vars)))
-          (varnum (if (eq? vars proper-vars)
-                      (list (length vars) (length vars))
-                    (list (- (length proper-vars) 1)
-                          -1))))
-      (collect-free free e
-                    (list 'CLOSE
-                          varnum
-                          (length free)
-                          (make-boxes sets proper-vars
-                                      (compile-lambda-bodies proper-vars bodies free sets s))
-                          next)))))
+    (if (find-if (lambda (x) (not (symbol? x))) proper-vars)
+        (compile-error "Function parameter must be symbol")
+      (let ((free (set-intersect (set-union (car e)
+                                            (cdr e))
+                                 (find-frees bodies () proper-vars)))
+            (sets (find-setses bodies (dotted->proper proper-vars)))
+            (varnum (if (eq? vars proper-vars)
+                        (list (length vars) (length vars))
+                      (list (- (length proper-vars) 1)
+                            -1))))
+        (collect-free free e
+                      (list 'CLOSE
+                            varnum
+                            (length free)
+                            (make-boxes sets proper-vars
+                                        (compile-lambda-bodies proper-vars bodies free sets s))
+                            next))))))
 
 (define (compile-lambda-bodies vars bodies free sets s)
   (let ((ee (cons vars free))
@@ -636,7 +652,9 @@
 (define evaluate
   (lambda (x)
     (let1 code (compile x)
-      (run-binary code))))
+      (if code
+          (run-binary code)
+        #f))))
 
 (define (run-binary code)
   (VM () code 0 () %running-stack-pointer))
@@ -763,7 +781,8 @@
     (let ((s (read)))
       (unless (member s `(:q :quit :exit ,(eof-object)))
         (let ((result (evaluate s)))
-          (when tty? (print result)))
+          (cond (tty? (display "=> ") (print result))
+                ((eq? result #f) (exit 1))))
         (loop))))
   (when tty? (print "bye\n")))
 
@@ -813,6 +832,7 @@
              (when (not tty?)
                (run-main))))
           (else (dolist (code (read-all restargs))
-                  (evaluate code))
+                  (when (eq? (evaluate code) #f)
+                    (exit 1)))
                 (run-main))))
   (exit 0))
