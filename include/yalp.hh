@@ -140,7 +140,7 @@ public:
     QUASIQUOTE,
     UNQUOTE,
     UNQUOTE_SPLICING,
-    SINGLE_HALT,
+    END_OF_CODE,
 
     NUMBER_OF_CONSTANT
   };

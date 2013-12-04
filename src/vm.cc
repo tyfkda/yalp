@@ -546,7 +546,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
       // Save old running code.
       s_ = push(x_, s_);
 
-      Svalue ret = state_->getConstant(State::SINGLE_HALT);
+      Svalue ret = state_->getConstant(State::END_OF_CODE);
       Svalue c = state_->nil();
       //int s = stackPointer_;
       // Makes frame.

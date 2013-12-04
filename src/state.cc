@@ -205,12 +205,12 @@ State::State(AllocFunc allocFunc)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , vm_(NULL) {
-  static const char* constSymbols[SINGLE_HALT] = {
+  static const char* constSymbols[END_OF_CODE] = {
     "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
   };
-  for (int i = 0; i < SINGLE_HALT; ++i)
+  for (int i = 0; i < END_OF_CODE; ++i)
     constant_[i] = intern(constSymbols[i]);
-  constant_[SINGLE_HALT] = list(this, intern("HALT"));
+  constant_[END_OF_CODE] = list(this, intern("HALT"));
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
@@ -379,7 +379,7 @@ void State::collectGarbage() {
 }
 
 void State::markRoot() {
-  for (int i = SINGLE_HALT; i < NUMBER_OF_CONSTANT; ++i)
+  for (int i = END_OF_CODE; i < NUMBER_OF_CONSTANT; ++i)
     constant_[i].mark();
 
   vm_->markRoot();
