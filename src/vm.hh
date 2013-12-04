@@ -87,9 +87,6 @@ private:
   // Global variables
   SHashTable* globalVariableTable_;
 
-  // For native function call.
-  int argNum_;
-
   Svalue a_;  // Accumulator.
   Svalue x_;  // Running code.
   int f_;     // Frame pointer.

@@ -90,7 +90,6 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
-  , argNum_(0)
   , callStack_() {
   a_ = c_ = state->nil();
   x_ = state->getConstant(State::END_OF_CODE);
@@ -303,13 +302,14 @@ Svalue Vm::runLoop() {
         break;
       case TT_NATIVEFUNC:
         {
-          // Store current state in member variable for native function call.
-          argNum_ = argNum;
+          f_ = s_;
+          s_ = push(state_->fixnumValue(argNum), s_);
+
           NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
           a_ = native->call(state_, argNum);
 
           // do-return
-          s_ -= argNum;
+          s_ -= argNum + 1;
           x_ = index(s_, 0);
           f_ = index(s_, 1).toFixnum();
           c_ = index(s_, 2);
@@ -525,11 +525,11 @@ int Vm::restoreStack(Svalue v) {
 }
 
 int Vm::getArgNum() const {
-  return argNum_;
+  return index(f_, -1).toFixnum();
 }
 
 Svalue Vm::getArg(int index) const {
-  return this->index(s_, index);
+  return this->index(f_, index);
 }
 
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
@@ -542,7 +542,6 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   pushCallStack(static_cast<Callable*>(fn.toObject()));
 
   Svalue result;
-  const int prevArgNum = argNum_;
 
   switch (fn.getType()) {
   case TT_CLOSURE:
@@ -585,16 +584,16 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   case TT_NATIVEFUNC:
     {
       // No frame.
-      s_ = pushArgs(argNum, args, s_);
+      f_ = pushArgs(argNum, args, s_);
+      s_ = push(state_->fixnumValue(argNum), f_);
 
       // Store current state in member variable for native function call.
-      argNum_ = argNum;
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       result = native->call(state_, argNum);
 
       popCallStack();
 
-      s_ -= argNum;
+      s_ -= argNum + 1;
     }
     break;
   default:
@@ -602,7 +601,6 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
     break;
   }
 
-  argNum_ = prevArgNum;
   return result;
 }
 
