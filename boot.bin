@@ -1,7 +1,6 @@
 (FRAME (GSET *macro-table* (HALT)) (GREF make-hash-table (APPLY 0)))
 (CLOSE (2 2) 0 (LREF 1 (PUSH (LREF 0 (PUSH (GREF *macro-table* (PUSH (GREF hash-table-put! (SHIFT 3 (APPLY 3))))))))) (GSET register-macro (HALT)))
 (CLOSE (1 1) 0 (LREF 0 (PUSH (GREF *macro-table* (PUSH (GREF hash-table-exists? (SHIFT 2 (APPLY 2))))))) (GSET macro? (HALT)))
-(CLOSE (1 1) 0 (LREF 0 (TEST (GREF nil #0=(RET)) (GREF t #0#))) (GSET null (HALT)))
 (CLOSE (1 1) 0 (LREF 0 (TEST (GREF nil #0=(RET)) (GREF t #0#))) (GSET no (HALT)))
 (CLOSE (2 2) 0 (LREF 1 (TEST (FRAME (PUSH (FRAME (PUSH (GREF cons (SHIFT 2 (APPLY 2)))) (FRAME (PUSH (LREF 0 (APPLY 1))) (LREF 1 (PUSH (GREF car (APPLY 1))))))) (FRAME (PUSH (LREF 0 (PUSH (GREF map (APPLY 2))))) (LREF 1 (PUSH (GREF cdr (APPLY 1)))))) (CONST () (RET)))) (GSET map (HALT)))
 (CLOSE (1 1) 0 (FRAME (TEST (GREF nil (RET)) (FRAME (TEST (FRAME (PUSH (GREF list (SHIFT 1 (APPLY 1)))) (FRAME (PUSH (GREF list (APPLY 1))) (LREF 0 (PUSH (GREF car (APPLY 1)))))) (FRAME (PUSH (FRAME (PUSH (GREF cons (SHIFT 2 (APPLY 2)))) (FRAME (PUSH (FRAME (PUSH (GREF list (APPLY 2))) (LREF 0 (PUSH (GREF car (APPLY 1)))))) (LREF 0 (PUSH (GREF cadr (APPLY 1))))))) (FRAME (PUSH (GREF pair (APPLY 1))) (LREF 0 (PUSH (GREF cddr (APPLY 1))))))) (FRAME (PUSH (GREF no (APPLY 1))) (LREF 0 (PUSH (GREF cdr (APPLY 1))))))) (LREF 0 (PUSH (GREF no (APPLY 1))))) (GSET pair (HALT)))

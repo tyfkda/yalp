@@ -11,12 +11,6 @@
       (^(name)
         (hash-table-exists? *macro-table* name)))
 
-
-(set! null
-      (^(x)
-        (if x
-            nil
-          t)))
 (set! no
       (^(x)
         (if x
