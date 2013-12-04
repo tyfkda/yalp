@@ -126,6 +126,8 @@ Vm::Vm(State* state)
     assert(ht.getType() == TT_HASH_TABLE);
     globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
+
+  return_ = list(state_, opcodes_[RET]);
 }
 
 void Vm::markRoot() {
@@ -137,6 +139,7 @@ void Vm::markRoot() {
   a_.mark();
   c_.mark();
   x_.mark();
+  return_.mark();
 }
 
 void Vm::reportDebugInfo() const {
@@ -304,17 +307,10 @@ Svalue Vm::runLoop() {
         {
           f_ = s_;
           s_ = push(state_->fixnumValue(argNum), s_);
+          x_ = return_;
 
           NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
           a_ = native->call(state_, argNum);
-
-          // do-return
-          s_ -= argNum + 1;
-          x_ = index(s_, 0);
-          f_ = index(s_, 1).toFixnum();
-          c_ = index(s_, 2);
-          s_ -= 3;
-          popCallStack();
         }
         break;
       default:
