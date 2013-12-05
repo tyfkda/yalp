@@ -68,9 +68,9 @@
                          (compile-recur test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
-                                         (lambda (n)   (compile-recur x e s (list 'LSET n next)))
-                                         (lambda (n)   (compile-recur x e s (list 'FSET n next)))
-                                         (lambda (sym) (compile-recur x e s (list 'GSET sym next)))))
+                                         (lambda (n) (compile-recur x e s (list 'LSET n next)))
+                                         (lambda (n) (compile-recur x e s (list 'FSET n next)))
+                                         (lambda ()  (compile-recur x e s (list 'GSET var next)))))
                    (call/cc (x)
                             (let ((c (list 'CONTI (if (tail? next) 1 0)
                                            (list 'PUSH
@@ -223,11 +223,11 @@
           (f (cdr vars) (+ n 1)))))))
 
 (define compile-refer
-  (lambda (x e next)
-    (compile-lookup x e
-                    (lambda (n)   (list 'LREF n next))
-                    (lambda (n)   (list 'FREF n next))
-                    (lambda (sym) (list 'GREF sym next)))))
+  (lambda (var e next)
+    (compile-lookup var e
+                    (lambda (n) (list 'LREF n next))
+                    (lambda (n) (list 'FREF n next))
+                    (lambda ()  (list 'GREF var next)))))
 
 (define (find-index x ls)
   (let loop ((ls ls)
@@ -242,7 +242,7 @@
           (free   (cdr e)))
       (cond ((find-index var locals) => return-local)
             ((find-index var free) => return-free)
-            (else (return-global var))))))
+            (else (return-global))))))
 
 (define tail?
   (lambda (next)
