@@ -392,47 +392,47 @@ static Svalue s_collect_garbage(State* state) {
 }
 
 void installBasicFunctions(State* state) {
-  state->assignGlobal(state->nil(), state->nil());
-  state->assignGlobal(state->t(), state->t());
+  state->defineGlobal(state->nil(), state->nil());
+  state->defineGlobal(state->t(), state->t());
 
-  state->assignNative("cons", s_cons, 2);
-  state->assignNative("car", s_car, 1);
-  state->assignNative("cdr", s_cdr, 1);
-  state->assignNative("set-car!", s_set_car, 2);
-  state->assignNative("set-cdr!", s_set_cdr, 2);
-  state->assignNative("list", s_list, 0, -1);
-  state->assignNative("list*", s_listStar, 0, -1);
-  state->assignNative("consp", s_consp, 1);
-  state->assignNative("symbolp", s_symbolp, 1);
-  state->assignNative("append", s_append, 0, -1);
-  state->assignNative("+", s_add, 0, -1);
-  state->assignNative("-", s_sub, 0, -1);
-  state->assignNative("*", s_mul, 0, -1);
-  state->assignNative("/", s_div, 0, -1);
+  state->defineNative("cons", s_cons, 2);
+  state->defineNative("car", s_car, 1);
+  state->defineNative("cdr", s_cdr, 1);
+  state->defineNative("set-car!", s_set_car, 2);
+  state->defineNative("set-cdr!", s_set_cdr, 2);
+  state->defineNative("list", s_list, 0, -1);
+  state->defineNative("list*", s_listStar, 0, -1);
+  state->defineNative("consp", s_consp, 1);
+  state->defineNative("symbolp", s_symbolp, 1);
+  state->defineNative("append", s_append, 0, -1);
+  state->defineNative("+", s_add, 0, -1);
+  state->defineNative("-", s_sub, 0, -1);
+  state->defineNative("*", s_mul, 0, -1);
+  state->defineNative("/", s_div, 0, -1);
 
-  state->assignNative("is", s_is, 2);
-  state->assignNative("iso", s_iso, 2);
-  state->assignNative("<", s_lessThan, 2, -1);
-  state->assignNative(">", s_greaterThan, 2, -1);
-  state->assignNative("<=", s_lessEqual, 2, -1);
-  state->assignNative(">=", s_greaterEqual, 2, -1);
+  state->defineNative("is", s_is, 2);
+  state->defineNative("iso", s_iso, 2);
+  state->defineNative("<", s_lessThan, 2, -1);
+  state->defineNative(">", s_greaterThan, 2, -1);
+  state->defineNative("<=", s_lessEqual, 2, -1);
+  state->defineNative(">=", s_greaterEqual, 2, -1);
 
-  state->assignNative("display", s_display, 1);
-  state->assignNative("write", s_write, 1);
+  state->defineNative("display", s_display, 1);
+  state->defineNative("write", s_write, 1);
 
-  state->assignNative("uniq", s_uniq, 0);
-  state->assignNative("apply", s_apply, 1, -1);
-  state->assignNative("read", s_read, 0);
-  state->assignNative("run-binary", s_run_binary, 1);
+  state->defineNative("uniq", s_uniq, 0);
+  state->defineNative("apply", s_apply, 1, -1);
+  state->defineNative("read", s_read, 0);
+  state->defineNative("run-binary", s_run_binary, 1);
 
-  state->assignNative("make-hash-table", s_make_hash_table, 0);
-  state->assignNative("hash-table-get", s_hash_table_get, 2);
-  state->assignNative("hash-table-put!", s_hash_table_put, 3);
-  state->assignNative("hash-table-exists?", s_hash_table_exists, 2);
-  state->assignNative("hash-table-delete!", s_hash_table_delete, 2);
-  state->assignNative("hash-table-keys", s_hash_table_keys, 1);
+  state->defineNative("make-hash-table", s_make_hash_table, 0);
+  state->defineNative("hash-table-get", s_hash_table_get, 2);
+  state->defineNative("hash-table-put!", s_hash_table_put, 3);
+  state->defineNative("hash-table-exists?", s_hash_table_exists, 2);
+  state->defineNative("hash-table-delete!", s_hash_table_delete, 2);
+  state->defineNative("hash-table-keys", s_hash_table_keys, 1);
 
-  state->assignNative("collect-garbage", s_collect_garbage, 0);
+  state->defineNative("collect-garbage", s_collect_garbage, 0);
 }
 
 }  // namespace yalp

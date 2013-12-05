@@ -1,86 +1,79 @@
 ;; Macro hash table, (symbol => closure)
-(set! *macro-table* (make-hash-table))
+(def *macro-table* (make-hash-table))
 
 ;; Compile (defmacro name (vars ...) bodies) syntax.
-(set! register-macro
-      (^(name closure)
-        (hash-table-put! *macro-table* name closure)))
+(def register-macro
+    (^(name closure)
+      (hash-table-put! *macro-table* name closure)))
 
 ;; Whether the given name is macro.
-(set! macro?
-      (^(name)
-        (hash-table-exists? *macro-table* name)))
+(def macro?
+    (^(name)
+      (hash-table-exists? *macro-table* name)))
 
-(set! no
-      (^(x)
-        (if x
-            nil
-          t)))
+(def no (^(x) (if x nil t)))
 
-(set! map
-      (^(f ls)
-        (if ls
-            (cons (f (car ls))
-                  (map f (cdr ls)))
-            ())))
+(def map
+    (^(f ls)
+      (if ls
+          (cons (f (car ls))
+                (map f (cdr ls)))
+          ())))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
-(set! pair
-      (^(xs)
-        (if (no xs)
+(def pair
+    (^(xs)
+      (if (no xs)
             nil
           (no (cdr xs))
-          (list (list (car xs)))
+            (list (list (car xs)))
           (cons (list (car xs) (cadr xs))
                 (pair (cddr xs))))))
 
-(set! cadr (^(x) (car (cdr x))))
-(set! cddr (^(x) (cdr (cdr x))))
-(set! caadr (^(x) (car (cadr x))))
+(def cadr (^(x) (car (cdr x))))
+(def cddr (^(x) (cdr (cdr x))))
+(def caadr (^(x) (car (cadr x))))
 
-(set! qq-expand
-      (^(x)
-        (if (consp x)
-            ((^(m)
-               (if (is m 'unquote)
-                     (cadr x)
-                   (is m 'unquote-splicing)
-                     (error "Illegal")
-                   (is m 'quasiquote)
-                     (qq-expand
-                      (qq-expand (cadr x)))
+(def qq-expand
+    (^(x)
+      (if (consp x)
+          ((^(m)
+             (if (is m 'unquote)
+                 (cadr x)
+                 (is m 'unquote-splicing)
+                 (error "Illegal")
+                 (is m 'quasiquote)
+                 (qq-expand
+                  (qq-expand (cadr x)))
                  (list 'append
                        (qq-expand-list (car x))
                        (qq-expand (cdr x)))))
-             (car x))
-          (list 'quote x))))
+           (car x))
+        (list 'quote x))))
 
-(set! qq-expand-list
-      (^(x)
-        (if (consp x)
-            ((^(m)
-               (if (is m 'unquote)
-                     (list 'list (cadr x))
-                   (is m 'unquote-splicing)
-                     (cadr x)
-                   (is m 'quasiquote)
-                     (qq-expand-list
-                      (qq-expand (cadr x)))
+(def qq-expand-list
+    (^(x)
+      (if (consp x)
+          ((^(m)
+             (if (is m 'unquote)
+                 (list 'list (cadr x))
+                 (is m 'unquote-splicing)
+                 (cadr x)
+                 (is m 'quasiquote)
+                 (qq-expand-list
+                  (qq-expand (cadr x)))
                  (list 'list
                        (list 'append
                              (qq-expand-list (car x))
                              (qq-expand (cdr x))))))
-             (car x))
-          (list 'quote (list x)))))
+           (car x))
+        (list 'quote (list x)))))
 
 (defmacro quasiquote (x)
   (qq-expand x))
 
-(defmacro def (name value)
-  `(set! ,name ,value))
-
 (defmacro defn (name vars . body)
-  `(set! ,name (^ ,vars ,@body)))
+  `(def ,name (^ ,vars ,@body)))
 
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))

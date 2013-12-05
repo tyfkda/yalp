@@ -23,6 +23,7 @@ enum Opcode {
   LSET,
   FSET,
   GSET,
+  DEF,
   PUSH,
   TEST,
   CLOSE,
@@ -107,6 +108,7 @@ Vm::Vm(State* state)
     opcodes_[LSET] = state_->intern("LSET");
     opcodes_[FSET] = state_->intern("FSET");
     opcodes_[GSET] = state_->intern("GSET");
+    opcodes_[DEF] = state_->intern("DEF");
     opcodes_[PUSH] = state_->intern("PUSH");
     opcodes_[TEST] = state_->intern("TEST");
     opcodes_[CLOSE] = state_->intern("CLOSE");
@@ -152,10 +154,10 @@ void Vm::reportDebugInfo() const {
   std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
 }
 
-void Vm::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
-  assignGlobal(state_->intern(name), Svalue(nativeFunc));
+  defineGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
 Svalue Vm::run(Svalue code) {
@@ -239,7 +241,18 @@ Svalue Vm::runLoop() {
       Svalue sym = CAR(x_);
       x_ = CADR(x_);
       assert(sym.getType() == TT_SYMBOL);
-      assignGlobal(sym, a_);
+      if (!assignGlobal(sym, a_)) {
+        sym.output(state_, std::cerr, true);
+        state_->runtimeError(": Global variable not defined");
+      }
+    }
+    goto again;
+  case DEF:
+    {
+      Svalue sym = CAR(x_);
+      x_ = CADR(x_);
+      assert(sym.getType() == TT_SYMBOL);
+      defineGlobal(sym, a_);
     }
     goto again;
   case PUSH:
@@ -484,7 +497,7 @@ Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
   return result != NULL ? *result : state_->nil();
 }
 
-void Vm::assignGlobal(Svalue sym, Svalue value) {
+void Vm::defineGlobal(Svalue sym, Svalue value) {
   if (sym.getType() != TT_SYMBOL) {
     std::cerr << sym << ": ";
     state_->runtimeError("Must be symbol");
@@ -495,6 +508,15 @@ void Vm::assignGlobal(Svalue sym, Svalue value) {
     const Symbol* name = sym.toSymbol(state_);
     static_cast<Callable*>(value.toObject())->setName(name);
   }
+}
+
+bool Vm::assignGlobal(Svalue sym, Svalue value) {
+  if (sym.getType() != TT_SYMBOL ||
+      globalVariableTable_->get(sym) == NULL)
+    return false;
+
+  globalVariableTable_->put(sym, value);
+  return true;
 }
 
 Svalue Vm::saveStack(int s) {

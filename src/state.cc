@@ -361,12 +361,12 @@ Svalue State::referGlobal(Svalue sym, bool* pExist) {
   return vm_->referGlobal(sym, pExist);
 }
 
-void State::assignGlobal(Svalue sym, Svalue value) {
-  vm_->assignGlobal(sym, value);
+void State::defineGlobal(Svalue sym, Svalue value) {
+  vm_->defineGlobal(sym, value);
 }
 
-void State::assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  vm_->assignNative(name, func, minArgNum, maxArgNum);
+void State::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+  vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
 Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {

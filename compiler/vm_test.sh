@@ -74,13 +74,11 @@ run call/cc 123 '(call/cc
 run call/cc-nil nil '(call/cc
                        (^(cc)
                          (cc)))'
-run_raw invoke-call/cc '1234' '(set! *cc* ())
+run_raw invoke-call/cc '1234' '(def *cc* ())
                                (display (call/cc (^(cc) (set! *cc* cc) 12)))
                                (*cc* 34)'
-run global-var 111 '((^()
-                       ((^()
-                          (set! global 111)))
-                       global))'
+run global-var 111 '(def global 111)
+                    global'
 run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
 run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
 run empty-body nil '((^ ()))'
@@ -93,7 +91,7 @@ run unquote-splicing-x ",@x" "',@x"
 
 # Macro
 run_raw nil! nil "(defmacro nil! (sym)
-                    (list 'set! sym nil))
+                    (list 'def sym nil))
                   (nil! xyz)
                   (write xyz)"
 

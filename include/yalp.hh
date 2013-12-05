@@ -154,11 +154,11 @@ public:
   Allocator* getAllocator()  { return allocator_; }
 
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
-  void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
-    assignNative(name, func, minArgNum, minArgNum);
+  void defineGlobal(Svalue sym, Svalue value);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
+    defineNative(name, func, minArgNum, minArgNum);
   }
-  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
 
