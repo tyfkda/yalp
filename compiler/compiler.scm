@@ -237,12 +237,12 @@
           (else (loop (cdr ls) (+ idx 1))))))
 
 (define compile-lookup
-  (lambda (x e return-local return-free return-global)
+  (lambda (var e return-local return-free return-global)
     (let ((locals (car e))
           (free   (cdr e)))
-      (cond ((find-index x locals) => return-local)
-            ((find-index x free) => return-free)
-            (else (return-global x))))))
+      (cond ((find-index var locals) => return-local)
+            ((find-index var free) => return-free)
+            (else (return-global var))))))
 
 (define tail?
   (lambda (next)

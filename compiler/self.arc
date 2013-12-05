@@ -262,12 +262,12 @@
             (self (cdr ls) (+ idx 1))))
    ls 0))
 
-(defn compile-lookup (x e return-local return-free return-global)
+(defn compile-lookup (var e return-local return-free return-global)
   (with (locals (car e)
          free   (cdr e))
-    (aif (find-index x locals)  (return-local it)
-         (find-index x free)    (return-free it)
-         (return-global x))))
+    (aif (find-index var locals)  (return-local it)
+         (find-index var free)    (return-free it)
+         (return-global var))))
 
 (defn tail? (next)
   (is (car next) 'RET))
