@@ -193,24 +193,24 @@
   (if (symbolp x)
         (if (set-member? x b) () (list x))
       (consp x)
-        (let expanded (expand-macro-if-so x)
-          (if (is expanded x)
-                (record-case expanded
-                             (^ (vars . bodies)
-                                (find-frees bodies b vars))
-                             (quote (obj) ())
-                             (if      all (find-frees all b ()))
-                             (set! (var exp)
-                                   (set-union (if (set-member? var b) '() (list var))
-                                              (find-free exp b)))
-                             (def (var exp)
-                                 (set-union (if (set-member? var b) () (list var))
-                                            (find-free exp b)))
-                             (call/cc all (find-frees all b ()))
-                             (defmacro (name vars . bodies) (find-frees bodies b vars))
-                             (else        (find-frees expanded b ())))
-              (find-free expanded b)))
-      ()))
+        (let expanded (macroexpand-1 x)
+          (if (no (iso expanded x))
+                (find-free expanded b)
+            (record-case expanded
+                         (^ (vars . bodies)
+                            (find-frees bodies b vars))
+                         (quote (obj) ())
+                         (if      all (find-frees all b ()))
+                         (set! (var exp)
+                               (set-union (if (set-member? var b) '() (list var))
+                                          (find-free exp b)))
+                         (def (var exp)
+                             (set-union (if (set-member? var b) () (list var))
+                                        (find-free exp b)))
+                         (call/cc all (find-frees all b ()))
+                         (defmacro (name vars . bodies) (find-frees bodies b vars))
+                         (else        (find-frees expanded b ())))))
+    ()))
 
 (defn collect-free (vars e next)
   (if (no vars)
@@ -231,8 +231,8 @@
 ;; Boxing is needed to keep a value for continuation.
 (defn find-sets (x v)
   (if (consp x)
-      (let expanded (expand-macro-if-so x)
-        (if (isnt expanded x)
+      (let expanded (macroexpand-1 x)
+        (if (no (iso expanded x))
             (find-sets expanded v)
           (record-case x
                        (set! (var val)
@@ -247,7 +247,7 @@
                        (call/cc all (find-setses all v))
                        (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
                        (else        (find-setses x   v)))))
-      ()))
+    ()))
 
 (defn make-boxes (sets vars next)
   ((afn (vars n)
@@ -298,18 +298,17 @@
 
 ;; Expand macro and compile the result.
 (defn compile-apply-macro (exp e s next)
-  (let result (macroexpand exp)
-    (compile-recur result e s next)))
+  (compile-recur (macroexpand exp) e s next))
 
-;; Expand macro.
+;; Expand macro if the given expression is macro expression,
+;; otherwise return itself.
 (defn macroexpand-1 (exp)
-  (if (consp exp)
+  (if (and (consp exp)
+           (macro? (car exp)))
       (with (name (car exp)
              args (cdr exp))
-        (if (macro? name)
-            (let closure (hash-table-get *macro-table* name)
-              (apply closure args))
-            exp))
+        (let closure (hash-table-get *macro-table* name)
+          (apply closure args)))
     exp))
 
 (defn macroexpand (exp)
@@ -317,17 +316,6 @@
     (if (iso expanded exp)
         exp
       (macroexpand expanded))))
-
-;; Expand macro all if the given parameter is macro expression,
-;; otherwise return itself.
-(defn expand-macro-if-so (x)
-  (if (and (consp x)
-           (macro? (car x)))
-      (let expanded (macroexpand x)
-        (if (iso expanded x)
-            x
-          (expand-macro-if-so expanded)))
-    x))
 
 ;;
 

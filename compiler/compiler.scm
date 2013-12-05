@@ -164,8 +164,8 @@
     (cond
      ((symbol? x) (if (set-member? x b) () (list x)))
      ((pair? x)
-      (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-        (if (not (eq? expanded x))
+      (let ((expanded (my-macroexpand-1 x)))
+        (if (not (equal? expanded x))
             (find-free expanded b)
           (record-case x
                        (^ (vars . bodies)
@@ -204,8 +204,8 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-          (if (not (eq? expanded x))
+        (let ((expanded (my-macroexpand-1 x)))
+          (if (not (equal? expanded x))
               (find-sets expanded v)
             (record-case x
                          (set! (var val)
@@ -285,10 +285,11 @@
 
 (define (compile-apply-macro exp e s next)
   "Expand macro and compile the result."
-  (let ((result (expand-macro exp %running-stack-pointer)))
-    (compile-recur result e s next)))
+  (compile-recur (my-macroexpand exp) e s next))
 
-(define (expand-macro exp s)
+;; Expand macro if the given expression is macro expression,
+;; otherwise return itself.
+(define (my-macroexpand-1 exp)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -300,24 +301,22 @@
     (do-apply argnum closure s))
 
   "Expand macro."
-  (let ((name (car exp))
-        (args (cdr exp)))
-    (let ((closure (hash-table-get *macro-table* name)))
-      (apply-macro (length args)
-                   closure
-                   (push-args args
-                              (make-frame '(HALT) 0 () s))))))
+  (if (and (pair? exp)
+           (macro? (car exp)))
+      (let ((name (car exp))
+            (args (cdr exp)))
+        (let ((closure (hash-table-get *macro-table* name)))
+          (apply-macro (length args)
+                       closure
+                       (push-args args
+                                  (make-frame '(HALT) 0 () %running-stack-pointer)))))
+    exp))
 
-(define (expand-macro-if-so x s)
-  "Expand macro all if the given parameter is macro expression,
-   otherwise return itself."
-  (if (and (pair? x)
-           (macro? (car x)))
-      (let ((expanded (expand-macro x s)))
-        (if (equal? expanded x)
-            x
-          (expand-macro-if-so expanded s)))
-    x))
+(define (my-macroexpand exp)
+  (let ((expanded (my-macroexpand-1 exp)))
+    (if (equal? expanded exp)
+        exp
+      (my-macroexpand expanded))))
 
 ;;;; runtime
 
@@ -621,9 +620,6 @@
 (use file.util)
 (use gauche.parseopt)
 
-(define (my-macroexpand exp)
-  (expand-macro-if-so exp %running-stack-pointer))
-
 (define (my-apply f . params)
   (let ((args (apply list* params)))
     (cond ((native-function? f)
@@ -701,6 +697,7 @@
                            (write (if (eq? x ()) 'nil x))) 1 1)
 
   (define-native! 'uniq gensym 0 0)
+  (define-native! 'macroexpand-1 my-macroexpand-1 1 1)
   (define-native! 'macroexpand my-macroexpand 1 1)
   (define-native! 'apply my-apply 2 -1)
   (define-native! 'read read 0 0)
