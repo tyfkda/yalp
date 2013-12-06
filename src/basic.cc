@@ -11,6 +11,7 @@
 #include "vm.hh"
 #include <assert.h>
 #include <iostream>
+#include <math.h>
 
 namespace yalp {
 
@@ -316,6 +317,28 @@ static Svalue s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
+template <typename Func>
+Svalue FloatFunc1(State* state, Func f) {
+  return state->floatValue(f(state->getArg(0).toFloat(state)));
+}
+
+template <typename Func>
+Svalue FloatFunc2(State* state, Func f) {
+  Sfloat x = state->getArg(0).toFloat(state);
+  Sfloat y = state->getArg(1).toFloat(state);
+  return state->floatValue(f(x, y));
+}
+
+static Svalue s_sin(State* state) { return FloatFunc1(state, sin); }
+static Svalue s_cos(State* state) { return FloatFunc1(state, cos); }
+static Svalue s_tan(State* state) { return FloatFunc1(state, tan); }
+static Svalue s_sqrt(State* state) { return FloatFunc1(state, sqrt); }
+static Svalue s_log(State* state) { return FloatFunc1(state, log); }
+static Svalue s_floor(State* state) { return FloatFunc1(state, floor); }
+static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
+static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
+static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
+
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
   x.output(state, std::cout, true);
@@ -462,6 +485,16 @@ void installBasicFunctions(State* state) {
   state->defineNative(">", s_greaterThan, 2, -1);
   state->defineNative("<=", s_lessEqual, 2, -1);
   state->defineNative(">=", s_greaterEqual, 2, -1);
+
+  state->defineNative("sin", s_sin, 1);
+  state->defineNative("cos", s_cos, 1);
+  state->defineNative("tan", s_tan, 1);
+  state->defineNative("sqrt", s_sqrt, 1);
+  state->defineNative("log", s_log, 1);
+  state->defineNative("floor", s_floor, 1);
+  state->defineNative("ceil", s_ceil, 1);
+  state->defineNative("atan2", s_atan2, 2);
+  state->defineNative("expt", s_expt, 2);
 
   state->defineNative("display", s_display, 1);
   state->defineNative("write", s_write, 1);
