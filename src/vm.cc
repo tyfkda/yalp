@@ -423,6 +423,10 @@ Svalue Vm::runLoop() {
       int max = CADR(nparam).toFixnum();
       Svalue closure = createClosure(body, 0, s_, min, max);
 
+      assert(name.getType() == TT_SYMBOL);
+      static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
+      defineGlobal(name, state_->intern("*macro*"));
+
       Svalue args[] = { name, closure };
       funcallExec(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
     }
