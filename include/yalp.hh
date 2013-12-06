@@ -53,7 +53,7 @@ public:
   Type getType() const;
 
   Sfixnum toFixnum() const;
-  Sfloat toFloat() const;
+  Sfloat toFloat(State* state) const;
   bool isObject() const;
   Sobject* toObject() const;
   const Symbol* toSymbol(State* state) const;

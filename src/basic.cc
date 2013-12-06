@@ -122,7 +122,7 @@ struct BinOp {
       acc = x.toFixnum();
       break;
     case TT_FLOAT:
-      return calcf(state, 1, x.toFloat());
+      return calcf(state, 1, x.toFloat(state));
       break;
     default:
       state->runtimeError("Number expected");
@@ -159,7 +159,7 @@ struct BinOp {
         acc = Op::op(acc, x.toFixnum());
         break;
       case TT_FLOAT:
-        acc = Op::op(acc, x.toFloat());
+        acc = Op::op(acc, x.toFloat(state));
         break;
       default:
         state->runtimeError("Number expected");
@@ -230,7 +230,7 @@ struct CompareOp {
       acc = x.toFixnum();
       break;
     case TT_FLOAT:
-      return calcf(state, 1, x.toFloat());
+      return calcf(state, 1, x.toFloat(state));
       break;
     default:
       state->runtimeError("Number expected");
@@ -273,7 +273,7 @@ struct CompareOp {
         break;
       case TT_FLOAT:
         {
-          Sfloat xx = x.toFloat();
+          Sfloat xx = x.toFloat(state);
           if (!Op::satisfy(acc, xx))
             return state->boolValue(false);
           acc = xx;

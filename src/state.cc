@@ -114,9 +114,17 @@ Sfixnum Svalue::toFixnum() const {
   return reinterpret_cast<Sfixnum>(v_ >> 1);
 }
 
-Sfloat Svalue::toFloat() const {
-  assert(getType() == TT_FLOAT);
-  return static_cast<Float*>(toObject())->toFloat();
+Sfloat Svalue::toFloat(State* state) const {
+  switch (getType()) {
+  case TT_FLOAT:
+    return static_cast<Float*>(toObject())->toFloat();
+  case TT_FIXNUM:
+    return static_cast<Sfloat>(toFixnum());
+  default:
+    std::cerr << *this << ": ";
+    state->runtimeError("Float expected");
+    return 0;
+  }
 }
 
 bool Svalue::isObject() const {
