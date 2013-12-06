@@ -77,15 +77,16 @@
                        (def (var x)
                             (compile-recur x e s (list 'DEF var next)))
                        (call/cc (x)
-                                (let ((c (list 'CONTI (if (tail? next) 1 0)
+                                ;; Currently, disable tailcall optimization.
+                                (let ((c (list 'CONTI
                                                (list 'PUSH
                                                      (compile-recur x e s
-                                                                    (if (tail? next)
+                                                                    (if #f  ;(tail? next)
                                                                         (list 'SHIFT
                                                                               1
                                                                               '(APPLY 1))
                                                                       '(APPLY 1)))))))
-                                  (if (tail? next)
+                                  (if #f  ;(tail? next)
                                       c
                                     (list 'FRAME next c))))
                        (defmacro (name vars . bodies)
@@ -426,8 +427,8 @@
                       (VM a x f c s))
                  (UNBOX (x)
                         (VM (unbox a) x f c s))
-                 (CONTI (n x)
-                        (VM (continuation (- s n)) x f c s))
+                 (CONTI (x)
+                        (VM (continuation s) x f c s))
                  (NUATE (stack)
                         (let* ((argnum (index f -1))
                                (a (if (eq? argnum 0) 'nil (index f 0))))

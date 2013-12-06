@@ -395,9 +395,8 @@ Svalue Vm::runLoop() {
     goto again;
   case CONTI:
     {
-      int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
-      a_ = createContinuation(s_ - n);
+      x_ = CAR(x_);
+      a_ = createContinuation(s_);
     }
     goto again;
   case NUATE:
@@ -411,7 +410,7 @@ Svalue Vm::runLoop() {
       f_ = index(s_, 1).toFixnum();
       c_ = index(s_, 2);
       s_ -= 3;
-      popCallStack();
+      //popCallStack();
     }
     goto again;
   case MACRO:
