@@ -82,7 +82,7 @@
                            (list 'UNBOX next)
                            next))
       (consp x)
-        (let expanded (macroexpand-1 x)
+        (let expanded (expand-macro x (append (car e) (cdr e)))
           (if (no (iso expanded x))
               (compile-recur expanded e s next)
             (record-case x
@@ -194,7 +194,7 @@
   (if (symbolp x)
         (if (set-member? x b) () (list x))
       (consp x)
-        (let expanded (macroexpand-1 x)
+        (let expanded (expand-macro x b)
           (if (no (iso expanded x))
                 (find-free expanded b)
             (record-case expanded
@@ -232,7 +232,7 @@
 ;; Boxing is needed to keep a value for continuation.
 (def (find-sets x v)
   (if (consp x)
-      (let expanded (macroexpand-1 x)
+      (let expanded (expand-macro x ())
         (if (no (iso expanded x))
             (find-sets expanded v)
           (record-case x
@@ -299,14 +299,18 @@
 
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
-(def (macroexpand-1 exp)
+(def (expand-macro exp vars)
   (if (and (consp exp)
-           (macro? (car exp)))
+           (macro? (car exp))
+           (no (member (car exp) vars)))
       (with (name (car exp)
              args (cdr exp))
         (let closure (hash-table-get *macro-table* name)
           (apply closure args)))
     exp))
+
+(def (macroexpand-1 exp)
+  (expand-macro exp ()))
 
 (def (macroexpand exp)
   (let expanded (macroexpand-1 exp)

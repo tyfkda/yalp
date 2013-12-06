@@ -163,6 +163,12 @@
       (last (cdr ls))
     ls))
 
+(def (member x ls)
+  (when (consp ls)
+    (if (is x (car ls))
+        ls
+      (member x (cdr ls)))))
+
 (def (reverse! ls)
   (if (consp ls)
       ((afn (c p)

@@ -53,7 +53,7 @@
                          (list 'UNBOX next)
                        next)))
      ((pair? x)
-      (let ((expanded (my-macroexpand-1 x)))
+      (let ((expanded (expand-macro x (append (car e) (cdr e)))))
         (if (not (equal? expanded x))
             (compile-recur expanded e s next)
           (record-case x
@@ -165,7 +165,7 @@
     (cond
      ((symbol? x) (if (set-member? x b) () (list x)))
      ((pair? x)
-      (let ((expanded (my-macroexpand-1 x)))
+      (let ((expanded (expand-macro x b)))
         (if (not (equal? expanded x))
             (find-free expanded b)
           (record-case x
@@ -205,7 +205,7 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (let ((expanded (my-macroexpand-1 x)))
+        (let ((expanded (expand-macro x ())))
           (if (not (equal? expanded x))
               (find-sets expanded v)
             (record-case x
@@ -286,7 +286,7 @@
 
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
-(define (my-macroexpand-1 exp)
+(define (expand-macro exp vars)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -299,7 +299,8 @@
 
   "Expand macro."
   (if (and (pair? exp)
-           (macro? (car exp)))
+           (macro? (car exp))
+           (not (member (car exp) vars)))
       (let ((name (car exp))
             (args (cdr exp)))
         (let ((closure (hash-table-get *macro-table* name)))
@@ -308,6 +309,9 @@
                        (push-args args
                                   (make-frame '(HALT) 0 () %running-stack-pointer)))))
     exp))
+
+(define (my-macroexpand-1 exp)
+  (expand-macro exp ()))
 
 (define (my-macroexpand exp)
   (let ((expanded (my-macroexpand-1 exp)))
