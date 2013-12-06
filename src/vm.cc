@@ -198,6 +198,7 @@ bool Vm::run(Svalue code, Svalue* pResult) {
 }
 
 Svalue Vm::runLoop() {
+  int argNum;
  again:
   //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
 
@@ -317,7 +318,8 @@ Svalue Vm::runLoop() {
     goto again;
   case APPLY:
     {
-      int argNum = CAR(x_).toFixnum();
+      argNum = CAR(x_).toFixnum();
+    L_apply:
       if (!a_.isObject() || !a_.toObject()->isCallable()) {
         state_->runtimeError("Can't call");
       }
@@ -427,8 +429,14 @@ Svalue Vm::runLoop() {
       static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
       defineGlobal(name, state_->intern("*macro*"));
 
-      Svalue args[] = { name, closure };
-      funcallExec(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
+      // Makes frame.
+      s_ = push(x_, push(state_->fixnumValue(f_), push(c_, s_)));
+      // Pushs arguments.
+      s_ = push(name, push(closure, s_));
+      argNum = 2;
+      // Calls `register-macro` function.
+      a_ = state_->referGlobal(state_->intern("register-macro"));
+      goto L_apply;
     }
     goto again;
   default:
