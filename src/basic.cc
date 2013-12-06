@@ -384,7 +384,9 @@ static Svalue s_apply(State* state) {
   }
 
   Svalue f = state->getArg(0);
-  return state->funcall(f, argNum, args);
+  Svalue result;
+  state->funcall(f, argNum, args, &result);
+  return result;
 }
 
 static Svalue s_read(State* state) {
@@ -398,7 +400,11 @@ static Svalue s_read(State* state) {
 
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
-  return state->runBinary(bin);
+  Svalue result;
+  if (!state->runBinary(bin, &result)) {
+    std::cerr << "run_binary: failed" << std::endl;
+  }
+  return result;
 }
 
 static Svalue s_make_hash_table(State* state) {

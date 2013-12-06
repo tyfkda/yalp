@@ -52,7 +52,8 @@ TEST_F(StateTest, Cons) {
 TEST_F(StateTest, Funcall) {
   Svalue args[] = { state_->fixnumValue(1), state_->fixnumValue(2), state_->fixnumValue(3) };
   Svalue fn = state_->referGlobal(state_->intern("+"));
-  Svalue result = state_->funcall(fn, sizeof(args) / sizeof(*args), args);
+  Svalue result;
+  ASSERT_TRUE(state_->funcall(fn, sizeof(args) / sizeof(*args), args, &result));
   ASSERT_EQ(TT_FIXNUM, result.getType());
   ASSERT_EQ(6, result.toFixnum());
 }

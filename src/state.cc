@@ -234,12 +234,11 @@ bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
   if (fn.eq(nil()))
     return false;
-  *pValue = funcall(fn, 1, &exp);
-  return true;
+  return funcall(fn, 1, &exp, pValue);
 }
 
-Svalue State::runBinary(Svalue code) {
-  return vm_->run(code);
+bool State::runBinary(Svalue code, Svalue* pResult) {
+  return vm_->run(code, pResult);
 }
 
 bool State::runFromFile(const char* filename, Svalue* pResult) {
@@ -257,7 +256,8 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
     Svalue code;
     if (!compile(exp, &code))
       return false;
-    result = runBinary(code);
+    if (!runBinary(code, &result))
+      return false;
   }
   if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
@@ -276,11 +276,12 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   }
 
   Reader reader(this, strm);
-  Svalue result;
+  Svalue result = nil();
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
-    result = runBinary(bin);
+    if (!runBinary(bin, &result))
+      return false;
   }
   if (err != END_OF_FILE) {
     std::cerr << "Read error: " << err << std::endl;
@@ -362,7 +363,7 @@ void State::runtimeError(const char* msg) {
     std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
   }
 
-  exit(1);
+  vm_->longJmp();
 }
 
 Svalue State::referGlobal(Svalue sym, bool* pExist) {
@@ -377,8 +378,12 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
-Svalue State::funcall(Svalue fn, int argNum, const Svalue* args) {
-  return vm_->funcall(fn, argNum, args);
+bool State::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
+  return vm_->funcall(fn, argNum, args, pResult);
+}
+
+void State::resetError() {
+  vm_->resetError();
 }
 
 void State::collectGarbage() {

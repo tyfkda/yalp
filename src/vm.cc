@@ -91,6 +91,7 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
+  , jmp_(NULL)
   , callStack_() {
   a_ = c_ = state->nil();
   x_ = endOfCode_;
@@ -133,6 +134,22 @@ Vm::Vm(State* state)
   return_ = list(state_, opcodes_[RET]);
 }
 
+jmp_buf* Vm::setJmpbuf(jmp_buf* jmp) {
+  jmp_buf* old = jmp_;
+  jmp_ = jmp;
+  return old;
+}
+
+void Vm::longJmp() {
+  if (jmp_ != NULL) {
+    longjmp(*jmp_, 1);
+  }
+
+  // If process comes here, something wrong.
+  std::cerr << "Vm::longJmp failed" << std::endl;
+  exit(1);
+}
+
 void Vm::markRoot() {
   globalVariableTable_->mark();
   // Mark stack.
@@ -160,13 +177,24 @@ void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int 
   defineGlobal(state_->intern(name), Svalue(nativeFunc));
 }
 
-Svalue Vm::run(Svalue code) {
-  Svalue nil = state_->nil();
-  a_ = nil;
-  x_ = code;
-  c_ = nil;
-  f_ = 0;
-  return runLoop();
+bool Vm::run(Svalue code, Svalue* pResult) {
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue nil = state_->nil();
+    a_ = nil;
+    x_ = code;
+    c_ = nil;
+    f_ = 0;
+    Svalue result = runLoop();
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
 }
 
 Svalue Vm::runLoop() {
@@ -397,7 +425,7 @@ Svalue Vm::runLoop() {
       Svalue closure = createClosure(body, 0, s_, min, max);
 
       Svalue args[] = { name, closure };
-      funcall(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
+      funcallExec(state_->referGlobal(state_->intern("register-macro")), sizeof(args) / sizeof(*args), args);
     }
     goto again;
   default:
@@ -545,7 +573,22 @@ Svalue Vm::getArg(int index) const {
   return this->index(f_, index);
 }
 
-Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
+bool Vm::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue result = funcallExec(fn, argNum, args);
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
+}
+
+Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
     fn.output(state_, std::cerr, true);
     state_->runtimeError("Can't call");
@@ -614,6 +657,15 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   }
 
   return result;
+}
+
+void Vm::resetError() {
+  Svalue nil = state_->nil();
+  a_ = nil;
+  x_ = endOfCode_;
+  c_ = nil;
+  f_ = s_ = 0;
+  callStack_.clear();
 }
 
 int Vm::pushArgs(int argNum, const Svalue* args, int s) {

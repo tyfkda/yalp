@@ -88,7 +88,8 @@ static bool runBinary(State* state, std::istream& strm) {
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
-    state->runBinary(bin);
+    if (!state->runBinary(bin, NULL))
+      return false;
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
@@ -114,10 +115,11 @@ static bool compileFile(State* state, const char* filename) {
       cerr << "`compile` is not enabled" << endl;
       return false;
     }
-    state->funcall(writess, 1, &code);
+    state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
-    state->runBinary(code);
+    if (!state->runBinary(code, NULL))
+      return false;
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
@@ -147,9 +149,15 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
       cerr << "`compile` is not enabled" << endl;
       return false;
     }
-    Svalue result = state->runBinary(code);
+    Svalue result;
+    if (!state->runBinary(code, &result)) {
+      if (!tty)
+        return false;
+      state->resetError();
+      continue;;
+    }
     if (bCompile) {
-      state->funcall(writess, 1, &code);
+      state->funcall(writess, 1, &code, NULL);
       cout << endl;
     } else if (tty) {
       result.output(state, cout, true);
@@ -161,11 +169,11 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
   return true;
 }
 
-static Svalue runMain(State* state) {
+static bool runMain(State* state) {
   Svalue main = state->referGlobal(state->intern("main"));
   if (!state->isTrue(main))
-    return main;
-  return state->funcall(main, 0, NULL);
+    return true;
+  return state->funcall(main, 0, NULL, NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -232,7 +240,8 @@ int main(int argc, char* argv[]) {
     }
   }
   if (!bCompile)
-    runMain(state);
+    if (!runMain(state))
+      exit(1);
 
   if (bDebug)
     state->reportDebugInfo();

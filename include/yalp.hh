@@ -97,7 +97,7 @@ public:
   bool compile(Svalue exp, Svalue* pValue);
 
   // Execute compiled code.
-  Svalue runBinary(Svalue code);
+  bool runBinary(Svalue code, Svalue* pResult);
 
   bool runFromFile(const char* filename, Svalue* pResult = NULL);
   bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
@@ -160,7 +160,8 @@ public:
   }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
-  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  void resetError();
 
   void collectGarbage();
 
