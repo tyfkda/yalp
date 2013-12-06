@@ -82,46 +82,47 @@
                            (list 'UNBOX next)
                            next))
       (consp x)
-        (record-case x
-                     (quote (obj) (list 'CONST obj next))
-                     (^ (vars . bodies)
-                        (compile-lambda vars bodies e s next))
-                     (if (test then . rest)
-                         (with (thenc (compile-recur then e s next)
-                                elsec (if (no rest)
-                                            (compile-undef next)
-                                          (no (cdr rest))
-                                            (compile-recur (car rest) e s next)
-                                          (compile-recur `(if ,@rest) e s next)))
-                           (compile-recur test e s (list 'TEST thenc elsec))))
-                     (set! (var x)
-                           (compile-lookup var e
-                                           (^(n) (compile-recur x e s (list 'LSET n next)))
-                                           (^(n) (compile-recur x e s (list 'FSET n next)))
-                                           (^()  (compile-recur x e s (list 'GSET var next)))))
-                     (def (var x)
-                         (compile-recur x e s (list 'DEF var next)))
-                     (call/cc (x)
-                              (let c (list 'CONTI (if (tail? next) 1 0)
-                                           (list 'PUSH
-                                                 (compile-recur x e s
-                                                                (if (tail? next)
-                                                                    (list 'SHIFT
-                                                                          1
-                                                                          '(APPLY 1))
-                                                                  '(APPLY 1)))))
-                                (if (tail? next)
-                                    c
-                                    (list 'FRAME next c))))
-                     (defmacro (name vars . bodies)
-                       (compile-defmacro name vars bodies next))
-                     (else
-                      (with (func (car x)
-                             args (cdr x))
-                        (if (macro? func)
-                            (compile-apply-macro x e s next)
-                          (compile-apply func args e s next)))))
-        (list 'CONST x next)))
+        (let expanded (macroexpand-1 x)
+          (if (no (iso expanded x))
+              (compile-recur expanded e s next)
+            (record-case x
+                         (quote (obj) (list 'CONST obj next))
+                         (^ (vars . bodies)
+                            (compile-lambda vars bodies e s next))
+                         (if (test then . rest)
+                             (with (thenc (compile-recur then e s next)
+                                          elsec (if (no rest)
+                                                    (compile-undef next)
+                                                    (no (cdr rest))
+                                                    (compile-recur (car rest) e s next)
+                                                    (compile-recur `(if ,@rest) e s next)))
+                               (compile-recur test e s (list 'TEST thenc elsec))))
+                         (set! (var x)
+                               (compile-lookup var e
+                                               (^(n) (compile-recur x e s (list 'LSET n next)))
+                                               (^(n) (compile-recur x e s (list 'FSET n next)))
+                                               (^()  (compile-recur x e s (list 'GSET var next)))))
+                         (def (var x)
+                             (compile-recur x e s (list 'DEF var next)))
+                         (call/cc (x)
+                                  (let c (list 'CONTI (if (tail? next) 1 0)
+                                               (list 'PUSH
+                                                     (compile-recur x e s
+                                                                    (if (tail? next)
+                                                                        (list 'SHIFT
+                                                                              1
+                                                                              '(APPLY 1))
+                                                                        '(APPLY 1)))))
+                                    (if (tail? next)
+                                        c
+                                        (list 'FRAME next c))))
+                         (defmacro (name vars . bodies)
+                           (compile-defmacro name vars bodies next))
+                         (else
+                          (with (func (car x)
+                                      args (cdr x))
+                            (compile-apply func args e s next))))))
+    (list 'CONST x next)))
 
 (defn compile-undef (next)
   (list 'UNDEF next))
@@ -295,10 +296,6 @@
             (list min max)
             body-code
             next))))
-
-;; Expand macro and compile the result.
-(defn compile-apply-macro (exp e s next)
-  (compile-recur (macroexpand exp) e s next))
 
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
