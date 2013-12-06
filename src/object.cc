@@ -5,6 +5,7 @@
 #include "yalp/object.hh"
 #include "hash_table.hh"
 #include <assert.h>
+#include <iomanip>
 
 namespace yalp {
 
@@ -172,7 +173,7 @@ bool Float::equal(const Sobject* target) const {
 }
 
 void Float::output(State*, std::ostream& o, bool) const {
-  o << v_;
+  o << std::fixed << v_;
 }
 
 //=============================================================================
