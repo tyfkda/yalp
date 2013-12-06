@@ -9,6 +9,7 @@
 #include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
+#include <assert.h>
 #include <iostream>
 
 namespace yalp {
@@ -217,57 +218,102 @@ static Svalue s_iso(State* state) {
   return state->boolValue(a.equal(b));
 }
 
-template <class Comparator>
-Svalue compare(State* state, Comparator c) {
-  int n = state->getArgNum();
-  bool b = true;
-  if (n >= 1) {
+template <class Op>
+struct CompareOp {
+  static Svalue calc(State* state) {
+    int n = state->getArgNum();
+    assert(n >= 1);
     Svalue x = state->getArg(0);
-    if (x.getType() != TT_FIXNUM)
-      state->runtimeError("Fixnum expected");
-    Sfixnum xx = x.toFixnum();
+    Sfixnum acc;
+    switch (x.getType()) {
+    case TT_FIXNUM:
+      acc = x.toFixnum();
+      break;
+    case TT_FLOAT:
+      return calcf(state, 1, x.toFloat());
+      break;
+    default:
+      state->runtimeError("Number expected");
+      break;
+    }
+
     for (int i = 1; i < n; ++i) {
-      Svalue y = state->getArg(i);
-      if (y.getType() != TT_FIXNUM) {
-        state->runtimeError("Fixnum expected");
-      }
-      Sfixnum yy = y.toFixnum();
-      if (!c.satisfy(xx, yy)) {
-        b = false;
+      Svalue x = state->getArg(i);
+      switch (x.getType()) {
+      case TT_FIXNUM:
+        {
+          Sfixnum xx = x.toFixnum();
+          if (!Op::satisfy(acc, xx))
+            return state->boolValue(false);
+          acc = xx;
+        }
+        break;
+      case TT_FLOAT:
+        return calcf(state, i, static_cast<Sfloat>(acc));
+      default:
+        state->runtimeError("Number expected");
         break;
       }
-      xx = yy;
     }
+    return state->boolValue(true);
   }
-  return state->boolValue(b);
-}
+
+  static Svalue calcf(State* state, int i, Sfloat acc) {
+    int n = state->getArgNum();
+    for (; i < n; ++i) {
+      Svalue x = state->getArg(i);
+      switch (x.getType()) {
+      case TT_FIXNUM:
+        {
+          Sfixnum xx = x.toFixnum();
+          if (!Op::satisfy(acc, xx))
+            return state->boolValue(false);
+          acc = xx;
+        }
+        break;
+      case TT_FLOAT:
+        {
+          Sfloat xx = x.toFloat();
+          if (!Op::satisfy(acc, xx))
+            return state->boolValue(false);
+          acc = xx;
+        }
+        break;
+      default:
+        state->runtimeError("Number expected");
+        break;
+      }
+    }
+    return state->boolValue(true);
+  }
+};
 
 static Svalue s_lessThan(State* state) {
   struct LessThan {
-    static bool satisfy(Sfixnum x, Sfixnum y) { return x < y; }
-  } comp;
-  return compare(state, comp);
+    template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
+  };
+  return CompareOp<LessThan>::calc(state);
 }
 
 static Svalue s_greaterThan(State* state) {
-  struct greaterThan {
-    static bool satisfy(Sfixnum x, Sfixnum y) { return x > y; }
-  } comp;
-  return compare(state, comp);
+  struct GreaterThan {
+    template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
+  };
+  return CompareOp<GreaterThan>::calc(state);
 }
 
 static Svalue s_lessEqual(State* state) {
-  struct LessThan {
-    static bool satisfy(Sfixnum x, Sfixnum y) { return x <= y; }
-  } comp;
-  return compare(state, comp);
+  struct LessEqual {
+    template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
+  };
+  return CompareOp<LessEqual>::calc(state);
 }
 
 static Svalue s_greaterEqual(State* state) {
-  struct greaterThan {
-    static bool satisfy(Sfixnum x, Sfixnum y) { return x >= y; }
-  } comp;
-  return compare(state, comp);
+  struct GreaterEqual {
+    template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
+  };
+  return CompareOp<GreaterEqual>::calc(state);
 }
 
 static Svalue s_write(State* state) {

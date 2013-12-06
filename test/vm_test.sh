@@ -117,12 +117,6 @@ run - '7' '(- 10 3)'
 run negate '-10' '(- 10)'
 run '*' '120' '(* 1 2 3 4 5)'
 run / '3' '(/ 10 3)'
-run +float '1.23' '(+ 1 0.23)'
-run -float '0.77' '(- 1 0.23)'
-run -negate '-0.23' '(- 0.23)'
-run '*float' '0.46' '(* 2 0.23)'
-run /float '8.69565' '(/ 2 0.23)'
-run /invert '4.34783' '(/ 0.23)'
 
 run is t '(is 123 123)'
 run iso-list t "(iso '(1 2 3) '(1 2 3))"
@@ -132,6 +126,17 @@ run '<' nil '(< 2 2)'
 run '>' t '(> 2 1)'
 run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
+
+# Float
+run float-is nil '(is 1.0 1.0)'
+run float-iso t '(iso 1.0 1.0)'
+run +float '1.23' '(+ 1 0.23)'
+run -float '0.77' '(- 1 0.23)'
+run -negate '-0.23' '(- 0.23)'
+run '*float' '0.46' '(* 2 0.23)'
+run /float '8.69565' '(/ 2 0.23)'
+run /invert '4.34783' '(/ 0.23)'
+run '<float' t '(< 1 1.1)'
 
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
