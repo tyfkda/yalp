@@ -607,7 +607,6 @@ Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
 
       Svalue ret = endOfCode_;
       Svalue c = state_->nil();
-      //int s = stackPointer_;
       // Makes frame.
       s_ = push(ret, push(state_->fixnumValue(s_), push(c, s_)));
 
