@@ -96,7 +96,7 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
-    *pValue = state_->floatValue(static_cast<float>(atof(buffer)));
+    *pValue = state_->floatValue(static_cast<Sfloat>(atof(buffer)));
   else
     *pValue = state_->fixnumValue(atol(buffer));
   return READ_SUCCESS;

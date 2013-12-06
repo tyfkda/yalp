@@ -26,7 +26,7 @@ class Vm;
 
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
-typedef float Sfloat;
+typedef double Sfloat;
 
 typedef void* (*AllocFunc)(void*p, size_t size);
 

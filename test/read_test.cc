@@ -135,12 +135,13 @@ TEST_F(ReadTest, String) {
 
 TEST_F(ReadTest, Float) {
   Svalue s;
+  Sfloat f = static_cast<Sfloat>(1.23);
   ASSERT_EQ(READ_SUCCESS, read("1.23", &s));
   ASSERT_TRUE(s.getType() == TT_FLOAT);
-  ASSERT_EQ(1.23f, s.toFloat());
+  ASSERT_EQ(f, s.toFloat());
 
   ASSERT_EQ(READ_SUCCESS, read("-1.23", &s));
-  ASSERT_TRUE(state_->floatValue(-1.23f).equal(s));
+  ASSERT_TRUE(state_->floatValue(-f).equal(s));
 }
 
 TEST_F(ReadTest, Error) {
