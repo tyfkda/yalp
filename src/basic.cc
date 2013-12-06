@@ -71,7 +71,7 @@ static Svalue s_listStar(State* state) {
   return res;
 }
 
-static Svalue s_consp(State* state) {
+static Svalue s_pairp(State* state) {
   Svalue a = state->getArg(0);
   return state->boolValue(a.getType() == TT_CELL);
 }
@@ -402,8 +402,8 @@ void installBasicFunctions(State* state) {
   state->defineNative("set-cdr!", s_set_cdr, 2);
   state->defineNative("list", s_list, 0, -1);
   state->defineNative("list*", s_listStar, 0, -1);
-  state->defineNative("consp", s_consp, 1);
-  state->defineNative("symbolp", s_symbolp, 1);
+  state->defineNative("pair?", s_pairp, 1);
+  state->defineNative("symbol?", s_symbolp, 1);
   state->defineNative("append", s_append, 0, -1);
   state->defineNative("+", s_add, 0, -1);
   state->defineNative("-", s_sub, 0, -1);

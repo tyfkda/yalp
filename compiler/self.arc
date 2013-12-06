@@ -23,11 +23,11 @@
 ;;; dotted pair -> proper list
 (def (dotted->proper ls)
   (if (or (no ls)
-          (and (consp ls)
+          (and (pair? ls)
                (no (cdr (last ls)))))
       ls
     ((afn (p acc)
-          (if (consp p)
+          (if (pair? p)
               (self (cdr p)
                     (cons (car p) acc))
               (reverse! (cons p acc))))
@@ -76,12 +76,12 @@
 ;;   s : sets variables, (sym1 sym2 ...)
 ;;   @result : compiled code (list)
 (def (compile-recur x e s next)
-  (if (symbolp x)
+  (if (symbol? x)
         (compile-refer x e
                        (if (set-member? x s)
                            (list 'UNBOX next)
                            next))
-      (consp x)
+      (pair? x)
         (let expanded (expand-macro x (append (car e) (cdr e)))
           (if (no (iso expanded x))
               (compile-recur expanded e s next)
@@ -191,9 +191,9 @@
 ;; This does not consider upper scope, so every symbol except under scope
 ;; are listed up.
 (def (find-free x b)
-  (if (symbolp x)
+  (if (symbol? x)
         (if (set-member? x b) () (list x))
-      (consp x)
+      (pair? x)
         (let expanded (expand-macro x b)
           (if (no (iso expanded x))
                 (find-free expanded b)
@@ -231,7 +231,7 @@
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
 (def (find-sets x v)
-  (if (consp x)
+  (if (pair? x)
       (let expanded (expand-macro x ())
         (if (no (iso expanded x))
             (find-sets expanded v)
@@ -300,7 +300,7 @@
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
 (def (expand-macro exp vars)
-  (if (and (consp exp)
+  (if (and (pair? exp)
            (macro? (car exp))
            (no (member (car exp) vars)))
       (with (name (car exp)

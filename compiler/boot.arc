@@ -36,7 +36,7 @@
 
 (def qq-expand
     (^(x)
-      (if (consp x)
+      (if (pair? x)
           ((^(m)
              (if (is m 'unquote)
                  (cadr x)
@@ -53,7 +53,7 @@
 
 (def qq-expand-list
     (^(x)
-      (if (consp x)
+      (if (pair? x)
           ((^(m)
              (if (is m 'unquote)
                  (list 'list (cadr x))
@@ -73,7 +73,7 @@
   (qq-expand x))
 
 (defmacro def (name . body)
-  (if (consp name)
+  (if (pair? name)
       `(def ,(car name)
            (^ ,(cdr name) ,@body))
     `(def ,name ,@body)))
@@ -105,7 +105,7 @@
                body)))))
 
 (defmacro w/uniq (names . body)
-  (if (consp names)
+  (if (pair? names)
       ; (w/uniq (a b c) ...) => (with (a (uniq) b (uniq) c (uniq) ...)
       `(with ,(apply + '() (map (^(n) (list n '(uniq)))
                                 names))
@@ -152,29 +152,29 @@
 
 (def (len x)
   ((afn (x n)
-        (if (consp x)
+        (if (pair? x)
             (self (cdr x) (+ n 1))
             n))
    x 0))
 
 ;; Returns last pair
 (def (last ls)
-  (if (consp (cdr ls))
+  (if (pair? (cdr ls))
       (last (cdr ls))
     ls))
 
 (def (member x ls)
-  (when (consp ls)
+  (when (pair? ls)
     (if (is x (car ls))
         ls
       (member x (cdr ls)))))
 
 (def (reverse! ls)
-  (if (consp ls)
+  (if (pair? ls)
       ((afn (c p)
             (let d (cdr c)
               (set-cdr! c p)
-              (if (consp d)
+              (if (pair? d)
                   (self d c)
                   c)))
        ls ())
@@ -195,7 +195,7 @@
     (write/ss-print s (write/ss-loop s h))))
 
 (def (write/ss-loop s h)
-  (if (consp s)
+  (if (pair? s)
       (if (no (hash-table-exists? h s))
           ;; Put nil for the first appeared object.
           (do (hash-table-put! h s nil)
@@ -210,7 +210,7 @@
     h))
 
 (def (write/ss-print s h)
-  (if (consp s)
+  (if (pair? s)
       (let index (hash-table-get h s)
         (if (and index (< index 0))
             (do (display "#")
@@ -226,7 +226,7 @@
                         (display ")")
                       (do (display c)
                           (write/ss-print (car s) h)
-                          (if (or (and (consp (cdr s))
+                          (if (or (and (pair? (cdr s))
                                        (no (hash-table-get h (cdr s))))
                                   (no (cdr s)))
                               (self " " (cdr s))
