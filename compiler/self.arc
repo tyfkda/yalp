@@ -21,7 +21,7 @@
             args)))))
 
 ;;; dotted pair -> proper list
-(defn dotted->proper (ls)
+(def (dotted->proper ls)
   (if (or (no ls)
           (and (consp ls)
                (no (cdr (last ls)))))
@@ -35,30 +35,30 @@
 
 ;;;; set
 
-(defn set-member? (x s)
+(def (set-member? x s)
   (if
    (no s) nil
    (is x (car s)) t
    (set-member? x (cdr s))))
 
-(defn set-cons (x s)
+(def (set-cons x s)
   (if (set-member? x s)
       s
     (cons x s)))
 
-(defn set-union (s1 s2)
+(def (set-union s1 s2)
   (if (no s1)
       s2
     (set-union (cdr s1) (set-cons (car s1) s2))))
 
-(defn set-minus (s1 s2)
+(def (set-minus s1 s2)
   (if (no s1)
         ()
       (set-member? (car s1) s2)
         (set-minus (cdr s1) s2)
       (cons (car s1) (set-minus (cdr s1) s2))))
 
-(defn set-intersect (s1 s2)
+(def (set-intersect s1 s2)
   (if (no s1)
         ()
       (set-member? (car s1) s2)
@@ -67,7 +67,7 @@
 
 ;;; Compiler
 
-(defn compile (x)
+(def (compile x)
   (compile-recur x '(()) () '(HALT)))
 
 ;; Compiles lisp code into vm code.
@@ -75,7 +75,7 @@
 ;;   e : current environment, ((local-vars ...) free-vars ...)
 ;;   s : sets variables, (sym1 sym2 ...)
 ;;   @result : compiled code (list)
-(defn compile-recur (x e s next)
+(def (compile-recur x e s next)
   (if (symbolp x)
         (compile-refer x e
                        (if (set-member? x s)
@@ -124,10 +124,10 @@
                             (compile-apply func args e s next))))))
     (list 'CONST x next)))
 
-(defn compile-undef (next)
+(def (compile-undef next)
   (list 'UNDEF next))
 
-(defn compile-apply (func args e s next)
+(def (compile-apply func args e s next)
   (let argnum (len args)
     ((afn (args c)
           (if (no args)
@@ -146,7 +146,7 @@
                                 (APPLY ,argnum))
                       `(APPLY ,argnum))))))
 
-(defn compile-lambda (vars bodies e s next)
+(def (compile-lambda vars bodies e s next)
   (let proper-vars (dotted->proper vars)
     (with (free (set-intersect (set-union (car e)
                                           (cdr e))
@@ -164,7 +164,7 @@
                                       (compile-lambda-bodies proper-vars bodies free sets s))
                           next)))))
 
-(defn compile-lambda-bodies (vars bodies free sets s)
+(def (compile-lambda-bodies vars bodies free sets s)
   (with (ee (cons vars free)
          ss (set-union sets
                        (set-intersect s free))
@@ -178,7 +178,7 @@
                                (self (cdr p)))))
        bodies))))
 
-(defn find-frees (xs b vars)
+(def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
     ((afn (v p)
       (if (no p)
@@ -190,7 +190,7 @@
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
 ;; are listed up.
-(defn find-free (x b)
+(def (find-free x b)
   (if (symbolp x)
         (if (set-member? x b) () (list x))
       (consp x)
@@ -213,14 +213,14 @@
                          (else        (find-frees expanded b ())))))
     ()))
 
-(defn collect-free (vars e next)
+(def (collect-free vars e next)
   (if (no vars)
       next
     (collect-free (cdr vars) e
                   (compile-refer (car vars) e
                                  (list 'PUSH next)))))
 
-(defn find-setses (xs v)
+(def (find-setses xs v)
   ((afn (b p)
         (if (no p)
             b
@@ -230,7 +230,7 @@
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
-(defn find-sets (x v)
+(def (find-sets x v)
   (if (consp x)
       (let expanded (macroexpand-1 x)
         (if (no (iso expanded x))
@@ -250,7 +250,7 @@
                        (else        (find-setses x   v)))))
     ()))
 
-(defn make-boxes (sets vars next)
+(def (make-boxes sets vars next)
   ((afn (vars n)
         (if (no vars)
               next
@@ -259,32 +259,32 @@
             (self (cdr vars) (+ n 1))))
    vars 0))
 
-(defn compile-refer (var e next)
+(def (compile-refer var e next)
   (compile-lookup var e
                   (^(n) (list 'LREF n next))
                   (^(n) (list 'FREF n next))
                   (^()  (list 'GREF var next))))
 
-(defn find-index (x ls)
+(def (find-index x ls)
   ((afn (ls idx)
         (if (no ls) nil
             (is (car ls) x) idx
             (self (cdr ls) (+ idx 1))))
    ls 0))
 
-(defn compile-lookup (var e return-local return-free return-global)
+(def (compile-lookup var e return-local return-free return-global)
   (with (locals (car e)
          free   (cdr e))
     (aif (find-index var locals)  (return-local it)
          (find-index var free)    (return-free it)
          (return-global))))
 
-(defn tail? (next)
+(def (tail? next)
   (is (car next) 'RET))
 
 ;;; Macro
 
-(defn compile-defmacro (name vars bodies next)
+(def (compile-defmacro name vars bodies next)
   (let proper-vars (dotted->proper vars)
     (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
            max (if (is vars proper-vars) (len vars) -1)
@@ -299,7 +299,7 @@
 
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
-(defn macroexpand-1 (exp)
+(def (macroexpand-1 exp)
   (if (and (consp exp)
            (macro? (car exp)))
       (with (name (car exp)
@@ -308,7 +308,7 @@
           (apply closure args)))
     exp))
 
-(defn macroexpand (exp)
+(def (macroexpand exp)
   (let expanded (macroexpand-1 exp)
     (if (iso expanded exp)
         exp
@@ -316,5 +316,5 @@
 
 ;;
 
-(defn eval (x)
+(def (eval x)
   (run-binary (compile x)))

@@ -1,13 +1,13 @@
 ;;; Ambiguous calculation.
-(defn fail()
+(def (fail)
   (error 'no-solution))
 
-(defn in-range(a b)
+(def (in-range a b)
   (call/cc
    (^(cont)
      (enumerate a b cont))))
 
-(defn enumerate(a b cont)
+(def (enumerate a b cont)
   (if (> a b)
       (fail)
     (let save fail

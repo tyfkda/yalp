@@ -72,8 +72,11 @@
 (defmacro quasiquote (x)
   (qq-expand x))
 
-(defmacro defn (name vars . body)
-  `(def ,name (^ ,vars ,@body)))
+(defmacro def (name . body)
+  (if (consp name)
+      `(def ,(car name)
+           (^ ,(cdr name) ,@body))
+    `(def ,name ,@body)))
 
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))
@@ -144,10 +147,10 @@
 
 
 
-(defn isnt (x y)
+(def (isnt x y)
   (no (is x y)))
 
-(defn len (x)
+(def (len x)
   ((afn (x n)
         (if (consp x)
             (self (cdr x) (+ n 1))
@@ -155,12 +158,12 @@
    x 0))
 
 ;; Returns last pair
-(defn last (ls)
+(def (last ls)
   (if (consp (cdr ls))
       (last (cdr ls))
     ls))
 
-(defn reverse! (ls)
+(def (reverse! ls)
   (if (consp ls)
       ((afn (c p)
             (let d (cdr c)
@@ -171,21 +174,21 @@
        ls ())
     ls))
 
-(defn newline ()
+(def (newline)
   (display "\n"))
 
-(defn print (x)
+(def (print x)
   (display x)
   (newline)
   x)
 
 ;; Write shared structure.
-(defn write/ss (s)
+(def (write/ss s)
   (let h (make-hash-table)
     (hash-table-put! h 'index 0)
     (write/ss-print s (write/ss-loop s h))))
 
-(defn write/ss-loop (s h)
+(def (write/ss-loop s h)
   (if (consp s)
       (if (no (hash-table-exists? h s))
           ;; Put nil for the first appeared object.
@@ -200,7 +203,7 @@
             h))
     h))
 
-(defn write/ss-print (s h)
+(def (write/ss-print s h)
   (if (consp s)
       (let index (hash-table-get h s)
         (if (and index (< index 0))
