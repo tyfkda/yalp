@@ -43,6 +43,7 @@ public:
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
   void resetError();
 
   int getCallStackDepth() const  { return callStack_.size(); }

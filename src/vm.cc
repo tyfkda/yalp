@@ -207,6 +207,7 @@ Svalue Vm::runLoop() {
   int opidx = findOpcode(op);
   switch (opidx) {
   case HALT:
+    x_ = endOfCode_;
     return a_;
   case UNDEF:
     x_ = CAR(x_);
@@ -600,6 +601,16 @@ bool Vm::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
 }
 
 Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+    tailcall(fn, argNum, args);
+    return runLoop();
+  default:
+    return tailcall(fn, argNum, args);
+  }
+}
+
+Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
     fn.output(state_, std::cerr, true);
     state_->runtimeError("Can't call");
@@ -613,15 +624,19 @@ Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
     {
-      // Save old running code.
-      s_ = push(x_, s_);
+      bool isTail = CAR(x_).eq(opcodes_[RET]);
 
-      Svalue ret = endOfCode_;
-      Svalue c = state_->nil();
-      // Makes frame.
-      s_ = push(ret, push(state_->fixnumValue(s_), push(c, s_)));
-
-      s_ = pushArgs(argNum, args, s_);
+      if (isTail) {
+        // Shifts arguments.
+        int calleeArgNum = index(f_, -1).toFixnum();
+        s_ = pushArgs(argNum, args, s_);
+        s_ = shiftArgs(argNum, calleeArgNum, s_);
+        // TODO: Confirm callstack is consistent.
+      } else {
+        // Makes frame.
+        s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
+        s_ = pushArgs(argNum, args, s_);
+      }
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
@@ -639,11 +654,8 @@ Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
       f_ = s_;
       s_ = push(state_->fixnumValue(argNum), s_);
       a_ = c_ = fn;
-      result = runLoop();
-
-      // Restore old running code.
-      x_ = index(s_, 0);
-      s_ -= 1;
+      //result = runLoop();
+      // runLoop will run after this function exited.
     }
     break;
   case TT_NATIVEFUNC:

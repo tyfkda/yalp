@@ -385,6 +385,10 @@ bool State::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) 
   return vm_->funcall(fn, argNum, args, pResult);
 }
 
+Svalue State::tailcall(Svalue fn, int argNum, const Svalue* args) {
+  return vm_->tailcall(fn, argNum, args);
+}
+
 void State::resetError() {
   vm_->resetError();
 }

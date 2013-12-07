@@ -384,9 +384,7 @@ static Svalue s_apply(State* state) {
   }
 
   Svalue f = state->getArg(0);
-  Svalue result;
-  state->funcall(f, argNum, args, &result);
-  return result;
+  return state->tailcall(f, argNum, args);
 }
 
 static Svalue s_read(State* state) {
