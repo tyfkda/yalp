@@ -365,8 +365,8 @@ Svalue Vm::runLoop() {
     goto again;
   case RET:
     {
-      int argnum = index(s_, 0).toFixnum();
-      s_ -= argnum + 1;
+      int argNum = index(s_, 0).toFixnum();
+      s_ -= argNum + 1;
       x_ = index(s_, 0);
       f_ = index(s_, 1).toFixnum();
       c_ = index(s_, 2);
@@ -378,8 +378,8 @@ Svalue Vm::runLoop() {
     {
       int n = CAR(x_).toFixnum();
       x_ = CADR(x_);
-      int calleeArgnum = index(f_, -1).toFixnum();
-      s_ = shiftArgs(n, calleeArgnum, s_);
+      int calleeArgNum = index(f_, -1).toFixnum();
+      s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
     }
     goto again;
@@ -404,8 +404,8 @@ Svalue Vm::runLoop() {
   case NUATE:
     {
       Svalue stack = CAR(x_);
-      int argnum = index(f_, -1).toFixnum();
-      a_ = (argnum == 0) ? state_->nil() : index(f_, 0);
+      int argNum = index(f_, -1).toFixnum();
+      a_ = (argNum == 0) ? state_->nil() : index(f_, 0);
       s_ = restoreStack(stack);
       // do-return
       x_ = index(s_, 0);
