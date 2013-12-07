@@ -60,7 +60,7 @@ TEST_F(HashTableTest, Each) {
   ht.put("22", "two");
   ht.put("333", "three");
 
-  HashTable<Key, Value>::Iterator it = ht.begin();
+  HashTable<Key, Value>::const_iterator it = ht.begin();
   ASSERT_NE(ht.end(), it);
   ASSERT_STREQ("1", it->key);
   ASSERT_STREQ("one", it->value);

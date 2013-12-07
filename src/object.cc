@@ -5,8 +5,16 @@
 #include "yalp/object.hh"
 #include "hash_table.hh"
 #include <assert.h>
+#include <iomanip>
 
 namespace yalp {
+
+//=============================================================================
+// Symbol class is not derived from Sobject.
+// Instances are managed by SymbolManager
+// and not be the target of GC.
+Symbol::Symbol(char* name)
+  : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
 bool Sobject::equal(const Sobject* o) const {
@@ -18,20 +26,6 @@ unsigned int Sobject::calcHash() const {
 }
 
 bool Sobject::isCallable() const  { return false; }
-
-//=============================================================================
-Symbol::Symbol(const char* name)
-  : Sobject(), name_(name), hash_(strHash(name)) {}
-
-Type Symbol::getType() const  { return TT_SYMBOL; }
-
-unsigned int Symbol::calcHash() const {
-  return hash_;
-}
-
-void Symbol::output(State*, std::ostream& o, bool) const {
-  o << name_;
-}
 
 //=============================================================================
 Cell::Cell(Svalue a, Svalue d)
@@ -179,7 +173,7 @@ bool Float::equal(const Sobject* target) const {
 }
 
 void Float::output(State*, std::ostream& o, bool) const {
-  o << v_;
+  o << std::fixed << v_;
 }
 
 //=============================================================================
@@ -229,17 +223,10 @@ void Vector::set(int index, Svalue x)  {
 
 //=============================================================================
 
-struct SHashTable::HashPolicyEq : public HashPolicy<Svalue> {
-  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(); }
-  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
-};
-
-SHashTable::HashPolicyEq SHashTable::s_policy;
-
-SHashTable::SHashTable(Allocator* allocator)
+SHashTable::SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy)
   : Sobject() {
   void* memory = ALLOC(allocator, sizeof(*table_));
-  table_ = new(memory) TableType(&s_policy, allocator);
+  table_ = new(memory) TableType(policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
@@ -258,8 +245,9 @@ void SHashTable::mark() {
   if (isMarked())
     return;
   Sobject::mark();
-  for (auto it = table_->begin(); it != table_->end(); ++it)
-    const_cast<Svalue*>(&it->value)->mark();
+  TableType& table = *table_;
+  for (auto kv : table)
+    const_cast<Svalue*>(&kv.value)->mark();
 }
 
 int SHashTable::getCapacity() const  { return table_->getCapacity(); }
@@ -286,7 +274,7 @@ Callable::Callable()
 
 bool Callable::isCallable() const  { return true; }
 
-void Callable::setName(Symbol* name)  { name_ = name; }
+void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
@@ -335,11 +323,10 @@ NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
 Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
 
 Svalue NativeFunc::call(State* state, int argNum) {
-  if (argNum < minArgNum_) {
+  if (argNum < minArgNum_)
     state->runtimeError("Too few arguments");
-  } else if (maxArgNum_ >= 0 && argNum > maxArgNum_) {
+  else if (maxArgNum_ >= 0 && argNum > maxArgNum_)
     state->runtimeError("Too many arguments");
-  }
   return func_(state);
 }
 

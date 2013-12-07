@@ -36,8 +36,23 @@
 (add-load-path ".")
 (load "util.scm")
 
+(define *exit-compile* #f)
+
+(define (compile-error . args)
+  (print args)
+  (*exit-compile* #f))
+
 (define (compile x)
-  (compile-recur x '(()) () '(HALT)))
+  (call/cc
+    (lambda (cc)
+      (set! *exit-compile* cc)
+      (compile-recur (macroexpand-all x ())
+                     '(()) () '(HALT)))))
+
+(define (find-if f ls)
+  (cond ((null? ls) #f)
+        ((f (car ls)) ls)
+        (else (find-if f (cdr ls)))))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -68,11 +83,13 @@
                          (compile-recur test e s (list 'TEST thenc elsec))))
                    (set! (var x)
                          (compile-lookup var e
-                                         (lambda (n)   (compile-recur x e s (list 'LSET n next)))
-                                         (lambda (n)   (compile-recur x e s (list 'FSET n next)))
-                                         (lambda (sym) (compile-recur x e s (list 'GSET sym next)))))
+                                         (lambda (n) (compile-recur x e s (list 'LSET n next)))
+                                         (lambda (n) (compile-recur x e s (list 'FSET n next)))
+                                         (lambda ()  (compile-recur x e s (list 'GSET var next)))))
+                   (def (var x)
+                        (compile-recur x e s (list 'DEF var next)))
                    (call/cc (x)
-                            (let ((c (list 'CONTI
+                            (let ((c (list 'CONTI (if (tail? next) 't 'nil)
                                            (list 'PUSH
                                                  (compile-recur x e s
                                                                 (if (tail? next)
@@ -88,9 +105,7 @@
                    (else
                     (let ((func (car x))
                           (args (cdr x)))
-                      (if (macro? func)
-                          (compile-apply-macro x e s next)
-                        (compile-apply func args e s next))))))
+                      (compile-apply func args e s next)))))
      (else (list 'CONST x next)))))
 
 (define (compile-undef next)
@@ -116,21 +131,23 @@
 
 (define (compile-lambda vars bodies e s next)
   (let ((proper-vars (dotted->proper vars)))
-    (let ((free (set-intersect (set-union (car e)
-                                          (cdr e))
-                               (find-frees bodies () proper-vars)))
-          (sets (find-setses bodies (dotted->proper proper-vars)))
-          (varnum (if (eq? vars proper-vars)
-                      (list (length vars) (length vars))
-                    (list (- (length proper-vars) 1)
-                          -1))))
-      (collect-free free e
-                    (list 'CLOSE
-                          varnum
-                          (length free)
-                          (make-boxes sets proper-vars
-                                      (compile-lambda-bodies proper-vars bodies free sets s))
-                          next)))))
+    (if (find-if (lambda (x) (not (symbol? x))) proper-vars)
+        (compile-error "Function parameter must be symbol")
+      (let ((free (set-intersect (set-union (car e)
+                                            (cdr e))
+                                 (find-frees bodies () proper-vars)))
+            (sets (find-setses bodies (dotted->proper proper-vars)))
+            (varnum (if (eq? vars proper-vars)
+                        (list (length vars) (length vars))
+                      (list (- (length proper-vars) 1)
+                            -1))))
+        (collect-free free e
+                      (list 'CLOSE
+                            varnum
+                            (length free)
+                            (make-boxes sets proper-vars
+                                        (compile-lambda-bodies proper-vars bodies free sets s))
+                            next))))))
 
 (define (compile-lambda-bodies vars bodies free sets s)
   (let ((ee (cons vars free))
@@ -162,18 +179,20 @@
     (cond
      ((symbol? x) (if (set-member? x b) () (list x)))
      ((pair? x)
-      (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-        (if (not (eq? expanded x))
-            (find-free expanded b)
-          (record-case x
-                       (^ (vars . bodies)
-                         (find-frees bodies b vars))
-                       (quote (obj) ())
-                       (if      all (find-frees all b ()))
-                       (set!    all (find-frees all b ()))
-                       (call/cc all (find-frees all b ()))
-                       (defmacro (name vars . bodies) (find-frees bodies b vars))
-                       (else        (find-frees x   b ()))))))
+      (record-case x
+                   (^ (vars . bodies)
+                     (find-frees bodies b vars))
+                   (quote (obj) ())
+                   (if      all (find-frees all b ()))
+                   (set! (var exp)
+                         (set-union (if (set-member? var b) () (list var))
+                                    (find-free exp b)))
+                   (def (var exp)
+                        (set-union (if (set-member? var b) () (list var))
+                                   (find-free exp b)))
+                   (call/cc all (find-frees all b ()))
+                   (defmacro (name vars . bodies) (find-frees bodies b vars))
+                   (else        (find-frees x   b ()))))
      (else ()))))
 
 (define collect-free
@@ -197,20 +216,19 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (let ((expanded (expand-macro-if-so x %running-stack-pointer)))
-          (if (not (eq? expanded x))
-              (find-sets expanded v)
-            (record-case x
-                         (set! (var val)
-                               (set-union (if (set-member? var v) (list var) ())
-                                          (find-sets val v)))
-                         (^ (vars . bodies)
-                           (find-setses bodies (set-minus v (dotted->proper vars))))
-                         (quote   all ())
-                         (if      all (find-setses all v))
-                         (call/cc all (find-setses all v))
-                         (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
-                         (else        (find-setses x   v)))))
+        (record-case x
+                     (set! (var val)
+                           (set-union (if (set-member? var v) (list var) ())
+                                      (find-sets val v)))
+                     (def (var val)
+                          (find-sets val v))
+                     (^ (vars . bodies)
+                       (find-setses bodies (set-minus v (dotted->proper vars))))
+                     (quote   all ())
+                     (if      all (find-setses all v))
+                     (call/cc all (find-setses all v))
+                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
+                     (else        (find-setses x   v)))
       ())))
 
 (define make-boxes
@@ -223,11 +241,11 @@
           (f (cdr vars) (+ n 1)))))))
 
 (define compile-refer
-  (lambda (x e next)
-    (compile-lookup x e
-                    (lambda (n)   (list 'LREF n next))
-                    (lambda (n)   (list 'FREF n next))
-                    (lambda (sym) (list 'GREF sym next)))))
+  (lambda (var e next)
+    (compile-lookup var e
+                    (lambda (n) (list 'LREF n next))
+                    (lambda (n) (list 'FREF n next))
+                    (lambda ()  (list 'GREF var next)))))
 
 (define (find-index x ls)
   (let loop ((ls ls)
@@ -237,12 +255,12 @@
           (else (loop (cdr ls) (+ idx 1))))))
 
 (define compile-lookup
-  (lambda (x e return-local return-free return-global)
+  (lambda (var e return-local return-free return-global)
     (let ((locals (car e))
           (free   (cdr e)))
-      (cond ((find-index x locals) => return-local)
-            ((find-index x free) => return-free)
-            (else (return-global x))))))
+      (cond ((find-index var locals) => return-local)
+            ((find-index var free) => return-free)
+            (else (return-global))))))
 
 (define tail?
   (lambda (next)
@@ -274,12 +292,9 @@
   "Whether the given name is macro."
   (hash-table-exists? *macro-table* name))
 
-(define (compile-apply-macro exp e s next)
-  "Expand macro and compile the result."
-  (let ((result (expand-macro exp %running-stack-pointer)))
-    (compile-recur result e s next)))
-
-(define (expand-macro exp s)
+;; Expand macro if the given expression is macro expression,
+;; otherwise return itself.
+(define (my-macroexpand-1 exp)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -291,24 +306,55 @@
     (do-apply argnum closure s))
 
   "Expand macro."
-  (let ((name (car exp))
-        (args (cdr exp)))
-    (let ((closure (hash-table-get *macro-table* name)))
-      (apply-macro (length args)
-                   closure
-                   (push-args args
-                              (make-frame '(HALT) 0 () s))))))
+  (if (and (pair? exp)
+           (macro? (car exp)))
+      (let ((name (car exp))
+            (args (cdr exp)))
+        (let ((closure (hash-table-get *macro-table* name)))
+          (apply-macro (length args)
+                       closure
+                       (push-args args
+                                  (make-frame '(HALT) 0 () %running-stack-pointer)))))
+    exp))
 
-(define (expand-macro-if-so x s)
-  "Expand macro all if the given parameter is macro expression,
-   otherwise return itself."
-  (if (and (pair? x)
-           (macro? (car x)))
-      (let ((expanded (expand-macro x s)))
-        (if (equal? expanded x)
-            x
-          (expand-macro-if-so expanded s)))
-    x))
+(define (macroexpand-all exp scope-vars)
+  (define (map-macroexpand-all ls svars)
+    (map (lambda (e) (macroexpand-all e svars))
+         ls))
+  (define (macroexpand-all-sub xp scope-vars)
+    (record-case exp
+                 (quote (obj) `(quote ,obj))
+                 (^ (vars . bodies)
+                   (let ((new-scope-vars (append (dotted->proper vars) scope-vars)))
+                     `(^ ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                 (if all
+                     `(if ,@(map-macroexpand-all all scope-vars)))
+                 (set! (var x)
+                       `(set! ,var ,(macroexpand-all x scope-vars)))
+                 (def (var x)
+                      `(def ,var ,(macroexpand-all x scope-vars)))
+                 (call/cc (x)
+                          `(call/cc ,(macroexpand-all x scope-vars)))
+                 (defmacro (name vars . bodies)
+                   (let ((new-scope-vars (append (dotted->proper vars) scope-vars)))
+                     `(defmacro ,name ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                 (else (map-macroexpand-all exp scope-vars))))
+
+  (if (pair? exp)
+      (if (and (macro? (car exp))
+               (not (member (car exp) scope-vars)))
+          (let ((expanded (my-macroexpand-1 exp)))
+            (if (equal? expanded exp)
+                (macroexpand-all-sub exp scope-vars)
+              (macroexpand-all expanded scope-vars)))
+        (macroexpand-all-sub exp scope-vars))
+    exp))
+
+(define (my-macroexpand exp)
+  (let ((expanded (my-macroexpand-1 exp)))
+    (if (equal? expanded exp)
+        exp
+      (my-macroexpand expanded))))
 
 ;;;; runtime
 
@@ -350,9 +396,9 @@
         (max (slot-ref f 'max-arg-num))
         (argnum (length args)))
     (cond ((< argnum min)
-           (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires atleast ,min\, but given ,argnum"))
+           (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires at least ,min\, but given ,argnum"))
           ((and (>= max 0) (> argnum max))
-           (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts atmost ,max\, but given ,argnum"))
+           (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts at most ,max\, but given ,argnum"))
           (else
            (let ((fn (slot-ref f 'fn)))
              (apply fn args))))))
@@ -388,8 +434,12 @@
                        (set-box! (index-closure c n) a)
                        (VM a x f c s))
                  (GSET (sym x)
-                       (assign-global! sym a)
+                       (when (not (assign-global! sym a))
+                         (runtime-error #`"Global variable `,sym` not defined"))
                        (VM a x f c s))
+                 (DEF (sym x)
+                      (define-global! sym a)
+                      (VM a x f c s))
                  (PUSH (x)
                        (VM a x f c (push a s)))
                  (TEST (then else)
@@ -413,12 +463,17 @@
                       (VM a x f c s))
                  (UNBOX (x)
                         (VM (unbox a) x f c s))
-                 (CONTI (x)
-                        (VM (continuation s) x f c s))
-                 (NUATE (stack x)
+                 (CONTI (tail x)
+                        (VM (continuation s tail) x f c s))
+                 (NUATE (tail stack)
                         (let* ((argnum (index f -1))
                                (a (if (eq? argnum 0) 'nil (index f 0))))
-                          (VM a x f c (restore-stack stack))))
+                          (let* ((s (restore-stack stack))
+                                 (s (if (true? tail)
+                                        (let ((callee-argnum (index s 0)))
+                                          (- s callee-argnum 1))
+                                      s)))
+                            (do-return a s 0))))
                  (MACRO (name nparam body x)
                         (let ((min (car nparam))
                               (max (cadr nparam)))
@@ -432,7 +487,8 @@
   (push ret (push f (push c s))))
 
 (define (true? x)
-  (not (eq? x ())))
+  (not (or (eq? x ())
+           (eq? x 'nil))))
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)
@@ -458,8 +514,15 @@
 
 (define *global-variable-table* (make-hash-table))
 
-(define (assign-global! sym val)
+(define (define-global! sym val)
   (hash-table-put! *global-variable-table* sym val))
+
+(define (assign-global! sym val)
+  (if (hash-table-exists? *global-variable-table* sym)
+      (begin
+        (hash-table-put! *global-variable-table* sym val)
+        #t)
+    #f))
 
 (define (refer-global sym)
   (if (hash-table-exists? *global-variable-table* sym)
@@ -468,9 +531,9 @@
 
 
 (define continuation
-  (lambda (s)
+  (lambda (s tail)
     (closure
-     (list 'NUATE (save-stack s) '(RET))
+     (list 'NUATE tail (save-stack s))
      s
      s
      0 1)))
@@ -502,9 +565,9 @@
   (let ((min (slot-ref c 'min-arg-num))
         (max (slot-ref c 'max-arg-num)))
     (cond ((< argnum min)
-           (runtime-error #`"Too few arguments: requires atleast ,min\, but given ,argnum"))
+           (runtime-error #`"Too few arguments: requires at least ,min\, but given ,argnum"))
           ((and (>= max 0) (> argnum max))
-           (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
+           (runtime-error #`"Too many arguments: accepts at most ,max\, but given ,argnum"))
           (else
            (let ((ds (if (rest-params? min max)
                          (modify-rest-params argnum min s)
@@ -589,7 +652,9 @@
 (define evaluate
   (lambda (x)
     (let1 code (compile x)
-      (run-binary code))))
+      (if code
+          (run-binary code)
+        #f))))
 
 (define (run-binary code)
   (VM () code 0 () %running-stack-pointer))
@@ -599,9 +664,6 @@
 
 (use file.util)
 (use gauche.parseopt)
-
-(define (my-macroexpand exp)
-  (expand-macro-if-so exp %running-stack-pointer))
 
 (define (my-apply f . params)
   (let ((args (apply list* params)))
@@ -616,9 +678,6 @@
              (call-closure f s2 (length args))))
           (else
            (runtime-error #`"invalid application: ,f")))))
-
-(define (my-compile x)
-  (compile x '(()) () '(HALT)))
 
 (define (install-native-functions)
   (define (all f ls)
@@ -638,67 +697,69 @@
   (define (convert-inputs f)
     (lambda args
       (convert (apply f (map convert args)))))
-  (define (assign-native! sym func min-arg-num max-arg-num)
+  (define (define-native! sym func min-arg-num max-arg-num)
     (let ((f (make <NativeFunc>
                :name sym
                :fn (convert-result func)
                :min-arg-num min-arg-num
                :max-arg-num max-arg-num)))
-      (assign-global! sym f)))
+      (define-global! sym f)))
 
-  (assign-global! 'nil ())
-  (assign-global! 't 't)
+  (define-global! 'nil ())
+  (define-global! 't 't)
 
-  (assign-native! 'cons cons 2 2)
-  (assign-native! 'car car 1 1)
-  (assign-native! 'cdr cdr 1 1)
-  (assign-native! 'set-car! (lambda (x v) (set-car! x v) v) 2 2)
-  (assign-native! 'set-cdr! (lambda (x v) (set-cdr! x v) v) 2 2)
-  (assign-native! 'list list 0 -1)
-  (assign-native! 'list* list* 0 -1)
-  (assign-native! 'consp pair? 1 1)
-  (assign-native! 'symbolp (lambda (x)
+  (define-native! 'cons cons 2 2)
+  (define-native! 'car car 1 1)
+  (define-native! 'cdr cdr 1 1)
+  (define-native! 'set-car! (lambda (x v) (set-car! x v) v) 2 2)
+  (define-native! 'set-cdr! (lambda (x v) (set-cdr! x v) v) 2 2)
+  (define-native! 'list list 0 -1)
+  (define-native! 'list* list* 0 -1)
+  (define-native! 'pair? pair? 1 1)
+  (define-native! 'symbol? (lambda (x)
                              (or (symbol? x)
                                  (eq? x ()))) 1 1)
-  (assign-native! 'append append 0 -1)
-  (assign-native! '+ + 0 -1)
-  (assign-native! '- - 0 -1)
-  (assign-native! '* * 0 -1)
-  (assign-native! '/ (lambda args
+  (define-native! 'append append 0 -1)
+  (define-native! '+ + 0 -1)
+  (define-native! '- - 0 -1)
+  (define-native! '* * 0 -1)
+  (define-native! '/ (lambda args
                        (if (all (cut is-a? <> <integer>) args)
                            (apply quotient args)
                          (exact->inexact (apply / args)))) 0 -1)
 
-  (assign-native! 'is (convert-inputs eq?) 2 2)
-  (assign-native! 'iso (convert-inputs equal?) 2 2)
-  (assign-native! '= = 2 -1)
-  (assign-native! '< < 2 -1)
-  (assign-native! '> > 2 -1)
-  (assign-native! '<= <= 2 -1)
-  (assign-native! '>= >= 2 -1)
+  (define-native! 'is (convert-inputs eq?) 2 2)
+  (define-native! 'iso (convert-inputs equal?) 2 2)
+  (define-native! '= = 2 -1)
+  (define-native! '< < 2 -1)
+  (define-native! '> > 2 -1)
+  (define-native! '<= <= 2 -1)
+  (define-native! '>= >= 2 -1)
 
-  (assign-native! 'print print 1 1)
-  (assign-native! 'display display 1 1)
-  (assign-native! 'write (lambda (x)
+  (define-native! 'print print 1 1)
+  (define-native! 'display display 1 1)
+  (define-native! 'write (lambda (x)
                            (write (if (eq? x ()) 'nil x))) 1 1)
 
-  (assign-native! 'uniq gensym 0 0)
-  (assign-native! 'macroexpand my-macroexpand 1 1)
-  (assign-native! 'apply my-apply 2 -1)
-  (assign-native! 'read read 0 0)
-  (assign-native! 'compile my-compile 1 1)
-  (assign-native! 'run-binary run-binary 1 1)
+  (define-native! 'uniq gensym 0 0)
+  (define-native! 'macroexpand-1 my-macroexpand-1 1 1)
+  (define-native! 'macroexpand my-macroexpand 1 1)
+  (define-native! 'apply my-apply 2 -1)
+  (define-native! 'read read 0 0)
+  (define-native! 'compile compile 1 1)
+  (define-native! 'run-binary run-binary 1 1)
+  (define-native! 'eval evaluate 1 1)
 
-  (assign-native! 'make-hash-table make-hash-table 0 0)
-  (assign-native! 'hash-table-get (lambda (h k)
+  (define-native! 'make-hash-table make-hash-table 0 0)
+  (define-native! 'hash-table-get (lambda (h k)
                                     (if (hash-table-exists? h k)
                                         (hash-table-get h k)
                                       'nil)) 2 2)
-  (assign-native! 'hash-table-put! (lambda (h k v)
+  (define-native! 'hash-table-put! (lambda (h k v)
                                      (hash-table-put! h k v)
                                      v) 3 3)
-  (assign-native! 'hash-table-exists? hash-table-exists? 2 2)
-  (assign-native! 'hash-table-delete! hash-table-delete! 2 2)
+  (define-native! 'hash-table-exists? hash-table-exists? 2 2)
+  (define-native! 'hash-table-delete! hash-table-delete! 2 2)
   )
 
 (define (compile-all out-port codes)
@@ -720,7 +781,8 @@
     (let ((s (read)))
       (unless (member s `(:q :quit :exit ,(eof-object)))
         (let ((result (evaluate s)))
-          (when tty? (print result)))
+          (cond (tty? (display "=> ") (print result))
+                ((eq? result #f) (exit 1))))
         (loop))))
   (when tty? (print "bye\n")))
 
@@ -763,14 +825,14 @@
                         (exit 0)))
           (bin (dolist (code (read-all restargs))
                  (run-binary code))
-               (run-main)
-               (exit 0))
+               (run-main))
           ((null? restargs)
            (let ((tty? (sys-isatty (standard-input-port))))
              (repl tty?)
-             (if (not tty?)
-                 (run-main))))
+             (when (not tty?)
+               (run-main))))
           (else (dolist (code (read-all restargs))
-                  (evaluate code))
-                (run-main)
-                (exit 0)))))
+                  (when (eq? (evaluate code) #f)
+                    (exit 1)))
+                (run-main))))
+  (exit 0))

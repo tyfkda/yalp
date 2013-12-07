@@ -1,92 +1,82 @@
 ;; Macro hash table, (symbol => closure)
-(set! *macro-table* (make-hash-table))
+(def *macro-table* (make-hash-table))
 
 ;; Compile (defmacro name (vars ...) bodies) syntax.
-(set! register-macro
-      (^(name closure)
-        (hash-table-put! *macro-table* name closure)))
+(def register-macro
+    (^(name closure)
+      (hash-table-put! *macro-table* name closure)))
 
 ;; Whether the given name is macro.
-(set! macro?
-      (^(name)
-        (hash-table-exists? *macro-table* name)))
+(def macro?
+    (^(name)
+      (hash-table-exists? *macro-table* name)))
 
+(def no (^(x) (if x nil t)))
 
-(set! null
-      (^(x)
-        (if x
-            nil
-          t)))
-(set! no
-      (^(x)
-        (if x
-            nil
-          t)))
-
-(set! map
-      (^(f ls)
-        (if ls
-            (cons (f (car ls))
-                  (map f (cdr ls)))
-            ())))
+(def map
+    (^(f ls)
+      (if ls
+          (cons (f (car ls))
+                (map f (cdr ls)))
+          ())))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
-(set! pair
-      (^(xs)
-        (if (no xs)
+(def pair
+    (^(xs)
+      (if (no xs)
             nil
           (no (cdr xs))
-          (list (list (car xs)))
+            (list (list (car xs)))
           (cons (list (car xs) (cadr xs))
                 (pair (cddr xs))))))
 
-(set! cadr (^(x) (car (cdr x))))
-(set! cddr (^(x) (cdr (cdr x))))
-(set! caadr (^(x) (car (cadr x))))
+(def cadr (^(x) (car (cdr x))))
+(def cddr (^(x) (cdr (cdr x))))
+(def caadr (^(x) (car (cadr x))))
 
-(set! qq-expand
-      (^(x)
-        (if (consp x)
-            ((^(m)
-               (if (is m 'unquote)
-                     (cadr x)
-                   (is m 'unquote-splicing)
-                     (error "Illegal")
-                   (is m 'quasiquote)
-                     (qq-expand
-                      (qq-expand (cadr x)))
+(def qq-expand
+    (^(x)
+      (if (pair? x)
+          ((^(m)
+             (if (is m 'unquote)
+                 (cadr x)
+                 (is m 'unquote-splicing)
+                 (error "Illegal")
+                 (is m 'quasiquote)
+                 (qq-expand
+                  (qq-expand (cadr x)))
                  (list 'append
                        (qq-expand-list (car x))
                        (qq-expand (cdr x)))))
-             (car x))
-          (list 'quote x))))
+           (car x))
+        (list 'quote x))))
 
-(set! qq-expand-list
-      (^(x)
-        (if (consp x)
-            ((^(m)
-               (if (is m 'unquote)
-                     (list 'list (cadr x))
-                   (is m 'unquote-splicing)
-                     (cadr x)
-                   (is m 'quasiquote)
-                     (qq-expand-list
-                      (qq-expand (cadr x)))
+(def qq-expand-list
+    (^(x)
+      (if (pair? x)
+          ((^(m)
+             (if (is m 'unquote)
+                 (list 'list (cadr x))
+                 (is m 'unquote-splicing)
+                 (cadr x)
+                 (is m 'quasiquote)
+                 (qq-expand-list
+                  (qq-expand (cadr x)))
                  (list 'list
                        (list 'append
                              (qq-expand-list (car x))
                              (qq-expand (cdr x))))))
-             (car x))
-          (list 'quote (list x)))))
+           (car x))
+        (list 'quote (list x)))))
 
 (defmacro quasiquote (x)
   (qq-expand x))
 
-(defmacro def (name value)
-  `(set! ,name ,value))
-
-(defmacro defn (name vars . body)
-  `(set! ,name (^ ,vars ,@body)))
+(defmacro def (name . body)
+  (if (pair? name)
+      `(def ,(car name)
+           (^ ,(cdr name) ,@body))
+    `(def ,name ,@body)))
 
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))
@@ -115,7 +105,7 @@
                body)))))
 
 (defmacro w/uniq (names . body)
-  (if (consp names)
+  (if (pair? names)
       ; (w/uniq (a b c) ...) => (with (a (uniq) b (uniq) c (uniq) ...)
       `(with ,(apply + '() (map (^(n) (list n '(uniq)))
                                 names))
@@ -157,46 +147,62 @@
 
 
 
-(defn isnt (x y)
+(def (isnt x y)
   (no (is x y)))
 
-(defn len (x)
+(def (len x)
   ((afn (x n)
-        (if (consp x)
+        (if (pair? x)
             (self (cdr x) (+ n 1))
             n))
    x 0))
 
 ;; Returns last pair
-(defn last (ls)
-  (if (consp (cdr ls))
+(def (last ls)
+  (if (pair? (cdr ls))
       (last (cdr ls))
     ls))
 
-(defn reverse! (ls)
-  (if (consp ls)
+(def (member x ls)
+  (when (pair? ls)
+    (if (is x (car ls))
+        ls
+      (member x (cdr ls)))))
+
+(def (reverse! ls)
+  (if (pair? ls)
       ((afn (c p)
             (let d (cdr c)
               (set-cdr! c p)
-              (if (consp d)
+              (if (pair? d)
                   (self d c)
                   c)))
        ls ())
     ls))
 
-(defn print (x)
+(def (find-if f ls)
+  (if (no ls)
+        nil
+      (f (car ls))
+        ls
+    (find-if f (cdr ls))))
+
+(def (newline)
+  (display "\n"))
+
+(def (print x)
   (display x)
-  (display "\n")
+  (newline)
   x)
 
 ;; Write shared structure.
-(defn write/ss (s)
+(def (write/ss s)
   (let h (make-hash-table)
     (hash-table-put! h 'index 0)
     (write/ss-print s (write/ss-loop s h))))
 
-(defn write/ss-loop (s h)
-  (if (consp s)
+(def (write/ss-loop s h)
+  (if (pair? s)
       (if (no (hash-table-exists? h s))
           ;; Put nil for the first appeared object.
           (do (hash-table-put! h s nil)
@@ -210,8 +216,8 @@
             h))
     h))
 
-(defn write/ss-print (s h)
-  (if (consp s)
+(def (write/ss-print s h)
+  (if (pair? s)
       (let index (hash-table-get h s)
         (if (and index (< index 0))
             (do (display "#")
@@ -227,7 +233,7 @@
                         (display ")")
                       (do (display c)
                           (write/ss-print (car s) h)
-                          (if (or (and (consp (cdr s))
+                          (if (or (and (pair? (cdr s))
                                        (no (hash-table-get h (cdr s))))
                                   (no (cdr s)))
                               (self " " (cdr s))

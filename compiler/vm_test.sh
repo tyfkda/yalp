@@ -74,10 +74,11 @@ run call/cc 123 '(call/cc
 run call/cc-nil nil '(call/cc
                        (^(cc)
                          (cc)))'
-run global-var 111 '((^()
-                       ((^()
-                          (set! global 111)))
-                       global))'
+run_raw invoke-call/cc '1234' '(def *cc* ())
+                               (display (call/cc (^(cc) (set! *cc* cc) 12)))
+                               (*cc* 34)'
+run global-var 111 '(def global 111)
+                    global'
 run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
 run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
 run empty-body nil '((^ ()))'
@@ -90,9 +91,11 @@ run unquote-splicing-x ",@x" "',@x"
 
 # Macro
 run_raw nil! nil "(defmacro nil! (sym)
-                    (list 'set! sym nil))
+                    (list 'def sym nil))
                   (nil! xyz)
                   (write xyz)"
+run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
+                        ((^(foo) (print (foo))) (^() 'bar))"
 
 # Test native functions
 run cons '(1 . 2)' '(cons 1 2)'
@@ -102,23 +105,17 @@ run set-car! '(3 2)' "((^(x) (set-car! x 3) x) '(1 2))"
 run set-cdr! '(1 . 3)' "((^(x) (set-cdr! x 3) x) '(1 2))"
 run list '(1 2 (3 4))' "(list 1 2 '(3 4))"
 run 'list*' '(1 2 3 4)' "(list* 1 2 '(3 4))"
-run consp 't' "(consp '(1 2))"
-run consp2 'nil' "(consp 'symbol)"
-run symbolp 't' "(symbolp 'symbol)"
-run symbolp2 'nil' "(symbolp '(1 2))"
-run symbolp-nil 't' "(symbolp nil)"
+run 'pair?' 't' "(pair? '(1 2))"
+run 'pair?2' 'nil' "(pair? 'symbol)"
+run 'symbol?' 't' "(symbol? 'symbol)"
+run 'symbol?2' 'nil' "(symbol? '(1 2))"
+run 'symbol?-nil' 't' "(symbol? nil)"
 run append '(1 2 3 4 5 6)' "(append '(1 2) '(3 4) '(5 6))"
 run + '15' '(+ 1 2 3 4 5)'
 run - '7' '(- 10 3)'
 run negate '-10' '(- 10)'
 run '*' '120' '(* 1 2 3 4 5)'
 run / '3' '(/ 10 3)'
-run +float '1.23' '(+ 1 0.23)'
-run -float '0.77' '(- 1 0.23)'
-run -negate '-0.23' '(- 0.23)'
-run '*float' '0.46' '(* 2 0.23)'
-run /float '8.695652173913043' '(/ 2 0.23)'
-run /invert '4.3478260869565215' '(/ 0.23)'
 
 run is t '(is 123 123)'
 run iso-list t "(iso '(1 2 3) '(1 2 3))"
@@ -128,6 +125,15 @@ run '<' nil '(< 2 2)'
 run '>' t '(> 2 1)'
 run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
+
+# Float
+run +float '1.23' '(+ 1 0.23)'
+run -float '0.77' '(- 1 0.23)'
+run -negate '-0.23' '(- 0.23)'
+run '*float' '0.46' '(* 2 0.23)'
+run /float '8.695652173913043' '(/ 2 0.23)'
+run /invert '4.3478260869565215' '(/ 0.23)'
+run '<float' t '(< 1 1.1)'
 
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"

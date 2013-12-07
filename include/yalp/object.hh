@@ -19,8 +19,27 @@ because yalp uses GC and destructor is not called.
 
 namespace yalp {
 
+template <class Key>
+struct HashPolicy;
 template <class Key, class Value>
 class HashTable;
+
+// Symbol class
+class Symbol {
+public:
+  ~Symbol()  {}
+
+  unsigned int getHash() const  { return hash_; }
+  const char* c_str() const  { return name_; }
+
+private:
+  explicit Symbol(char* name);
+
+  char* name_;
+  unsigned int hash_;  // Pre-calculated hash value.
+
+  friend class SymbolManager;
+};
 
 // Base class.
 class Sobject : public GcObject {
@@ -40,26 +59,6 @@ protected:
 
   friend State;
   friend Svalue;
-};
-
-// Symbol class.
-class Symbol : public Sobject {
-public:
-  virtual Type getType() const override;
-  virtual unsigned int calcHash() const override;
-
-  const char* c_str() const  { return name_; }
-
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
-
-protected:
-  Symbol(const char* name);
-  ~Symbol()  {}
-private:
-  const char* name_;
-  unsigned int hash_;  // Pre-calculated hash value.
-
-  friend class SymbolManager;
 };
 
 // Cell class.
@@ -158,7 +157,6 @@ protected:
 class SHashTable : public Sobject {
 public:
   typedef HashTable<Svalue, Svalue> TableType;
-  struct HashPolicyEq;
 
   virtual Type getType() const override;
 
@@ -176,14 +174,13 @@ public:
   const TableType* getHashTable() const  { return table_; }
 
 protected:
-  explicit SHashTable(Allocator* allocator);
+  explicit SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy);
   ~SHashTable();
   virtual void mark();
 
 private:
   virtual void destruct(Allocator* allocator) override;
 
-  static HashPolicyEq s_policy;
   TableType* table_;
 
   friend State;
@@ -196,11 +193,11 @@ public:
 
   virtual bool isCallable() const;
 
-  Symbol* getName() const  { return name_; }
-  void setName(Symbol* name);
+  const Symbol* getName() const  { return name_; }
+  void setName(const Symbol* name);
 
 protected:
-  Symbol* name_;
+  const Symbol* name_;
 };
 
 // Closure class.

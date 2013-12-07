@@ -6,6 +6,7 @@
 #define _VM_HH_
 
 #include "yalp.hh"
+#include <setjmp.h>
 #include <vector>
 
 namespace yalp {
@@ -26,7 +27,7 @@ public:
   void release();
 
   // Execute compiled code.
-  Svalue run(Svalue code);
+  bool run(Svalue code, Svalue* pResult);
 
   // Gets argument number for current native function.
   int getArgNum() const;
@@ -34,16 +35,22 @@ public:
   Svalue getArg(int index) const;
 
   Svalue referGlobal(Svalue sym, bool* pExist);
-  void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
-    assignNative(name, func, minArgNum, minArgNum);
+  void defineGlobal(Svalue sym, Svalue value);
+  bool assignGlobal(Svalue sym, Svalue value);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
+    defineNative(name, func, minArgNum, minArgNum);
   }
-  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
-  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+  void resetError();
 
   int getCallStackDepth() const  { return callStack_.size(); }
   const CallStack* getCallStack() const  { return &callStack_[0]; }
+
+  jmp_buf* setJmpbuf(jmp_buf* jmp);
+  void longJmp();
 
   void markRoot();
 
@@ -56,7 +63,7 @@ private:
   Svalue runLoop();
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
-  Svalue createContinuation(int s);
+  Svalue createContinuation(int s, Svalue tail);
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);
@@ -72,6 +79,7 @@ private:
   int restoreStack(Svalue v);
 
   int pushArgs(int argNum, const Svalue* args, int s);
+  Svalue funcallExec(Svalue fn, int argNum, const Svalue* args);
 
   void pushCallStack(Callable* callable);
   void popCallStack();
@@ -87,14 +95,16 @@ private:
   // Global variables
   SHashTable* globalVariableTable_;
 
-  // For native function call.
-  int argNum_;
+  Svalue endOfCode_;
+  Svalue return_;
 
   Svalue a_;  // Accumulator.
   Svalue x_;  // Running code.
   int f_;     // Frame pointer.
   Svalue c_;  // Current closure.
   int s_;     // Stack pointer.
+
+  jmp_buf* jmp_;
 
   std::vector<CallStack> callStack_;
 };

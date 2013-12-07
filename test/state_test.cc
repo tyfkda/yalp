@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "yalp.hh"
 #include "yalp/object.hh"
+#include "yalp/util.hh"
 
 using namespace yalp;
 
@@ -26,6 +27,9 @@ TEST_F(StateTest, Symbol) {
   Svalue s = state_->intern("symbol");
   ASSERT_TRUE(state_->intern("symbol").eq(s));
   ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
+
+  ASSERT_FALSE(s.isObject());
+  ASSERT_STREQ("symbol", s.toSymbol(state_)->c_str());
 }
 
 TEST_F(StateTest, Cons) {
@@ -48,7 +52,8 @@ TEST_F(StateTest, Cons) {
 TEST_F(StateTest, Funcall) {
   Svalue args[] = { state_->fixnumValue(1), state_->fixnumValue(2), state_->fixnumValue(3) };
   Svalue fn = state_->referGlobal(state_->intern("+"));
-  Svalue result = state_->funcall(fn, sizeof(args) / sizeof(*args), args);
+  Svalue result;
+  ASSERT_TRUE(state_->funcall(fn, sizeof(args) / sizeof(*args), args, &result));
   ASSERT_EQ(TT_FIXNUM, result.getType());
   ASSERT_EQ(6, result.toFixnum());
 }

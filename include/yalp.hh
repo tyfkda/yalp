@@ -20,12 +20,13 @@ namespace yalp {
 class Allocator;
 class Sobject;
 class State;
+class Symbol;
 class SymbolManager;
 class Vm;
 
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
-typedef float Sfloat;
+typedef double Sfloat;
 
 typedef void* (*AllocFunc)(void*p, size_t size);
 
@@ -52,9 +53,10 @@ public:
   Type getType() const;
 
   Sfixnum toFixnum() const;
-  Sfloat toFloat() const;
+  Sfloat toFloat(State* state) const;
   bool isObject() const;
   Sobject* toObject() const;
+  const Symbol* toSymbol(State* state) const;
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
@@ -63,7 +65,7 @@ public:
   void output(State* state, std::ostream& o, bool inspect) const;
 
   long getId() const  { return v_; }
-  unsigned int calcHash() const;
+  unsigned int calcHash(State* state) const;
 
   friend std::ostream& operator<<(std::ostream& o, Svalue s) {
     s.output(NULL, o, true); return o;
@@ -74,6 +76,7 @@ public:
 private:
   explicit Svalue(Sfixnum i);
   explicit Svalue(Sobject* object);
+  explicit Svalue(Sfixnum i, int tag2);
 
   Sfixnum v_;
 
@@ -94,7 +97,7 @@ public:
   bool compile(Svalue exp, Svalue* pValue);
 
   // Execute compiled code.
-  Svalue runBinary(Svalue code);
+  bool runBinary(Svalue code, Svalue* pResult);
 
   bool runFromFile(const char* filename, Svalue* pResult = NULL);
   bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
@@ -108,6 +111,7 @@ public:
   // Returns symbol value.
   Svalue intern(const char* name);
   Svalue gensym();
+  const Symbol* getSymbol(unsigned int symbolId) const;
 
   // Creates cell.
   Svalue cons(Svalue a, Svalue d);
@@ -136,7 +140,6 @@ public:
     QUASIQUOTE,
     UNQUOTE,
     UNQUOTE_SPLICING,
-    SINGLE_HALT,
 
     NUMBER_OF_CONSTANT
   };
@@ -151,19 +154,23 @@ public:
   Allocator* getAllocator()  { return allocator_; }
 
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
-  void assignGlobal(Svalue sym, Svalue value);
-  void assignNative(const char* name, NativeFuncType func, int minArgNum) {
-    assignNative(name, func, minArgNum, minArgNum);
+  void defineGlobal(Svalue sym, Svalue value);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
+    defineNative(name, func, minArgNum, minArgNum);
   }
-  void assignNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
-  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
+  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+  void resetError();
 
   void collectGarbage();
 
   void reportDebugInfo() const;
 
 private:
+  struct HashPolicyEq;
+
   State(AllocFunc allocFunc);
   ~State();
 
@@ -174,17 +181,11 @@ private:
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
+  HashPolicyEq* hashPolicyEq_;
   Vm* vm_;
 
   friend struct StateAllocatorCallback;
 };
-
-// Helper functions.
-Svalue list(State* state, Svalue v1);
-Svalue list(State* state, Svalue v1, Svalue v2);
-Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3);
-Svalue nreverse(State* state, Svalue v);
-int length(State* state, Svalue v);
 
 }  // namespace yalp
 

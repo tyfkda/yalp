@@ -33,3 +33,8 @@ check-length:
 
 boot.bin:	compiler/compiler.scm compiler/boot.arc compiler/self.arc
 	cd compiler && gosh compiler.scm -c boot.arc self.arc > ../boot.bin
+
+self-compile:
+	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin && \
+	./yalp -L self.bin -c compiler/boot.arc compiler/self.arc > self2.bin && \
+	diff self.bin self2.bin && rm self.bin self2.bin && echo OK
