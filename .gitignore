@@ -10,6 +10,7 @@
 /test/read_test
 /test/state_test
 /test/symbol_manager_test
+/test/util_test
 
 # GTAGS
 /GPATH
