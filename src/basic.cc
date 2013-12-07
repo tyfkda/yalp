@@ -11,7 +11,7 @@
 #include "vm.hh"
 #include <assert.h>
 #include <iostream>
-#include <math.h>
+#include <tgmath.h>
 
 namespace yalp {
 
