@@ -1,8 +1,46 @@
+//=============================================================================
+// Allocator
+//=============================================================================
+
 #include "allocator.hh"
 #include <new>
+#include <stdint.h>  // intptr_t
 #include <stdlib.h>  // for malloc, free
 
 namespace yalp {
+
+//=============================================================================
+// GcObject
+/*
+ * next_: Tagged pointer, which embedded mark bit.
+ */
+
+static const intptr_t MARKED = 1;
+
+template <class T>
+inline intptr_t ptr2int(T p) {
+  return reinterpret_cast<intptr_t>(p);
+}
+
+template <class T>
+inline T int2ptr(intptr_t i) {
+  return reinterpret_cast<T>(i);
+}
+
+void GcObject::mark() {
+  next_ = int2ptr<GcObject*>(ptr2int(next_) | MARKED);
+}
+
+bool GcObject::isMarked() const {
+  return (ptr2int(next_) & MARKED) != 0;
+}
+
+void GcObject::clearMark() {
+  next_ = int2ptr<GcObject*>(ptr2int(next_) & ~MARKED);
+}
+
+//=============================================================================
+// Allocator
 
 void* defaultAllocFunc(void* p, size_t size) {
   if (size <= 0) {
@@ -72,7 +110,6 @@ void Allocator::free(void* p) {
 void* Allocator::objAlloc(size_t size) {
   GcObject* gcobj = static_cast<GcObject*>(ALLOC(this, size));
   gcobj->next_ = objectTop_;
-  gcobj->marked_ = false;
   objectTop_ = gcobj;
   ++objectCount_;
   return gcobj;
@@ -87,9 +124,9 @@ void Allocator::sweep() {
   int n = 0;
   GcObject* prev = NULL;
   for (GcObject* gcobj = objectTop_; gcobj != NULL; ) {
-    if (gcobj->marked_) {
+    if (gcobj->isMarked()) {
       prev = gcobj;
-      gcobj->marked_ = false;
+      gcobj->clearMark();
       gcobj = gcobj->next_;
       ++n;
       continue;
