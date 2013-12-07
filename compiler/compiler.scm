@@ -360,9 +360,9 @@
         (max (slot-ref f 'max-arg-num))
         (argnum (length args)))
     (cond ((< argnum min)
-           (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires atleast ,min\, but given ,argnum"))
+           (runtime-error #`"Too few arguments: `,(slot-ref f 'name)' requires at least ,min\, but given ,argnum"))
           ((and (>= max 0) (> argnum max))
-           (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts atmost ,max\, but given ,argnum"))
+           (runtime-error #`"Too many arguments: `,(slot-ref f 'name)' accepts at most ,max\, but given ,argnum"))
           (else
            (let ((fn (slot-ref f 'fn)))
              (apply fn args))))))
@@ -524,9 +524,9 @@
   (let ((min (slot-ref c 'min-arg-num))
         (max (slot-ref c 'max-arg-num)))
     (cond ((< argnum min)
-           (runtime-error #`"Too few arguments: requires atleast ,min\, but given ,argnum"))
+           (runtime-error #`"Too few arguments: requires at least ,min\, but given ,argnum"))
           ((and (>= max 0) (> argnum max))
-           (runtime-error #`"Too many arguments: accepts atmost ,max\, but given ,argnum"))
+           (runtime-error #`"Too many arguments: accepts at most ,max\, but given ,argnum"))
           (else
            (let ((ds (if (rest-params? min max)
                          (modify-rest-params argnum min s)
