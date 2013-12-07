@@ -103,7 +103,10 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      o << toSymbol(state)->c_str();
+      if (state != NULL)
+        o << toSymbol(state)->c_str();
+      else
+        o << "#<symbol:" << (v_ >> TAG2_SHIFT) << ">";
       return;
     }
   }
