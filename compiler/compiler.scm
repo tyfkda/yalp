@@ -37,7 +37,8 @@
 (load "util.scm")
 
 (define (compile x)
-  (compile-recur x '(()) () '(HALT)))
+  (compile-recur (macroexpand-all x ())
+                 '(()) () '(HALT)))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -53,48 +54,45 @@
                          (list 'UNBOX next)
                        next)))
      ((pair? x)
-      (let ((expanded (expand-macro x (append (car e) (cdr e)))))
-        (if (not (equal? expanded x))
-            (compile-recur expanded e s next)
-          (record-case x
-                       (quote (obj) (list 'CONST obj next))
-                       (^ (vars . bodies)
-                         (compile-lambda vars bodies e s next))
-                       (if (test then . rest)
-                           (let ((thenc (compile-recur then e s next))
-                                 (elsec (cond ((null? rest)
-                                               (compile-undef next))
-                                              ((null? (cdr rest))
-                                               (compile-recur (car rest) e s next))
-                                              (else
-                                               (compile-recur `(if ,@rest) e s next)))))
-                             (compile-recur test e s (list 'TEST thenc elsec))))
-                       (set! (var x)
-                             (compile-lookup var e
-                                             (lambda (n) (compile-recur x e s (list 'LSET n next)))
-                                             (lambda (n) (compile-recur x e s (list 'FSET n next)))
-                                             (lambda ()  (compile-recur x e s (list 'GSET var next)))))
-                       (def (var x)
-                            (compile-recur x e s (list 'DEF var next)))
-                       (call/cc (x)
-                                ;; Currently, disable tailcall optimization.
-                                (let ((c (list 'CONTI
-                                               (list 'PUSH
-                                                     (compile-recur x e s
-                                                                    (if #f  ;(tail? next)
-                                                                        (list 'SHIFT
-                                                                              1
-                                                                              '(APPLY 1))
-                                                                      '(APPLY 1)))))))
-                                  (if #f  ;(tail? next)
-                                      c
-                                    (list 'FRAME next c))))
-                       (defmacro (name vars . bodies)
-                         (compile-defmacro name vars bodies next))
-                       (else
-                        (let ((func (car x))
-                              (args (cdr x)))
-                          (compile-apply func args e s next)))))))
+      (record-case x
+                   (quote (obj) (list 'CONST obj next))
+                   (^ (vars . bodies)
+                     (compile-lambda vars bodies e s next))
+                   (if (test then . rest)
+                       (let ((thenc (compile-recur then e s next))
+                             (elsec (cond ((null? rest)
+                                           (compile-undef next))
+                                          ((null? (cdr rest))
+                                           (compile-recur (car rest) e s next))
+                                          (else
+                                           (compile-recur `(if ,@rest) e s next)))))
+                         (compile-recur test e s (list 'TEST thenc elsec))))
+                   (set! (var x)
+                         (compile-lookup var e
+                                         (lambda (n) (compile-recur x e s (list 'LSET n next)))
+                                         (lambda (n) (compile-recur x e s (list 'FSET n next)))
+                                         (lambda ()  (compile-recur x e s (list 'GSET var next)))))
+                   (def (var x)
+                        (compile-recur x e s (list 'DEF var next)))
+                   (call/cc (x)
+                            ;; Currently, disable tailcall optimization.
+                            (let ((c (list 'CONTI
+                                           (list 'PUSH
+                                                 (compile-recur x e s
+                                                                (if #f  ;(tail? next)
+                                                                    (list 'SHIFT
+                                                                          1
+                                                                          '(APPLY 1))
+                                                                  '(APPLY 1)))))))
+                              (if #f  ;(tail? next)
+                                  c
+                                (list 'FRAME next c))))
+                   (defmacro (name vars . bodies)
+                     (compile-defmacro name vars bodies next))
+                   (else
+                    (let ((func (car x))
+                          (args (cdr x)))
+                      (compile-apply func args e s next)))))
      (else (list 'CONST x next)))))
 
 (define (compile-undef next)
@@ -166,23 +164,20 @@
     (cond
      ((symbol? x) (if (set-member? x b) () (list x)))
      ((pair? x)
-      (let ((expanded (expand-macro x b)))
-        (if (not (equal? expanded x))
-            (find-free expanded b)
-          (record-case x
-                       (^ (vars . bodies)
-                         (find-frees bodies b vars))
-                       (quote (obj) ())
-                       (if      all (find-frees all b ()))
-                       (set! (var exp)
-                             (set-union (if (set-member? var b) () (list var))
-                                        (find-free exp b)))
-                       (def (var exp)
-                            (set-union (if (set-member? var b) () (list var))
-                                       (find-free exp b)))
-                       (call/cc all (find-frees all b ()))
-                       (defmacro (name vars . bodies) (find-frees bodies b vars))
-                       (else        (find-frees x   b ()))))))
+      (record-case x
+                   (^ (vars . bodies)
+                     (find-frees bodies b vars))
+                   (quote (obj) ())
+                   (if      all (find-frees all b ()))
+                   (set! (var exp)
+                         (set-union (if (set-member? var b) () (list var))
+                                    (find-free exp b)))
+                   (def (var exp)
+                        (set-union (if (set-member? var b) () (list var))
+                                   (find-free exp b)))
+                   (call/cc all (find-frees all b ()))
+                   (defmacro (name vars . bodies) (find-frees bodies b vars))
+                   (else        (find-frees x   b ()))))
      (else ()))))
 
 (define collect-free
@@ -206,22 +201,19 @@
 (define find-sets
   (lambda (x v)
     (if (pair? x)
-        (let ((expanded (expand-macro x ())))
-          (if (not (equal? expanded x))
-              (find-sets expanded v)
-            (record-case x
-                         (set! (var val)
-                               (set-union (if (set-member? var v) (list var) ())
-                                          (find-sets val v)))
-                         (def (var val)
-                              (find-sets val v))
-                         (^ (vars . bodies)
-                           (find-setses bodies (set-minus v (dotted->proper vars))))
-                         (quote   all ())
-                         (if      all (find-setses all v))
-                         (call/cc all (find-setses all v))
-                         (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
-                         (else        (find-setses x   v)))))
+        (record-case x
+                     (set! (var val)
+                           (set-union (if (set-member? var v) (list var) ())
+                                      (find-sets val v)))
+                     (def (var val)
+                          (find-sets val v))
+                     (^ (vars . bodies)
+                       (find-setses bodies (set-minus v (dotted->proper vars))))
+                     (quote   all ())
+                     (if      all (find-setses all v))
+                     (call/cc all (find-setses all v))
+                     (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
+                     (else        (find-setses x   v)))
       ())))
 
 (define make-boxes
@@ -287,7 +279,7 @@
 
 ;; Expand macro if the given expression is macro expression,
 ;; otherwise return itself.
-(define (expand-macro exp vars)
+(define (my-macroexpand-1 exp)
   (define (push-args args s)
     (let loop ((rargs (reverse args))
                (s s))
@@ -300,8 +292,7 @@
 
   "Expand macro."
   (if (and (pair? exp)
-           (macro? (car exp))
-           (not (member (car exp) vars)))
+           (macro? (car exp)))
       (let ((name (car exp))
             (args (cdr exp)))
         (let ((closure (hash-table-get *macro-table* name)))
@@ -311,8 +302,38 @@
                                   (make-frame '(HALT) 0 () %running-stack-pointer)))))
     exp))
 
-(define (my-macroexpand-1 exp)
-  (expand-macro exp ()))
+(define (macroexpand-all exp scope-vars)
+  (define (map-macroexpand-all ls svars)
+    (map (lambda (e) (macroexpand-all e svars))
+         ls))
+  (define (macroexpand-all-sub xp scope-vars)
+    (record-case exp
+                 (quote (obj) `(quote ,obj))
+                 (^ (vars . bodies)
+                   (let ((new-scope-vars (append (dotted->proper vars) scope-vars)))
+                     `(^ ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                 (if all
+                     `(if ,@(map-macroexpand-all all scope-vars)))
+                 (set! (var x)
+                       `(set! ,var ,(macroexpand-all x scope-vars)))
+                 (def (var x)
+                      `(def ,var ,(macroexpand-all x scope-vars)))
+                 (call/cc (x)
+                          `(call/cc ,(macroexpand-all x scope-vars)))
+                 (defmacro (name vars . bodies)
+                   (let ((new-scope-vars (append (dotted->proper vars) scope-vars)))
+                     `(defmacro ,name ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                 (else (map-macroexpand-all exp scope-vars))))
+
+  (if (pair? exp)
+      (if (and (macro? (car exp))
+               (not (member (car exp) scope-vars)))
+          (let ((expanded (my-macroexpand-1 exp)))
+            (if (equal? expanded exp)
+                (macroexpand-all-sub exp scope-vars)
+              (macroexpand-all expanded scope-vars)))
+        (macroexpand-all-sub exp scope-vars))
+    exp))
 
 (define (my-macroexpand exp)
   (let ((expanded (my-macroexpand-1 exp)))

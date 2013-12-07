@@ -94,7 +94,7 @@ run_raw nil! nil "(defmacro nil! (sym)
                     (list 'def sym nil))
                   (nil! xyz)
                   (write xyz)"
-run_raw hide-macro bar "(defmacro foo() ''foo)
+run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
                         ((^(foo) (print (foo))) (^() 'bar))"
 
 # Test native functions
