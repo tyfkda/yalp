@@ -468,7 +468,8 @@
   (push ret (push f (push c s))))
 
 (define (true? x)
-  (not (eq? x ())))
+  (not (or (eq? x ())
+           (eq? x 'nil))))
 
 (define (do-apply argnum f s)
   (cond ((native-function? f)
