@@ -93,7 +93,7 @@ Vm::Vm(State* state)
   , stack_(NULL), stackSize_(0)
   , jmp_(NULL)
   , callStack_() {
-  a_ = c_ = state->nil();
+  a_ = c_ = Svalue::NIL;
   x_ = endOfCode_;
   f_ = s_ = 0;
 
@@ -183,7 +183,7 @@ bool Vm::run(Svalue code, Svalue* pResult) {
   bool ret = false;
   if (setjmp(jmp) == 0) {
     old = setJmpbuf(&jmp);
-    Svalue nil = state_->nil();
+    Svalue nil = Svalue::NIL;
     a_ = nil;
     x_ = code;
     c_ = nil;
@@ -211,7 +211,7 @@ Svalue Vm::runLoop() {
     return a_;
   case UNDEF:
     x_ = CAR(x_);
-    a_ = state_->nil();
+    a_ = Svalue::NIL;
     goto again;
   case CONST:
     a_ = CAR(x_);
@@ -408,7 +408,7 @@ Svalue Vm::runLoop() {
       Svalue tail = CAR(x_);
       Svalue stack = CADR(x_);
       int argNum = index(f_, -1).toFixnum();
-      a_ = (argNum == 0) ? state_->nil() : index(f_, 0);
+      a_ = (argNum == 0) ? Svalue::NIL : index(f_, 0);
       s_ = restoreStack(stack);
 
       if (state_->isTrue(tail)) {
@@ -527,7 +527,7 @@ int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
 }
 
 Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
-  Svalue acc = state_->nil();
+  Svalue acc = Svalue::NIL;
   for (int i = argNum; --i >= minArgNum; )
     acc = state_->cons(index(s, i), acc);
   return acc;
@@ -542,7 +542,7 @@ Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
   const Svalue* result = globalVariableTable_->get(sym);
   if (pExist != NULL)
     *pExist = result != NULL;
-  return result != NULL ? *result : state_->nil();
+  return result != NULL ? *result : Svalue::NIL;
 }
 
 void Vm::defineGlobal(Svalue sym, Svalue value) {
@@ -622,7 +622,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
     fn.output(state_, std::cerr, true);
     state_->runtimeError("Can't call");
-    return state_->nil();
+    return Svalue::NIL;
   }
 
   pushCallStack(static_cast<Callable*>(fn.toObject()));
@@ -690,7 +690,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
 }
 
 void Vm::resetError() {
-  Svalue nil = state_->nil();
+  Svalue nil = Svalue::NIL;
   a_ = nil;
   x_ = endOfCode_;
   c_ = nil;

@@ -13,8 +13,8 @@ class Svalue;
 Svalue list(State* state, Svalue v1);
 Svalue list(State* state, Svalue v1, Svalue v2);
 Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3);
-Svalue nreverse(State* state, Svalue v);
-int length(State* state, Svalue v);
+Svalue nreverse(Svalue v);
+int length(Svalue v);
 
 }  // namespace yalp
 

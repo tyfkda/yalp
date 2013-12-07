@@ -57,7 +57,7 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
       break;
     c = ' ';
   }
-  if (state == NULL || !p->cdr_.eq(state->nil())) {
+  if (state == NULL || !p->cdr_.eq(Svalue::NIL)) {
     o << " . ";
     p->cdr_.output(state, o, inspect);
   }
@@ -83,7 +83,7 @@ void Cell::setCdr(Svalue d) {
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(state->nil()))
+      !state->cdr(cdr()).eq(Svalue::NIL))
     return NULL;
 
   struct {

@@ -35,6 +35,9 @@ const Sfixnum TAG2_SYMBOL = 3;
 
 inline static bool isFixnum(Sfixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
+// Assumes that first symbol is nil.
+const Svalue Svalue::NIL = Svalue(0, TAG2_SYMBOL);
+
 Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }
@@ -216,8 +219,9 @@ State::State(AllocFunc allocFunc)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , vm_(NULL) {
+  intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANT] = {
-    "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
+    "t", "quote", "quasiquote", "unquote", "unquote-splicing"
   };
   for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
     constant_[i] = intern(constSymbols[i]);
@@ -235,7 +239,7 @@ State::~State() {
 
 bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
-  if (fn.eq(nil()))
+  if (isFalse(fn))
     return false;
   return funcall(fn, 1, &exp, pValue);
 }
@@ -279,7 +283,7 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   }
 
   Reader reader(this, strm);
-  Svalue result = nil();
+  Svalue result = Svalue::NIL;
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {

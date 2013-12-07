@@ -9,22 +9,22 @@
 namespace yalp {
 
 Svalue list(State* state, Svalue v1) {
-  return state->cons(v1, state->nil());
+  return state->cons(v1, Svalue::NIL);
 }
 
 Svalue list(State* state, Svalue v1, Svalue v2) {
-  return state->cons(v1, state->cons(v2, state->nil()));
+  return state->cons(v1, state->cons(v2, Svalue::NIL));
 }
 
 Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3) {
-  return state->cons(v1, state->cons(v2, state->cons(v3, state->nil())));
+  return state->cons(v1, state->cons(v2, state->cons(v3, Svalue::NIL)));
 }
 
-Svalue nreverse(State* state, Svalue v) {
+Svalue nreverse(Svalue v) {
   if (v.getType() != TT_CELL)
     return v;
 
-  Svalue tail = state->nil();
+  Svalue tail = Svalue::NIL;
   for (;;) {
     Cell* cell = static_cast<Cell*>(v.toObject());
     Svalue d = cell->cdr();
@@ -36,9 +36,9 @@ Svalue nreverse(State* state, Svalue v) {
   }
 }
 
-int length(State* state, Svalue v) {
+int length(Svalue v) {
   int len = 0;
-  for (; v.getType() == TT_CELL; v = state->cdr(v))
+  for (; v.getType() == TT_CELL; v = static_cast<Cell*>(v.toObject())->cdr())
     ++len;
   return len;
 }

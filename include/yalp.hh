@@ -73,6 +73,8 @@ public:
 
   void mark();
 
+  static const Svalue NIL;
+
 private:
   explicit Svalue(Sfixnum i);
   explicit Svalue(Sobject* object);
@@ -103,7 +105,7 @@ public:
   bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
   // Converts C++ bool value to lisp bool value.
-  Svalue boolValue(bool b) const  { return b ? t() : nil(); }
+  Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 
   // Converts C++ int value to lisp Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
@@ -134,7 +136,6 @@ public:
 
   // Constant
   enum Constant {
-    NIL,
     T,
     QUOTE,
     QUASIQUOTE,
@@ -144,10 +145,8 @@ public:
     NUMBER_OF_CONSTANT
   };
   Svalue getConstant(Constant c) const  { return constant_[c]; }
-  Svalue nil() const  { return constant_[NIL]; }
-  Svalue t() const  { return constant_[T]; }
-  bool isTrue(Svalue x) const  { return !x.eq(nil()); }
-  bool isFalse(Svalue x) const  { return x.eq(nil()); }
+  bool isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
+  bool isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
 
   Svalue createHashTable();
 

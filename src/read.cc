@@ -103,7 +103,7 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
 }
 
 ReadError Reader::readList(Svalue* pValue) {
-  Svalue value = state_->nil();
+  Svalue value = Svalue::NIL;
   Svalue v;
   ReadError err;
   for (;;) {
@@ -115,14 +115,14 @@ ReadError Reader::readList(Svalue* pValue) {
 
   switch (err) {
   case EXTRA_CLOSE_PAREN:
-    *pValue = nreverse(state_, value);
+    *pValue = nreverse(value);
     return READ_SUCCESS;
   case END_OF_FILE:
-    *pValue = nreverse(state_, value);
+    *pValue = nreverse(value);
     return NO_CLOSE_PAREN;
   case DOT_AT_BASE:
     {
-      if (value.eq(state_->nil()))
+      if (value.eq(Svalue::NIL))
         return ILLEGAL_CHAR;
 
       Svalue tail;
@@ -138,7 +138,7 @@ ReadError Reader::readList(Svalue* pValue) {
       }
 
       Svalue lastPair = value;
-      *pValue = nreverse(state_, value);
+      *pValue = nreverse(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       return READ_SUCCESS;
     }

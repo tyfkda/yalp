@@ -50,7 +50,7 @@ static Svalue s_set_cdr(State* state) {
 
 static Svalue s_list(State* state) {
   int n = state->getArgNum();
-  Svalue res = state->nil();
+  Svalue res = Svalue::NIL;
   for (int i = n; --i >= 0; ) {
     Svalue a = state->getArg(i);
     res = state->cons(a, res);
@@ -62,7 +62,7 @@ static Svalue s_listStar(State* state) {
   int n = state->getArgNum();
   Svalue res;
   if (n <= 0)
-    res = state->nil();
+    res = Svalue::NIL;
   else {
     res = state->getArg(n - 1);
     for (int i = n - 1; --i >= 0; ) {
@@ -85,7 +85,7 @@ static Svalue s_symbolp(State* state) {
 
 static Svalue s_append(State* state) {
   int n = state->getArgNum();
-  Svalue nil = state->nil();
+  Svalue nil = Svalue::NIL;
   Svalue last = nil;
   int lastIndex;
   for (lastIndex = n; --lastIndex >= 0; ) {
@@ -105,7 +105,7 @@ static Svalue s_append(State* state) {
   if (copied.eq(nil))
     return last;
 
-  Svalue fin = nreverse(state, copied);
+  Svalue fin = nreverse(copied);
   static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
 }
@@ -359,16 +359,16 @@ static Svalue s_apply(State* state) {
   int n = state->getArgNum();
   // Counts argument number for the given function.
   int argNum = n - 1;
-  Svalue last = state->nil();
+  Svalue last = Svalue::NIL;
   if (n > 1) {
     // Last argument should be a list and its elements are function arguments.
     last = state->getArg(n - 1);
-    if (last.eq(state->nil()))
+    if (last.eq(Svalue::NIL))
       argNum -= 1;
     else if (last.getType() != TT_CELL)
       state->runtimeError("pair expected");
     else
-      argNum += length(state, last) - 1;
+      argNum += length(last) - 1;
   }
 
   Svalue* args = NULL;
@@ -416,7 +416,7 @@ static Svalue s_hash_table_get(State* state) {
     state->runtimeError("Hash table expected");
   const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
   if (result == NULL)
-    return state->nil();
+    return Svalue::NIL;
   return *result;
 }
 
@@ -453,7 +453,7 @@ static Svalue s_hash_table_keys(State* state) {
     state->runtimeError("Hash table expected");
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
-  Svalue result = state->nil();
+  Svalue result = Svalue::NIL;
   for (auto kv : *ht)
     result = state->cons(kv.key, result);
   return result;
@@ -461,12 +461,12 @@ static Svalue s_hash_table_keys(State* state) {
 
 static Svalue s_collect_garbage(State* state) {
   state->collectGarbage();
-  return state->nil();
+  return Svalue::NIL;
 }
 
 void installBasicFunctions(State* state) {
-  state->defineGlobal(state->nil(), state->nil());
-  state->defineGlobal(state->t(), state->t());
+  state->defineGlobal(Svalue::NIL, Svalue::NIL);
+  state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
   state->defineNative("cons", s_cons, 2);
   state->defineNative("car", s_car, 1);
