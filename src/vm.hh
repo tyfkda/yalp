@@ -63,7 +63,7 @@ private:
   Svalue runLoop();
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
-  Svalue createContinuation(int s);
+  Svalue createContinuation(int s, Svalue tail);
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);

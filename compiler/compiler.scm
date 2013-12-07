@@ -75,16 +75,15 @@
                    (def (var x)
                         (compile-recur x e s (list 'DEF var next)))
                    (call/cc (x)
-                            ;; Currently, disable tailcall optimization.
-                            (let ((c (list 'CONTI
+                            (let ((c (list 'CONTI (if (tail? next) 't 'nil)
                                            (list 'PUSH
                                                  (compile-recur x e s
-                                                                (if #f  ;(tail? next)
+                                                                (if (tail? next)
                                                                     (list 'SHIFT
                                                                           1
                                                                           '(APPLY 1))
                                                                   '(APPLY 1)))))))
-                              (if #f  ;(tail? next)
+                              (if (tail? next)
                                   c
                                 (list 'FRAME next c))))
                    (defmacro (name vars . bodies)
@@ -448,12 +447,16 @@
                       (VM a x f c s))
                  (UNBOX (x)
                         (VM (unbox a) x f c s))
-                 (CONTI (x)
-                        (VM (continuation s) x f c s))
-                 (NUATE (stack)
+                 (CONTI (tail x)
+                        (VM (continuation s tail) x f c s))
+                 (NUATE (tail stack)
                         (let* ((argnum (index f -1))
                                (a (if (eq? argnum 0) 'nil (index f 0))))
-                          (let ((s (restore-stack stack)))
+                          (let* ((s (restore-stack stack))
+                                 (s (if (true? tail)
+                                        (let ((callee-argnum (index s 0)))
+                                          (- s callee-argnum 1))
+                                      s)))
                             (do-return a s 0))))
                  (MACRO (name nparam body x)
                         (let ((min (car nparam))
@@ -512,9 +515,9 @@
 
 
 (define continuation
-  (lambda (s)
+  (lambda (s tail)
     (closure
-     (list 'NUATE (save-stack s))
+     (list 'NUATE tail (save-stack s))
      s
      s
      0 1)))

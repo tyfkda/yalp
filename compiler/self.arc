@@ -103,16 +103,15 @@
                      (def (var x)
                          (compile-recur x e s (list 'DEF var next)))
                      (call/cc (x)
-                              ;; Currently, disable tailcall optimization.
-                              (let c (list 'CONTI
+                              (let c (list 'CONTI (if (tail? next) 't 'nil)
                                            (list 'PUSH
                                                  (compile-recur x e s
-                                                                (if nil  ;(tail? next)
+                                                                (if (tail? next)
                                                                     (list 'SHIFT
                                                                           1
                                                                           '(APPLY 1))
                                                                     '(APPLY 1)))))
-                                (if nil  ;(tail? next)
+                                (if (tail? next)
                                     c
                                     (list 'FRAME next c))))
                      (defmacro (name vars . bodies)
