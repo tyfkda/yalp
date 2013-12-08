@@ -1,16 +1,3 @@
-;; Macro hash table, (symbol => closure)
-(def *macro-table* (make-hash-table))
-
-;; Compile (defmacro name (vars ...) bodies) syntax.
-(def register-macro
-    (^(name closure)
-      (hash-table-put! *macro-table* name closure)))
-
-;; Whether the given name is macro.
-(def macro?
-    (^(name)
-      (hash-table-exists? *macro-table* name)))
-
 (def no (^(x) (if x nil t)))
 
 (def map

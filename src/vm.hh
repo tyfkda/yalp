@@ -41,6 +41,7 @@ public:
     defineNative(name, func, minArgNum, minArgNum);
   }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  Svalue getMacro(Svalue name);
 
   bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
@@ -85,6 +86,8 @@ private:
   void popCallStack();
   void shiftCallStack();
 
+  void registerMacro(Svalue name, Svalue nparam, Svalue body);
+
   State* state_;
   Svalue* stack_;
   int stackSize_;
@@ -94,6 +97,9 @@ private:
 
   // Global variables
   SHashTable* globalVariableTable_;
+
+  // Macro table.
+  SHashTable* macroTable_;
 
   Svalue endOfCode_;
   Svalue return_;

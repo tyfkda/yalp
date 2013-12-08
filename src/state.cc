@@ -385,6 +385,10 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
+Svalue State::getMacro(Svalue name) {
+  return vm_->getMacro(name);
+}
+
 bool State::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
   return vm_->funcall(fn, argNum, args, pResult);
 }

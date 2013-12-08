@@ -6,6 +6,7 @@
 #include "allocator.hh"
 #include "yalp/object.hh"
 #include "yalp/util.hh"
+#include <alloca.h>
 #include <assert.h>
 #include <iostream>
 
@@ -49,6 +50,39 @@ enum Opcode {
 #define CDDDR(x)  (CDR(CDDR(x)))
 #define CADDDR(x)  (CAR(CDDDR(x)))
 #define CDDDDR(x)  (CDR(CDDDR(x)))
+
+//=============================================================================
+
+// Expand macro if the given expression is macro expression,
+// otherwise return itself.
+/*
+(def (macroexpand-1 exp)
+  (if (and (pair? exp)
+           (macro? (car exp)))
+      (with (name (car exp)
+             args (cdr exp))
+        (let closure (hash-table-get *macro-table* name)
+          (apply closure args)))
+    exp))
+*/
+static Svalue s_macroexpand_1(State* state) {
+  Svalue exp = state->getArg(0);
+  if (exp.getType() != TT_CELL)
+    return exp;
+  Svalue name = state->car(exp);
+  Svalue closure = state->getMacro(name);
+  if (state->isFalse(closure))
+    return exp;
+
+  Svalue args = state->cdr(exp);
+  int argNum = length(args);
+  Svalue* argsArray = static_cast<Svalue*>(alloca(sizeof(Svalue) * argNum));
+  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
+    argsArray[i] = state->car(args);
+  return state->tailcall(closure, argNum, argsArray);
+}
+
+//=============================================================================
 
 // Box class.
 class Box : public Sobject {
@@ -130,8 +164,15 @@ Vm::Vm(State* state)
     globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 
+  {
+    Svalue ht = state_->createHashTable();
+    macroTable_ = static_cast<SHashTable*>(ht.toObject());
+  }
+
   endOfCode_ = list(state_, opcodes_[HALT]);
   return_ = list(state_, opcodes_[RET]);
+
+  defineNative("macroexpand-1", s_macroexpand_1, 1);
 }
 
 jmp_buf* Vm::setJmpbuf(jmp_buf* jmp) {
@@ -152,6 +193,7 @@ void Vm::longJmp() {
 
 void Vm::markRoot() {
   globalVariableTable_->mark();
+  macroTable_->mark();
   // Mark stack.
   for (int n = s_, i = 0; i < n; ++i)
     stack_[i].mark();
@@ -175,6 +217,11 @@ void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int 
   void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   defineGlobal(state_->intern(name), Svalue(nativeFunc));
+}
+
+Svalue Vm::getMacro(Svalue name) {
+  const Svalue* result = macroTable_->get(name);
+  return result != NULL ? *result : Svalue::NIL;
 }
 
 bool Vm::run(Svalue code, Svalue* pResult) {
@@ -320,7 +367,6 @@ Svalue Vm::runLoop() {
   case APPLY:
     {
       argNum = CAR(x_).toFixnum();
-    L_apply:
       if (!a_.isObject() || !a_.toObject()->isCallable()) {
         state_->runtimeError("Can't call");
       }
@@ -430,22 +476,7 @@ Svalue Vm::runLoop() {
       Svalue nparam = CADR(x_);
       Svalue body = CADDR(x_);
       x_ = CADDDR(x_);
-      int min = CAR(nparam).toFixnum();
-      int max = CADR(nparam).toFixnum();
-      Svalue closure = createClosure(body, 0, s_, min, max);
-
-      assert(name.getType() == TT_SYMBOL);
-      static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
-      defineGlobal(name, state_->intern("*macro*"));
-
-      // Makes frame.
-      s_ = push(x_, push(state_->fixnumValue(f_), push(c_, s_)));
-      // Pushs arguments.
-      s_ = push(name, push(closure, s_));
-      argNum = 2;
-      // Calls `register-macro` function.
-      a_ = state_->referGlobal(state_->intern("register-macro"));
-      goto L_apply;
+      registerMacro(name, nparam, body);
     }
     goto again;
   default:
@@ -728,6 +759,22 @@ void Vm::shiftCallStack() {
   } else {
     callStack_[n - 1].isTailCall = true;
   }
+}
+
+void Vm::registerMacro(Svalue name, Svalue nparam, Svalue body) {
+  int min = CAR(nparam).toFixnum();
+  int max = CADR(nparam).toFixnum();
+  Svalue closure = createClosure(body, 0, s_, min, max);
+
+  assert(name.getType() == TT_SYMBOL);
+  static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
+  defineGlobal(name, state_->intern("*macro*"));
+
+  if (name.getType() != TT_SYMBOL) {
+    std::cerr << name << ": ";
+    state_->runtimeError("Must be symbol");
+  }
+  macroTable_->put(name, closure);
 }
 
 }  // namespace yalp

@@ -158,6 +158,7 @@ public:
     defineNative(name, func, minArgNum, minArgNum);
   }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  Svalue getMacro(Svalue name);
 
   bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
