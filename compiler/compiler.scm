@@ -341,8 +341,7 @@
                  (else (map-macroexpand-all exp scope-vars))))
 
   (if (pair? exp)
-      (if (and (macro? (car exp))
-               (not (member (car exp) scope-vars)))
+      (if (not (member (car exp) scope-vars))
           (let ((expanded (my-macroexpand-1 exp)))
             (if (equal? expanded exp)
                 (macroexpand-all-sub exp scope-vars)

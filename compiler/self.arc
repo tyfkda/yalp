@@ -313,8 +313,7 @@
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)
-      (if (and (macro? (car exp))
-               (no (member (car exp) scope-vars)))
+      (if (no (member (car exp) scope-vars))
           (let expanded (macroexpand-1 exp)
             (if (iso expanded exp)
                 (macroexpand-all-sub exp scope-vars)
