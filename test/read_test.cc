@@ -131,6 +131,10 @@ TEST_F(ReadTest, String) {
 
   ASSERT_EQ(READ_SUCCESS, read("\"'\\\"foobar\\\"'\"", &s));
   ASSERT_TRUE(state_->stringValue("'\"foobar\"'").equal(s));
+
+  ASSERT_EQ(READ_SUCCESS, read("\"null\\0char\"", &s));
+  ASSERT_TRUE(state_->stringValue("null\0char", 9).equal(s));
+  ASSERT_FALSE(state_->stringValue("null").equal(s));
 }
 
 TEST_F(ReadTest, Float) {

@@ -337,13 +337,17 @@ Svalue State::createHashTable() {
 }
 
 Svalue State::stringValue(const char* string) {
-  int len = strlen(string);
+  return stringValue(string, strlen(string));
+}
+
+Svalue State::stringValue(const char* string, int len) {
   void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
-  strcpy(copiedString, string);
+  memcpy(copiedString, string, len);
+  copiedString[len] = '\0';
 
   void* memory = OBJALLOC(allocator_, sizeof(String));
-  String* s = new(memory) String(copiedString);
+  String* s = new(memory) String(copiedString, len);
   return Svalue(s);
 }
 

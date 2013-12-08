@@ -104,9 +104,9 @@ const char* Cell::isAbbrev(State* state) const {
 
 //=============================================================================
 
-String::String(const char* string)
+String::String(const char* string, int len)
   : Sobject()
-  , string_(string) {
+  , string_(string), len_(len) {
 }
 
 void String::destruct(Allocator* allocator) {
@@ -118,7 +118,8 @@ Type String::getType() const  { return TT_STRING; }
 
 bool String::equal(const Sobject* target) const {
   const String* p = static_cast<const String*>(target);
-  return strcmp(string_, p->string_) == 0;
+  return len_ == p->len_ &&
+    memcmp(string_, p->string_, len_) == 0;
 }
 
 unsigned int String::calcHash() const {
@@ -132,9 +133,12 @@ void String::output(State*, std::ostream& o, bool inspect) const {
   }
 
   o << '"';
-  for (const char* p = string_; *p != '\0'; ) {
-    char c = *p++;
+  for (int n = len_, i = 0; i < n; ++i) {
+    char c = string_[i];
     switch (c) {
+    case '\0':
+      o << "\\0";
+      break;
     case '\n':
       o << "\\n";
       break;

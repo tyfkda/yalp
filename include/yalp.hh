@@ -122,6 +122,7 @@ public:
 
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
+  Svalue stringValue(const char* string, int len);
 
   // Floating point number.
   Svalue floatValue(Sfloat f);

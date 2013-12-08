@@ -266,6 +266,7 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
         return NO_CLOSE_STRING;
       if (c != closeChar)
         switch (c) {
+        case '0':  c = '\0'; break;
         case 'n':  c = '\n'; break;
         case 'r':  c = '\r'; break;
         case 't':  c = '\t'; break;
@@ -275,8 +276,8 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
     }
     p = putBuffer(&buffer, &size, p, c);
   }
-  p = putBuffer(&buffer, &size, p, '\0');
-  *pValue = state_->stringValue(buffer);
+  putBuffer(&buffer, &size, p, '\0');
+  *pValue = state_->stringValue(buffer, p);
   return READ_SUCCESS;
 }
 

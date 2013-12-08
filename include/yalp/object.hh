@@ -99,12 +99,13 @@ public:
 
 protected:
   // The given string is allocated in heap and be taken ownership.
-  String(const char* string);
+  String(const char* string, int len);
   ~String()  {}
 private:
   virtual void destruct(Allocator* allocator) override;
 
   const char* string_;
+  int len_;
 
   friend State;
 };
