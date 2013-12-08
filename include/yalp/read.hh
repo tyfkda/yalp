@@ -46,8 +46,12 @@ private:
   void skipUntilNextLine();
   int getc();
   void putback(char c);
-  static bool isSpace(char c);
-  static bool isDelimiter(char c);
+  static bool isSpace(int c);
+  static bool isDelimiter(int c);
+  static inline int isNotDelimiter(int c)  { return !isDelimiter(c); }
+
+  int readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int));
+  inline int putBuffer(char** pBuffer, int* pSize, int p, int c);
 
   struct IntHashPolicy;
   static IntHashPolicy s_hashPolicy;
@@ -55,6 +59,8 @@ private:
   State* state_;
   std::istream& istrm_;
   HashTable<int, Svalue>* sharedStructures_;
+  char* buffer_;
+  int size_;
 };
 
 }  // namespace yalp

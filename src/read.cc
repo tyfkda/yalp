@@ -8,7 +8,22 @@
 #include "hash_table.hh"
 #include <assert.h>
 
+#include <iostream>
+
 namespace yalp {
+
+const int DEFAULT_SIZE = 24;
+
+#define INIT_LOCAL_BUFFER(pBuffer, pSize)               \
+  do {                                                  \
+    if (buffer_ != NULL) {                              \
+      *(pBuffer) = buffer_;                             \
+      *(pSize) = size_;                                 \
+    } else {                                            \
+      *(pSize) = DEFAULT_SIZE;                          \
+      *(pBuffer) = static_cast<char*>(alloca(size));    \
+    }                                                   \
+  } while (0)
 
 struct Reader::IntHashPolicy : public HashPolicy<int> {
   virtual unsigned int hash(int a) override  { return a; }
@@ -19,10 +34,13 @@ Reader::IntHashPolicy Reader::s_hashPolicy;
 
 Reader::Reader(State* state, std::istream& istrm)
   : state_(state), istrm_(istrm)
-  , sharedStructures_(NULL) {
+  , sharedStructures_(NULL)
+  , buffer_(NULL), size_(0) {
 }
 
 Reader::~Reader() {
+  if (buffer_ != NULL)
+    FREE(state_->getAllocator(), buffer_);
   if (sharedStructures_ != NULL) {
     sharedStructures_->~HashTable<int, Svalue>();
     FREE(state_->getAllocator(), sharedStructures_);
@@ -68,14 +86,48 @@ ReadError Reader::read(Svalue* pValue) {
   }
 }
 
+int Reader::putBuffer(char** pBuffer, int* pSize, int p, int c) {
+  if (p >= *pSize) {
+    int newSize;
+    for (newSize = *pSize; (newSize <<= 1) <= p; );
+    char* newBuffer;
+    if (buffer_ == NULL) {  // Allocates memory from heap at first time.
+      newBuffer = static_cast<char*>(ALLOC(state_->getAllocator(), newSize));
+      memcpy(newBuffer, *pBuffer, *pSize);
+    } else {  // Already allocated memory from heap, and expand it.
+      newBuffer = static_cast<char*>(REALLOC(state_->getAllocator(), *pBuffer, newSize));
+    }
+    *pBuffer = buffer_ = newBuffer;
+    *pSize = size_ = newSize;
+  }
+  (*pBuffer)[p] = c;
+  return p + 1;
+}
+
+int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
+  int p = 0;
+  int c;
+  while (cond(c = getc()))
+    p = putBuffer(pBuffer, pSize, p, c);
+  putback(c);
+  p = putBuffer(pBuffer, pSize, p, '\0');
+  return p;
+}
+
 ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
-  char buffer[256];
-  char* p = buffer;
+  char* buffer;
+  int size;
+  INIT_LOCAL_BUFFER(&buffer, &size);
+  readToBufferWhile(&buffer, &size, isNotDelimiter);
+
+  if (strcmp(buffer, ".") == 0)
+    return DOT_AT_BASE;
+
   bool hasSymbolChar = false;
   bool hasDigit = false;
   bool hasDot = false;
-  int c;
-  while (!isDelimiter(c = getc())) {
+  for (char* p = buffer; *p != '\0'; ++p) {
+    unsigned char c = *p;
     if (isdigit(c)) {
       hasDigit = true;
     } else if (c == '.') {
@@ -84,14 +136,7 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
       if (p != buffer || (c != '-' && c != '+'))
         hasSymbolChar = true;
     }
-    *p++ = c;
   }
-  putback(c);
-  *p++ = '\0';
-  assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
-
-  if (strcmp(buffer, ".") == 0)
-    return DOT_AT_BASE;
 
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
@@ -169,17 +214,15 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   int c = getc();
   if (!isdigit(c))
     return ILLEGAL_CHAR;
+  putback(c);
 
-  char buffer[256];
-  char* p = buffer;
-  do {
-    *p++ = c;
-    c = getc();
-  } while (isdigit(c));
-  *p++ = '\0';
-  assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
+  char* buffer;
+  int size;
+  INIT_LOCAL_BUFFER(&buffer, &size);
+  readToBufferWhile(&buffer, &size, isdigit);
 
   int n = atoi(buffer);
+  c = getc();
   switch (c) {
   case '=':
     {
@@ -204,8 +247,11 @@ ReadError Reader::readSpecial(Svalue* pValue) {
 }
 
 ReadError Reader::readString(char closeChar, Svalue* pValue) {
-  char buffer[256];
-  char* p = buffer;
+  char* buffer;
+  int size;
+  INIT_LOCAL_BUFFER(&buffer, &size);
+
+  int p = 0;
   int c;
   for (;;) {
     c = getc();
@@ -227,10 +273,9 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
         }
       break;
     }
-    *p++ = c;
+    p = putBuffer(&buffer, &size, p, c);
   }
-  *p++ = '\0';
-  assert(p - buffer < (int)(sizeof(buffer) / sizeof(*buffer)));
+  p = putBuffer(&buffer, &size, p, '\0');
   *pValue = state_->stringValue(buffer);
   return READ_SUCCESS;
 }
@@ -266,7 +311,7 @@ void Reader::putback(char c) {
   istrm_.putback(c);
 }
 
-bool Reader::isSpace(char c) {
+bool Reader::isSpace(int c) {
   switch (c) {
   case ' ': case '\t': case '\n':
     return true;
@@ -275,7 +320,7 @@ bool Reader::isSpace(char c) {
   }
 }
 
-bool Reader::isDelimiter(char c) {
+bool Reader::isDelimiter(int c) {
   switch (c) {
   case ' ': case '\t': case '\n': case '\0': case -1:
   case '(': case ')':
