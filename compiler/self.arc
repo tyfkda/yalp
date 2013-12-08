@@ -94,8 +94,8 @@
       (pair? x)
         (record-case x
                      (quote (obj) (list 'CONST obj next))
-                     (^ (vars . bodies)
-                        (compile-lambda vars bodies e s next))
+                     (^ (vars . body)
+                        (compile-lambda vars body e s next))
                      (if (test then . rest)
                          (with (thenc (compile-recur then e s next)
                                       elsec (if (no rest)
@@ -123,8 +123,8 @@
                                 (if (tail? next)
                                     c
                                     (list 'FRAME next c))))
-                     (defmacro (name vars . bodies)
-                       (compile-defmacro name vars bodies next))
+                     (defmacro (name vars . body)
+                       (compile-defmacro name vars body next))
                      (else
                       (with (func (car x)
                                   args (cdr x))
@@ -153,14 +153,14 @@
                                 (APPLY ,argnum))
                       `(APPLY ,argnum))))))
 
-(def (compile-lambda vars bodies e s next)
+(def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
     (aif (find-if (^(x) (no (symbol? x))) proper-vars)
          (compile-error "Function parameter must be symbol")
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))
-                                 (find-frees bodies () proper-vars))
-                  sets (find-setses bodies (dotted->proper proper-vars))
+                                 (find-frees body () proper-vars))
+                  sets (find-setses body (dotted->proper proper-vars))
                   varnum (if (is vars proper-vars)
                              (list (len vars) (len vars))
                            (list (- (len proper-vars) 1)
@@ -170,22 +170,22 @@
                             varnum
                             (len free)
                             (make-boxes sets proper-vars
-                                        (compile-lambda-bodies proper-vars bodies free sets s))
+                                        (compile-lambda-body proper-vars body free sets s))
                             next))))))
 
-(def (compile-lambda-bodies vars bodies free sets s)
+(def (compile-lambda-body vars body free sets s)
   (with (ee (cons vars free)
          ss (set-union sets
                        (set-intersect s free))
          next (list 'RET))
-    (if (no bodies)
+    (if (no body)
         (compile-undef next)
       ((afn (p)
             (if (no p)
                 next
                 (compile-recur (car p) ee ss
                                (self (cdr p)))))
-       bodies))))
+       body))))
 
 (def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
@@ -204,8 +204,8 @@
         (if (set-member? x b) () (list x))
       (pair? x)
         (record-case x
-                     (^ (vars . bodies)
-                        (find-frees bodies b vars))
+                     (^ (vars . body)
+                        (find-frees body b vars))
                      (quote (obj) ())
                      (if      all (find-frees all b ()))
                      (set! (var exp)
@@ -215,7 +215,7 @@
                          (set-union (if (set-member? var b) () (list var))
                                     (find-free exp b)))
                      (call/cc all (find-frees all b ()))
-                     (defmacro (name vars . bodies) (find-frees bodies b vars))
+                     (defmacro (name vars . body) (find-frees body b vars))
                      (else        (find-frees x b ())))
     ()))
 
@@ -244,12 +244,12 @@
                                     (find-sets val v)))
                    (def (var val)
                        (find-sets val v))
-                   (^ (vars . bodies)
-                      (find-setses bodies (set-minus v (dotted->proper vars))))
+                   (^ (vars . body)
+                      (find-setses body (set-minus v (dotted->proper vars))))
                    (quote   all ())
                    (if      all (find-setses all v))
                    (call/cc all (find-setses all v))
-                   (defmacro (name vars . bodies)  (find-setses bodies (set-minus v (dotted->proper vars))))
+                   (defmacro (name vars . body)  (find-setses body (set-minus v (dotted->proper vars))))
                    (else        (find-setses x   v)))
     ()))
 
@@ -287,11 +287,11 @@
 
 ;;; Macro
 
-(def (compile-defmacro name vars bodies next)
+(def (compile-defmacro name vars body next)
   (let proper-vars (dotted->proper vars)
     (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
            max (if (is vars proper-vars) (len vars) -1)
-           body-code (compile-lambda-bodies proper-vars bodies (list proper-vars) () ()))
+           body-code (compile-lambda-body proper-vars body (list proper-vars) () ()))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list 'MACRO
@@ -329,9 +329,9 @@
 (def (macroexpand-all-sub exp scope-vars)
   (record-case exp
                (quote (obj) `(quote ,obj))
-               (^ (vars . bodies)
+               (^ (vars . body)
                   (let new-scope-vars (append (dotted->proper vars) scope-vars)
-                    `(^ ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                    `(^ ,vars ,@(map-macroexpand-all body new-scope-vars))))
                (if all
                    `(if ,@(map-macroexpand-all all scope-vars)))
                (set! (var x)
@@ -340,9 +340,9 @@
                    `(def ,var ,(macroexpand-all x scope-vars)))
                (call/cc (x)
                         `(call/cc ,(macroexpand-all x scope-vars)))
-               (defmacro (name vars . bodies)
+               (defmacro (name vars . body)
                  (let new-scope-vars (append (dotted->proper vars) scope-vars)
-                   `(defmacro ,name ,vars ,@(map-macroexpand-all bodies new-scope-vars))))
+                   `(defmacro ,name ,vars ,@(map-macroexpand-all body new-scope-vars))))
                (else (map-macroexpand-all exp scope-vars))))
 
 (def (macroexpand exp)
