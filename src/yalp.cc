@@ -144,8 +144,13 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
     if (err == END_OF_FILE || s.eq(q))
       break;
 
-    if (err != READ_SUCCESS)
+    if (err != READ_SUCCESS) {
+      if (tty) {
+        cerr << "Read error: " << err << endl;
+        continue;
+      }
       return false;
+    }
     Svalue code;
     if (!state->compile(s, &code)) {
       cerr << "`compile` is not enabled" << endl;
