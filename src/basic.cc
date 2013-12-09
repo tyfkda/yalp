@@ -494,6 +494,13 @@ static Svalue s_collect_garbage(State* state) {
   return Svalue::NIL;
 }
 
+static Svalue s_exit(State* state) {
+  Svalue v = state->getArg(0);
+  int code = (v.getType() == TT_FIXNUM) ? v.toFixnum() : -1;
+  exit(code);
+  return Svalue::NIL;
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Svalue::NIL, Svalue::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -547,6 +554,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("hash-table-keys", s_hash_table_keys, 1);
 
   state->defineNative("collect-garbage", s_collect_garbage, 0);
+  state->defineNative("exit", s_exit, 1);
 }
 
 }  // namespace yalp
