@@ -145,10 +145,9 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile, boo
       break;
 
     if (err != READ_SUCCESS) {
-      if (tty) {
-        cerr << "Read error: " << err << endl;
+      cerr << "Read error: " << err << endl;
+      if (tty)
         continue;
-      }
       return false;
     }
     Svalue code;
