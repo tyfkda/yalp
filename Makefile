@@ -39,7 +39,7 @@ boot.bin:	self.bin
 	mv self.bin boot.bin
 
 self.bin:	compiler/boot.arc compiler/self.arc
-	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin
+	./yalp -L boot.bin -C compiler/boot.arc compiler/self.arc > self.bin
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK

@@ -98,7 +98,7 @@ static bool runBinary(State* state, std::istream& strm) {
   return true;
 }
 
-static bool compileFile(State* state, const char* filename) {
+static bool compileFile(State* state, const char* filename, bool bNoRun) {
   std::ifstream strm(filename);
   if (!strm.is_open()) {
     std::cerr << "File not found: " << filename << std::endl;
@@ -120,7 +120,7 @@ static bool compileFile(State* state, const char* filename) {
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
-    if (!state->runBinary(code, NULL))
+    if (!bNoRun && !state->runBinary(code, NULL))
       return false;
   }
   if (err != END_OF_FILE) {
@@ -130,7 +130,7 @@ static bool compileFile(State* state, const char* filename) {
   return true;
 }
 
-static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
+static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile, bool bNoRun) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
@@ -169,7 +169,7 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
     }
 
     Svalue result;
-    if (!state->runBinary(code, &result)) {
+    if (!bNoRun && !state->runBinary(code, &result)) {
       if (!tty)
         return false;
       state->resetError();
@@ -199,6 +199,7 @@ int main(int argc, char* argv[]) {
   bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
+  bool bNoRun = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -213,6 +214,10 @@ int main(int argc, char* argv[]) {
       break;
     case 'c':
       bCompile = true;
+      break;
+    case 'C':  // Compile, and not run the code.
+      bCompile = true;
+      bNoRun = true;
       break;
     case 'l':  // Library.
       if (++ii >= argc) {
@@ -239,13 +244,13 @@ int main(int argc, char* argv[]) {
       if (!runBinary(state, cin))
         exit(1);
     } else {
-      if (!repl(state, cin, isatty(0), bCompile))
+      if (!repl(state, cin, isatty(0), bCompile, bNoRun))
         exit(1);
     }
   } else {
     for (int i = ii; i < argc; ++i) {
       if (bCompile) {
-        if (!compileFile(state, argv[i]))
+        if (!compileFile(state, argv[i], bNoRun))
           exit(1);
       } else if (bBinary) {
         if (!state->runBinaryFromFile(argv[i]))
