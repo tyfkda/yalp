@@ -26,15 +26,15 @@
       (if (pair? x)
           ((^(m)
              (if (is m 'unquote)
-                 (cadr x)
+                   (cadr x)
                  (is m 'unquote-splicing)
-                 (error "Illegal")
+                   (error "Illegal")
                  (is m 'quasiquote)
-                 (qq-expand
-                  (qq-expand (cadr x)))
-                 (list 'append
-                       (qq-expand-list (car x))
-                       (qq-expand (cdr x)))))
+                   (qq-expand
+                    (qq-expand (cadr x)))
+               (list 'append
+                     (qq-expand-list (car x))
+                     (qq-expand (cdr x)))))
            (car x))
         (list 'quote x))))
 
@@ -43,16 +43,16 @@
       (if (pair? x)
           ((^(m)
              (if (is m 'unquote)
-                 (list 'list (cadr x))
+                   (list 'list (cadr x))
                  (is m 'unquote-splicing)
-                 (cadr x)
+                   (cadr x)
                  (is m 'quasiquote)
-                 (qq-expand-list
-                  (qq-expand (cadr x)))
-                 (list 'list
-                       (list 'append
-                             (qq-expand-list (car x))
-                             (qq-expand (cdr x))))))
+                   (qq-expand-list
+                    (qq-expand (cadr x)))
+               (list 'list
+                     (list 'append
+                           (qq-expand-list (car x))
+                           (qq-expand (cdr x))))))
            (car x))
         (list 'quote (list x)))))
 
