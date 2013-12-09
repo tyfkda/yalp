@@ -14,14 +14,16 @@ namespace yalp {
 
 const int DEFAULT_SIZE = 24;
 
-#define INIT_LOCAL_BUFFER(pBuffer, pSize)               \
+#define BUFFER(buffer, size)                            \
+  char* buffer;                                         \
+  int size;                                             \
   do {                                                  \
     if (buffer_ != NULL) {                              \
-      *(pBuffer) = buffer_;                             \
-      *(pSize) = size_;                                 \
+      buffer = buffer_;                                 \
+      size = size_;                                     \
     } else {                                            \
-      *(pSize) = DEFAULT_SIZE;                          \
-      *(pBuffer) = static_cast<char*>(alloca(size));    \
+      size = DEFAULT_SIZE;                              \
+      buffer = static_cast<char*>(alloca(size));        \
     }                                                   \
   } while (0)
 
@@ -115,9 +117,7 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
 }
 
 ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
-  char* buffer;
-  int size;
-  INIT_LOCAL_BUFFER(&buffer, &size);
+  BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isNotDelimiter);
 
   if (strcmp(buffer, ".") == 0)
@@ -216,9 +216,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
     return ILLEGAL_CHAR;
   putback(c);
 
-  char* buffer;
-  int size;
-  INIT_LOCAL_BUFFER(&buffer, &size);
+  BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isdigit);
 
   int n = atoi(buffer);
@@ -247,9 +245,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
 }
 
 ReadError Reader::readString(char closeChar, Svalue* pValue) {
-  char* buffer;
-  int size;
-  INIT_LOCAL_BUFFER(&buffer, &size);
+  BUFFER(buffer, size);
 
   int p = 0;
   int c;
