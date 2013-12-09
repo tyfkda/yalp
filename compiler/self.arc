@@ -173,9 +173,9 @@
     (awith (args args
             c (compile-recur func e s
                              (if (tail? next)
-                                 `(SHIFT ,argnum
-                                         (APPLY ,argnum))
-                               `(APPLY ,argnum))))
+                                 (list 'SHIFT argnum
+                                       (list 'APPLY argnum))
+                               (list 'APPLY argnum))))
       (if (no args)
           (if (tail? next)
               c
