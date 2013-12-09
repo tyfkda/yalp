@@ -161,11 +161,17 @@
                      (else
                       (with (func (car x)
                              args (cdr x))
-                        (compile-apply func args e s next))))
+                        (if (direct-invoke? func)
+                            (compile-apply-direct (cadr func) (cddr func) args e s next)
+                          (compile-apply func args e s next)))))
     (list* 'CONST x next)))
 
 (def (compile-undef next)
   (list* 'UNDEF next))
+
+(def (direct-invoke? func)
+  (and (pair? func)
+       (is '^ (car func))))
 
 (def (compile-apply func args e s next)
   (with* (argnum (len args)
@@ -187,6 +193,28 @@
       (loop (cdr args)
             (compile-recur (car args) e s
                            (list* 'PUSH c))))))
+
+;; Compiles ((^(vars) body) args) form
+(def (compile-apply-direct vars body args e s next)
+  (with* (proper-vars (dotted->proper vars)
+          ext-vars (append proper-vars (car e)))
+    (aif (member-if [no (symbol? _)] proper-vars)
+         (compile-error "Function parameter must be symbol")
+      (with (free (cdr e)  ;(set-intersect (set-union (car e)
+                           ;                 (cdr e))
+                           ;      (find-frees body '() proper-vars))
+             sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+        (with* (argnum (len args)
+                c (if (is argnum 0)
+                      (compile-lambda-body ext-vars body free sets s
+                                           next)
+                    (list* 'EXPND argnum
+                           (make-boxes sets proper-vars
+                                       (compile-lambda-body ext-vars body free sets s
+                                                            (if (tail? next)
+                                                                next
+                                                              (list* 'SHRNK argnum next)))))))
+          (compile-apply-args args c e s))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)

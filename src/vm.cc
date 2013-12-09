@@ -37,6 +37,8 @@ namespace yalp {
   OP(CONTI) \
   OP(NUATE) \
   OP(MACRO) \
+  OP(EXPND) \
+  OP(SHRNK) \
 
 enum Opcode {
 #define OP(name)  name,
@@ -54,6 +56,11 @@ enum Opcode {
 #define CDDDR(x)  (CDR(CDDR(x)))
 
 //=============================================================================
+
+static inline void moveStackElems(Svalue* stack, int dst, int src, int n) {
+  if (n > 0)
+    memmove(&stack[dst], &stack[src], sizeof(Svalue) * n);
+}
 
 // Box class.
 class Box : public Sobject {
@@ -460,6 +467,20 @@ Svalue Vm::runLoop() {
       registerMacro(name, min, max, body);
     }
     goto again;
+  case EXPND:
+    {
+      int n = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      expandFrame(n);
+    }
+    goto again;
+  case SHRNK:
+    {
+      int n = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      shrinkFrame(n);
+    }
+    goto again;
   default:
     op.output(state_, std::cerr, true);
     std::cerr << ": ";
@@ -550,6 +571,53 @@ Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
 void Vm::unshiftArgs(int argNum, int s) {
   for (int i = 0; i < argNum; ++i)
     indexSet(s, i - 1, index(s, i));
+}
+
+void Vm::expandFrame(int n) {
+  if (f_ == 0) {
+    // No upper frame: create first frame.
+    //   Before: f_[z][y][x][B][A]s_
+    //   After:  [B][A]f_[N][z][x][y]s_
+    reserveStack(s_ + n + 1);
+    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
+    moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
+    stack_[n] = state_->fixnumValue(n);
+    s_ += 1;
+    f_ = n;
+    return;
+  }
+
+  // Before: [z][y][x]f_[argnum][B][A]s_
+  // After:  [z][y][x][B][A]f_[argnum+n]s_
+  int argNum = stack_[f_].toFixnum();
+  int src = f_, dst = src + n;
+  reserveStack(s_ + n);
+  stack_[f_] = state_->fixnumValue(argNum + n);
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  moveStackElems(stack_, src, s_, n);  // Move arguments.
+  f_ += n;
+}
+
+void Vm::shrinkFrame(int n) {
+  if (f_ - n == 0) {
+    assert(stack_[f_].toFixnum() == n);
+    // No upper frame: create first frame.
+    //   Before: [B][A]f_[N][z][x][y]s_
+    //   After:  f_[z][y][x]s_
+    moveStackElems(stack_, 0, f_ + 1, s_ - (f_ + 1));  // Shift stack.
+    s_ -= f_ + 1;
+    f_ = 0;
+    return;
+  }
+
+  // Before: [z][y][x][B][A]f_[argnum]s_
+  // After:  [z][y][x]f_[argnum-n]s_
+  int argnum = stack_[f_].toFixnum();
+  stack_[f_] = state_->fixnumValue(argnum - n);
+  int src = f_, dst = f_ - n;
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  s_ -= n;
+  f_ -= n;
 }
 
 Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
