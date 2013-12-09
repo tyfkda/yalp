@@ -496,14 +496,16 @@ Svalue Vm::box(Svalue x) {
 }
 
 int Vm::push(Svalue x, int s) {
-  if (s >= stackSize_)
-    expandStack();
+  reserveStack(s + 1);
   stack_[s] = x;
   return s + 1;
 }
 
-void Vm::expandStack() {
-  int newSize = stackSize_ + 16;
+void Vm::reserveStack(int n) {
+  if (n <= stackSize_)
+    return;
+
+  int newSize = n + 16;
   void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
   Svalue* newStack = static_cast<Svalue*>(memory);
   stack_ = newStack;

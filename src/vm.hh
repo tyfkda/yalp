@@ -70,7 +70,7 @@ private:
   int push(Svalue x, int s);
   Svalue index(int s, int i) const;
   void indexSet(int s, int i, Svalue v);
-  void expandStack();
+  void reserveStack(int n);  // Ensure the stack has enough size of n
   int shiftArgs(int n, int m, int s);
   int modifyRestParams(int argNum, int minArgNum, int s);
   Svalue createRestParams(int argNum, int minArgNum, int s);
