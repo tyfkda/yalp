@@ -14,30 +14,34 @@ namespace yalp {
 
 //=============================================================================
 
-enum Opcode {
-  HALT,
-  UNDEF,
-  CONST,
-  LREF,
-  FREF,
-  GREF,
-  LSET,
-  FSET,
-  GSET,
-  DEF,
-  PUSH,
-  TEST,
-  CLOSE,
-  FRAME,
-  APPLY,
-  RET,
-  SHIFT,
-  BOX,
-  UNBOX,
-  CONTI,
-  NUATE,
-  MACRO,
+#define OPS \
+  OP(HALT) \
+  OP(UNDEF) \
+  OP(CONST) \
+  OP(LREF) \
+  OP(FREF) \
+  OP(GREF) \
+  OP(LSET) \
+  OP(FSET) \
+  OP(GSET) \
+  OP(DEF) \
+  OP(PUSH) \
+  OP(TEST) \
+  OP(CLOSE) \
+  OP(FRAME) \
+  OP(APPLY) \
+  OP(RET) \
+  OP(SHIFT) \
+  OP(BOX) \
+  OP(UNBOX) \
+  OP(CONTI) \
+  OP(NUATE) \
+  OP(MACRO) \
 
+enum Opcode {
+#define OP(name)  name,
+  OPS
+#undef OP
   NUMBER_OF_OPCODE
 };
 
@@ -99,30 +103,16 @@ Vm::Vm(State* state)
   f_ = s_ = 0;
 
   {
+    static const char* NameTable[NUMBER_OF_OPCODE] = {
+#define OP(name)  #name,
+      OPS
+#undef OP
+    };
+
     void* memory = ALLOC(state_->getAllocator(), sizeof(Svalue) * NUMBER_OF_OPCODE);
     opcodes_ = new(memory) Svalue[NUMBER_OF_OPCODE];
-    opcodes_[HALT] = state_->intern("HALT");
-    opcodes_[UNDEF] = state_->intern("UNDEF");
-    opcodes_[CONST] = state_->intern("CONST");
-    opcodes_[LREF] = state_->intern("LREF");
-    opcodes_[FREF] = state_->intern("FREF");
-    opcodes_[GREF] = state_->intern("GREF");
-    opcodes_[LSET] = state_->intern("LSET");
-    opcodes_[FSET] = state_->intern("FSET");
-    opcodes_[GSET] = state_->intern("GSET");
-    opcodes_[DEF] = state_->intern("DEF");
-    opcodes_[PUSH] = state_->intern("PUSH");
-    opcodes_[TEST] = state_->intern("TEST");
-    opcodes_[CLOSE] = state_->intern("CLOSE");
-    opcodes_[FRAME] = state_->intern("FRAME");
-    opcodes_[APPLY] = state_->intern("APPLY");
-    opcodes_[RET] = state_->intern("RET");
-    opcodes_[SHIFT] = state_->intern("SHIFT");
-    opcodes_[BOX] = state_->intern("BOX");
-    opcodes_[UNBOX] = state_->intern("UNBOX");
-    opcodes_[CONTI] = state_->intern("CONTI");
-    opcodes_[NUATE] = state_->intern("NUATE");
-    opcodes_[MACRO] = state_->intern("MACRO");
+    for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
+      opcodes_[i] = state_->intern(NameTable[i]);
   }
 
   {
