@@ -69,6 +69,15 @@
        ,@body)
     ,@(map cadr (pair parms))))
 
+(defmacro with* (parms . body)
+  (if parms
+      `((^ (,(car parms))
+           ,@(if (cddr parms)
+                `((with* ,(cddr parms) ,@body))
+              body))
+        ,(cadr parms))
+    `(do ,@body)))
+
 ;; Anapholic-with macro.
 ;; Like with macro, but captures "loop" variable to make loop syntax.
 ;; This is similar to named-let syntax in Scheme.
