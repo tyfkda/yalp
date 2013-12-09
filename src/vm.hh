@@ -86,7 +86,7 @@ private:
   void popCallStack();
   void shiftCallStack();
 
-  void registerMacro(Svalue name, Svalue nparam, Svalue body);
+  void registerMacro(Svalue name, int minParam, int maxParam, Svalue body);
 
   State* state_;
   Svalue* stack_;

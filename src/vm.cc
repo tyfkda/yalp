@@ -314,12 +314,17 @@ Svalue Vm::runLoop() {
     goto again;
   case CLOSE:
     {
-      Svalue nparam = CAR(x_);
+      Svalue nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
       Svalue body = CADDR(x_);
       x_ = CADDDR(x_);
-      int min = CAR(nparam).toFixnum();
-      int max = CADR(nparam).toFixnum();
+      int min, max;
+      if (nparam.getType() == TT_CELL) {
+        min = CAR(nparam).toFixnum();
+        max = CADR(nparam).toFixnum();
+      } else {
+        min = max = nparam.toFixnum();
+      }
       a_ = createClosure(body, nfree, s_, min, max);
       s_ -= nfree;
     }
@@ -443,7 +448,14 @@ Svalue Vm::runLoop() {
       Svalue nparam = CADR(x_);
       Svalue body = CADDR(x_);
       x_ = CADDDR(x_);
-      registerMacro(name, nparam, body);
+      int min, max;
+      if (nparam.getType() == TT_CELL) {
+        min = CAR(nparam).toFixnum();
+        max = CADR(nparam).toFixnum();
+      } else {
+        min = max = nparam.toFixnum();
+      }
+      registerMacro(name, min, max, body);
     }
     goto again;
   default:
@@ -728,10 +740,8 @@ void Vm::shiftCallStack() {
   }
 }
 
-void Vm::registerMacro(Svalue name, Svalue nparam, Svalue body) {
-  int min = CAR(nparam).toFixnum();
-  int max = CADR(nparam).toFixnum();
-  Svalue closure = createClosure(body, 0, s_, min, max);
+void Vm::registerMacro(Svalue name, int minParam, int maxParam, Svalue body) {
+  Svalue closure = createClosure(body, 0, s_, minParam, maxParam);
 
   assert(name.getType() == TT_SYMBOL);
   static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));

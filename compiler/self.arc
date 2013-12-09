@@ -195,7 +195,7 @@
                                  (find-frees body '() proper-vars))
              sets (find-setses body (dotted->proper proper-vars))
              varnum (if (is vars proper-vars)
-                        (list (len vars) (len vars))
+                        (len vars)
                       (list (- (len proper-vars) 1)
                             -1)))
         (collect-free free e
@@ -321,14 +321,16 @@
 
 (def (compile-defmacro name vars body next)
   (let proper-vars (dotted->proper vars)
-    (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
-           max (if (is vars proper-vars) (len vars) -1)
+    (with (varnum (if (is vars proper-vars)
+                      (len vars)
+                    (list (- (len proper-vars) 1)
+                          -1))
            body-code (compile-lambda-body proper-vars body (list proper-vars) '() '()))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list 'MACRO
             name
-            (list min max)
+            varnum
             body-code
             next))))
 
