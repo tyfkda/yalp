@@ -676,6 +676,8 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       a_ = c_ = fn;
       //result = runLoop();
       // runLoop will run after this function exited.
+
+      shiftCallStack();
     }
     break;
   case TT_NATIVEFUNC:
@@ -731,7 +733,6 @@ void Vm::popCallStack() {
 }
 
 void Vm::shiftCallStack() {
-  assert(!callStack_.empty());
   size_t n = callStack_.size();
   if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
       callStack_[n - 2].isTailCall) {
