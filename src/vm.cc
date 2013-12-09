@@ -53,37 +53,6 @@ enum Opcode {
 
 //=============================================================================
 
-// Expand macro if the given expression is macro expression,
-// otherwise return itself.
-/*
-(def (macroexpand-1 exp)
-  (if (and (pair? exp)
-           (macro? (car exp)))
-      (with (name (car exp)
-             args (cdr exp))
-        (let closure (hash-table-get *macro-table* name)
-          (apply closure args)))
-    exp))
-*/
-static Svalue s_macroexpand_1(State* state) {
-  Svalue exp = state->getArg(0);
-  if (exp.getType() != TT_CELL)
-    return exp;
-  Svalue name = state->car(exp);
-  Svalue closure = state->getMacro(name);
-  if (state->isFalse(closure))
-    return exp;
-
-  Svalue args = state->cdr(exp);
-  int argNum = length(args);
-  Svalue* argsArray = static_cast<Svalue*>(alloca(sizeof(Svalue) * argNum));
-  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
-    argsArray[i] = state->car(args);
-  return state->tailcall(closure, argNum, argsArray);
-}
-
-//=============================================================================
-
 // Box class.
 class Box : public Sobject {
 public:
@@ -171,8 +140,6 @@ Vm::Vm(State* state)
 
   endOfCode_ = list(state_, opcodes_[HALT]);
   return_ = list(state_, opcodes_[RET]);
-
-  defineNative("macroexpand-1", s_macroexpand_1, 1);
 }
 
 jmp_buf* Vm::setJmpbuf(jmp_buf* jmp) {

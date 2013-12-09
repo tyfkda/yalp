@@ -19,6 +19,35 @@ namespace yalp {
 //=============================================================================
 // Native functions
 
+// Expand macro if the given expression is macro expression,
+// otherwise return itself.
+/*
+(def (macroexpand-1 exp)
+  (if (and (pair? exp)
+           (macro? (car exp)))
+      (with (name (car exp)
+             args (cdr exp))
+        (let closure (hash-table-get *macro-table* name)
+          (apply closure args)))
+    exp))
+*/
+static Svalue s_macroexpand_1(State* state) {
+  Svalue exp = state->getArg(0);
+  if (exp.getType() != TT_CELL)
+    return exp;
+  Svalue name = state->car(exp);
+  Svalue closure = state->getMacro(name);
+  if (state->isFalse(closure))
+    return exp;
+
+  Svalue args = state->cdr(exp);
+  int argNum = length(args);
+  Svalue* argsArray = static_cast<Svalue*>(alloca(sizeof(Svalue) * argNum));
+  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
+    argsArray[i] = state->car(args);
+  return state->tailcall(closure, argNum, argsArray);
+}
+
 static Svalue s_cons(State* state) {
   Svalue a = state->getArg(0);
   Svalue d = state->getArg(1);
@@ -469,6 +498,7 @@ void installBasicFunctions(State* state) {
   state->defineGlobal(Svalue::NIL, Svalue::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
+  state->defineNative("macroexpand-1", s_macroexpand_1, 1);
   state->defineNative("cons", s_cons, 2);
   state->defineNative("car", s_car, 1);
   state->defineNative("cdr", s_cdr, 1);
