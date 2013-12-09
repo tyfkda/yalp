@@ -79,8 +79,8 @@ ReadError Reader::read(Svalue* pValue) {
   case EOF:
     return END_OF_FILE;
   default:
+    putback(c);
     if (!isDelimiter(c)) {
-      putback(c);
       return readSymbolOrNumber(pValue);
       return READ_SUCCESS;
     }
@@ -112,7 +112,7 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
   while (cond(c = getc()))
     p = putBuffer(pBuffer, pSize, p, c);
   putback(c);
-  p = putBuffer(pBuffer, pSize, p, '\0');
+  putBuffer(pBuffer, pSize, p, '\0');
   return p;
 }
 
@@ -245,15 +245,25 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
 
 ReadError Reader::readSpecial(Svalue* pValue) {
   int c = getc();
-  if (!isdigit(c))
+  if (isdigit(c)) {
+    putback(c);
+    return readSharedStructure(pValue);
+  }
+  switch (c) {
+  case '\\':
+    return readChar(pValue);
+  default:
+    putback(c);
     return ILLEGAL_CHAR;
-  putback(c);
+  }
+}
 
+ReadError Reader::readSharedStructure(Svalue* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isdigit);
 
   int n = atoi(buffer);
-  c = getc();
+  int c = getc();
   switch (c) {
   case '=':
     {
@@ -273,8 +283,35 @@ ReadError Reader::readSpecial(Svalue* pValue) {
     }
     // Fall
   default:
+    putback(c);
     return ILLEGAL_CHAR;
   }
+}
+
+ReadError Reader::readChar(Svalue* pValue) {
+  BUFFER(buffer, size);
+  int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
+
+  if (p == 1) {
+    *pValue = state_->fixnumValue(reinterpret_cast<unsigned char*>(buffer)[0]);
+    return READ_SUCCESS;
+  }
+
+  struct {
+    const char* name;
+    int code;
+  } static const Table[] = {
+    { "nl", '\n' },
+    { "newline", '\n' },
+    { "tab", '\t' },
+  };
+  for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
+    if (strcmp(buffer, Table[i].name) == 0) {
+      *pValue = state_->fixnumValue(Table[i].code);
+      return READ_SUCCESS;
+    }
+  }
+  return ILLEGAL_CHAR;
 }
 
 void Reader::storeShared(int id, Svalue value) {

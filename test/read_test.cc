@@ -148,6 +148,15 @@ TEST_F(ReadTest, Float) {
   ASSERT_TRUE(state_->floatValue(-f).equal(s));
 }
 
+TEST_F(ReadTest, Char) {
+  Svalue s;
+  ASSERT_EQ(READ_SUCCESS, read("#\\A", &s));
+  ASSERT_TRUE(state_->fixnumValue(65).eq(s));
+
+  ASSERT_EQ(READ_SUCCESS, read("#\\nl", &s));  // #\newline, or #\nl
+  ASSERT_TRUE(state_->fixnumValue('\n').eq(s));
+}
+
 TEST_F(ReadTest, Error) {
   Svalue s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
