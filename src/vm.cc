@@ -48,8 +48,6 @@ enum Opcode {
 #define CDDR(x)  (CDR(CDR(x)))
 #define CADDR(x)  (CAR(CDDR(x)))
 #define CDDDR(x)  (CDR(CDDR(x)))
-#define CADDDR(x)  (CAR(CDDDR(x)))
-#define CDDDDR(x)  (CDR(CDDDR(x)))
 
 //=============================================================================
 
@@ -224,24 +222,23 @@ Svalue Vm::runLoop() {
     x_ = endOfCode_;
     return a_;
   case UNDEF:
-    x_ = CAR(x_);
     a_ = Svalue::NIL;
     goto again;
   case CONST:
     a_ = CAR(x_);
-    x_ = CADR(x_);
+    x_ = CDR(x_);
     goto again;
   case LREF:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       a_ = index(f_, n);
     }
     goto again;
   case FREF:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       assert(c_.getType() == TT_CLOSURE);
       a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
     }
@@ -249,7 +246,7 @@ Svalue Vm::runLoop() {
   case GREF:
     {
       Svalue sym = CAR(x_);
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
@@ -264,7 +261,7 @@ Svalue Vm::runLoop() {
   case LSET:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       Svalue box = index(f_, n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
@@ -273,7 +270,7 @@ Svalue Vm::runLoop() {
   case FSET:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       assert(c_.getType() == TT_CLOSURE);
       Svalue box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
@@ -283,7 +280,7 @@ Svalue Vm::runLoop() {
   case GSET:
     {
       Svalue sym = CAR(x_);
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       if (!assignGlobal(sym, a_)) {
         sym.output(state_, std::cerr, true);
@@ -294,21 +291,18 @@ Svalue Vm::runLoop() {
   case DEF:
     {
       Svalue sym = CAR(x_);
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       defineGlobal(sym, a_);
     }
     goto again;
   case PUSH:
-    {
-      x_ = CAR(x_);
-      s_ = push(a_, s_);
-    }
+    s_ = push(a_, s_);
     goto again;
   case TEST:
     {
       Svalue thn = CAR(x_);
-      Svalue els = CADR(x_);
+      Svalue els = CDR(x_);
       x_ = state_->isTrue(a_) ? thn : els;
     }
     goto again;
@@ -317,7 +311,7 @@ Svalue Vm::runLoop() {
       Svalue nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
       Svalue body = CADDR(x_);
-      x_ = CADDDR(x_);
+      x_ = CDDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -332,7 +326,7 @@ Svalue Vm::runLoop() {
   case FRAME:
     {
       Svalue ret = CAR(x_);
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       s_ = push(ret, push(state_->fixnumValue(f_), push(c_, s_)));
     }
     goto again;
@@ -396,7 +390,7 @@ Svalue Vm::runLoop() {
   case SHIFT:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
@@ -405,19 +399,18 @@ Svalue Vm::runLoop() {
   case BOX:
     {
       int n = CAR(x_).toFixnum();
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       indexSet(f_, n, box(index(f_, n)));
     }
     goto again;
   case UNBOX:
-    x_ = CAR(x_);
     assert(a_.getType() == TT_BOX);
     a_ = static_cast<Box*>(a_.toObject())->get();
     goto again;
   case CONTI:
     {
       Svalue tail = CAR(x_);
-      x_ = CADR(x_);
+      x_ = CDR(x_);
       a_ = createContinuation(s_, tail);
     }
     goto again;
@@ -447,7 +440,7 @@ Svalue Vm::runLoop() {
       Svalue name = CAR(x_);
       Svalue nparam = CADR(x_);
       Svalue body = CADDR(x_);
-      x_ = CADDDR(x_);
+      x_ = CDDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();

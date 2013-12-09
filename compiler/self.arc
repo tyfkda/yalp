@@ -123,11 +123,11 @@
   (if (symbol? x)
         (compile-refer x e
                        (if (set-member? x s)
-                           (list 'UNBOX next)
+                           (list* 'UNBOX next)
                          next))
       (pair? x)
         (record-case x
-                     (quote (obj) (list 'CONST obj next))
+                     (quote (obj) (list* 'CONST obj next))
                      (^ (vars . body)
                         (compile-lambda vars body e s next))
                      (if (test then . rest)
@@ -137,36 +137,35 @@
                                           (no (cdr rest))
                                             (compile-recur (car rest) e s next)
                                           (compile-recur `(if ,@rest) e s next)))
-                           (compile-recur test e s (list 'TEST thenc elsec))))
+                           (compile-recur test e s (list* 'TEST thenc elsec))))
                      (set! (var x)
                            (compile-lookup var e
-                                           (^(n) (compile-recur x e s (list 'LSET n next)))
-                                           (^(n) (compile-recur x e s (list 'FSET n next)))
-                                           (^()  (compile-recur x e s (list 'GSET var next)))))
+                                           (^(n) (compile-recur x e s (list* 'LSET n next)))
+                                           (^(n) (compile-recur x e s (list* 'FSET n next)))
+                                           (^()  (compile-recur x e s (list* 'GSET var next)))))
                      (def (var x)
-                         (compile-recur x e s (list 'DEF var next)))
+                         (compile-recur x e s (list* 'DEF var next)))
                      (call/cc (x)
-                              (let c (list 'CONTI (if (tail? next) 't 'nil)
-                                           (list 'PUSH
-                                                 (compile-recur x e s
-                                                                (if (tail? next)
-                                                                    (list 'SHIFT
-                                                                          1
-                                                                          '(APPLY 1))
-                                                                  '(APPLY 1)))))
+                              (let c (list* 'CONTI (if (tail? next) 't 'nil)
+                                            'PUSH
+                                            (compile-recur x e s
+                                                           (if (tail? next)
+                                                               '(SHIFT 1
+                                                                 APPLY 1)
+                                                             '(APPLY 1))))
                                 (if (tail? next)
                                     c
-                                  (list 'FRAME next c))))
+                                  (list* 'FRAME next c))))
                      (defmacro (name vars . body)
                        (compile-defmacro name vars body next))
                      (else
                       (with (func (car x)
                              args (cdr x))
                         (compile-apply func args e s next))))
-    (list 'CONST x next)))
+    (list* 'CONST x next)))
 
 (def (compile-undef next)
-  (list 'UNDEF next))
+  (list* 'UNDEF next))
 
 (def (compile-apply func args e s next)
   (let argnum (len args)
@@ -174,17 +173,17 @@
             c (compile-recur func e s
                              (if (tail? next)
                                  (list 'SHIFT argnum
-                                       (list 'APPLY argnum))
+                                       'APPLY argnum)
                                (list 'APPLY argnum))))
       (if (no args)
           (if (tail? next)
               c
-            (list 'FRAME next c))
+            (list* 'FRAME next c))
         (loop (cdr args)
               (compile-recur (car args)
                              e
                              s
-                             (list 'PUSH c)))))))
+                             (list* 'PUSH c)))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
@@ -199,12 +198,12 @@
                       (list (- (len proper-vars) 1)
                             -1)))
         (collect-free free e
-                      (list 'CLOSE
-                            varnum
-                            (len free)
-                            (make-boxes sets proper-vars
-                                        (compile-lambda-body proper-vars body free sets s))
-                            next))))))
+                      (list* 'CLOSE
+                             varnum
+                             (len free)
+                             (make-boxes sets proper-vars
+                                         (compile-lambda-body proper-vars body free sets s))
+                             next))))))
 
 (def (compile-lambda-body vars body free sets s)
   (with (ee (cons vars free)
@@ -256,7 +255,7 @@
       next
     (collect-free (cdr vars) e
                   (compile-refer (car vars) e
-                                 (list 'PUSH next)))))
+                                 (list* 'PUSH next)))))
 
 (def (find-setses xs v)
   (awith (b '()
@@ -291,14 +290,14 @@
     (if (no vars)
           next
         (set-member? (car vars) sets)
-          (list 'BOX n (loop (cdr vars) (+ n 1)))
+          (list* 'BOX n (loop (cdr vars) (+ n 1)))
         (loop (cdr vars) (+ n 1)))))
 
 (def (compile-refer var e next)
   (compile-lookup var e
-                  (^(n) (list 'LREF n next))
-                  (^(n) (list 'FREF n next))
-                  (^()  (list 'GREF var next))))
+                  (^(n) (list* 'LREF n next))
+                  (^(n) (list* 'FREF n next))
+                  (^()  (list* 'GREF var next))))
 
 (def (find-index x ls)
   (awith (ls ls
@@ -328,11 +327,11 @@
            body-code (compile-lambda-body proper-vars body (list proper-vars) '() '()))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
-      (list 'MACRO
-            name
-            varnum
-            body-code
-            next))))
+      (list* 'MACRO
+             name
+             varnum
+             body-code
+             next))))
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)
