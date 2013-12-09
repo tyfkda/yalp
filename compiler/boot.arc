@@ -69,6 +69,15 @@
      ,@body)
     ,@(map cadr (pair parms))))
 
+;; Anapholic-with macro.
+;; Like with macro, but captures "loop" variable to make loop syntax.
+;; This is similar to named-let syntax in Scheme.
+(defmacro awith (parms . body)
+  `((let loop nil
+      (set! loop (^ ,(map car (pair parms))
+                    ,@body)))
+    ,@(map cadr (pair parms))))
+
 (defmacro let (var val . body)
   `((^(,var) ,@body) ,val))
 
@@ -113,20 +122,16 @@
          `(let ,g ,(car args)
             (if ,g ,g (or ,@(cdr args)))))))
 
-(defmacro afn (parms . body)
-  `(let self nil
-     (set! self (^ ,parms ,@body))))
-
 (defmacro caselet (var expr . args)
-  (let ex (afn (args)
-            (if (no args)
-                  ()
-                (no (cdr args))
-                  (car args)
-                `(if (is ,var ',(car args))
-                     ,(cadr args)
-                   ,(self (cddr args)))))
-    `(let ,var ,expr ,(ex args))))
+  `(let ,var ,expr
+     ,(awith (args args)
+        (if (no args)
+              ()
+            (no (cdr args))
+              (car args)
+            `(if (is ,var ',(car args))
+                 ,(cadr args)
+               ,(loop (cddr args)))))))
 
 (defmacro case (expr . args)
   `(caselet ,(uniq) ,expr ,@args))
@@ -137,11 +142,11 @@
   (no (is x y)))
 
 (def (len x)
-  ((afn (x n)
-        (if (pair? x)
-            (self (cdr x) (+ n 1))
-            n))
-   x 0))
+  (awith (x x
+          n 0)
+    (if (pair? x)
+        (loop (cdr x) (+ n 1))
+      n)))
 
 ;; Returns last pair
 (def (last ls)
@@ -160,13 +165,13 @@
 
 (def (reverse! ls)
   (if (pair? ls)
-      ((afn (c p)
-            (let d (cdr c)
-              (set-cdr! c p)
-              (if (pair? d)
-                  (self d c)
-                  c)))
-       ls ())
+      (awith (c ls
+              p ())
+        (let d (cdr c)
+          (set-cdr! c p)
+          (if (pair? d)
+              (loop d c)
+            c)))
     ls))
 
 (def (newline)
@@ -210,17 +215,17 @@
                     (display index)
                     (display "=")
                     (hash-table-put! h s (- -1 index))))
-              ((afn (c s)
-                    (if (no s)
-                        (display ")")
-                      (do (display c)
-                          (write/ss-print (car s) h)
-                          (if (or (and (pair? (cdr s))
-                                       (no (hash-table-get h (cdr s))))
-                                  (no (cdr s)))
-                              (self " " (cdr s))
-                            (do (display " . ")
-                                (write/ss-print (cdr s) h)
-                                (display ")"))))))
-               "(" s))))
+              (awith (c "("
+                      s s)
+                (if (no s)
+                      (display ")")
+                    (do (display c)
+                        (write/ss-print (car s) h)
+                        (if (or (and (pair? (cdr s))
+                                     (no (hash-table-get h (cdr s))))
+                                (no (cdr s)))
+                            (loop " " (cdr s))
+                          (do (display " . ")
+                              (write/ss-print (cdr s) h)
+                              (display ")")))))))))
     (write s)))

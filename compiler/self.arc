@@ -42,18 +42,17 @@
   (w/uniq g1
     `(let ,g1 ,x
        (case (car ,g1)
-         ,@((afn (p)
-                 (when p
-                   (let e (car p)
-                     (with (key (car e)
-                            vars (cadr e)
-                            exprs (cddr e))
-                       (if (is key 'else)
-                           (cdr e)
-                         `(,key
-                           (record (cdr ,g1) ,vars ,@exprs)
-                           ,@(self (cdr p))))))))
-            args)))))
+         ,@(awith (p args)
+              (when p
+                (let e (car p)
+                  (with (key (car e)
+                         vars (cadr e)
+                         exprs (cddr e))
+                    (if (is key 'else)
+                          (cdr e)
+                        `(,key
+                          (record (cdr ,g1) ,vars ,@exprs)
+                          ,@(loop (cdr p))))))))))))
 
 ;;; dotted pair -> proper list
 (def (dotted->proper ls)
@@ -61,12 +60,12 @@
           (and (pair? ls)
                (no (cdr (last ls)))))
       ls
-    ((afn (p acc)
-          (if (pair? p)
-              (self (cdr p)
-                    (cons (car p) acc))
-              (reverse! (cons p acc))))
-     ls ())))
+    (awith (p ls
+            acc ())
+      (if (pair? p)
+          (loop (cdr p)
+                (cons (car p) acc))
+        (reverse! (cons p acc))))))
 
 ;;;; set
 
@@ -171,22 +170,21 @@
 
 (def (compile-apply func args e s next)
   (let argnum (len args)
-    ((afn (args c)
-          (if (no args)
-              (if (tail? next)
-                  c
-                  (list 'FRAME next c))
-              (self (cdr args)
-                    (compile-recur (car args)
-                                   e
-                                   s
-                                   (list 'PUSH c)))))
-     args
-     (compile-recur func e s
-                    (if (tail? next)
-                        `(SHIFT ,argnum
-                                (APPLY ,argnum))
-                      `(APPLY ,argnum))))))
+    (awith (args args
+            c (compile-recur func e s
+                             (if (tail? next)
+                                 `(SHIFT ,argnum
+                                         (APPLY ,argnum))
+                                 `(APPLY ,argnum))))
+      (if (no args)
+          (if (tail? next)
+              c
+            (list 'FRAME next c))
+        (loop (cdr args)
+              (compile-recur (car args)
+                             e
+                             s
+                             (list 'PUSH c)))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
@@ -215,21 +213,20 @@
          next (list 'RET))
     (if (no body)
         (compile-undef next)
-      ((afn (p)
-            (if (no p)
-                next
-                (compile-recur (car p) ee ss
-                               (self (cdr p)))))
-       body))))
+      (awith (p body)
+        (if (no p)
+            next
+          (compile-recur (car p) ee ss
+                         (loop (cdr p))))))))
 
 (def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
-    ((afn (v p)
+    (awith (v ()
+            p xs)
       (if (no p)
           v
-        (self (set-union v (find-free (car p) bb))
-              (cdr p))))
-     () xs)))
+        (loop (set-union v (find-free (car p) bb))
+              (cdr p))))))
 
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
@@ -262,12 +259,12 @@
                                  (list 'PUSH next)))))
 
 (def (find-setses xs v)
-  ((afn (b p)
-        (if (no p)
-            b
-            (self (set-union b (find-sets (car p) v))
-                  (cdr p))))
-   () xs))
+  (awith (b ()
+          p xs)
+    (if (no p)
+        b
+      (loop (set-union b (find-sets (car p) v))
+            (cdr p)))))
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
@@ -289,13 +286,13 @@
     ()))
 
 (def (make-boxes sets vars next)
-  ((afn (vars n)
-        (if (no vars)
-              next
-            (set-member? (car vars) sets)
-              (list 'BOX n (self (cdr vars) (+ n 1)))
-            (self (cdr vars) (+ n 1))))
-   vars 0))
+  (awith (vars vars
+          n 0)
+    (if (no vars)
+          next
+        (set-member? (car vars) sets)
+          (list 'BOX n (loop (cdr vars) (+ n 1)))
+        (loop (cdr vars) (+ n 1)))))
 
 (def (compile-refer var e next)
   (compile-lookup var e
@@ -304,11 +301,11 @@
                   (^()  (list 'GREF var next))))
 
 (def (find-index x ls)
-  ((afn (ls idx)
-        (if (no ls) nil
-            (is (car ls) x) idx
-            (self (cdr ls) (+ idx 1))))
-   ls 0))
+  (awith (ls ls
+          idx 0)
+    (if (no ls) nil
+        (is (car ls) x) idx
+        (loop (cdr ls) (+ idx 1)))))
 
 (def (compile-lookup var e return-local return-free return-global)
   (with (locals (car e)
