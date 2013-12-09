@@ -150,11 +150,14 @@
       (last (cdr ls))
     ls))
 
-(def (member x ls)
+(def (member-if f ls)
   (when (pair? ls)
-    (if (is x (car ls))
+    (if (f (car ls))
         ls
-      (member x (cdr ls)))))
+      (member-if f (cdr ls)))))
+
+(def (member x ls)
+  (member-if (^(y) (is x y)) ls))
 
 (def (reverse! ls)
   (if (pair? ls)
@@ -166,13 +169,6 @@
                   c)))
        ls ())
     ls))
-
-(def (member-if f ls)
-  (if (no ls)
-        nil
-      (f (car ls))
-        ls
-    (member-if f (cdr ls))))
 
 (def (newline)
   (display "\n"))
