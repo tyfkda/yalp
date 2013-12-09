@@ -98,7 +98,7 @@ private:
   // Global variables
   SHashTable* globalVariableTable_;
 
-  // Macro table.
+  // Macro table: symbol => closure
   SHashTable* macroTable_;
 
   Svalue endOfCode_;

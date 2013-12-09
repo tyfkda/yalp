@@ -1,3 +1,38 @@
+;;;; Compiler
+;;;; Based on 3imp.
+
+; Stack usage:
+;    c   ... closure
+;    s   ... stack pointer
+;    f   ... frame pointer (stack index)
+;    ret ... next code
+;
+; * Initial
+;   f = s = 0
+;
+; * Function call
+;   1. Use FRAME opcode to create new frame on stack:
+;     f[c][f][ret]s
+;   2. Push function arguments to stack on reverse order:
+;     f[c][f][ret][a3][a2][a1]s
+;   3. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][a3][a2][a1]f[argnum]s
+;
+; * Return
+;   1. Get called argument number from stack:
+;     [c][f][ret][a3][a2][a1]f
+;   2. Put back previous frame:
+;     f = s = 0
+; * Shift
+;   1. Put next function arguments:
+;     [c][f][ret][a3][a2][a1]f[argnum][b1]s
+;   2. Use SHIFT opcode to remove previous function arguments:
+;     [c][f][ret][b1]s
+;   4. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][b1]f[argnum]s
+
 (defmacro record (args parm . exprs)
   `(apply (^ ,parm
             ,@exprs)
