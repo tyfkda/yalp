@@ -213,8 +213,9 @@ Svalue Vm::runLoop() {
  again:
   //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
 
-  Svalue op = CAR(x_);
-  x_ = CDR(x_);
+  Svalue prex = x_;
+  Svalue op = CAR(prex);
+  x_ = CDR(prex);
   int opidx = findOpcode(op);
   switch (opidx) {
   case HALT:
@@ -320,6 +321,15 @@ Svalue Vm::runLoop() {
       }
       a_ = createClosure(body, nfree, s_, min, max);
       s_ -= nfree;
+
+      if (nfree == 0) {
+        // If no free variable, the closure has no reference to environment.
+        // So bytecode can be replaced to reuse it.
+        // (CLOSE nparam nfree body ...) => (CONST closure ...)
+        CELL(prex)->setCar(opcodes_[CONST]);
+        CELL(CDR(prex))->setCar(a_);
+        CELL(CDR(prex))->setCdr(x_);
+      }
     }
     goto again;
   case FRAME:
