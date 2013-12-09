@@ -19,7 +19,6 @@
 
 (def cadr (^(x) (car (cdr x))))
 (def cddr (^(x) (cdr (cdr x))))
-(def caadr (^(x) (car (cadr x))))
 
 (def qq-expand
     (^(x)
