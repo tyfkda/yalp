@@ -210,6 +210,39 @@ ReadError Reader::readAbbrev(const char* funcname, Svalue* pValue) {
   return err;
 }
 
+ReadError Reader::readString(char closeChar, Svalue* pValue) {
+  BUFFER(buffer, size);
+
+  int p = 0;
+  int c;
+  for (;;) {
+    c = getc();
+    if (c == EOF)
+      return NO_CLOSE_STRING;
+    if (c == closeChar)
+      break;
+    switch (c) {
+    case '\\':
+      c = getc();
+      if (c == EOF)
+        return NO_CLOSE_STRING;
+      if (c != closeChar)
+        switch (c) {
+        case '0':  c = '\0'; break;
+        case 'n':  c = '\n'; break;
+        case 'r':  c = '\r'; break;
+        case 't':  c = '\t'; break;
+        default:   break;
+        }
+      break;
+    }
+    p = putBuffer(&buffer, &size, p, c);
+  }
+  putBuffer(&buffer, &size, p, '\0');
+  *pValue = state_->stringValue(buffer, p);
+  return READ_SUCCESS;
+}
+
 ReadError Reader::readSpecial(Svalue* pValue) {
   int c = getc();
   if (!isdigit(c))
@@ -242,39 +275,6 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   default:
     return ILLEGAL_CHAR;
   }
-}
-
-ReadError Reader::readString(char closeChar, Svalue* pValue) {
-  BUFFER(buffer, size);
-
-  int p = 0;
-  int c;
-  for (;;) {
-    c = getc();
-    if (c == EOF)
-      return NO_CLOSE_STRING;
-    if (c == closeChar)
-      break;
-    switch (c) {
-    case '\\':
-      c = getc();
-      if (c == EOF)
-        return NO_CLOSE_STRING;
-      if (c != closeChar)
-        switch (c) {
-        case '0':  c = '\0'; break;
-        case 'n':  c = '\n'; break;
-        case 'r':  c = '\r'; break;
-        case 't':  c = '\t'; break;
-        default:   break;
-        }
-      break;
-    }
-    p = putBuffer(&buffer, &size, p, c);
-  }
-  putBuffer(&buffer, &size, p, '\0');
-  *pValue = state_->stringValue(buffer, p);
-  return READ_SUCCESS;
 }
 
 void Reader::storeShared(int id, Svalue value) {
