@@ -192,7 +192,7 @@
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))
                                  (find-frees body '() proper-vars))
-             sets (find-setses body (dotted->proper proper-vars))
+             sets (find-setses body proper-vars)
              varnum (if (is vars proper-vars)
                         (len vars)
                       (list (- (len proper-vars) 1)
