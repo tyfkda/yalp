@@ -202,14 +202,13 @@
                              varnum
                              (len free)
                              (make-boxes sets proper-vars
-                                         (compile-lambda-body proper-vars body free sets s))
+                                         (compile-lambda-body proper-vars body free sets s '(RET)))
                              next))))))
 
-(def (compile-lambda-body vars body free sets s)
+(def (compile-lambda-body vars body free sets s next)
   (with (ee (cons vars free)
          ss (set-union sets
-                       (set-intersect s free))
-         next (list 'RET))
+                       (set-intersect s free)))
     (if (no body)
         (compile-undef next)
       (awith (p body)
@@ -324,7 +323,7 @@
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))
-           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '()))
+           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list* 'MACRO
