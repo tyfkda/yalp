@@ -5,7 +5,7 @@
       (if ls
           (cons (f (car ls))
                 (map f (cdr ls)))
-          ())))
+        '())))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (def pair
@@ -126,7 +126,7 @@
   `(let ,var ,expr
      ,(awith (args args)
         (if (no args)
-              ()
+              '()
             (no (cdr args))
               (car args)
             `(if (is ,var ',(car args))
@@ -166,7 +166,7 @@
 (def (reverse! ls)
   (if (pair? ls)
       (awith (c ls
-              p ())
+              p '())
         (let d (cdr c)
           (set-cdr! c p)
           (if (pair? d)

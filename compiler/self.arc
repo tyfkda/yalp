@@ -61,7 +61,7 @@
                (no (cdr (last ls)))))
       ls
     (awith (p ls
-            acc ())
+            acc '())
       (if (pair? p)
           (loop (cdr p)
                 (cons (car p) acc))
@@ -87,14 +87,14 @@
 
 (def (set-minus s1 s2)
   (if (no s1)
-        ()
+        '()
       (set-member? (car s1) s2)
         (set-minus (cdr s1) s2)
       (cons (car s1) (set-minus (cdr s1) s2))))
 
 (def (set-intersect s1 s2)
   (if (no s1)
-        ()
+        '()
       (set-member? (car s1) s2)
         (cons (car s1) (set-intersect (cdr s1) s2))
       (set-intersect (cdr s1) s2)))
@@ -111,8 +111,8 @@
   (call/cc
    (^(cc)
      (set! *exit-compile* cc)
-     (compile-recur (macroexpand-all x ())
-                    '(()) () '(HALT)))))
+     (compile-recur (macroexpand-all x '())
+                    '(()) '() '(HALT)))))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -192,7 +192,7 @@
          (compile-error "Function parameter must be symbol")
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))
-                                 (find-frees body () proper-vars))
+                                 (find-frees body '() proper-vars))
              sets (find-setses body (dotted->proper proper-vars))
              varnum (if (is vars proper-vars)
                         (list (len vars) (len vars))
@@ -221,7 +221,7 @@
 
 (def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
-    (awith (v ()
+    (awith (v '()
             p xs)
       (if (no p)
           v
@@ -233,23 +233,23 @@
 ;; are listed up.
 (def (find-free x b)
   (if (symbol? x)
-        (if (set-member? x b) () (list x))
+        (if (set-member? x b) '() (list x))
       (pair? x)
         (record-case x
                      (^ (vars . body)
                         (find-frees body b vars))
-                     (quote (obj) ())
-                     (if      all (find-frees all b ()))
+                     (quote (obj) '())
+                     (if      all (find-frees all b '()))
                      (set! (var exp)
                            (set-union (if (set-member? var b) '() (list var))
                                       (find-free exp b)))
                      (def (var exp)
-                         (set-union (if (set-member? var b) () (list var))
+                         (set-union (if (set-member? var b) '() (list var))
                                     (find-free exp b)))
-                     (call/cc all (find-frees all b ()))
+                     (call/cc all (find-frees all b '()))
                      (defmacro (name vars . body) (find-frees body b vars))
-                     (else        (find-frees x b ())))
-    ()))
+                     (else        (find-frees x b '())))
+    '()))
 
 (def (collect-free vars e next)
   (if (no vars)
@@ -259,7 +259,7 @@
                                  (list 'PUSH next)))))
 
 (def (find-setses xs v)
-  (awith (b ()
+  (awith (b '()
           p xs)
     (if (no p)
         b
@@ -272,18 +272,18 @@
   (if (pair? x)
       (record-case x
                    (set! (var val)
-                         (set-union (if (set-member? var v) (list var) ())
+                         (set-union (if (set-member? var v) (list var) '())
                                     (find-sets val v)))
                    (def (var val)
                        (find-sets val v))
                    (^ (vars . body)
                       (find-setses body (set-minus v (dotted->proper vars))))
-                   (quote   all ())
+                   (quote   all '())
                    (if      all (find-setses all v))
                    (call/cc all (find-setses all v))
                    (defmacro (name vars . body)  (find-setses body (set-minus v (dotted->proper vars))))
                    (else        (find-setses x   v)))
-    ()))
+    '()))
 
 (def (make-boxes sets vars next)
   (awith (vars vars
@@ -323,7 +323,7 @@
   (let proper-vars (dotted->proper vars)
     (with (min (if (is vars proper-vars) (len vars) (- (len proper-vars) 1))
            max (if (is vars proper-vars) (len vars) -1)
-           body-code (compile-lambda-body proper-vars body (list proper-vars) () ()))
+           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '()))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list 'MACRO
