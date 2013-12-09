@@ -29,13 +29,13 @@ $(OBJPATH)/%.o:	$(SRCPATH)/%.cc
 
 
 check-length:
-	wc -l src/* include/**/* | sort -nr
+	wc -l src/* include/**/* compiler/*.arc | sort -nr
 
-boot.bin:	compiler/boot.arc compiler/self.arc
-	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin && \
+boot.bin:	self.bin
 	mv self.bin boot.bin
 
-self-compile:
-	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin && \
-	./yalp -L self.bin -c compiler/boot.arc compiler/self.arc > self2.bin && \
-	diff self.bin self2.bin && rm self.bin self2.bin && echo OK
+self.bin:	compiler/boot.arc compiler/self.arc
+	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin
+
+self-compile:	self.bin
+	diff boot.bin self.bin && rm self.bin && echo OK
