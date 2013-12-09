@@ -10,6 +10,8 @@ DEPS=$(subst $(SRCPATH),$(OBJPATH),$(SRCS:%.cc=%.d))
 
 CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCPATH)
 
+.PHONY: all clean test
+
 all:	$(PROJECT)
 
 clean:
@@ -27,6 +29,8 @@ $(OBJPATH)/%.o:	$(SRCPATH)/%.cc
 	fi
 	g++ $(CXXFLAGS) -o $@ -c $<
 
+test:	$(PROJECT)
+	make -C test
 
 check-length:
 	wc -l src/* include/**/* compiler/*.arc | sort -nr

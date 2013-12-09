@@ -1,6 +1,8 @@
+.PHONY: all test
+
 all:
 	echo 'Use "make test"'
 	exit 1
 
 test:
-	make -C t
+	make -C test
