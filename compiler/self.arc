@@ -155,7 +155,7 @@
                                                              '(APPLY 1))))
                                 (if (tail? next)
                                     c
-                                  (list* 'FRAME next c))))
+                                  (list* 'FRAME c next))))
                      (defmacro (name vars . body)
                        (compile-defmacro name vars body next))
                      (else
@@ -178,7 +178,7 @@
       (if (no args)
           (if (tail? next)
               c
-            (list* 'FRAME next c))
+            (list* 'FRAME c next))
         (loop (cdr args)
               (compile-recur (car args)
                              e

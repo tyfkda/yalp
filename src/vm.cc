@@ -324,8 +324,8 @@ Svalue Vm::runLoop() {
     goto again;
   case FRAME:
     {
-      Svalue ret = CAR(x_);
-      x_ = CDR(x_);
+      Svalue ret = CDR(x_);
+      x_ = CAR(x_);
       s_ = push(ret, push(state_->fixnumValue(f_), push(c_, s_)));
     }
     goto again;
