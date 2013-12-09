@@ -162,6 +162,12 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
       else
         return false;
     }
+
+    if (bCompile) {
+      state->funcall(writess, 1, &code, NULL);
+      cout << endl;
+    }
+
     Svalue result;
     if (!state->runBinary(code, &result)) {
       if (!tty)
@@ -169,10 +175,7 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
       state->resetError();
       continue;
     }
-    if (bCompile) {
-      state->funcall(writess, 1, &code, NULL);
-      cout << endl;
-    } else if (tty) {
+    if (!bCompile && tty) {
       cout << "=> ";
       result.output(state, cout, true);
       cout << endl;
