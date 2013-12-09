@@ -210,7 +210,6 @@ bool Vm::run(Svalue code, Svalue* pResult) {
 }
 
 Svalue Vm::runLoop() {
-  int argNum;
  again:
   //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
 
@@ -332,7 +331,7 @@ Svalue Vm::runLoop() {
     goto again;
   case APPLY:
     {
-      argNum = CAR(x_).toFixnum();
+      int argNum = CAR(x_).toFixnum();
       if (!a_.isObject() || !a_.toObject()->isCallable()) {
         state_->runtimeError("Can't call");
       }
