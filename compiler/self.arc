@@ -187,7 +187,7 @@
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
-    (aif (member-if (^(x) (no (symbol? x))) proper-vars)
+    (aif (member-if [no (symbol? _)] proper-vars)
          (compile-error "Function parameter must be symbol")
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))

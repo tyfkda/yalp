@@ -55,7 +55,7 @@ ReadError Reader::read(Svalue* pValue) {
   switch (c) {
   case '(':
     return readList(pValue);
-  case ')':
+  case ')': case ']': case '}':
     return EXTRA_CLOSE_PAREN;
   case ';':
     skipUntilNextLine();
@@ -76,6 +76,8 @@ ReadError Reader::read(Svalue* pValue) {
     return readString(c, pValue);
   case '#':
     return readSpecial(pValue);
+  case '[':
+    return readBracket(pValue);
   case EOF:
     return END_OF_FILE;
   default:
@@ -148,10 +150,34 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
 }
 
 ReadError Reader::readList(Svalue* pValue) {
+  return readDelimitedList(')', pValue);
+}
+
+ReadError Reader::readBracket(Svalue* pValue) {
+  ReadError err = readDelimitedList(']', pValue);
+  if (err != READ_SUCCESS)
+    return err;
+  // [...] => (^(_) (...))
+  *pValue = list(state_,
+                 state_->intern("^"),
+                 list(state_, state_->intern("_")),
+                 *pValue);
+  return READ_SUCCESS;
+}
+
+ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
   Svalue value = Svalue::NIL;
   Svalue v;
   ReadError err;
   for (;;) {
+    skipSpaces();
+    int c = getc();
+    if (c == terminator) {
+      *pValue = nreverse(value);
+      return READ_SUCCESS;
+    }
+
+    putback(c);
     err = read(&v);
     if (err != READ_SUCCESS)
       break;
@@ -159,9 +185,6 @@ ReadError Reader::readList(Svalue* pValue) {
   }
 
   switch (err) {
-  case EXTRA_CLOSE_PAREN:
-    *pValue = nreverse(value);
-    return READ_SUCCESS;
   case END_OF_FILE:
     *pValue = nreverse(value);
     return NO_CLOSE_PAREN;
@@ -177,7 +200,7 @@ ReadError Reader::readList(Svalue* pValue) {
 
       skipSpaces();
       int c = getc();
-      if (c != ')') {
+      if (c != terminator) {
         putback(c);
         return NO_CLOSE_PAREN;
       }
@@ -357,7 +380,7 @@ bool Reader::isSpace(int c) {
 bool Reader::isDelimiter(int c) {
   switch (c) {
   case ' ': case '\t': case '\n': case '\0': case -1:
-  case '(': case ')':
+  case '(': case ')': case '[': case ']': case '{': case '}':
     return true;
   default:
     return false;

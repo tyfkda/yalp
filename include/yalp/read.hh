@@ -41,6 +41,8 @@ private:
   ReadError readAbbrev(const char* funcname, Svalue* pValue);
   ReadError readString(char closeChar, Svalue* pValue);
   ReadError readSpecial(Svalue* pValue);
+  ReadError readBracket(Svalue* pValue);
+  ReadError readDelimitedList(int terminator, Svalue* pValue);
   ReadError readSharedStructure(Svalue* pValue);
   ReadError readChar(Svalue* pValue);
   void storeShared(int id, Svalue value);
