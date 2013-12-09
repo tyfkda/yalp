@@ -31,8 +31,9 @@ $(OBJPATH)/%.o:	$(SRCPATH)/%.cc
 check-length:
 	wc -l src/* include/**/* | sort -nr
 
-boot.bin:	compiler/compiler.scm compiler/boot.arc compiler/self.arc
-	cd compiler && gosh compiler.scm -c boot.arc self.arc > ../boot.bin
+boot.bin:	compiler/boot.arc compiler/self.arc
+	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin && \
+	mv self.bin boot.bin
 
 self-compile:
 	./yalp -L boot.bin -c compiler/boot.arc compiler/self.arc > self.bin && \
