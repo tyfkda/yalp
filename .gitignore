@@ -12,6 +12,8 @@
 /test/symbol_manager_test
 /test/util_test
 
+/_*
+
 # GTAGS
 /GPATH
 /GRTAGS
