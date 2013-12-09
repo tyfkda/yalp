@@ -61,12 +61,12 @@
 (defmacro def (name . body)
   (if (pair? name)
       `(def ,(car name)
-           (^ ,(cdr name) ,@body))
+         (^ ,(cdr name) ,@body))
     `(def ,name ,@body)))
 
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))
-     ,@body)
+       ,@body)
     ,@(map cadr (pair parms))))
 
 ;; Anapholic-with macro.

@@ -124,7 +124,7 @@
         (compile-refer x e
                        (if (set-member? x s)
                            (list 'UNBOX next)
-                           next))
+                         next))
       (pair? x)
         (record-case x
                      (quote (obj) (list 'CONST obj next))
@@ -132,11 +132,11 @@
                         (compile-lambda vars body e s next))
                      (if (test then . rest)
                          (with (thenc (compile-recur then e s next)
-                                      elsec (if (no rest)
-                                                (compile-undef next)
-                                                (no (cdr rest))
-                                                (compile-recur (car rest) e s next)
-                                                (compile-recur `(if ,@rest) e s next)))
+                                elsec (if (no rest)
+                                            (compile-undef next)
+                                          (no (cdr rest))
+                                            (compile-recur (car rest) e s next)
+                                          (compile-recur `(if ,@rest) e s next)))
                            (compile-recur test e s (list 'TEST thenc elsec))))
                      (set! (var x)
                            (compile-lookup var e
@@ -153,15 +153,15 @@
                                                                     (list 'SHIFT
                                                                           1
                                                                           '(APPLY 1))
-                                                                    '(APPLY 1)))))
+                                                                  '(APPLY 1)))))
                                 (if (tail? next)
                                     c
-                                    (list 'FRAME next c))))
+                                  (list 'FRAME next c))))
                      (defmacro (name vars . body)
                        (compile-defmacro name vars body next))
                      (else
                       (with (func (car x)
-                                  args (cdr x))
+                             args (cdr x))
                         (compile-apply func args e s next))))
     (list 'CONST x next)))
 
@@ -175,7 +175,7 @@
                              (if (tail? next)
                                  `(SHIFT ,argnum
                                          (APPLY ,argnum))
-                                 `(APPLY ,argnum))))
+                               `(APPLY ,argnum))))
       (if (no args)
           (if (tail? next)
               c
@@ -193,11 +193,11 @@
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))
                                  (find-frees body () proper-vars))
-                  sets (find-setses body (dotted->proper proper-vars))
-                  varnum (if (is vars proper-vars)
-                             (list (len vars) (len vars))
-                           (list (- (len proper-vars) 1)
-                                  -1)))
+             sets (find-setses body (dotted->proper proper-vars))
+             varnum (if (is vars proper-vars)
+                        (list (len vars) (len vars))
+                      (list (- (len proper-vars) 1)
+                            -1)))
         (collect-free free e
                       (list 'CLOSE
                             varnum
