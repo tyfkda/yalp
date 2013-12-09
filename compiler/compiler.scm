@@ -49,10 +49,10 @@
       (compile-recur (macroexpand-all x ())
                      '(()) () '(HALT)))))
 
-(define (find-if f ls)
+(define (member-if f ls)
   (cond ((null? ls) #f)
         ((f (car ls)) ls)
-        (else (find-if f (cdr ls)))))
+        (else (member-if f (cdr ls)))))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -131,7 +131,7 @@
 
 (define (compile-lambda vars body e s next)
   (let ((proper-vars (dotted->proper vars)))
-    (if (find-if (lambda (x) (not (symbol? x))) proper-vars)
+    (if (member-if (lambda (x) (not (symbol? x))) proper-vars)
         (compile-error "Function parameter must be symbol")
       (let ((free (set-intersect (set-union (car e)
                                             (cdr e))

@@ -167,12 +167,12 @@
        ls ())
     ls))
 
-(def (find-if f ls)
+(def (member-if f ls)
   (if (no ls)
         nil
       (f (car ls))
         ls
-    (find-if f (cdr ls))))
+    (member-if f (cdr ls))))
 
 (def (newline)
   (display "\n"))
