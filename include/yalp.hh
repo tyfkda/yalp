@@ -39,9 +39,9 @@ enum Type {
   TT_FLOAT,
   TT_CLOSURE,
   TT_NATIVEFUNC,
-  TT_BOX,
   TT_VECTOR,
   TT_HASH_TABLE,
+  TT_BOX,  // TODO: This label should not be public, so hide this.
 };
 
 // Variant type.

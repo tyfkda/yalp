@@ -67,7 +67,10 @@ public:
   Svalue get()  { return x_; }
 
   virtual void output(State* state, std::ostream& o, bool inspect) const override {
+    // This should not be output, but debug purpose.
+    o << "#<box ";
     x_.output(state, o, inspect);
+    o << ">";
   }
 
 protected:
