@@ -168,22 +168,25 @@
   (list* 'UNDEF next))
 
 (def (compile-apply func args e s next)
-  (let argnum (len args)
-    (awith (args args
-            c (compile-recur func e s
-                             (if (tail? next)
-                                 (list 'SHIFT argnum
-                                       'APPLY argnum)
-                               (list 'APPLY argnum))))
-      (if (no args)
-          (if (tail? next)
-              c
-            (list* 'FRAME c next))
-        (loop (cdr args)
-              (compile-recur (car args)
-                             e
-                             s
-                             (list* 'PUSH c)))))))
+  (with* (argnum (len args)
+          c (compile-recur func e s
+                           (if (tail? next)
+                               (list 'SHIFT argnum
+                                     'APPLY argnum)
+                             (list 'APPLY argnum)))
+          bc (compile-apply-args args c e s))
+    (if (tail? next)
+        bc
+      (list* 'FRAME bc next))))
+
+(def (compile-apply-args args next e s)
+  (awith (args args
+          c next)
+    (if (no args)
+        c
+      (loop (cdr args)
+            (compile-recur (car args) e s
+                           (list* 'PUSH c))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
