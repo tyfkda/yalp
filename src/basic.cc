@@ -501,6 +501,13 @@ static Svalue s_exit(State* state) {
   return Svalue::NIL;
 }
 
+static Svalue s_vmtrace(State* state) {
+  Svalue v = state->getArg(0);
+  bool b = state->isTrue(v);
+  state->setVmTrace(b);
+  return state->getConstant(State::T);
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Svalue::NIL, Svalue::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -555,6 +562,7 @@ void installBasicFunctions(State* state) {
 
   state->defineNative("collect-garbage", s_collect_garbage, 0);
   state->defineNative("exit", s_exit, 1);
+  state->defineNative("vmtrace", s_vmtrace, 1);
 }
 
 }  // namespace yalp

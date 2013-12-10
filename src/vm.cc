@@ -96,6 +96,7 @@ Vm::~Vm() {
 Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
+  , trace_(false)
   , jmp_(NULL)
   , callStack_() {
   a_ = c_ = Svalue::NIL;
@@ -128,6 +129,10 @@ Vm::Vm(State* state)
 
   endOfCode_ = list(state_, opcodes_[HALT]);
   return_ = list(state_, opcodes_[RET]);
+}
+
+void Vm::setTrace(bool b) {
+  trace_ = b;
 }
 
 jmp_buf* Vm::setJmpbuf(jmp_buf* jmp) {
@@ -201,7 +206,9 @@ bool Vm::run(Svalue code, Svalue* pResult) {
 
 Svalue Vm::runLoop() {
  again:
-  //std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
+  if (trace_) {
+    std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
+  }
 
   Svalue prex = x_;
   Svalue op = CAR(prex);

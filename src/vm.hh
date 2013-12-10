@@ -50,6 +50,8 @@ public:
   int getCallStackDepth() const  { return callStack_.size(); }
   const CallStack* getCallStack() const  { return &callStack_[0]; }
 
+  void setTrace(bool b);
+
   jmp_buf* setJmpbuf(jmp_buf* jmp);
   void longJmp();
 
@@ -91,6 +93,7 @@ private:
   State* state_;
   Svalue* stack_;
   int stackSize_;
+  bool trace_;
 
   // Symbols
   Svalue* opcodes_;

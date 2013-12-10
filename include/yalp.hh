@@ -166,6 +166,7 @@ public:
   void resetError();
 
   void collectGarbage();
+  void setVmTrace(bool b);
 
   void reportDebugInfo() const;
 

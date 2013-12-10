@@ -409,6 +409,10 @@ void State::collectGarbage() {
   allocator_->collectGarbage();
 }
 
+void State::setVmTrace(bool b) {
+  vm_->setTrace(b);
+}
+
 void State::markRoot() {
   vm_->markRoot();
 }
