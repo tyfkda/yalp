@@ -165,6 +165,7 @@ fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
 fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
 #fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
 fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
+fail no-var-set '(set! x 123)'
 
 ################################################################
 # All tests succeeded.
