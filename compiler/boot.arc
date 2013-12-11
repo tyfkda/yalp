@@ -1,11 +1,11 @@
 (def no (^(x) (if x nil t)))
 
 (def map
-    (^(f ls)
-      (if ls
-          (cons (f (car ls))
-                (map f (cdr ls)))
-        '())))
+  (^(f ls)
+    (if ls
+        (cons (f (car ls))
+              (map f (cdr ls)))
+      '())))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (def pair
@@ -58,6 +58,15 @@
 (defmacro quasiquote (x)
   (qq-expand x))
 
+(defmacro do body
+  `((^() ,@body)))
+
+(defmacro when (test . body)
+  `(if ,test (do ,@body)))
+
+(defmacro unless (test . body)
+  `(if (not ,test) (do ,@body)))
+
 (defmacro def (name . body)
   (if (pair? name)
       `(def ,(car name)
@@ -70,6 +79,9 @@
                   (cons (list var val)
                         (pair rest))))
     `(set! ,var ,val)))
+
+(defmacro let (var val . body)
+  `((^(,var) ,@body) ,val))
 
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))
@@ -93,18 +105,6 @@
       (set! loop (^ ,(map car (pair parms))
                     ,@body)))
     ,@(map cadr (pair parms))))
-
-(defmacro let (var val . body)
-  `((^(,var) ,@body) ,val))
-
-(defmacro do body
-  `((^() ,@body)))
-
-(defmacro when (test . body)
-  `(if ,test (do ,@body)))
-
-(defmacro unless (test . body)
-  `(if (not ,test) (do ,@body)))
 
 (defmacro aif (expr . body)
   (if (no body)
@@ -151,8 +151,6 @@
 
 (defmacro case (expr . args)
   `(caselet ,(uniq) ,expr ,@args))
-
-
 
 (def (isnt x y)
   (no (is x y)))
