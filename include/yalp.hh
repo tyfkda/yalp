@@ -120,6 +120,9 @@ public:
   Svalue car(Svalue s);
   Svalue cdr(Svalue s);
 
+  // Converts character code to lisp character value.
+  Svalue characterValue(int c)  { return Svalue(c); }  // Use fixnum as a character.
+
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
   Svalue stringValue(const char* string, int len);
