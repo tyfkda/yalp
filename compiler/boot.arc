@@ -64,6 +64,13 @@
          (^ ,(cdr name) ,@body))
     `(def ,name ,@body)))
 
+(defmacro set! (var val . rest)
+  (if rest
+      `(do ,@(map (^(vv) `(set! ,(car vv) ,(cadr vv)))
+                  (cons (list var val)
+                        (pair rest))))
+    `(set! ,var ,val)))
+
 (defmacro with (parms . body)
   `((^ ,(map car (pair parms))
        ,@body)

@@ -55,10 +55,18 @@ run multiple-exp 3 '((^()
                        2
                        3)
                      )'
-run set-local 111 '((^(x)
-                      (set! x 111)
+run set-local 2 '((^(x)
+                      (set! x 2)
                       x)
-                    123)'
+                    1)'
+run set-result 2 '((^(x)
+                      (set! x 2))
+                    1)'
+run multi-set '(3 4)' '((^(x y)
+                          (set! x 3
+                                y 4)
+                          (list x y))
+                        1 2)'
 run closure 1 '(((^(x)
                    (^(y)
                      x))
