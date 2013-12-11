@@ -140,6 +140,10 @@ static Svalue s_append(State* state) {
   return fin;
 }
 
+static Svalue s_nreverse(State* state) {
+  return nreverse(state->getArg(0));
+}
+
 template <class Op>
 struct BinOp {
   static Svalue calc(State* state) {
@@ -523,6 +527,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("pair?", s_pairp, 1);
   state->defineNative("symbol?", s_symbolp, 1);
   state->defineNative("append", s_append, 0, -1);
+  state->defineNative("reverse!", s_nreverse, 1);
   state->defineNative("+", s_add, 0, -1);
   state->defineNative("-", s_sub, 0, -1);
   state->defineNative("*", s_mul, 0, -1);

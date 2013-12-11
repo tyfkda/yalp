@@ -177,17 +177,6 @@
 (def (member x ls)
   (member-if [is x _] ls))
 
-(def (reverse! ls)
-  (if (pair? ls)
-      (awith (c ls
-              p '())
-        (let d (cdr c)
-          (set-cdr! c p)
-          (if (pair? d)
-              (loop d c)
-            c)))
-    ls))
-
 (def (newline)
   (display "\n"))
 
