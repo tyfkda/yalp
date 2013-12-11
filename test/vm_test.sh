@@ -148,6 +148,8 @@ run /float '8.695652' '(/ 2 0.23)'
 run /invert '4.347826' '(/ 0.23)'
 run '<float' t '(< 1 1.1)'
 
+run map '(1 4 9)' "(map [* _ _] '(1 2 3))"
+run map3 '(111 222 333)' "(map + '(1 2 3) '(10 20 30) '(100 200 300))"
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 

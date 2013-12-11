@@ -1,11 +1,33 @@
 (def no (^(x) (if x nil t)))
 
-(def map
+(def any?
   (^(f ls)
-    (if ls
-        (cons (f (car ls))
-              (map f (cdr ls)))
-      '())))
+    (if (pair? ls)
+        (if (f (car ls))
+            ls
+            (any? f (cdr ls)))
+      nil)))
+
+(def map1-loop
+  (^(f ls acc)
+    (if (pair? ls)
+        (map1-loop f (cdr ls)
+                   (cons (f (car ls)) acc))
+      (reverse! acc))))
+
+(def mapn-loop
+  (^(f lss acc)
+    (if (any? no lss)
+        (reverse! acc)
+      (mapn-loop f (map1-loop cdr lss '())
+                 (cons (apply f (map1-loop car lss '()))
+                       acc)))))
+
+(def map
+  (^(f ls . rest)
+    (if rest
+        (mapn-loop f (cons ls rest) '())
+      (map1-loop f ls '()))))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (def pair
