@@ -80,8 +80,10 @@ run_raw invoke-call/cc '1234' '(def *cc* ())
                                (*cc* 34)'
 run global-var 111 '(def global 111)
                     global'
-run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
-run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
+#run restargs-direct '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
+run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x . y) (list x y)))'
+#run restargs-all-direct '(1 2 3)' '((^ x x) 1 2 3)'
+run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ x x))'
 run empty-body nil '((^ ()))'
 
 # Abbreviated form
@@ -157,9 +159,12 @@ fail no-global '((^(x) y) 123)'
 fail invalid-apply '(1 2 3)'
 fail too-few-arg-native '(cons 1)'
 fail too-many-arg-native '(cons 1 2 3)'
-fail too-few-arg-lambda '((^(x y)) 1)'
-fail too-many-arg-lambda '((^(x y)) 1 2 3)'
-fail empty-param-not-rest-param '((^() nil) 1 2 3)'
+#fail too-few-arg-lambda-direct '((^(x y)) 1)'
+fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
+#fail too-many-arg-lambda-direct '((^(x y)) 1 2 3)'
+fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
+#fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
+fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
 
 ################################################################
 # All tests succeeded.

@@ -76,7 +76,8 @@ private:
   int shiftArgs(int n, int m, int s);
   int modifyRestParams(int argNum, int minArgNum, int s);
   Svalue createRestParams(int argNum, int minArgNum, int s);
-  void unshiftArgs(int argNum, int s);
+  void expandFrame(int n);
+  void shrinkFrame(int n);
 
   Svalue saveStack(int s);
   int restoreStack(Svalue v);
