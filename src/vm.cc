@@ -544,9 +544,7 @@ void Vm::indexSet(int s, int i, Svalue v) {
 }
 
 int Vm::shiftArgs(int n, int m, int s) {
-  for (int i = n; --i >= 0; ) {
-    indexSet(s, i + m + 1, index(s, i));
-  }
+  moveStackElems(stack_, s - n - m - 1, s - n, n);
   return s - m - 1;
 }
 
@@ -554,8 +552,10 @@ int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
   Svalue rest = createRestParams(argNum, minArgNum, s);
   int ds = 0;
   if (argNum <= minArgNum) {
-    unshiftArgs(argNum, s);
-    ds = 1;
+    // No rest param space: move all args +1 to create space.
+    ds = minArgNum - argNum + 1;  // This must be 1 if arguments count is checked, but just in case.
+    reserveStack(s + ds);
+    moveStackElems(stack_, s - argNum + ds, s - argNum, argNum);
   }
   indexSet(s + ds, minArgNum, rest);
   return ds;
@@ -566,11 +566,6 @@ Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
   for (int i = argNum; --i >= minArgNum; )
     acc = state_->cons(index(s, i), acc);
   return acc;
-}
-
-void Vm::unshiftArgs(int argNum, int s) {
-  for (int i = 0; i < argNum; ++i)
-    indexSet(s, i - 1, index(s, i));
 }
 
 void Vm::expandFrame(int n) {
