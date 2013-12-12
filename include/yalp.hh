@@ -41,6 +41,7 @@ enum Type {
   TT_NATIVEFUNC,
   TT_VECTOR,
   TT_HASH_TABLE,
+  TT_STREAM,
   TT_BOX,  // TODO: This label should not be public, so hide this.
 };
 

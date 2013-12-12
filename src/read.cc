@@ -34,8 +34,8 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
-Reader::Reader(State* state, std::istream& istrm)
-  : state_(state), istrm_(istrm)
+Reader::Reader(State* state, SStream* stream)
+  : state_(state), stream_(stream)
   , sharedStructures_(NULL)
   , buffer_(NULL), size_(0) {
 }
@@ -361,11 +361,11 @@ void Reader::skipUntilNextLine() {
 }
 
 int Reader::getc() {
-  return istrm_.get();
+  return stream_->get();
 }
 
 void Reader::putback(char c) {
-  istrm_.putback(c);
+  stream_->putback(c);
 }
 
 bool Reader::isSpace(int c) {

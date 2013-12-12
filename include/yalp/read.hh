@@ -6,12 +6,12 @@
 #define _READ_HH_
 
 #include "yalp.hh"
-#include <istream>
 
 namespace yalp {
 
 template <class Key, class Value>
 class HashTable;
+class SStream;
 
 enum ReadError {
   READ_SUCCESS,
@@ -25,7 +25,7 @@ enum ReadError {
 
 class Reader {
 public:
-  Reader(State* state, std::istream& istrm);
+  Reader(State* state, SStream* stream);
   ~Reader();
 
   // Reads one s-expression from stream.
@@ -61,7 +61,7 @@ private:
   static IntHashPolicy s_hashPolicy;
 
   State* state_;
-  std::istream& istrm_;
+  SStream* stream_;
   HashTable<int, Svalue>* sharedStructures_;
   char* buffer_;
   int size_;

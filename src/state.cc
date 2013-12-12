@@ -255,7 +255,8 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
     return false;
   }
 
-  Reader reader(this, strm);
+  SStream stream(&strm);
+  Reader reader(this, &stream);
   Svalue result;
   Svalue exp;
   ReadError err;
@@ -282,7 +283,8 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
     return false;
   }
 
-  Reader reader(this, strm);
+  SStream stream(&strm);
+  Reader reader(this, &stream);
   Svalue result = Svalue::NIL;
   Svalue bin;
   ReadError err;
