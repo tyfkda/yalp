@@ -28,7 +28,7 @@ class Vm;
 typedef long Sfixnum;
 typedef double Sfloat;
 
-typedef void* (*AllocFunc)(void*p, size_t size);
+typedef void* (*AllocFunc)(void* p, size_t size);
 
 enum Type {
   TT_UNKNOWN,
