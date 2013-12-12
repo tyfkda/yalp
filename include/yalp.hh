@@ -180,6 +180,7 @@ private:
   State(AllocFunc allocFunc);
   ~State();
 
+  void installBasicObjects();
   void markRoot();
   void allocFailed(void* p, size_t size);
 

@@ -228,6 +228,7 @@ State::State(AllocFunc allocFunc)
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+  installBasicObjects();
 }
 
 State::~State() {
@@ -235,6 +236,24 @@ State::~State() {
   vm_->release();
   symbolManager_->release();
   allocator_->release();
+}
+
+void State::installBasicObjects() {
+  {
+    void* memory = OBJALLOC(allocator_, sizeof(SStream));
+    SStream* stream = new(memory) SStream(&std::cin);
+    defineGlobal(intern("*stdin*"), Svalue(stream));
+  }
+  {
+    void* memory = OBJALLOC(allocator_, sizeof(SStream));
+    SStream* stream = new(memory) SStream(&std::cout);
+    defineGlobal(intern("*stdout*"), Svalue(stream));
+  }
+  {
+    void* memory = OBJALLOC(allocator_, sizeof(SStream));
+    SStream* stream = new(memory) SStream(&std::cerr);
+    defineGlobal(intern("*stderr*"), Svalue(stream));
+  }
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {

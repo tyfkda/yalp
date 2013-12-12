@@ -375,13 +375,33 @@ static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
-  x.output(state, std::cout, true);
+  if (state->getArgNum() == 1) {
+    x.output(state, std::cout, true);
+  } else{
+    Svalue stream = state->getArg(1);
+    SStream::OStream* ostream = NULL;
+    if (stream.getType() != TT_STREAM ||
+        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
+      state->runtimeError("Stream expected");
+    }
+    x.output(state, *ostream, true);
+  }
   return x;
 }
 
 static Svalue s_display(State* state) {
   Svalue x = state->getArg(0);
-  x.output(state, std::cout, false);
+  if (state->getArgNum() == 1) {
+    x.output(state, std::cout, false);
+  } else{
+    Svalue stream = state->getArg(1);
+    SStream::OStream* ostream = NULL;
+    if (stream.getType() != TT_STREAM ||
+        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
+      state->runtimeError("Stream expected");
+    }
+    x.output(state, *ostream, false);
+  }
   return x;
 }
 
@@ -421,16 +441,28 @@ static Svalue s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
-#if 0
-static Svalue s_read(State* state) {
-  Reader reader(state, std::cin);
+static Svalue readExec(State* state, SStream* stream) {
+  Reader reader(state, stream);
   Svalue exp;
   ReadError err = reader.read(&exp);
   if (err != READ_SUCCESS)
     state->runtimeError("Read error");
   return exp;
 }
-#endif
+
+static Svalue s_read(State* state) {
+  if (state->getArgNum() == 0) {
+    SStream stream(&std::cin);
+    return readExec(state, &stream);
+  } else {
+    Svalue sstream = state->getArg(0);
+    if (sstream.getType() != TT_STREAM) {
+      std::cerr << sstream;
+      state->runtimeError(": Stream expected");
+    }
+    return readExec(state, static_cast<SStream*>(sstream.toObject()));
+  }
+}
 
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
@@ -552,12 +584,12 @@ void installBasicFunctions(State* state) {
   state->defineNative("atan2", s_atan2, 2);
   state->defineNative("expt", s_expt, 2);
 
-  state->defineNative("display", s_display, 1);
-  state->defineNative("write", s_write, 1);
+  state->defineNative("display", s_display, 1, 2);
+  state->defineNative("write", s_write, 1, 2);
 
   state->defineNative("uniq", s_uniq, 0);
   state->defineNative("apply", s_apply, 1, -1);
-  //state->defineNative("read", s_read, 0);
+  state->defineNative("read", s_read, 0, 1);
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);
