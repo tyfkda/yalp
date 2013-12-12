@@ -445,6 +445,18 @@ static Svalue s_read(State* state) {
   return exp;
 }
 
+static Svalue s_read_delimited_list(State* state) {
+  Svalue delimiter = state->getArg(0);
+  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
+  Stream* stream = chooseStream(state, 1, "*stdin*");
+  Reader reader(state, stream);
+  Svalue result;
+  ReadError err = reader.readDelimitedList(delimiter.toCharacter(), &result);
+  if (err != READ_SUCCESS)
+    state->runtimeError("Read failed");
+  return result;
+}
+
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
   Svalue result;
@@ -501,6 +513,18 @@ static Svalue s_hash_table_keys(State* state) {
   for (auto kv : *ht)
     result = state->cons(kv.key, result);
   return result;
+}
+
+static Svalue s_set_macro_character(State* state) {
+  Svalue chr = state->getArg(0);
+  Svalue fn = state->getArg(1);
+  state->setMacroCharacter(chr.toCharacter(), fn);
+  return fn;
+}
+
+static Svalue s_get_macro_character(State* state) {
+  Svalue chr = state->getArg(0);
+  return state->getMacroCharacter(chr.toCharacter());
 }
 
 static Svalue s_collect_garbage(State* state) {
@@ -590,6 +614,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("uniq", s_uniq, 0);
   state->defineNative("apply", s_apply, 1, -1);
   state->defineNative("read", s_read, 0, 1);
+  state->defineNative("read-delimited-list", s_read_delimited_list, 2);
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);
@@ -598,6 +623,9 @@ void installBasicFunctions(State* state) {
   state->defineNative("hash-table-exists?", s_hash_table_exists, 2);
   state->defineNative("hash-table-delete!", s_hash_table_delete, 2);
   state->defineNative("hash-table-keys", s_hash_table_keys, 1);
+
+  state->defineNative("set-macro-character", s_set_macro_character, 2);
+  state->defineNative("get-macro-character", s_get_macro_character, 1);
 
   state->defineNative("collect-garbage", s_collect_garbage, 0);
   state->defineNative("exit", s_exit, 1);

@@ -274,6 +274,7 @@ protected:
 
   Stream* stream_;
 
+  friend Reader;
   friend State;
 };
 

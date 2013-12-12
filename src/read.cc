@@ -56,6 +56,15 @@ Reader::~Reader() {
 ReadError Reader::read(Svalue* pValue) {
   skipSpaces();
   int c = getc();
+  Svalue fn = state_->getMacroCharacter(c);
+  if (state_->isTrue(fn)) {
+    SStream ss(stream_);
+    Svalue args[] = { Svalue(&ss), state_->characterValue(c) };
+    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
+      return READ_SUCCESS;
+    return ILLEGAL_CHAR;
+  }
+
   switch (c) {
   case '(':
     return readList(pValue);
@@ -80,8 +89,6 @@ ReadError Reader::read(Svalue* pValue) {
     return readString(c, pValue);
   case '#':
     return readSpecial(pValue);
-  case '[':
-    return readBracket(pValue);
   case EOF:
     return END_OF_FILE;
   default:
@@ -157,18 +164,6 @@ ReadError Reader::readList(Svalue* pValue) {
   return readDelimitedList(')', pValue);
 }
 
-ReadError Reader::readBracket(Svalue* pValue) {
-  ReadError err = readDelimitedList(']', pValue);
-  if (err != READ_SUCCESS)
-    return err;
-  // [...] => (^(_) (...))
-  *pValue = list(state_,
-                 state_->intern("^"),
-                 list(state_, state_->intern("_")),
-                 *pValue);
-  return READ_SUCCESS;
-}
-
 ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
   Svalue value = Svalue::NIL;
   Svalue v;
@@ -185,6 +180,7 @@ ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
     err = read(&v);
     if (err != READ_SUCCESS)
       break;
+    // TODO: Sometimes value is broken here after reader macro executed.
     value = state_->cons(v, value);
   }
 

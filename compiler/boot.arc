@@ -119,6 +119,12 @@
         ,(cadr parms))
     `(do ,@body)))
 
+(set-macro-character #\[
+                     (^(stream ch)
+                       ;(let body (read-delimited-list #\] stream)  ; Sometimes fail.
+                       ;  body)))
+                       `(^ (_) ,(read-delimited-list #\] stream))))  ; Working?
+
 ;; Anapholic-with macro.
 ;; Like with macro, but captures "loop" variable to make loop syntax.
 ;; This is similar to named-let syntax in Scheme.

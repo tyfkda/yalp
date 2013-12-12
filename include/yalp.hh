@@ -20,6 +20,8 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 namespace yalp {
 
 class Allocator;
+class Reader;
+class SHashTable;
 class Sobject;
 class State;
 class Stream;
@@ -84,6 +86,7 @@ private:
 
   Sfixnum v_;
 
+  friend Reader;
   friend State;
   friend Vm;
 };
@@ -170,6 +173,8 @@ public:
     defineNative(name, func, minArgNum, minArgNum);
   }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  void setMacroCharacter(int c, Svalue func);
+  Svalue getMacroCharacter(int c);
   Svalue getMacro(Svalue name);
 
   bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
@@ -199,6 +204,7 @@ private:
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
   HashPolicyEq* hashPolicyEq_;
+  SHashTable* readTable_;
   Vm* vm_;
   jmp_buf* jmp_;
 

@@ -225,6 +225,7 @@ State::State(AllocFunc allocFunc)
   , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
+  , readTable_(NULL)
   , vm_(NULL)
   , jmp_(NULL) {
   intern("nil");  // "nil" must be the first symbol.
@@ -237,6 +238,12 @@ State::State(AllocFunc allocFunc)
   vm_ = Vm::create(this);
   installBasicFunctions(this);
   installBasicObjects();
+
+  {
+    Svalue ht = createHashTable();
+    assert(ht.getType() == TT_HASH_TABLE);
+    readTable_ = static_cast<SHashTable*>(ht.toObject());
+  }
 }
 
 State::~State() {
@@ -433,6 +440,15 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
+void State::setMacroCharacter(int c, Svalue func) {
+  readTable_->put(characterValue(c), func);
+}
+
+Svalue State::getMacroCharacter(int c) {
+  const Svalue* p = readTable_->get(characterValue(c));
+  return (p != NULL) ? *p : Svalue::NIL;
+}
+
 Svalue State::getMacro(Svalue name) {
   return vm_->getMacro(name);
 }
@@ -484,6 +500,7 @@ void State::setVmTrace(bool b) {
 }
 
 void State::markRoot() {
+  readTable_->mark();
   vm_->markRoot();
 }
 
