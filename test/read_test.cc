@@ -17,7 +17,8 @@ protected:
 
   ReadError read(const char* str, Svalue* pValue) {
     std::istringstream strm(str);
-    Reader reader(state_, strm);
+    SStream stream(&strm);
+    Reader reader(state_, &stream);
     return reader.read(pValue);
   }
 
