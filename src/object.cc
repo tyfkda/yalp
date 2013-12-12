@@ -342,5 +342,20 @@ void NativeFunc::output(State*, std::ostream& o, bool) const {
 }
 
 //=============================================================================
+// SStream
+SStream::SStream(IStream* stream)
+  : Sobject(), istream_(stream) {
+}
+
+Type SStream::getType() const  { return TT_STREAM; }
+
+void SStream::output(State*, std::ostream& o, bool) const {
+  o << "#<stream:" << this << ">";
+}
+
+int SStream::get()  { return istream_->get(); }
+void SStream::putback(int c)  { istream_->putback(c); }
+
+//=============================================================================
 
 }  // namespace yalp
