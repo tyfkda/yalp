@@ -1,4 +1,5 @@
 #include "yalp.hh"
+#include "yalp/object.hh"
 #include "yalp/read.hh"
 #include <fstream>
 #include <iostream>
@@ -84,7 +85,8 @@ static void dumpLeakedMemory() {
 #endif
 
 static bool runBinary(State* state, std::istream& strm) {
-  Reader reader(state, strm);
+  SStream stream(&strm);
+  Reader reader(state, &stream);
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
@@ -106,7 +108,8 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   }
 
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, strm);
+  SStream stream(&strm);
+  Reader reader(state, &stream);
   Svalue exp;
   ReadError err;
   while ((err = reader.read(&exp)) == READ_SUCCESS) {
@@ -135,7 +138,8 @@ static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile, boo
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, istrm);
+  SStream stream(&istrm);
+  Reader reader(state, &stream);
   for (;;) {
     if (tty)
       cout << "> " << std::flush;

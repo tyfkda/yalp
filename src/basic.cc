@@ -421,6 +421,7 @@ static Svalue s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
+#if 0
 static Svalue s_read(State* state) {
   Reader reader(state, std::cin);
   Svalue exp;
@@ -429,6 +430,7 @@ static Svalue s_read(State* state) {
     state->runtimeError("Read error");
   return exp;
 }
+#endif
 
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
@@ -555,7 +557,7 @@ void installBasicFunctions(State* state) {
 
   state->defineNative("uniq", s_uniq, 0);
   state->defineNative("apply", s_apply, 1, -1);
-  state->defineNative("read", s_read, 0);
+  //state->defineNative("read", s_read, 0);
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);
