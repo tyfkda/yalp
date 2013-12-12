@@ -154,8 +154,17 @@ TEST_F(ReadTest, Char) {
   ASSERT_EQ(READ_SUCCESS, read("#\\A", &s));
   ASSERT_TRUE(state_->fixnumValue(65).eq(s));
 
+  ASSERT_EQ(READ_SUCCESS, read("#\\[", &s));
+  ASSERT_TRUE(state_->fixnumValue('[').eq(s));
+
+  ASSERT_EQ(READ_SUCCESS, read("#\\space", &s));
+  ASSERT_TRUE(state_->fixnumValue(' ').eq(s));
+
   ASSERT_EQ(READ_SUCCESS, read("#\\nl", &s));  // #\newline, or #\nl
   ASSERT_TRUE(state_->fixnumValue('\n').eq(s));
+
+  ASSERT_EQ(READ_SUCCESS, read("#\\tab", &s));
+  ASSERT_TRUE(state_->fixnumValue('\t').eq(s));
 }
 
 TEST_F(ReadTest, Error) {

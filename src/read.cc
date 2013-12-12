@@ -312,11 +312,24 @@ ReadError Reader::readSharedStructure(Svalue* pValue) {
 }
 
 ReadError Reader::readChar(Svalue* pValue) {
+  int c = getc();
+  switch (c) {
+  case ' ': case '\n': case '\t': case -1:
+    return ILLEGAL_CHAR;
+  default:
+    if (isDelimiter(c)) {
+      *pValue = state_->characterValue(c);
+      return READ_SUCCESS;
+    }
+    putback(c);
+    break;
+  }
+
   BUFFER(buffer, size);
   int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
 
   if (p == 1) {
-    *pValue = state_->fixnumValue(reinterpret_cast<unsigned char*>(buffer)[0]);
+    *pValue = state_->characterValue(reinterpret_cast<unsigned char*>(buffer)[0]);
     return READ_SUCCESS;
   }
 
@@ -324,6 +337,7 @@ ReadError Reader::readChar(Svalue* pValue) {
     const char* name;
     int code;
   } static const Table[] = {
+    { "space", ' ' },
     { "nl", '\n' },
     { "newline", '\n' },
     { "tab", '\t' },
