@@ -6,7 +6,6 @@
 #include "allocator.hh"
 #include "yalp/object.hh"
 #include "yalp/util.hh"
-#include <alloca.h>
 #include <assert.h>
 #include <iostream>
 
