@@ -58,6 +58,7 @@ public:
   bool isObject() const;
   Sobject* toObject() const;
   const Symbol* toSymbol(State* state) const;
+  int toCharacter() const  { return toFixnum(); }
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
