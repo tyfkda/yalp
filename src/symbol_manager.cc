@@ -49,23 +49,23 @@ SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
   , table_(&s_hashPolicy, allocator)
   , gensymIndex_(0)
-  , pageTop_(NULL), array_(NULL), symbolIndex_(0) {
+  , symbolPageTop_(NULL), symbolArray_(NULL), symbolIndex_(0) {
 }
 
 SymbolManager::~SymbolManager() {
   // Frees symbols.
   for (SymbolId i = 0; i < symbolIndex_; ++i) {
-    Symbol* symbol = array_[i];
+    Symbol* symbol = symbolArray_[i];
     FREE(allocator_, symbol->name_);
   }
   // Frees pages.
-  for (Page* page = pageTop_; page != NULL; ) {
+  for (Page* page = symbolPageTop_; page != NULL; ) {
     Page* next = page->next;
     FREE(allocator_, page);
     page = next;
   }
   // Frees array.
-  FREE(allocator_, array_);
+  FREE(allocator_, symbolArray_);
 }
 
 SymbolId SymbolManager::intern(const char* name) {
@@ -85,7 +85,7 @@ SymbolId SymbolManager::gensym() {
 }
 
 const Symbol* SymbolManager::get(SymbolId symbolId) const {
-  return array_[symbolId];
+  return symbolArray_[symbolId];
 }
 
 SymbolId SymbolManager::generate(const char* name) {
@@ -94,19 +94,19 @@ SymbolId SymbolManager::generate(const char* name) {
 
   int offset = symbolId & (PAGE_OBJECT_COUNT - 1);
   if (offset == 0)
-    expandPage(symbolId);
+    expandSymbolPage(symbolId);
 
-  Symbol* symbol = new(pageTop_->symbolBuffer[offset]) Symbol(copied);
-  array_[symbolId] = symbol;
+  Symbol* symbol = new(symbolPageTop_->symbolBuffer[offset]) Symbol(copied);
+  symbolArray_[symbolId] = symbol;
   return symbolId;
 }
 
-void SymbolManager::expandPage(SymbolId oldSize) {
+void SymbolManager::expandSymbolPage(SymbolId oldSize) {
   SymbolId extendedCount = oldSize + PAGE_OBJECT_COUNT;
-  Page* newPage = new(ALLOC(allocator_, sizeof(*newPage))) Page(pageTop_);
-  pageTop_ = newPage;
+  Page* newPage = new(ALLOC(allocator_, sizeof(*newPage))) Page(symbolPageTop_);
+  symbolPageTop_ = newPage;
 
-  array_ = static_cast<Symbol**>(REALLOC(allocator_, array_,
+  symbolArray_ = static_cast<Symbol**>(REALLOC(allocator_, symbolArray_,
                                          sizeof(Symbol*) * extendedCount));
 }
 

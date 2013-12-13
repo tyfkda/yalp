@@ -37,7 +37,7 @@ private:
   SymbolManager(Allocator* allocator);
   ~SymbolManager();
   SymbolId generate(const char* name);
-  void expandPage(SymbolId oldSize);
+  void expandSymbolPage(SymbolId oldSize);
   char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
@@ -48,8 +48,8 @@ private:
 
   // Memory blocks for Symbol instances.
   struct Page;
-  Page* pageTop_;
-  Symbol** array_;
+  Page* symbolPageTop_;
+  Symbol** symbolArray_;
   SymbolId symbolIndex_;
 };
 
