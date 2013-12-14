@@ -38,6 +38,7 @@ private:
   ~SymbolManager();
   SymbolId generate(const char* name);
   void expandSymbolPage(SymbolId oldSize);
+  void expandNamePage(int len);
   char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
@@ -47,10 +48,15 @@ private:
   int gensymIndex_;
 
   // Memory blocks for Symbol instances.
-  struct Page;
-  Page* symbolPageTop_;
+  struct SymbolPage;
+  SymbolPage* symbolPageTop_;
   Symbol** symbolArray_;
   SymbolId symbolIndex_;
+
+  struct NamePage;
+  NamePage* namePageTop_;
+  int nameBufferSize_;
+  int nameBufferOffset_;
 };
 
 }  // namespace yalp
