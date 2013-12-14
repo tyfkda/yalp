@@ -1,6 +1,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include <fstream>
 #include <iostream>
 #include <unistd.h>  // for isatty()
@@ -84,9 +85,8 @@ static void dumpLeakedMemory() {
 }
 #endif
 
-static bool runBinary(State* state, std::istream& strm) {
-  SStream stream(&strm);
-  Reader reader(state, &stream);
+static bool runBinary(State* state, SStream* stream) {
+  Reader reader(state, stream);
   Svalue bin;
   ReadError err;
   while ((err = reader.read(&bin)) == READ_SUCCESS) {
@@ -101,14 +101,13 @@ static bool runBinary(State* state, std::istream& strm) {
 }
 
 static bool compileFile(State* state, const char* filename, bool bNoRun) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  SStream stream(&strm);
   Reader reader(state, &stream);
   Svalue exp;
   ReadError err;
@@ -133,13 +132,12 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   return true;
 }
 
-static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile, bool bNoRun) {
+static bool repl(State* state, SStream* stream, bool tty, bool bCompile, bool bNoRun) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  SStream stream(&istrm);
-  Reader reader(state, &stream);
+  Reader reader(state, stream);
   for (;;) {
     if (tty)
       cout << "> " << std::flush;
@@ -243,11 +241,12 @@ int main(int argc, char* argv[]) {
   }
 
   if (ii >= argc) {
+    FileStream stream(stdin);
     if (bBinary) {
-      if (!runBinary(state, cin))
+      if (!runBinary(state, &stream))
         exit(1);
     } else {
-      if (!repl(state, cin, isatty(0), bCompile, bNoRun))
+      if (!repl(state, &stream, isatty(0), bCompile, bNoRun))
         exit(1);
     }
   } else {

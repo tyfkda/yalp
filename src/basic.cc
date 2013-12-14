@@ -6,6 +6,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
@@ -375,6 +376,7 @@ static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
 static Svalue s_write(State* state) {
   Svalue x = state->getArg(0);
+#if 0
   if (state->getArgNum() == 1) {
     x.output(state, std::cout, true);
   } else{
@@ -386,11 +388,15 @@ static Svalue s_write(State* state) {
     }
     x.output(state, *ostream, true);
   }
+#else
+  x.output(state, std::cout, true);
+#endif
   return x;
 }
 
 static Svalue s_display(State* state) {
   Svalue x = state->getArg(0);
+#if 0
   if (state->getArgNum() == 1) {
     x.output(state, std::cout, false);
   } else{
@@ -402,6 +408,9 @@ static Svalue s_display(State* state) {
     }
     x.output(state, *ostream, false);
   }
+#else
+  x.output(state, std::cout, false);
+#endif
   return x;
 }
 
@@ -451,6 +460,9 @@ static Svalue readExec(State* state, SStream* stream) {
 }
 
 static Svalue s_read(State* state) {
+  FileStream stream(stdin);  // TODO: Get from *stdin*.
+  return readExec(state, &stream);
+#if 0
   if (state->getArgNum() == 0) {
     SStream stream(&std::cin);
     return readExec(state, &stream);
@@ -462,6 +474,7 @@ static Svalue s_read(State* state) {
     }
     return readExec(state, static_cast<SStream*>(sstream.toObject()));
   }
+#endif
 }
 
 static Svalue s_run_binary(State* state) {

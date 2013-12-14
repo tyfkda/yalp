@@ -4,6 +4,7 @@
 
 #include "yalp/read.hh"
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 

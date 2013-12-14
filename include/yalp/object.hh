@@ -253,29 +253,6 @@ protected:
   int maxArgNum_;
 };
 
-// SStream
-class SStream : public Sobject {
-public:
-  typedef std::basic_istream<char> IStream;
-  typedef std::basic_ostream<char> OStream;
-  explicit SStream(IStream* stream);
-  explicit SStream(OStream* stream);
-  ~SStream()  {}
-
-  virtual Type getType() const override;
-
-  int get();
-  void putback(int c);
-
-  OStream* getOStream() const  { return ostream_; }
-
-  virtual void output(State*, std::ostream& o, bool) const override;
-
-protected:
-  IStream* istream_;
-  OStream* ostream_;
-};
-
 }  // namespace yalp
 
 #endif

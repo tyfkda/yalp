@@ -5,6 +5,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "basic.hh"
 #include "symbol_manager.hh"
@@ -240,18 +241,18 @@ State::~State() {
 
 void State::installBasicObjects() {
   {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cin);
+    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
+    FileStream* stream = new(memory) FileStream(stdin);
     defineGlobal(intern("*stdin*"), Svalue(stream));
   }
   {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cout);
+    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
+    FileStream* stream = new(memory) FileStream(stdout);
     defineGlobal(intern("*stdout*"), Svalue(stream));
   }
   {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cerr);
+    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
+    FileStream* stream = new(memory) FileStream(stderr);
     defineGlobal(intern("*stderr*"), Svalue(stream));
   }
 }
@@ -268,13 +269,12 @@ bool State::runBinary(Svalue code, Svalue* pResult) {
 }
 
 bool State::runFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
-  SStream stream(&strm);
   Reader reader(this, &stream);
   Svalue result;
   Svalue exp;
@@ -296,13 +296,12 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
 }
 
 bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
-  SStream stream(&strm);
   Reader reader(this, &stream);
   Svalue result = Svalue::NIL;
   Svalue bin;

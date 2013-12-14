@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "yalp/read.hh"
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 
 using namespace yalp;
@@ -16,8 +17,7 @@ protected:
   }
 
   ReadError read(const char* str, Svalue* pValue) {
-    std::istringstream strm(str);
-    SStream stream(&strm);
+    StrStream stream(str);
     Reader reader(state_, &stream);
     return reader.read(pValue);
   }
