@@ -6,9 +6,6 @@
 #include "yalp/object.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
-#include <assert.h>
-
-#include <iostream>
 
 namespace yalp {
 
