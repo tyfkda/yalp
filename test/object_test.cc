@@ -3,11 +3,6 @@
 
 using namespace yalp;
 
-class CellForTest : public Cell {
-public:
-  CellForTest(Svalue a, Svalue d) : Cell(a, d) {}
-};
-
 class ObjectTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
@@ -24,8 +19,8 @@ protected:
 TEST_F(ObjectTest, cell) {
   Svalue a = state_->fixnumValue(111);
   Svalue d = state_->fixnumValue(222);
-  CellForTest cell(a, d);
+  Svalue cell = state_->cons(a, d);
   ASSERT_EQ(TT_CELL, cell.getType());
-  ASSERT_TRUE(cell.car().eq(a));
-  ASSERT_TRUE(cell.cdr().eq(d));
+  ASSERT_TRUE(state_->car(cell).eq(a));
+  ASSERT_TRUE(state_->cdr(cell).eq(d));
 }
