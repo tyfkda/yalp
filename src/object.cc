@@ -5,8 +5,10 @@
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "hash_table.hh"
+
 #include <assert.h>
-#include <iomanip>
+#include <new>
+#include <string.h>  // for memcmp
 
 namespace yalp {
 
