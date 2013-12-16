@@ -206,39 +206,40 @@ struct BinOp {
   }
 };
 
+struct Add {
+  static Sfixnum base()  { return 0; }
+  template <class X> static X single(X x)  { return x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x + y; }
+};
+struct Sub {
+  static Sfixnum base()  { return 0; }
+  template <class X> static X single(X x)  { return -x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x - y; }
+};
+struct Mul {
+  static Sfixnum base()  { return 1; }
+  template <class X> static X single(X x)  { return x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x * y; }
+};
+struct Div {
+  static Sfixnum base()  { return 1; }
+  template <class X> static X single(X x)  { return 1 / x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x / y; }
+};
+
 static Svalue s_add(State* state) {
-  struct Add {
-    static Sfixnum base()  { return 0; }
-    template <class X> static X single(X x)  { return x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x + y; }
-  };
   return BinOp<Add>::calc(state);
 }
 
 static Svalue s_sub(State* state) {
-  struct Sub {
-    static Sfixnum base()  { return 0; }
-    template <class X> static X single(X x)  { return -x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x - y; }
-  };
   return BinOp<Sub>::calc(state);
 }
 
 static Svalue s_mul(State* state) {
-  struct Mul {
-    static Sfixnum base()  { return 1; }
-    template <class X> static X single(X x)  { return x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x * y; }
-  };
   return BinOp<Mul>::calc(state);
 }
 
 static Svalue s_div(State* state) {
-  struct Div {
-    static Sfixnum base()  { return 1; }
-    template <class X> static X single(X x)  { return 1 / x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x / y; }
-  };
   return BinOp<Div>::calc(state);
 }
 
@@ -324,31 +325,32 @@ struct CompareOp {
   }
 };
 
+struct LessThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
+};
+struct GreaterThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
+};
+struct LessEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
+};
+struct GreaterEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
+};
+
 static Svalue s_lessThan(State* state) {
-  struct LessThan {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
-  };
   return CompareOp<LessThan>::calc(state);
 }
 
 static Svalue s_greaterThan(State* state) {
-  struct GreaterThan {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
-  };
   return CompareOp<GreaterThan>::calc(state);
 }
 
 static Svalue s_lessEqual(State* state) {
-  struct LessEqual {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
-  };
   return CompareOp<LessEqual>::calc(state);
 }
 
 static Svalue s_greaterEqual(State* state) {
-  struct GreaterEqual {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
-  };
   return CompareOp<GreaterEqual>::calc(state);
 }
 

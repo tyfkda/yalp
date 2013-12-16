@@ -10,9 +10,10 @@
 #include "basic.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
+
 #include <assert.h>
-#include <fstream>
 #include <iostream>
+#include <string.h>  // for strlen
 
 namespace yalp {
 

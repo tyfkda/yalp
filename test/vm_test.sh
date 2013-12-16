@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 ################################################################
 # Test framework.
@@ -29,7 +29,7 @@ function run_raw() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" | ../yalp -L ../boot.bin 2>& /dev/null
+  echo "$2" | ../yalp -L ../boot.bin 1>/dev/null 2>/dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi

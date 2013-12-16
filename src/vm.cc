@@ -7,8 +7,10 @@
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
+
 #include <assert.h>
 #include <iostream>
+#include <string.h>  // for memmove
 
 namespace yalp {
 

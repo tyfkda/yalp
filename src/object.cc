@@ -135,26 +135,25 @@ void String::output(State*, Stream* o, bool inspect) const {
     return;
   }
 
-  static const char* Table[] = {
-    ['\n'] = "\\n",
-    ['\r'] = "\\r",
-    ['\t'] = "\\t",
-    ['\0'] = "\\0",
-    ['\\'] = "\\\\",
-    ['"'] = "\\\"",
-  };
-  const int N = sizeof(Table) / sizeof(*Table);
-
   o->write('"');
   int prev = 0;
   for (int n = len_, i = 0; i < n; ++i) {
     unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
-    if (c >= N || Table[c] == NULL)
+    const char* s = NULL;
+    switch (c) {
+    case '\n':  s = "\\n"; break;
+    case '\r':  s = "\\r"; break;
+    case '\t':  s = "\\t"; break;
+    case '\0':  s = "\\0"; break;
+    case '\\':  s = "\\\\"; break;
+    case '"':  s = "\\\""; break;
+    }
+    if (s == NULL)
       continue;
 
     if (prev != i)
       o->write(&string_[prev], i - prev);
-    o->write(Table[c]);
+    o->write(s);
     prev = i + 1;
   }
   if (prev != len_)
