@@ -198,7 +198,7 @@
 (def (compile-apply-direct vars body args e s next)
   (with* (proper-vars (dotted->proper vars)
           ext-vars (append proper-vars (car e)))
-    (aif (member-if [no (symbol? _)] proper-vars)
+    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
          (compile-error "Function parameter must be symbol")
       (with (free (cdr e)  ;(set-intersect (set-union (car e)
                            ;                 (cdr e))
@@ -218,7 +218,7 @@
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (dotted->proper vars)
-    (aif (member-if [no (symbol? _)] proper-vars)
+    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
          (compile-error "Function parameter must be symbol")
       (with (free (set-intersect (set-union (car e)
                                             (cdr e))

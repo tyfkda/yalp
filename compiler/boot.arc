@@ -39,8 +39,8 @@
           (cons (list (car xs) (cadr xs))
                 (pair (cddr xs))))))
 
-(def cadr [car (cdr _)])
-(def cddr [cdr (cdr _)])
+(def cadr (^(x) (car (cdr x))))
+(def cddr (^(x) (cdr (cdr x))))
 
 (def qq-expand
     (^(x)
@@ -140,7 +140,7 @@
 (defmacro w/uniq (names . body)
   (if (pair? names)
       ; (w/uniq (a b c) ...) => (with (a (uniq) b (uniq) c (uniq) ...)
-      `(with ,(apply append (map [list _ '(uniq)]
+      `(with ,(apply append (map (^(x) (list x '(uniq)))
                                  names))
          ,@body)
     ; (w/uniq a ...) => (let a (uniq) ...)
@@ -197,7 +197,7 @@
       (member-if f (cdr ls)))))
 
 (def (member x ls)
-  (member-if [is x _] ls))
+  (member-if (^(y) (is x y)) ls))
 
 (def (print x . rest)
   (let stream (if rest (car rest)
