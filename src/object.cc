@@ -39,7 +39,7 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
-void Cell::output(State* state, SStream* o, bool inspect) const {
+void Cell::output(State* state, Stream* o, bool inspect) const {
   if (state != NULL) {
     const char* abbrev = isAbbrev(state);
     if (abbrev != NULL) {
@@ -127,7 +127,7 @@ unsigned int String::calcHash() const {
   return strHash(string_);
 }
 
-void String::output(State*, SStream* o, bool inspect) const {
+void String::output(State*, Stream* o, bool inspect) const {
   if (!inspect) {
     o->write(string_);
     return;
@@ -177,7 +177,7 @@ bool Float::equal(const Sobject* target) const {
   return v_ == p->v_;
 }
 
-void Float::output(State*, SStream* o, bool) const {
+void Float::output(State*, Stream* o, bool) const {
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "%f", v_);
   o->write(buffer);
@@ -199,7 +199,7 @@ void Vector::destruct(Allocator* allocator) {
 
 Type Vector::getType() const { return TT_VECTOR; }
 
-void Vector::output(State* state, SStream* o, bool inspect) const {
+void Vector::output(State* state, Stream* o, bool inspect) const {
   o->write('#');
   char c = '(';
   for (int i = 0; i < size_; ++i) {
@@ -244,7 +244,7 @@ void SHashTable::destruct(Allocator* allocator) {
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
-void SHashTable::output(State*, SStream* o, bool) const {
+void SHashTable::output(State*, Stream* o, bool) const {
   char buffer[64];
   snprintf(buffer, sizeof(buffer), "#<hash-table:%p>", this);
   o->write(buffer);
@@ -305,7 +305,7 @@ void Closure::destruct(Allocator* allocator) {
 
 Type Closure::getType() const  { return TT_CLOSURE; }
 
-void Closure::output(State*, SStream* o, bool) const {
+void Closure::output(State*, Stream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
@@ -341,12 +341,27 @@ Svalue NativeFunc::call(State* state, int argNum) {
   return func_(state);
 }
 
-void NativeFunc::output(State*, SStream* o, bool) const {
+void NativeFunc::output(State*, Stream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
   o->write("#<subr ");
   o->write(name);
+  o->write('>');
+}
+
+//=============================================================================
+SStream::SStream(Stream* stream)
+  : Sobject(), stream_(stream)  {}
+
+void SStream::destruct(Allocator* allocator) {
+  FREE(allocator, stream_);
+}
+
+Type SStream::getType() const  { return TT_STREAM; }
+
+void SStream::output(State*, Stream* o, bool) const {
+  o->write("#<stream:");
   o->write('>');
 }
 

@@ -14,13 +14,14 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #define _YALP_HH_
 
 #include <stddef.h>  // for size_t, NULL
+#include <stdio.h>  // for FILE
 
 namespace yalp {
 
 class Allocator;
 class Sobject;
-class SStream;
 class State;
+class Stream;
 class Symbol;
 class SymbolManager;
 class Vm;
@@ -65,7 +66,7 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, SStream* o, bool inspect) const;
+  void output(State* state, Stream* o, bool inspect) const;
 
   long getId() const  { return v_; }
   unsigned int calcHash(State* state) const;
@@ -179,6 +180,7 @@ private:
   ~State();
 
   void installBasicObjects();
+  void installFileStream(const char* name, FILE* fp);
   void markRoot();
   void allocFailed(void* p, size_t size);
 

@@ -11,7 +11,7 @@ namespace yalp {
 
 template <class Key, class Value>
 class HashTable;
-class SStream;
+class Stream;
 
 enum ReadError {
   READ_SUCCESS,
@@ -25,7 +25,7 @@ enum ReadError {
 
 class Reader {
 public:
-  Reader(State* state, SStream* stream);
+  Reader(State* state, Stream* stream);
   ~Reader();
 
   // Reads one s-expression from stream.
@@ -61,7 +61,7 @@ private:
   static IntHashPolicy s_hashPolicy;
 
   State* state_;
-  SStream* stream_;
+  Stream* stream_;
   HashTable<int, Svalue>* sharedStructures_;
   char* buffer_;
   int size_;

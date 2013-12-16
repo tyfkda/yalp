@@ -374,18 +374,18 @@ static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
 static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
 static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
-static SStream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
   Svalue ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
     state->referGlobal(state->intern(defaultStreamName));
   if (ss.getType() != TT_STREAM)
     state->runtimeError("Stream expected");
-  return static_cast<SStream*>(ss.toObject());
+  return static_cast<SStream*>(ss.toObject())->getStream();
 }
 
 static Svalue output(State* state, bool inspect) {
   Svalue x = state->getArg(0);
-  SStream* stream = chooseStream(state, 1, "*stdout*");
+  Stream* stream = chooseStream(state, 1, "*stdout*");
   x.output(state, stream, inspect);
   return x;
 }
@@ -435,7 +435,7 @@ static Svalue s_apply(State* state) {
 }
 
 static Svalue s_read(State* state) {
-  SStream* stream = chooseStream(state, 0, "*stdin*");
+  Stream* stream = chooseStream(state, 0, "*stdin*");
   Reader reader(state, stream);
   Svalue exp;
   ReadError err = reader.read(&exp);

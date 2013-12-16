@@ -91,7 +91,7 @@ void Svalue::mark() {
     toObject()->mark();
 }
 
-void Svalue::output(State* state, SStream* o, bool inspect) const {
+void Svalue::output(State* state, Stream* o, bool inspect) const {
   if (isFixnum(v_)) {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
@@ -245,21 +245,17 @@ State::~State() {
 }
 
 void State::installBasicObjects() {
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
-    FileStream* stream = new(memory) FileStream(stdin);
-    defineGlobal(intern("*stdin*"), Svalue(stream));
-  }
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
-    FileStream* stream = new(memory) FileStream(stdout);
-    defineGlobal(intern("*stdout*"), Svalue(stream));
-  }
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(FileStream));
-    FileStream* stream = new(memory) FileStream(stderr);
-    defineGlobal(intern("*stderr*"), Svalue(stream));
-  }
+  installFileStream("*stdin*", stdin);
+  installFileStream("*stdout*", stdout);
+  installFileStream("*stderr*", stderr);
+}
+
+void State::installFileStream(const char* name, FILE* fp) {
+  void* memory = ALLOC(allocator_, sizeof(FileStream));
+  FileStream* stream = new(memory) FileStream(fp);
+  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
+  SStream* ss = new(memory2) SStream(stream);
+  defineGlobal(intern(name), Svalue(ss));
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {

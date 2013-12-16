@@ -38,7 +38,7 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
-Reader::Reader(State* state, SStream* stream)
+Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
   , buffer_(NULL), size_(0) {

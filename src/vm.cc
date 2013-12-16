@@ -73,7 +73,7 @@ public:
   void set(Svalue x)  { x_ = x; }
   Svalue get()  { return x_; }
 
-  virtual void output(State* state, SStream* o, bool inspect) const override {
+  virtual void output(State* state, Stream* o, bool inspect) const override {
     // This should not be output, but debug purpose.
     o->write("#<box ");
     x_.output(state, o, inspect);

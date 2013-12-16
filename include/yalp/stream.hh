@@ -11,26 +11,21 @@
 namespace yalp {
 
 // Base class for stream.
-class SStream : public Sobject {
+class Stream {
 public:
-  virtual Type getType() const override;
-
   virtual bool close();
   virtual int get() = 0;
   virtual void putback(int c) = 0;
   virtual bool write(char c) = 0;
   virtual bool write(const char* s) = 0;
 
-  virtual void output(State*, SStream* o, bool) const override;
-
 protected:
-  SStream()  {}
-  virtual ~SStream();
-  virtual void destruct(Allocator* allocator) override;
+  Stream();
+  virtual ~Stream();
 };
 
 // File stream class.
-class FileStream : public SStream {
+class FileStream : public Stream {
 public:
   explicit FileStream(const char* filename, const char* mode);
   explicit FileStream(FILE* fp, bool ownership = false);
@@ -50,7 +45,7 @@ protected:
 };
 
 // String stream class.
-class StrStream : public SStream {
+class StrStream : public Stream {
 public:
   explicit StrStream(const char* string);
   ~StrStream();

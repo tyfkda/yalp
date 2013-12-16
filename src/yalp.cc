@@ -85,7 +85,7 @@ static void dumpLeakedMemory() {
 }
 #endif
 
-static bool runBinary(State* state, SStream* stream) {
+static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
   Svalue bin;
   ReadError err;
@@ -132,7 +132,7 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   return true;
 }
 
-static bool repl(State* state, SStream* stream, bool tty, bool bCompile, bool bNoRun) {
+static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNoRun) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");

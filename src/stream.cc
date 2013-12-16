@@ -10,28 +10,19 @@ namespace yalp {
 const int NO_UNGETC = -1;
 
 //=============================================================================
-// SStream
-SStream::~SStream()  { close(); }
-void SStream::destruct(Allocator*)  { close(); }
-
-bool SStream::close()  { return true; }
-
-Type SStream::getType() const  { return TT_STREAM; }
-
-void SStream::output(State*, SStream* o, bool) const {
-  char buffer[64];
-  snprintf(buffer, sizeof(buffer), "#<stream:%p>", this);
-  o->write(buffer);
-}
+// Stream
+Stream::Stream()  {}
+Stream::~Stream()  { close(); }
+bool Stream::close()  { return true; }
 
 //=============================================================================
 FileStream::FileStream(const char* filename, const char* mode)
-  : SStream(), hasFileOwnership_(true) {
+  : Stream(), hasFileOwnership_(true) {
   fp_ = fopen(filename, mode);
 }
 
 FileStream::FileStream(FILE* fp, bool ownership)
-  : SStream(), fp_(fp), hasFileOwnership_(ownership) {
+  : Stream(), fp_(fp), hasFileOwnership_(ownership) {
 }
 
 FileStream::~FileStream()  { close(); }
@@ -64,7 +55,7 @@ bool FileStream::write(const char* s) {
 
 //=============================================================================
 StrStream::StrStream(const char* string)
-  : SStream(), string_(string), p_(string), ungetc_(NO_UNGETC) {
+  : Stream(), string_(string), p_(string), ungetc_(NO_UNGETC) {
 }
 
 StrStream::~StrStream() {
