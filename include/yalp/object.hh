@@ -95,6 +95,9 @@ public:
   virtual bool equal(const Sobject* target) const override;
   virtual unsigned int calcHash() const override;
 
+  const char* c_str() const  { return string_; }
+  int len() const  { return len_; }
+
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:

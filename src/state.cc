@@ -245,17 +245,17 @@ State::~State() {
 }
 
 void State::installBasicObjects() {
-  installFileStream("*stdin*", stdin);
-  installFileStream("*stdout*", stdout);
-  installFileStream("*stderr*", stderr);
-}
+  struct {
+    FILE* fp;
+    const char* name;
+  } static const Table[] = {
+    { stdin, "*stdin*" },
+    { stdout, "*stdout*" },
+    { stderr, "*stderr*" },
+  };
 
-void State::installFileStream(const char* name, FILE* fp) {
-  void* memory = ALLOC(allocator_, sizeof(FileStream));
-  FileStream* stream = new(memory) FileStream(fp);
-  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
-  SStream* ss = new(memory2) SStream(stream);
-  defineGlobal(intern(name), Svalue(ss));
+  for (auto e : Table)
+    defineGlobal(intern(e.name), Svalue(createFileStream(e.fp)));
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {
@@ -376,6 +376,13 @@ Svalue State::floatValue(Sfloat f) {
   void* memory = OBJALLOC(allocator_, sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
+}
+
+Svalue State::createFileStream(FILE* fp) {
+  void* memory = ALLOC(allocator_, sizeof(FileStream));
+  FileStream* stream = new(memory) FileStream(fp);
+  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
+  return Svalue(new(memory2) SStream(stream));
 }
 
 int State::getArgNum() const {

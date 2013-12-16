@@ -22,6 +22,7 @@ class Allocator;
 class Sobject;
 class State;
 class Stream;
+class SStream;
 class Symbol;
 class SymbolManager;
 class Vm;
@@ -130,6 +131,9 @@ public:
   // Floating point number.
   Svalue floatValue(Sfloat f);
 
+  // File stream.
+  Svalue createFileStream(FILE* fp);
+
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.
@@ -180,7 +184,6 @@ private:
   ~State();
 
   void installBasicObjects();
-  void installFileStream(const char* name, FILE* fp);
   void markRoot();
   void allocFailed(void* p, size_t size);
 

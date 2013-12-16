@@ -526,6 +526,31 @@ static Svalue s_vmtrace(State* state) {
   return state->getConstant(State::T);
 }
 
+static Svalue s_open(State* state) {
+  Svalue filespec = state->getArg(0);
+  if (filespec.getType() != TT_STRING)
+    state->runtimeError("String expected");
+  const char* mode = "rb";
+  if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
+    mode = "wb";
+
+  const char* path = static_cast<String*>(filespec.toObject())->c_str();
+  FILE* fp = fopen(path, mode);
+  if (fp == NULL)
+    return Svalue::NIL;
+  return state->createFileStream(fp);
+}
+
+static Svalue s_close(State* state) {
+  Svalue v = state->getArg(0);
+  if (v.getType() != TT_STREAM)
+    state->runtimeError("Stream expected");
+
+  SStream* ss = static_cast<SStream*>(v.toObject());
+  Stream* stream = ss->getStream();
+  return state->boolValue(stream->close());
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Svalue::NIL, Svalue::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -582,6 +607,9 @@ void installBasicFunctions(State* state) {
   state->defineNative("collect-garbage", s_collect_garbage, 0);
   state->defineNative("exit", s_exit, 1);
   state->defineNative("vmtrace", s_vmtrace, 1);
+
+  state->defineNative("open", s_open, 1, 2);
+  state->defineNative("close", s_close, 1);
 }
 
 }  // namespace yalp
