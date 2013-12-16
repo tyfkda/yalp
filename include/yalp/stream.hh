@@ -16,8 +16,9 @@ public:
   virtual bool close();
   virtual int get() = 0;
   virtual void putback(int c) = 0;
-  virtual bool write(char c) = 0;
-  virtual bool write(const char* s) = 0;
+  virtual bool write(char c);
+  virtual bool write(const char* s);
+  virtual bool write(const char* s, int len) = 0;
 
 protected:
   Stream();
@@ -36,8 +37,7 @@ public:
   virtual bool close();
   virtual int get();
   virtual void putback(int c);
-  virtual bool write(char c);
-  virtual bool write(const char* s);
+  virtual bool write(const char* s, int len);
 
 protected:
   FILE* fp_;
@@ -53,8 +53,7 @@ public:
   virtual bool close();
   virtual int get();
   virtual void putback(int c);
-  virtual bool write(char c);
-  virtual bool write(const char* s);
+  virtual bool write(const char* s, int len);
 
 protected:
   const char* string_;

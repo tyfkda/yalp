@@ -15,6 +15,9 @@ Stream::Stream()  {}
 Stream::~Stream()  { close(); }
 bool Stream::close()  { return true; }
 
+bool Stream::write(char c)  { return write(&c, sizeof(c)); }
+bool Stream::write(const char* s)  {return write(s, strlen(s)); }
+
 //=============================================================================
 FileStream::FileStream(const char* filename, const char* mode)
   : Stream(), hasFileOwnership_(true) {
@@ -44,13 +47,8 @@ void FileStream::putback(int c) {
   ungetc(c, fp_);
 }
 
-bool FileStream::write(char c) {
-  return fputc(c, fp_) != EOF;
-}
-
-bool FileStream::write(const char* s) {
-  size_t len = strlen(s);
-  return fwrite(s, 1, len, fp_) == len;
+bool FileStream::write(const char* s, int len) {
+  return static_cast<int>(fwrite(s, 1, len, fp_)) == len;
 }
 
 //=============================================================================
@@ -83,11 +81,7 @@ void StrStream::putback(int c) {
   ungetc_ = c;
 }
 
-bool StrStream::write(char) {
-  return false;
-}
-
-bool StrStream::write(const char*) {
+bool StrStream::write(const char*, int) {
   return false;
 }
 

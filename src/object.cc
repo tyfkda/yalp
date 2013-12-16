@@ -129,7 +129,7 @@ unsigned int String::calcHash() const {
 
 void String::output(State*, Stream* o, bool inspect) const {
   if (!inspect) {
-    o->write(string_);
+    o->write(string_, len_);
     return;
   }
 
