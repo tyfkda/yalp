@@ -5,6 +5,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "basic.hh"
 #include "symbol_manager.hh"
@@ -90,9 +91,11 @@ void Svalue::mark() {
     toObject()->mark();
 }
 
-void Svalue::output(State* state, std::ostream& o, bool inspect) const {
+void Svalue::output(State* state, Stream* o, bool inspect) const {
   if (isFixnum(v_)) {
-    o << toFixnum();
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
+    o->write(buffer);
     return;
   }
 
@@ -107,9 +110,12 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       if (state != NULL)
-        o << toSymbol(state)->c_str();
-      else
-        o << "#<symbol:" << (v_ >> TAG2_SHIFT) << ">";
+        o->write(toSymbol(state)->c_str());
+      else {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "#symbol:%ld>", v_ >> TAG2_SHIFT);
+        o->write(buffer);
+      }
       return;
     }
   }
@@ -127,7 +133,7 @@ Sfloat Svalue::toFloat(State* state) const {
   case TT_FIXNUM:
     return static_cast<Sfloat>(toFixnum());
   default:
-    std::cerr << *this << ": ";
+    //std::cerr << *this << ": ";
     state->runtimeError("Float expected");
     return 0;
   }
@@ -239,21 +245,17 @@ State::~State() {
 }
 
 void State::installBasicObjects() {
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cin);
-    defineGlobal(intern("*stdin*"), Svalue(stream));
-  }
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cout);
-    defineGlobal(intern("*stdout*"), Svalue(stream));
-  }
-  {
-    void* memory = OBJALLOC(allocator_, sizeof(SStream));
-    SStream* stream = new(memory) SStream(&std::cerr);
-    defineGlobal(intern("*stderr*"), Svalue(stream));
-  }
+  struct {
+    FILE* fp;
+    const char* name;
+  } static const Table[] = {
+    { stdin, "*stdin*" },
+    { stdout, "*stdout*" },
+    { stderr, "*stderr*" },
+  };
+
+  for (auto e : Table)
+    defineGlobal(intern(e.name), Svalue(createFileStream(e.fp)));
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {
@@ -268,13 +270,12 @@ bool State::runBinary(Svalue code, Svalue* pResult) {
 }
 
 bool State::runFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
-  SStream stream(&strm);
   Reader reader(this, &stream);
   Svalue result;
   Svalue exp;
@@ -296,13 +297,12 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
 }
 
 bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
-  SStream stream(&strm);
   Reader reader(this, &stream);
   Svalue result = Svalue::NIL;
   Svalue bin;
@@ -376,6 +376,13 @@ Svalue State::floatValue(Sfloat f) {
   void* memory = OBJALLOC(allocator_, sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
+}
+
+Svalue State::createFileStream(FILE* fp) {
+  void* memory = ALLOC(allocator_, sizeof(FileStream));
+  FileStream* stream = new(memory) FileStream(fp);
+  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
+  return Svalue(new(memory2) SStream(stream));
 }
 
 int State::getArgNum() const {

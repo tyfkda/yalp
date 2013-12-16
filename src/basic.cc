@@ -6,6 +6,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
@@ -373,36 +374,28 @@ static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
 static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
 static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
-static Svalue s_write(State* state) {
+static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+  Svalue ss = state->getArgNum() > argIndex ?
+    state->getArg(argIndex) :
+    state->referGlobal(state->intern(defaultStreamName));
+  if (ss.getType() != TT_STREAM)
+    state->runtimeError("Stream expected");
+  return static_cast<SStream*>(ss.toObject())->getStream();
+}
+
+static Svalue output(State* state, bool inspect) {
   Svalue x = state->getArg(0);
-  if (state->getArgNum() == 1) {
-    x.output(state, std::cout, true);
-  } else{
-    Svalue stream = state->getArg(1);
-    SStream::OStream* ostream = NULL;
-    if (stream.getType() != TT_STREAM ||
-        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
-      state->runtimeError("Stream expected");
-    }
-    x.output(state, *ostream, true);
-  }
+  Stream* stream = chooseStream(state, 1, "*stdout*");
+  x.output(state, stream, inspect);
   return x;
 }
 
+static Svalue s_write(State* state) {
+  return output(state, true);
+}
+
 static Svalue s_display(State* state) {
-  Svalue x = state->getArg(0);
-  if (state->getArgNum() == 1) {
-    x.output(state, std::cout, false);
-  } else{
-    Svalue stream = state->getArg(1);
-    SStream::OStream* ostream = NULL;
-    if (stream.getType() != TT_STREAM ||
-        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
-      state->runtimeError("Stream expected");
-    }
-    x.output(state, *ostream, false);
-  }
-  return x;
+  return output(state, false);
 }
 
 static Svalue s_uniq(State* state) {
@@ -441,27 +434,14 @@ static Svalue s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
-static Svalue readExec(State* state, SStream* stream) {
+static Svalue s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*");
   Reader reader(state, stream);
   Svalue exp;
   ReadError err = reader.read(&exp);
   if (err != READ_SUCCESS)
     state->runtimeError("Read error");
   return exp;
-}
-
-static Svalue s_read(State* state) {
-  if (state->getArgNum() == 0) {
-    SStream stream(&std::cin);
-    return readExec(state, &stream);
-  } else {
-    Svalue sstream = state->getArg(0);
-    if (sstream.getType() != TT_STREAM) {
-      std::cerr << sstream;
-      state->runtimeError(": Stream expected");
-    }
-    return readExec(state, static_cast<SStream*>(sstream.toObject()));
-  }
 }
 
 static Svalue s_run_binary(State* state) {
@@ -546,6 +526,31 @@ static Svalue s_vmtrace(State* state) {
   return state->getConstant(State::T);
 }
 
+static Svalue s_open(State* state) {
+  Svalue filespec = state->getArg(0);
+  if (filespec.getType() != TT_STRING)
+    state->runtimeError("String expected");
+  const char* mode = "rb";
+  if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
+    mode = "wb";
+
+  const char* path = static_cast<String*>(filespec.toObject())->c_str();
+  FILE* fp = fopen(path, mode);
+  if (fp == NULL)
+    return Svalue::NIL;
+  return state->createFileStream(fp);
+}
+
+static Svalue s_close(State* state) {
+  Svalue v = state->getArg(0);
+  if (v.getType() != TT_STREAM)
+    state->runtimeError("Stream expected");
+
+  SStream* ss = static_cast<SStream*>(v.toObject());
+  Stream* stream = ss->getStream();
+  return state->boolValue(stream->close());
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Svalue::NIL, Svalue::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -602,6 +607,9 @@ void installBasicFunctions(State* state) {
   state->defineNative("collect-garbage", s_collect_garbage, 0);
   state->defineNative("exit", s_exit, 1);
   state->defineNative("vmtrace", s_vmtrace, 1);
+
+  state->defineNative("open", s_open, 1, 2);
+  state->defineNative("close", s_close, 1);
 }
 
 }  // namespace yalp

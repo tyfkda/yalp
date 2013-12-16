@@ -81,7 +81,8 @@ SymbolManager::~SymbolManager() {
     page = next;
   }
   // Frees array.
-  FREE(allocator_, symbolArray_);
+  if (symbolArray_ != NULL)
+    FREE(allocator_, symbolArray_);
 }
 
 SymbolId SymbolManager::intern(const char* name) {

@@ -13,13 +13,16 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
-#include <ostream>
+#include <stddef.h>  // for size_t, NULL
+#include <stdio.h>  // for FILE
 
 namespace yalp {
 
 class Allocator;
 class Sobject;
 class State;
+class Stream;
+class SStream;
 class Symbol;
 class SymbolManager;
 class Vm;
@@ -64,14 +67,10 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, std::ostream& o, bool inspect) const;
+  void output(State* state, Stream* o, bool inspect) const;
 
   long getId() const  { return v_; }
   unsigned int calcHash(State* state) const;
-
-  friend std::ostream& operator<<(std::ostream& o, Svalue s) {
-    s.output(NULL, o, true); return o;
-  }
 
   void mark();
 
@@ -131,6 +130,9 @@ public:
 
   // Floating point number.
   Svalue floatValue(Sfloat f);
+
+  // File stream.
+  Svalue createFileStream(FILE* fp);
 
   // Gets argument number for current native function.
   int getArgNum() const;

@@ -4,8 +4,15 @@
 
 #include "yalp/read.hh"
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
+
+#include <alloca.h>
+#include <ctype.h>  // for isdigit
+#include <new>
+#include <stdlib.h>  // for atof
+#include <string.h>  // for memcpy
 
 namespace yalp {
 
@@ -31,7 +38,7 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
-Reader::Reader(State* state, SStream* stream)
+Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
   , buffer_(NULL), size_(0) {
