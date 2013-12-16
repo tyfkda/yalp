@@ -137,6 +137,7 @@ static bool repl(State* state, SStream* stream, bool tty, bool bCompile, bool bN
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
   Svalue writess = state->referGlobal(state->intern("write/ss"));
+  FileStream out(stdout);
   Reader reader(state, stream);
   for (;;) {
     if (tty)
@@ -178,7 +179,7 @@ static bool repl(State* state, SStream* stream, bool tty, bool bCompile, bool bN
     }
     if (!bCompile && tty) {
       cout << "=> ";
-      result.output(state, cout, true);
+      result.output(state, &out, true);
       cout << endl;
     }
   }

@@ -13,12 +13,13 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
-#include <ostream>
+#include <stddef.h>  // for size_t, NULL
 
 namespace yalp {
 
 class Allocator;
 class Sobject;
+class SStream;
 class State;
 class Symbol;
 class SymbolManager;
@@ -64,14 +65,10 @@ public:
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, std::ostream& o, bool inspect) const;
+  void output(State* state, SStream* o, bool inspect) const;
 
   long getId() const  { return v_; }
   unsigned int calcHash(State* state) const;
-
-  friend std::ostream& operator<<(std::ostream& o, Svalue s) {
-    s.output(NULL, o, true); return o;
-  }
 
   void mark();
 

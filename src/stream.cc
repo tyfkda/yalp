@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "yalp/stream.hh"
+#include <string.h>  // for strlen
 
 namespace yalp {
 
@@ -17,8 +18,10 @@ bool SStream::close()  { return true; }
 
 Type SStream::getType() const  { return TT_STREAM; }
 
-void SStream::output(State*, std::ostream& o, bool) const {
-  o << "#<stream:" << this << ">";
+void SStream::output(State*, SStream* o, bool) const {
+  char buffer[64];
+  snprintf(buffer, sizeof(buffer), "#<stream:%p>", this);
+  o->write(buffer);
 }
 
 //=============================================================================
@@ -50,6 +53,15 @@ void FileStream::putback(int c) {
   ungetc(c, fp_);
 }
 
+bool FileStream::write(char c) {
+  return fputc(c, fp_) != EOF;
+}
+
+bool FileStream::write(const char* s) {
+  size_t len = strlen(s);
+  return fwrite(s, 1, len, fp_) == len;
+}
+
 //=============================================================================
 StrStream::StrStream(const char* string)
   : SStream(), string_(string), p_(string), ungetc_(NO_UNGETC) {
@@ -78,6 +90,14 @@ int StrStream::get() {
 
 void StrStream::putback(int c) {
   ungetc_ = c;
+}
+
+bool StrStream::write(char) {
+  return false;
+}
+
+bool StrStream::write(const char*) {
+  return false;
 }
 
 }  // namespace yalp

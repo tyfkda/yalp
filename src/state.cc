@@ -91,9 +91,11 @@ void Svalue::mark() {
     toObject()->mark();
 }
 
-void Svalue::output(State* state, std::ostream& o, bool inspect) const {
+void Svalue::output(State* state, SStream* o, bool inspect) const {
   if (isFixnum(v_)) {
-    o << toFixnum();
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
+    o->write(buffer);
     return;
   }
 
@@ -108,9 +110,12 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       if (state != NULL)
-        o << toSymbol(state)->c_str();
-      else
-        o << "#<symbol:" << (v_ >> TAG2_SHIFT) << ">";
+        o->write(toSymbol(state)->c_str());
+      else {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "#symbol:%ld>", v_ >> TAG2_SHIFT);
+        o->write(buffer);
+      }
       return;
     }
   }
@@ -128,7 +133,7 @@ Sfloat Svalue::toFloat(State* state) const {
   case TT_FIXNUM:
     return static_cast<Sfloat>(toFixnum());
   default:
-    std::cerr << *this << ": ";
+    //std::cerr << *this << ": ";
     state->runtimeError("Float expected");
     return 0;
   }

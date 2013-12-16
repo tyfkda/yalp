@@ -5,6 +5,7 @@
 #include "vm.hh"
 #include "allocator.hh"
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include <assert.h>
 #include <iostream>
@@ -72,11 +73,11 @@ public:
   void set(Svalue x)  { x_ = x; }
   Svalue get()  { return x_; }
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override {
+  virtual void output(State* state, SStream* o, bool inspect) const override {
     // This should not be output, but debug purpose.
-    o << "#<box ";
+    o->write("#<box ");
     x_.output(state, o, inspect);
-    o << ">";
+    o->write('>');
   }
 
 protected:
@@ -216,7 +217,9 @@ bool Vm::run(Svalue code, Svalue* pResult) {
 Svalue Vm::runLoop() {
  again:
   if (trace_) {
-    std::cout << "run: stack=" << s_ << ", x="; x_.output(state_, std::cout, true); std::cout << std::endl;
+    std::cout << "run: stack=" << s_ << ", x=";
+    //x_.output(state_, std::cout, true);
+    std::cout << std::endl;
   }
 
   Svalue prex = x_;
@@ -257,8 +260,8 @@ Svalue Vm::runLoop() {
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
       if (!exist) {
-        sym.output(state_, std::cerr, true);
-        std::cerr << ": ";
+        //sym.output(state_, std::cerr, true);
+        //std::cerr << ": ";
         state_->runtimeError("Unbound");
       }
       a_ = aa;
@@ -289,7 +292,7 @@ Svalue Vm::runLoop() {
       x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       if (!assignGlobal(sym, a_)) {
-        sym.output(state_, std::cerr, true);
+        //sym.output(state_, std::cerr, true);
         state_->runtimeError(": Global variable not defined");
       }
     }
@@ -481,8 +484,8 @@ Svalue Vm::runLoop() {
     }
     goto again;
   default:
-    op.output(state_, std::cerr, true);
-    std::cerr << ": ";
+    //op.output(state_, std::cerr, true);
+    //std::cerr << ": ";
     state_->runtimeError("Unknown op");
     return a_;
   }
@@ -623,7 +626,7 @@ Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
 
 void Vm::defineGlobal(Svalue sym, Svalue value) {
   if (sym.getType() != TT_SYMBOL) {
-    std::cerr << sym << ": ";
+    //std::cerr << sym << ": ";
     state_->runtimeError("Must be symbol");
   }
   globalVariableTable_->put(sym, value);
@@ -696,7 +699,7 @@ Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
 
 Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
-    fn.output(state_, std::cerr, true);
+    //fn.output(state_, std::cerr, true);
     state_->runtimeError("Can't call");
     return Svalue::NIL;
   }
@@ -815,7 +818,7 @@ void Vm::registerMacro(Svalue name, int minParam, int maxParam, Svalue body) {
   defineGlobal(name, state_->intern("*macro*"));
 
   if (name.getType() != TT_SYMBOL) {
-    std::cerr << name << ": ";
+    //std::cerr << name << ": ";
     state_->runtimeError("Must be symbol");
   }
   macroTable_->put(name, closure);

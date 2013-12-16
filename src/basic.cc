@@ -374,44 +374,28 @@ static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
 static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
 static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
-static Svalue s_write(State* state) {
+static SStream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+  Svalue ss = state->getArgNum() > argIndex ?
+    state->getArg(argIndex) :
+    state->referGlobal(state->intern(defaultStreamName));
+  if (ss.getType() != TT_STREAM)
+    state->runtimeError("Stream expected");
+  return static_cast<SStream*>(ss.toObject());
+}
+
+static Svalue output(State* state, bool inspect) {
   Svalue x = state->getArg(0);
-#if 0
-  if (state->getArgNum() == 1) {
-    x.output(state, std::cout, true);
-  } else{
-    Svalue stream = state->getArg(1);
-    SStream::OStream* ostream = NULL;
-    if (stream.getType() != TT_STREAM ||
-        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
-      state->runtimeError("Stream expected");
-    }
-    x.output(state, *ostream, true);
-  }
-#else
-  x.output(state, std::cout, true);
-#endif
+  SStream* stream = chooseStream(state, 1, "*stdout*");
+  x.output(state, stream, inspect);
   return x;
 }
 
+static Svalue s_write(State* state) {
+  return output(state, true);
+}
+
 static Svalue s_display(State* state) {
-  Svalue x = state->getArg(0);
-#if 0
-  if (state->getArgNum() == 1) {
-    x.output(state, std::cout, false);
-  } else{
-    Svalue stream = state->getArg(1);
-    SStream::OStream* ostream = NULL;
-    if (stream.getType() != TT_STREAM ||
-        (ostream =  static_cast<SStream*>(stream.toObject())->getOStream()) == NULL) {
-      state->runtimeError("Stream expected");
-    }
-    x.output(state, *ostream, false);
-  }
-#else
-  x.output(state, std::cout, false);
-#endif
-  return x;
+  return output(state, false);
 }
 
 static Svalue s_uniq(State* state) {
@@ -450,31 +434,14 @@ static Svalue s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
-static Svalue readExec(State* state, SStream* stream) {
+static Svalue s_read(State* state) {
+  SStream* stream = chooseStream(state, 0, "*stdin*");
   Reader reader(state, stream);
   Svalue exp;
   ReadError err = reader.read(&exp);
   if (err != READ_SUCCESS)
     state->runtimeError("Read error");
   return exp;
-}
-
-static Svalue s_read(State* state) {
-  FileStream stream(stdin);  // TODO: Get from *stdin*.
-  return readExec(state, &stream);
-#if 0
-  if (state->getArgNum() == 0) {
-    SStream stream(&std::cin);
-    return readExec(state, &stream);
-  } else {
-    Svalue sstream = state->getArg(0);
-    if (sstream.getType() != TT_STREAM) {
-      std::cerr << sstream;
-      state->runtimeError(": Stream expected");
-    }
-    return readExec(state, static_cast<SStream*>(sstream.toObject()));
-  }
-#endif
 }
 
 static Svalue s_run_binary(State* state) {

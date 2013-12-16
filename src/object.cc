@@ -3,6 +3,7 @@
 //=============================================================================
 
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "hash_table.hh"
 #include <assert.h>
 #include <iomanip>
@@ -38,11 +39,11 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
-void Cell::output(State* state, std::ostream& o, bool inspect) const {
+void Cell::output(State* state, SStream* o, bool inspect) const {
   if (state != NULL) {
     const char* abbrev = isAbbrev(state);
     if (abbrev != NULL) {
-      o << abbrev;
+      o->write(abbrev);
       state->car(cdr()).output(state, o, inspect);
       return;
     }
@@ -51,17 +52,17 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
   char c = '(';
   const Cell* p;
   for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
-    o << c;
+    o->write(c);
     p->car_.output(state, o, inspect);
     if (p->cdr_.getType() != TT_CELL)
       break;
     c = ' ';
   }
   if (state == NULL || !p->cdr_.eq(Svalue::NIL)) {
-    o << " . ";
+    o->write(" . ");
     p->cdr_.output(state, o, inspect);
   }
-  o << ')';
+  o->write(')');
 }
 
 void Cell::mark() {
@@ -126,40 +127,40 @@ unsigned int String::calcHash() const {
   return strHash(string_);
 }
 
-void String::output(State*, std::ostream& o, bool inspect) const {
+void String::output(State*, SStream* o, bool inspect) const {
   if (!inspect) {
-    o << string_;
+    o->write(string_);
     return;
   }
 
-  o << '"';
+  o->write('"');
   for (int n = len_, i = 0; i < n; ++i) {
     char c = string_[i];
     switch (c) {
     case '\0':
-      o << "\\0";
+      o->write("\\0");
       break;
     case '\n':
-      o << "\\n";
+      o->write("\\n");
       break;
     case '\r':
-      o << "\\r";
+      o->write("\\r");
       break;
     case '\t':
-      o << "\\t";
+      o->write("\\t");
       break;
     case '\\':
-      o << "\\\\";
+      o->write("\\\\");
       break;
     case '"':
-      o << "\\\"";
+      o->write("\\\"");
       break;
     default:
-      o << c;
+      o->write(c);
       break;
     }
   }
-  o << '"';
+  o->write('"');
 }
 
 //=============================================================================
@@ -176,8 +177,10 @@ bool Float::equal(const Sobject* target) const {
   return v_ == p->v_;
 }
 
-void Float::output(State*, std::ostream& o, bool) const {
-  o << std::fixed << v_;
+void Float::output(State*, SStream* o, bool) const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%f", v_);
+  o->write(buffer);
 }
 
 //=============================================================================
@@ -196,15 +199,15 @@ void Vector::destruct(Allocator* allocator) {
 
 Type Vector::getType() const { return TT_VECTOR; }
 
-void Vector::output(State* state, std::ostream& o, bool inspect) const {
-  o << "#";
+void Vector::output(State* state, SStream* o, bool inspect) const {
+  o->write('#');
   char c = '(';
   for (int i = 0; i < size_; ++i) {
-    o << c;
+    o->write(c);
     buffer_[i].output(state, o, inspect);
     c = ' ';
   }
-  o << ")";
+  o->write(')');
 }
 
 void Vector::mark() {
@@ -241,8 +244,10 @@ void SHashTable::destruct(Allocator* allocator) {
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
-void SHashTable::output(State*, std::ostream& o, bool) const {
-  o << "#<hash-table:" << this << ">";
+void SHashTable::output(State*, SStream* o, bool) const {
+  char buffer[64];
+  snprintf(buffer, sizeof(buffer), "#<hash-table:%p>", this);
+  o->write(buffer);
 }
 
 void SHashTable::mark() {
@@ -300,11 +305,13 @@ void Closure::destruct(Allocator* allocator) {
 
 Type Closure::getType() const  { return TT_CLOSURE; }
 
-void Closure::output(State*, std::ostream& o, bool) const {
+void Closure::output(State*, SStream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
-  o << "#<closure " << name << ">";
+  o->write("#<closure ");
+  o->write(name);
+  o->write('>');
 }
 
 void Closure::mark() {
@@ -334,11 +341,13 @@ Svalue NativeFunc::call(State* state, int argNum) {
   return func_(state);
 }
 
-void NativeFunc::output(State*, std::ostream& o, bool) const {
+void NativeFunc::output(State*, SStream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
-  o << "#<subr " << name << ">";
+  o->write("#<subr ");
+  o->write(name);
+  o->write('>');
 }
 
 //=============================================================================

@@ -18,8 +18,10 @@ public:
   virtual bool close();
   virtual int get() = 0;
   virtual void putback(int c) = 0;
+  virtual bool write(char c) = 0;
+  virtual bool write(const char* s) = 0;
 
-  virtual void output(State*, std::ostream& o, bool) const override;
+  virtual void output(State*, SStream* o, bool) const override;
 
 protected:
   SStream()  {}
@@ -39,6 +41,8 @@ public:
   virtual bool close();
   virtual int get();
   virtual void putback(int c);
+  virtual bool write(char c);
+  virtual bool write(const char* s);
 
 protected:
   FILE* fp_;
@@ -54,6 +58,8 @@ public:
   virtual bool close();
   virtual int get();
   virtual void putback(int c);
+  virtual bool write(char c);
+  virtual bool write(const char* s);
 
 protected:
   const char* string_;

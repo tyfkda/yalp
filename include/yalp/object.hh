@@ -15,14 +15,14 @@ because yalp uses GC and destructor is not called.
 #include "yalp.hh"
 #include "yalp/gc_object.hh"
 
-#include <ostream>
-
 namespace yalp {
 
 template <class Key>
 struct HashPolicy;
 template <class Key, class Value>
 class HashTable;
+
+class SStream;
 
 // Symbol class
 class Symbol {
@@ -48,7 +48,7 @@ public:
   virtual bool equal(const Sobject* target) const;
   virtual unsigned int calcHash() const;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const = 0;
+  virtual void output(State* state, SStream* o, bool inspect) const = 0;
 
   virtual bool isCallable() const;
 
@@ -72,7 +72,7 @@ public:
   void setCar(Svalue a);
   void setCdr(Svalue d);
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, SStream* o, bool inspect) const override;
 
 protected:
   Cell(Svalue a, Svalue d);
@@ -95,7 +95,7 @@ public:
   virtual bool equal(const Sobject* target) const override;
   virtual unsigned int calcHash() const override;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, SStream* o, bool inspect) const override;
 
 protected:
   // The given string is allocated in heap and be taken ownership.
@@ -118,7 +118,7 @@ public:
 
   Sfloat toFloat() const  { return v_; }
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, SStream* o, bool inspect) const override;
 
 protected:
   Float(Sfloat v);
@@ -139,7 +139,7 @@ public:
   Svalue get(int index);
   void set(int index, Svalue x);
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, SStream* o, bool inspect) const override;
 
 protected:
   Vector(Allocator* allocator, int size);
@@ -161,7 +161,7 @@ public:
 
   virtual Type getType() const override;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, SStream* o, bool inspect) const override;
 
   void put(Svalue key, Svalue value);
   const Svalue* get(Svalue key) const;
@@ -221,7 +221,7 @@ public:
     return freeVariables_[index];
   }
 
-  virtual void output(State*, std::ostream& o, bool) const override;
+  virtual void output(State*, SStream* o, bool) const override;
 
 protected:
   ~Closure()  {}
@@ -243,7 +243,7 @@ public:
 
   Svalue call(State* state, int argNum);
 
-  virtual void output(State*, std::ostream& o, bool) const override;
+  virtual void output(State*, SStream* o, bool) const override;
 
 protected:
   ~NativeFunc()  {}
