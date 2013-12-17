@@ -34,10 +34,11 @@ public:
 
   bool isOpened() const  { return fp_ != NULL; }
 
-  virtual bool close();
-  virtual int get();
-  virtual void putback(int c);
-  virtual bool write(const char* s, int len);
+  virtual bool close() override;
+  virtual int get() override;
+  virtual void putback(int c) override;
+  using Stream::write;
+  virtual bool write(const char* s, int len) override;
 
 protected:
   FILE* fp_;
@@ -50,10 +51,11 @@ public:
   explicit StrStream(const char* string);
   ~StrStream();
 
-  virtual bool close();
-  virtual int get();
-  virtual void putback(int c);
-  virtual bool write(const char* s, int len);
+  virtual bool close() override;
+  virtual int get() override;
+  virtual void putback(int c) override;
+  using Stream::write;
+  virtual bool write(const char* s, int len) override;
 
 protected:
   const char* string_;
