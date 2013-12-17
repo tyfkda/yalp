@@ -6,6 +6,9 @@ Derived classes should hide their destructor,
 and thier destructor should do nothing,
 because yalp uses GC and destructor is not called.
 
+Destructor is called if a instance is created explicitly (in C stack).
+`destruct` virtual method is called when a instance is managed with
+Allocator.
  */
 //=============================================================================
 
