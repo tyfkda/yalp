@@ -4,7 +4,8 @@
 # Test framework.
 
 function error_exit() {
-  echo -n -e '\e[1;31m[ERROR]\e[0m '
+  #echo -n -e '\e[1;31m[ERROR]\e[0m '
+  echo -n -e "\033[1;31m[ERROR]\033[0;39m "
   echo "$1"
   exit 1
 }
@@ -180,4 +181,5 @@ fail no-var-set '(set! x 123)'
 ################################################################
 # All tests succeeded.
 
-echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
+#echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
+echo -n -e "\033[1;32mALL SUCCESS!\033[0;39m\n"
