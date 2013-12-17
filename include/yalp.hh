@@ -149,7 +149,7 @@ public:
   Svalue getArg(int index) const;
 
   // Raises runtime error.
-  void runtimeError(const char* msg);
+  void runtimeError(const char* msg, ...);
 
   // Constant
   enum Constant {

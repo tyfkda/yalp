@@ -71,6 +71,20 @@ void format(State* state, Stream* out, const char* fmt, va_list ap) {
         p->output(state, out, false);
       }
       break;
+    case 's':
+      {
+        const char* p = va_arg(ap, const char*);
+        out->write(p);
+      }
+      break;
+    case 'd':
+      {
+        int x = va_arg(ap, int);
+        char buffer[sizeof(int) * 3 + 1];
+        snprintf(buffer, sizeof(buffer), "%d", x);
+        out->write(buffer);
+      }
+      break;
     }
     prev = p + 1;
   }
