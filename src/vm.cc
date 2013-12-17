@@ -191,8 +191,9 @@ Svalue Vm::run(Svalue code) {
 Svalue Vm::runLoop() {
  again:
   if (trace_) {
+    FileStream out(stdout);
     std::cout << "run: stack=" << s_ << ", x=";
-    //x_.output(state_, std::cout, true);
+    x_.output(state_, &out, true);
     std::cout << std::endl;
   }
 
