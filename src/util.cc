@@ -5,6 +5,7 @@
 #include "yalp/util.hh"
 #include "yalp.hh"
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 
 namespace yalp {
 
@@ -41,6 +42,41 @@ int length(Svalue v) {
   for (; v.getType() == TT_CELL; v = static_cast<Cell*>(v.toObject())->cdr())
     ++len;
   return len;
+}
+
+void format(State* state, Stream* out, const char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  format(state, out, fmt, ap);
+  va_end(ap);
+}
+
+void format(State* state, Stream* out, const char* fmt, va_list ap) {
+  const char* prev = fmt;
+  for (const char* p = fmt; *p != '\0'; ++p) {
+    if (*p != '%')
+      continue;
+
+    if (prev != p)
+      out->write(prev, p - prev);
+
+    switch (*(++p)) {
+    default:
+      out->write(*reinterpret_cast<const unsigned char*>(p));
+      break;
+    case '\0':  goto L_exit;
+    case '@':
+      {
+        const Svalue* p = va_arg(ap, const Svalue*);
+        p->output(state, out, false);
+      }
+      break;
+    }
+    prev = p + 1;
+  }
+ L_exit:
+  if (*prev != '\0')
+    out->write(prev);
 }
 
 }  // namespace yalp
