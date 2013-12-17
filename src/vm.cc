@@ -63,6 +63,17 @@ static inline void moveStackElems(Svalue* stack, int dst, int src, int n) {
     memmove(&stack[dst], &stack[src], sizeof(Svalue) * n);
 }
 
+static bool checkArgNum(State* state, int argNum, int min, int max) {
+  if (argNum < min) {
+    state->runtimeError("Too few arguments");
+    return false;
+  } else if (max >= 0 && argNum > max) {
+    state->runtimeError("Too many arguments");
+    return false;
+  }
+  return true;
+}
+
 // Box class.
 class Box : public Sobject {
 public:
@@ -336,10 +347,7 @@ Svalue Vm::runLoop() {
         {
           Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-          if (argNum < min)
-            state_->runtimeError("Too few arguments");
-          else if (max >= 0 && argNum > max)
-            state_->runtimeError("Too many arguments");
+          checkArgNum(state_, argNum, min, max);
 
           int ds = 0;
           if (closure->hasRestParam())
@@ -365,8 +373,7 @@ Svalue Vm::runLoop() {
       case TT_CONTINUATION:
         {
           Continuation* continuation = static_cast<Continuation*>(a_.toObject());
-          if (argNum >= 2)
-            state_->runtimeError("Too many arguments for continuation");
+          checkArgNum(state_, argNum, 0, 1);
           a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
 
           int savedStackSize = continuation->getStackSize();
@@ -669,10 +676,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-      if (argNum < min)
-        state_->runtimeError("Too few arguments");
-      else if (max >= 0 && argNum > max)
-        state_->runtimeError("Too many arguments");
+      checkArgNum(state_, argNum, min, max);
 
       int ds = 0;
       if (closure->hasRestParam())
@@ -707,8 +711,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   case TT_CONTINUATION:
     {
       Continuation* continuation = static_cast<Continuation*>(a_.toObject());
-      if (argNum >= 2)
-        state_->runtimeError("Too many arguments for continuation");
+      checkArgNum(state_, argNum, 0, 1);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
       int savedStackSize = continuation->getStackSize();
