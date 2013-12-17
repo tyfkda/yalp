@@ -247,7 +247,9 @@ public:
   NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum);
   virtual Type getType() const override;
 
-  Svalue call(State* state, int argNum);
+  int getMinArgNum() const  { return minArgNum_; }
+  int getMaxArgNum() const  { return maxArgNum_; }
+  Svalue call(State* state)  { return func_(state); }
 
   virtual void output(State*, Stream* o, bool) const override;
 

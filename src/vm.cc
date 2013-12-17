@@ -362,12 +362,14 @@ Svalue Vm::runLoop() {
         break;
       case TT_NATIVEFUNC:
         {
+          NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
+          int min = native->getMinArgNum(), max = native->getMaxArgNum();
+          checkArgNum(state_, argNum, min, max);
+
           f_ = s_;
           s_ = push(state_->fixnumValue(argNum), s_);
           x_ = return_;
-
-          NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
-          a_ = native->call(state_, argNum);
+          a_ = native->call(state_);
         }
         break;
       case TT_CONTINUATION:
@@ -695,13 +697,14 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     break;
   case TT_NATIVEFUNC:
     {
+      NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
+      int min = native->getMinArgNum(), max = native->getMaxArgNum();
+      checkArgNum(state_, argNum, min, max);
+
       // No frame.
       f_ = pushArgs(argNum, args, s_);
       s_ = push(state_->fixnumValue(argNum), f_);
-
-      // Store current state in member variable for native function call.
-      NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
-      result = native->call(state_, argNum);
+      result = native->call(state_);
 
       popCallStack();
 
