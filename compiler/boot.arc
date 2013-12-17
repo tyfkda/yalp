@@ -143,6 +143,16 @@
                  `(,(car body) (aif ,@(cdr body)))
                body)))))
 
+(defmacro awhen (expr . body)
+  `(aif ,expr
+     (do ,@body)))
+
+(defmacro awhile (expr . body)
+  `(awith ()
+     (awhen ,expr
+       ,@body
+       (loop))))
+
 (defmacro w/uniq (names . body)
   (if (pair? names)
       ; (w/uniq (a b c) ...) => (with (a (uniq) b (uniq) c (uniq) ...)
