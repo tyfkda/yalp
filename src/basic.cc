@@ -401,12 +401,19 @@ static Svalue s_display(State* state) {
 
 static Svalue s_read(State* state) {
   Stream* stream = chooseStream(state, 0, "*stdin*");
+  Svalue eof = state->getArgNum() > 1 ? state->getArg(1) : Svalue::NIL;
   Reader reader(state, stream);
   Svalue exp;
   ReadError err = reader.read(&exp);
-  if (err != READ_SUCCESS)
+  switch (err) {
+  case READ_SUCCESS:
+    return exp;
+  case END_OF_FILE:
+    return eof;
+  default:
     state->runtimeError("Read error %d", err);
-  return exp;
+    return Svalue::NIL;
+  }
 }
 
 static Svalue s_read_delimited_list(State* state) {
@@ -664,7 +671,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("display", s_display, 1, 2);
   state->defineNative("write", s_write, 1, 2);
 
-  state->defineNative("read", s_read, 0, 1);
+  state->defineNative("read", s_read, 0, 2);
   state->defineNative("read-delimited-list", s_read_delimited_list, 2);
   state->defineNative("read-char", s_read_char, 0, 1);
   state->defineNative("read-line", s_read_line, 0, 1);
