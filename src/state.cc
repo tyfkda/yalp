@@ -321,6 +321,11 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   return true;
 }
 
+void State::checkType(Svalue x, Type expected) {
+  if (x.getType() != expected)
+    runtimeError("Type error");
+}
+
 Svalue State::intern(const char* name) {
   SymbolId symbolId = symbolManager_->intern(name);
   return Svalue(symbolId, TAG2_SYMBOL);
@@ -341,14 +346,12 @@ Svalue State::cons(Svalue a, Svalue d) {
 }
 
 Svalue State::car(Svalue s) {
-  if (s.getType() != TT_CELL)
-    runtimeError("Cell expected");
+  checkType(s, TT_CELL);
   return static_cast<Cell*>(s.toObject())->car();
 }
 
 Svalue State::cdr(Svalue s) {
-  if (s.getType() != TT_CELL)
-    runtimeError("Cell expected");
+  checkType(s, TT_CELL);
   return static_cast<Cell*>(s.toObject())->cdr();
 }
 

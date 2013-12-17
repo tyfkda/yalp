@@ -380,8 +380,7 @@ static Stream* chooseStream(State* state, int argIndex, const char* defaultStrea
   Svalue ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
     state->referGlobal(state->intern(defaultStreamName));
-  if (ss.getType() != TT_STREAM)
-    state->runtimeError("Stream expected");
+  state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject())->getStream();
 }
 
@@ -414,10 +413,10 @@ static Svalue s_apply(State* state) {
     last = state->getArg(n - 1);
     if (last.eq(Svalue::NIL))
       argNum -= 1;
-    else if (last.getType() != TT_CELL)
-      state->runtimeError("pair expected");
-    else
+    else {
+      state->checkType(last, TT_CELL);
       argNum += length(last) - 1;
+    }
   }
 
   Svalue* args = NULL;
@@ -462,8 +461,7 @@ static Svalue s_make_hash_table(State* state) {
 static Svalue s_hash_table_get(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
   if (result == NULL)
     return Svalue::NIL;
@@ -474,8 +472,7 @@ static Svalue s_hash_table_put(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
   Svalue value = state->getArg(2);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   static_cast<SHashTable*>(h.toObject())->put(key, value);
   return value;
 }
@@ -483,8 +480,7 @@ static Svalue s_hash_table_put(State* state) {
 static Svalue s_hash_table_exists(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   Svalue result;
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
@@ -492,15 +488,13 @@ static Svalue s_hash_table_exists(State* state) {
 static Svalue s_hash_table_delete(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
 static Svalue s_hash_table_keys(State* state) {
   Svalue h = state->getArg(0);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
   Svalue result = Svalue::NIL;
@@ -516,7 +510,8 @@ static Svalue s_collect_garbage(State* state) {
 
 static Svalue s_exit(State* state) {
   Svalue v = state->getArg(0);
-  int code = (v.getType() == TT_FIXNUM) ? v.toFixnum() : -1;
+  state->checkType(v, TT_FIXNUM);
+  int code = v.toFixnum();
   exit(code);
   return Svalue::NIL;
 }
@@ -530,8 +525,7 @@ static Svalue s_vmtrace(State* state) {
 
 static Svalue s_open(State* state) {
   Svalue filespec = state->getArg(0);
-  if (filespec.getType() != TT_STRING)
-    state->runtimeError("String expected");
+  state->checkType(filespec, TT_STRING);
   const char* mode = "rb";
   if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
     mode = "wb";
@@ -545,8 +539,7 @@ static Svalue s_open(State* state) {
 
 static Svalue s_close(State* state) {
   Svalue v = state->getArg(0);
-  if (v.getType() != TT_STREAM)
-    state->runtimeError("Stream expected");
+  state->checkType(v, TT_STREAM);
 
   SStream* ss = static_cast<SStream*>(v.toObject());
   Stream* stream = ss->getStream();

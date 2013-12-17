@@ -627,10 +627,7 @@ Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
 }
 
 void Vm::defineGlobal(Svalue sym, Svalue value) {
-  if (sym.getType() != TT_SYMBOL) {
-    //std::cerr << sym << ": ";
-    state_->runtimeError("Must be symbol");
-  }
+  state_->checkType(sym, TT_SYMBOL);
   globalVariableTable_->put(sym, value);
 
   if (value.isObject() && value.toObject()->isCallable()) {
@@ -640,8 +637,8 @@ void Vm::defineGlobal(Svalue sym, Svalue value) {
 }
 
 bool Vm::assignGlobal(Svalue sym, Svalue value) {
-  if (sym.getType() != TT_SYMBOL ||
-      globalVariableTable_->get(sym) == NULL)
+  state_->checkType(sym, TT_SYMBOL);
+  if (globalVariableTable_->get(sym) == NULL)
     return false;
 
   globalVariableTable_->put(sym, value);
