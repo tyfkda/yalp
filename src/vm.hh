@@ -75,9 +75,6 @@ private:
   void expandFrame(int n);
   void shrinkFrame(int n);
 
-  Svalue saveStack(int s);
-  int restoreStack(Svalue v);
-
   int pushArgs(int argNum, const Svalue* args, int s);
 
   void pushCallStack(Callable* callable);

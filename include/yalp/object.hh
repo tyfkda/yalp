@@ -259,6 +259,26 @@ protected:
   int maxArgNum_;
 };
 
+// Continuation class.
+class Continuation : public Callable {
+public:
+  Continuation(Allocator* allocator, const Svalue* stack, int size);
+  virtual Type getType() const override;
+
+  int getStackSize() const  { return stackSize_; }
+  const Svalue* getStack() const  { return copiedStack_; }
+
+  virtual void output(State*, Stream* o, bool) const override;
+
+protected:
+  ~Continuation()  {}
+  virtual void destruct(Allocator* allocator) override;
+  virtual void mark();
+
+  Svalue* copiedStack_;
+  int stackSize_;
+};
+
 class SStream : public Sobject {
 public:
   virtual Type getType() const override;

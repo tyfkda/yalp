@@ -349,6 +349,36 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 }
 
 //=============================================================================
+Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size)
+  : Callable(), copiedStack_(NULL), stackSize_(0) {
+  if (size > 0) {
+    copiedStack_ = static_cast<Svalue*>(ALLOC(allocator, sizeof(Svalue) * size));
+    stackSize_ = size;
+    memcpy(copiedStack_, stack, sizeof(Svalue) * size);
+  }
+}
+
+void Continuation::destruct(Allocator* allocator) {
+  if (copiedStack_ != NULL)
+    FREE(allocator, copiedStack_);
+  Callable::destruct(allocator);
+}
+
+Type Continuation::getType() const  { return TT_CONTINUATION; }
+
+void Continuation::output(State*, Stream* o, bool) const {
+  o->write("#<continuation>");
+}
+
+void Continuation::mark() {
+  if (isMarked())
+    return;
+  Callable::mark();
+  for (int n = stackSize_, i = 0; i < n; ++i)
+    copiedStack_[i].mark();
+}
+
+//=============================================================================
 SStream::SStream(Stream* stream)
   : Sobject(), stream_(stream)  {}
 

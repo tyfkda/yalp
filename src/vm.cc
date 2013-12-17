@@ -37,7 +37,6 @@ namespace yalp {
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
-  OP(NUATE) \
   OP(MACRO) \
   OP(EXPND) \
   OP(SHRNK) \
@@ -363,6 +362,26 @@ Svalue Vm::runLoop() {
           a_ = native->call(state_, argNum);
         }
         break;
+      case TT_CONTINUATION:
+        {
+          Continuation* continuation = static_cast<Continuation*>(a_.toObject());
+          if (argNum >= 2)
+            state_->runtimeError("Too many arguments for continuation");
+          a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
+
+          int savedStackSize = continuation->getStackSize();
+          const Svalue* savedStack = continuation->getStack();
+          memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
+          s_ = savedStackSize;
+
+          // do-return
+          x_ = index(s_, 0);
+          f_ = index(s_, 1).toFixnum();
+          c_ = index(s_, 2);
+          s_ -= 3;
+          //popCallStack();
+        }
+        break;
       default:
         assert(!"Must not happen");
         break;
@@ -410,21 +429,6 @@ Svalue Vm::runLoop() {
         s -= calleeArgNum + 1;
       }
       a_ = createContinuation(s);
-    }
-    goto again;
-  case NUATE:
-    {
-      Svalue stack = CAR(x_);
-      int argNum = index(f_, -1).toFixnum();
-      a_ = (argNum == 0) ? Svalue::NIL : index(f_, 0);
-      s_ = restoreStack(stack);
-
-      // do-return
-      x_ = index(s_, 0);
-      f_ = index(s_, 1).toFixnum();
-      c_ = index(s_, 2);
-      s_ -= 3;
-      //popCallStack();
     }
     goto again;
   case MACRO:
@@ -481,10 +485,9 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 }
 
 Svalue Vm::createContinuation(int s) {
-  Svalue body = list(state_,
-                     opcodes_[NUATE],
-                     saveStack(s));
-  return createClosure(body, s, s, 0, 1);
+  Allocator* allocator = state_->getAllocator();
+  void* memory = OBJALLOC(allocator, sizeof(Continuation));
+  return Svalue(new(memory) Continuation(allocator, stack_, s));
 }
 
 Svalue Vm::box(Svalue x) {
@@ -617,24 +620,6 @@ bool Vm::assignGlobal(Svalue sym, Svalue value) {
   return true;
 }
 
-Svalue Vm::saveStack(int s) {
-  Allocator* allocator = state_->getAllocator();
-  void* memory = OBJALLOC(allocator, sizeof(Vector));
-  Vector* v = new(memory) Vector(allocator, s);
-  for (int i = 0; i < s; ++i)
-    v->set(i, stack_[i]);
-  return Svalue(v);
-}
-
-int Vm::restoreStack(Svalue v) {
-  assert(v.getType() == TT_VECTOR);
-  Vector* vv = static_cast<Vector*>(v.toObject());
-  int s = vv->size();
-  for (int i = 0; i < s; ++i)
-    stack_[i] = vv->get(i);
-  return s;
-}
-
 int Vm::getArgNum() const {
   return index(f_, -1).toFixnum();
 }
@@ -646,6 +631,7 @@ Svalue Vm::getArg(int index) const {
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
+  case TT_CONTINUATION:
     tailcall(fn, argNum, args);
     return runLoop();
   default:
@@ -716,6 +702,26 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       popCallStack();
 
       s_ -= argNum + 1;
+    }
+    break;
+  case TT_CONTINUATION:
+    {
+      Continuation* continuation = static_cast<Continuation*>(a_.toObject());
+      if (argNum >= 2)
+        state_->runtimeError("Too many arguments for continuation");
+      a_ = (argNum == 0) ? Svalue::NIL : args[0];
+
+      int savedStackSize = continuation->getStackSize();
+      const Svalue* savedStack = continuation->getStack();
+      memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
+      s_ = savedStackSize;
+
+      // do-return
+      x_ = index(s_, 0);
+      f_ = index(s_, 1).toFixnum();
+      c_ = index(s_, 2);
+      s_ -= 3;
+      //popCallStack();
     }
     break;
   default:
