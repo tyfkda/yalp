@@ -710,7 +710,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     break;
   case TT_CONTINUATION:
     {
-      Continuation* continuation = static_cast<Continuation*>(a_.toObject());
+      Continuation* continuation = static_cast<Continuation*>(fn.toObject());
       checkArgNum(state_, argNum, 0, 1);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
