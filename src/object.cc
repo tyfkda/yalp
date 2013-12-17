@@ -60,7 +60,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
       break;
     c = ' ';
   }
-  if (state == NULL || !p->cdr_.eq(Svalue::NIL)) {
+  if (!p->cdr_.eq(Svalue::NIL)) {
     o->write(" . ");
     p->cdr_.output(state, o, inspect);
   }
