@@ -399,6 +399,81 @@ static Svalue s_display(State* state) {
   return output(state, false);
 }
 
+static Svalue s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  Reader reader(state, stream);
+  Svalue exp;
+  ReadError err = reader.read(&exp);
+  if (err != READ_SUCCESS)
+    state->runtimeError("Read error");
+  return exp;
+}
+
+static Svalue s_read_delimited_list(State* state) {
+  Svalue delimiter = state->getArg(0);
+  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
+  Stream* stream = chooseStream(state, 1, "*stdin*");
+  Reader reader(state, stream);
+  Svalue result;
+  ReadError err = reader.readDelimitedList(delimiter.toCharacter(), &result);
+  if (err != READ_SUCCESS)
+    state->runtimeError("Read failed");
+  return result;
+}
+
+static Svalue s_read_char(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  int c = stream->get();
+  return c == EOF ? Svalue::NIL : state->characterValue(c);
+}
+
+static char* reallocateString(Allocator* allocator, char* heap, int heapSize,
+                              const char* local, int len) {
+  // Copy local to heap.
+  int newSize = heapSize + len;
+  char* newHeap = static_cast<char*>(REALLOC(allocator, heap, sizeof(*heap) * newSize));
+  // TODO: Handle memory over.
+  memcpy(&newHeap[heapSize], local, sizeof(*heap) * len);
+  return newHeap;
+}
+
+static Svalue s_read_line(State* state) {
+  const int SIZE = 8;
+  char local[SIZE];
+  int len = 0;
+  char* heap = NULL;
+  int heapSize = 0;
+
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  int c;
+  for (;;) {
+    c = stream->get();
+    if (c == EOF || c == '\n')
+      break;
+    if (len >= SIZE) {
+      // Copy local to heap.
+      heap = reallocateString(state->getAllocator(), heap, heapSize,
+                              local, len);
+      heapSize += len;
+      len = 0;
+    }
+    local[len++] = c;
+  }
+
+  if (heapSize == 0 && len < SIZE) {
+    if (len == 0 && c == EOF)
+      return Svalue::NIL;
+    local[len] = '\0';
+    return state->stringValue(local);
+  }
+
+  char* copiedString = reallocateString(state->getAllocator(), heap, heapSize,
+                                        local, len + 1);
+  len = heapSize + len;
+  copiedString[len] = '\0';
+  return state->allocatedStringValue(copiedString, len);
+}
+
 static Svalue s_uniq(State* state) {
   return state->gensym();
 }
@@ -433,28 +508,6 @@ static Svalue s_apply(State* state) {
 
   Svalue f = state->getArg(0);
   return state->tailcall(f, argNum, args);
-}
-
-static Svalue s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*");
-  Reader reader(state, stream);
-  Svalue exp;
-  ReadError err = reader.read(&exp);
-  if (err != READ_SUCCESS)
-    state->runtimeError("Read error");
-  return exp;
-}
-
-static Svalue s_read_delimited_list(State* state) {
-  Svalue delimiter = state->getArg(0);
-  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
-  Stream* stream = chooseStream(state, 1, "*stdin*");
-  Reader reader(state, stream);
-  Svalue result;
-  ReadError err = reader.readDelimitedList(delimiter.toCharacter(), &result);
-  if (err != READ_SUCCESS)
-    state->runtimeError("Read failed");
-  return result;
 }
 
 static Svalue s_run_binary(State* state) {
@@ -611,10 +664,13 @@ void installBasicFunctions(State* state) {
   state->defineNative("display", s_display, 1, 2);
   state->defineNative("write", s_write, 1, 2);
 
-  state->defineNative("uniq", s_uniq, 0);
-  state->defineNative("apply", s_apply, 1, -1);
   state->defineNative("read", s_read, 0, 1);
   state->defineNative("read-delimited-list", s_read_delimited_list, 2);
+  state->defineNative("read-char", s_read_char, 0, 1);
+  state->defineNative("read-line", s_read_line, 0, 1);
+
+  state->defineNative("uniq", s_uniq, 0);
+  state->defineNative("apply", s_apply, 1, -1);
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);

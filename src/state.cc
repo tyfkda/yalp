@@ -389,11 +389,15 @@ Svalue State::stringValue(const char* string, int len) {
   char* copiedString = new(stringBuffer) char[len + 1];
   memcpy(copiedString, string, len);
   copiedString[len] = '\0';
+  return allocatedStringValue(copiedString, len);
+}
 
+Svalue State::allocatedStringValue(const char* string, int len) {
   void* memory = OBJALLOC(allocator_, sizeof(String));
-  String* s = new(memory) String(copiedString, len);
+  String* s = new(memory) String(string, len);
   return Svalue(s);
 }
+
 
 Svalue State::floatValue(Sfloat f) {
   void* memory = OBJALLOC(allocator_, sizeof(Float));
