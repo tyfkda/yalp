@@ -113,6 +113,8 @@ run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
 run cons '(1 . 2)' '(cons 1 2)'
 run car '1' "(car '(1 2 3))"
 run cdr '(2 3)' "(cdr '(1 2 3))"
+run car-no-cell 123 "(car 123)"
+run cdr-no-cell nil "(cdr 123)"
 run set-car! '(3 2)' "((^(x) (set-car! x 3) x) '(1 2))"
 run set-cdr! '(1 . 3)' "((^(x) (set-cdr! x 3) x) '(1 2))"
 run list '(1 2 (3 4))' "(list 1 2 '(3 4))"

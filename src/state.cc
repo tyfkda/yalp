@@ -365,13 +365,13 @@ Svalue State::cons(Svalue a, Svalue d) {
 }
 
 Svalue State::car(Svalue s) {
-  checkType(s, TT_CELL);
-  return static_cast<Cell*>(s.toObject())->car();
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->car() : s;
 }
 
 Svalue State::cdr(Svalue s) {
-  checkType(s, TT_CELL);
-  return static_cast<Cell*>(s.toObject())->cdr();
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->cdr() : Svalue::NIL;
 }
 
 Svalue State::createHashTable() {
