@@ -404,21 +404,20 @@ Svalue Vm::runLoop() {
     {
       Svalue tail = CAR(x_);
       x_ = CDR(x_);
-      a_ = createContinuation(s_, tail);
+      int s = s_;
+      if (state_->isTrue(tail)) {
+        int calleeArgNum = index(s_, 0).toFixnum();
+        s -= calleeArgNum + 1;
+      }
+      a_ = createContinuation(s);
     }
     goto again;
   case NUATE:
     {
-      Svalue tail = CAR(x_);
-      Svalue stack = CADR(x_);
+      Svalue stack = CAR(x_);
       int argNum = index(f_, -1).toFixnum();
       a_ = (argNum == 0) ? Svalue::NIL : index(f_, 0);
       s_ = restoreStack(stack);
-
-      if (state_->isTrue(tail)) {
-        int calleeArgNum = index(s_, 0).toFixnum();
-        s_ -= calleeArgNum + 1;
-      }
 
       // do-return
       x_ = index(s_, 0);
@@ -481,9 +480,9 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
   return Svalue(closure);
 }
 
-Svalue Vm::createContinuation(int s, Svalue tail) {
+Svalue Vm::createContinuation(int s) {
   Svalue body = list(state_,
-                     opcodes_[NUATE], tail,
+                     opcodes_[NUATE],
                      saveStack(s));
   return createClosure(body, s, s, 0, 1);
 }
