@@ -105,6 +105,9 @@ public:
   bool runFromFile(const char* filename, Svalue* pResult = NULL);
   bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
+  // Check value type, and raise runtime error if the value is not expected type.
+  void checkType(Svalue x, Type expected);
+
   // Converts C++ bool value to lisp bool value.
   Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 
