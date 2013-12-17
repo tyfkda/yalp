@@ -6,7 +6,6 @@
 #define _VM_HH_
 
 #include "yalp.hh"
-#include <setjmp.h>
 #include <vector>
 
 namespace yalp {
@@ -27,7 +26,7 @@ public:
   void release();
 
   // Execute compiled code.
-  bool run(Svalue code, Svalue* pResult);
+  Svalue run(Svalue code);
 
   // Gets argument number for current native function.
   int getArgNum() const;
@@ -43,7 +42,7 @@ public:
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   Svalue getMacro(Svalue name);
 
-  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  Svalue funcall(Svalue fn, int argNum, const Svalue* args);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
   void resetError();
 
@@ -51,9 +50,6 @@ public:
   const CallStack* getCallStack() const  { return &callStack_[0]; }
 
   void setTrace(bool b);
-
-  jmp_buf* setJmpbuf(jmp_buf* jmp);
-  void longJmp();
 
   void markRoot();
 
@@ -83,7 +79,6 @@ private:
   int restoreStack(Svalue v);
 
   int pushArgs(int argNum, const Svalue* args, int s);
-  Svalue funcallExec(Svalue fn, int argNum, const Svalue* args);
 
   void pushCallStack(Callable* callable);
   void popCallStack();
@@ -113,8 +108,6 @@ private:
   int f_;     // Frame pointer.
   Svalue c_;  // Current closure.
   int s_;     // Stack pointer.
-
-  jmp_buf* jmp_;
 
   std::vector<CallStack> callStack_;
 };

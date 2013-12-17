@@ -225,7 +225,8 @@ State::State(AllocFunc allocFunc)
   , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
-  , vm_(NULL) {
+  , vm_(NULL)
+  , jmp_(NULL) {
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANT] = {
     "t", "quote", "quasiquote", "unquote", "unquote-splicing"
@@ -267,7 +268,18 @@ bool State::compile(Svalue exp, Svalue* pValue) {
 }
 
 bool State::runBinary(Svalue code, Svalue* pResult) {
-  return vm_->run(code, pResult);
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue result = vm_->run(code);
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
 }
 
 bool State::runFromFile(const char* filename, Svalue* pResult) {
@@ -406,7 +418,7 @@ void State::runtimeError(const char* msg) {
     std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
   }
 
-  vm_->longJmp();
+  longJmp();
 }
 
 Svalue State::referGlobal(Svalue sym, bool* pExist) {
@@ -426,11 +438,37 @@ Svalue State::getMacro(Svalue name) {
 }
 
 bool State::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
-  return vm_->funcall(fn, argNum, args, pResult);
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue result = vm_->funcall(fn, argNum, args);
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
 }
 
 Svalue State::tailcall(Svalue fn, int argNum, const Svalue* args) {
   return vm_->tailcall(fn, argNum, args);
+}
+
+jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
+  jmp_buf* old = jmp_;
+  jmp_ = jmp;
+  return old;
+}
+
+void State::longJmp() {
+  if (jmp_ != NULL)
+    longjmp(*jmp_, 1);
+
+  // If process comes here, something wrong.
+  std::cerr << "Vm::longJmp failed" << std::endl;
+  exit(1);
 }
 
 void State::resetError() {

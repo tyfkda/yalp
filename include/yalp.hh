@@ -13,6 +13,7 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
+#include <setjmp.h>
 #include <stddef.h>  // for size_t, NULL
 #include <stdio.h>  // for FILE
 
@@ -190,12 +191,16 @@ private:
   void markRoot();
   void allocFailed(void* p, size_t size);
 
+  jmp_buf* setJmpbuf(jmp_buf* jmp);
+  void longJmp();
+
   AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
   HashPolicyEq* hashPolicyEq_;
   Vm* vm_;
+  jmp_buf* jmp_;
 
   friend struct StateAllocatorCallback;
 };

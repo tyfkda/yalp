@@ -109,7 +109,6 @@ Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
   , trace_(false)
-  , jmp_(NULL)
   , callStack_() {
   a_ = c_ = Svalue::NIL;
   x_ = endOfCode_;
@@ -147,22 +146,6 @@ void Vm::setTrace(bool b) {
   trace_ = b;
 }
 
-jmp_buf* Vm::setJmpbuf(jmp_buf* jmp) {
-  jmp_buf* old = jmp_;
-  jmp_ = jmp;
-  return old;
-}
-
-void Vm::longJmp() {
-  if (jmp_ != NULL) {
-    longjmp(*jmp_, 1);
-  }
-
-  // If process comes here, something wrong.
-  std::cerr << "Vm::longJmp failed" << std::endl;
-  exit(1);
-}
-
 void Vm::markRoot() {
   globalVariableTable_->mark();
   macroTable_->mark();
@@ -196,24 +179,13 @@ Svalue Vm::getMacro(Svalue name) {
   return result != NULL ? *result : Svalue::NIL;
 }
 
-bool Vm::run(Svalue code, Svalue* pResult) {
-  jmp_buf* old = NULL;
-  jmp_buf jmp;
-  bool ret = false;
-  if (setjmp(jmp) == 0) {
-    old = setJmpbuf(&jmp);
-    Svalue nil = Svalue::NIL;
-    a_ = nil;
-    x_ = code;
-    c_ = nil;
-    f_ = 0;
-    Svalue result = runLoop();
-    if (pResult != NULL)
-      *pResult = result;
-    ret = true;
-  }
-  setJmpbuf(old);
-  return ret;
+Svalue Vm::run(Svalue code) {
+  Svalue nil = Svalue::NIL;
+  a_ = nil;
+  x_ = code;
+  c_ = nil;
+  f_ = 0;
+  return runLoop();
 }
 
 Svalue Vm::runLoop() {
@@ -671,22 +643,7 @@ Svalue Vm::getArg(int index) const {
   return this->index(f_, index);
 }
 
-bool Vm::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
-  jmp_buf* old = NULL;
-  jmp_buf jmp;
-  bool ret = false;
-  if (setjmp(jmp) == 0) {
-    old = setJmpbuf(&jmp);
-    Svalue result = funcallExec(fn, argNum, args);
-    if (pResult != NULL)
-      *pResult = result;
-    ret = true;
-  }
-  setJmpbuf(old);
-  return ret;
-}
-
-Svalue Vm::funcallExec(Svalue fn, int argNum, const Svalue* args) {
+Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
     tailcall(fn, argNum, args);
