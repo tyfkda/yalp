@@ -63,12 +63,12 @@ static inline void moveStackElems(Svalue* stack, int dst, int src, int n) {
     memmove(&stack[dst], &stack[src], sizeof(Svalue) * n);
 }
 
-static bool checkArgNum(State* state, int argNum, int min, int max) {
+static bool checkArgNum(State* state, Svalue fn, int argNum, int min, int max) {
   if (argNum < min) {
-    state->runtimeError("Too few arguments");
+    state->runtimeError("Too few arguments, %@ requires at least %d but %d", &fn, min, argNum);
     return false;
   } else if (max >= 0 && argNum > max) {
-    state->runtimeError("Too many arguments");
+    state->runtimeError("Too many arguments, %@ requires at most %d but %d", &fn, max, argNum);
     return false;
   }
   return true;
@@ -244,11 +244,8 @@ Svalue Vm::runLoop() {
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Svalue aa = referGlobal(sym, &exist);
-      if (!exist) {
-        //sym.output(state_, std::cerr, true);
-        //std::cerr << ": ";
-        state_->runtimeError("Unbound");
-      }
+      if (!exist)
+        state_->runtimeError("Unbound `%@`", &sym);
       a_ = aa;
     }
     goto again;
@@ -276,10 +273,8 @@ Svalue Vm::runLoop() {
       Svalue sym = CAR(x_);
       x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
-      if (!assignGlobal(sym, a_)) {
-        //sym.output(state_, std::cerr, true);
-        state_->runtimeError(": Global variable not defined");
-      }
+      if (!assignGlobal(sym, a_))
+        state_->runtimeError("Global variable `%@` not defined", &sym);
     }
     goto again;
   case DEF:
@@ -336,9 +331,8 @@ Svalue Vm::runLoop() {
   case APPLY:
     {
       int argNum = CAR(x_).toFixnum();
-      if (!a_.isObject() || !a_.toObject()->isCallable()) {
-        state_->runtimeError("Can't call");
-      }
+      if (!a_.isObject() || !a_.toObject()->isCallable())
+        state_->runtimeError("Can't call `%@`", &a_);
 
       pushCallStack(static_cast<Callable*>(a_.toObject()));
 
@@ -347,7 +341,7 @@ Svalue Vm::runLoop() {
         {
           Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-          checkArgNum(state_, argNum, min, max);
+          checkArgNum(state_, a_, argNum, min, max);
 
           int ds = 0;
           if (closure->hasRestParam())
@@ -364,7 +358,7 @@ Svalue Vm::runLoop() {
         {
           NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
           int min = native->getMinArgNum(), max = native->getMaxArgNum();
-          checkArgNum(state_, argNum, min, max);
+          checkArgNum(state_, a_, argNum, min, max);
 
           f_ = s_;
           s_ = push(state_->fixnumValue(argNum), s_);
@@ -375,7 +369,7 @@ Svalue Vm::runLoop() {
       case TT_CONTINUATION:
         {
           Continuation* continuation = static_cast<Continuation*>(a_.toObject());
-          checkArgNum(state_, argNum, 0, 1);
+          checkArgNum(state_, a_, argNum, 0, 1);
           a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
 
           int savedStackSize = continuation->getStackSize();
@@ -471,9 +465,7 @@ Svalue Vm::runLoop() {
     }
     goto again;
   default:
-    //op.output(state_, std::cerr, true);
-    //std::cerr << ": ";
-    state_->runtimeError("Unknown op");
+    state_->runtimeError("Unknown op `%@`", &op);
     return a_;
   }
 }
@@ -650,8 +642,7 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
 
 Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
-    //fn.output(state_, std::cerr, true);
-    state_->runtimeError("Can't call");
+    state_->runtimeError("Can't call `%@`", &fn);
     return Svalue::NIL;
   }
 
@@ -678,7 +669,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
 
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-      checkArgNum(state_, argNum, min, max);
+      checkArgNum(state_, fn, argNum, min, max);
 
       int ds = 0;
       if (closure->hasRestParam())
@@ -699,7 +690,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     {
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       int min = native->getMinArgNum(), max = native->getMaxArgNum();
-      checkArgNum(state_, argNum, min, max);
+      checkArgNum(state_, fn, argNum, min, max);
 
       // No frame.
       f_ = pushArgs(argNum, args, s_);
@@ -714,7 +705,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
   case TT_CONTINUATION:
     {
       Continuation* continuation = static_cast<Continuation*>(fn.toObject());
-      checkArgNum(state_, argNum, 0, 1);
+      checkArgNum(state_, fn, argNum, 0, 1);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
       int savedStackSize = continuation->getStackSize();
@@ -785,10 +776,8 @@ void Vm::registerMacro(Svalue name, int minParam, int maxParam, Svalue body) {
   static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
   defineGlobal(name, state_->intern("*macro*"));
 
-  if (name.getType() != TT_SYMBOL) {
-    //std::cerr << name << ": ";
-    state_->runtimeError("Must be symbol");
-  }
+  if (name.getType() != TT_SYMBOL)
+    state_->runtimeError("Must be symbol, but `%@`", &name);
   macroTable_->put(name, closure);
 }
 

@@ -161,7 +161,7 @@ struct BinOp {
       return calcf(state, 1, x.toFloat(state));
       break;
     default:
-      state->runtimeError("Number expected");
+      state->runtimeError("Number expected, but `%@`", &x);
       break;
     }
     if (n == 1)
@@ -176,7 +176,7 @@ struct BinOp {
       case TT_FLOAT:
         return calcf(state, i, static_cast<Sfloat>(acc));
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -198,7 +198,7 @@ struct BinOp {
         acc = Op::op(acc, x.toFloat(state));
         break;
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -270,7 +270,7 @@ struct CompareOp {
       return calcf(state, 1, x.toFloat(state));
       break;
     default:
-      state->runtimeError("Number expected");
+      state->runtimeError("Number expected, but `%@`", &x);
       break;
     }
 
@@ -288,7 +288,7 @@ struct CompareOp {
       case TT_FLOAT:
         return calcf(state, i, static_cast<Sfloat>(acc));
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -317,7 +317,7 @@ struct CompareOp {
         }
         break;
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -405,7 +405,7 @@ static Svalue s_read(State* state) {
   Svalue exp;
   ReadError err = reader.read(&exp);
   if (err != READ_SUCCESS)
-    state->runtimeError("Read error");
+    state->runtimeError("Read error %d", err);
   return exp;
 }
 
@@ -417,7 +417,7 @@ static Svalue s_read_delimited_list(State* state) {
   Svalue result;
   ReadError err = reader.readDelimitedList(delimiter.toCharacter(), &result);
   if (err != READ_SUCCESS)
-    state->runtimeError("Read failed");
+    state->runtimeError("Read error %d", err);
   return result;
 }
 

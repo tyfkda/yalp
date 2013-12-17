@@ -134,8 +134,7 @@ Sfloat Svalue::toFloat(State* state) const {
   case TT_FIXNUM:
     return static_cast<Sfloat>(toFixnum());
   default:
-    //std::cerr << *this << ": ";
-    state->runtimeError("Float expected");
+    state->runtimeError("Float expected, but `%@`", this);
     return 0;
   }
 }
@@ -342,7 +341,7 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
 
 void State::checkType(Svalue x, Type expected) {
   if (x.getType() != expected)
-    runtimeError("Type error");
+    runtimeError("Type error, %d expected, but `%@`", expected, &x);
 }
 
 Svalue State::intern(const char* name) {
@@ -420,13 +419,18 @@ Svalue State::getArg(int index) const {
   return vm_->getArg(index);
 }
 
-void State::runtimeError(const char* msg) {
-  std::cerr << msg << std::endl;
+void State::runtimeError(const char* msg, ...) {
+  FileStream errout(stderr);
+  va_list ap;
+  va_start(ap, msg);
+  format(this, &errout, msg, ap);
+  errout.write('\n');
+  va_end(ap);
 
   const Vm::CallStack* callStack = vm_->getCallStack();
   for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
     const Symbol* name = callStack[i].callable->getName();
-    std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
+    format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "_noname_"));
   }
 
   longJmp();
