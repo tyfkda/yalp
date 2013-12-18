@@ -2,6 +2,8 @@
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "yalp/stream.hh"
+
+#include <assert.h>
 #include <fstream>
 #include <iostream>
 #include <unistd.h>  // for isatty()
@@ -195,6 +197,28 @@ static bool runMain(State* state) {
   return state->funcall(main, 0, NULL, NULL);
 }
 
+static void exitIfError(ErrorCode err) {
+  const char* msg = NULL;
+  switch (err) {
+  case SUCCESS:
+    return;
+  case END_OF_FILE:  msg = "End of file"; break;
+  case NO_CLOSE_PAREN:  msg = "No close paren"; break;
+  case EXTRA_CLOSE_PAREN:  msg = "Extra close paren"; break;
+  case DOT_AT_BASE:  msg = "Dot at base"; break;
+  case ILLEGAL_CHAR:  msg = "Illegal char"; break;
+  case COMPILE_ERROR:  msg = "Compile error"; break;
+  case FILE_NOT_FOUND:  msg = "File not found"; break;
+  case RUNTIME_ERROR:  msg = "Runtime error"; break;
+  default:
+    assert(!"Not handled");
+    msg = "Unknown error";
+    break;
+  }
+  std::cout << msg << std::endl;
+  exit(1);
+}
+
 int main(int argc, char* argv[]) {
   State* state = State::create(&myAllocFunc);
 
@@ -226,14 +250,14 @@ int main(int argc, char* argv[]) {
         cerr << "'-l' takes parameter" << endl;
         exit(1);
       }
-      state->runFromFile(argv[ii]);
+      exitIfError(state->runFromFile(argv[ii]));
       break;
     case 'L':  // Binary library.
       if (++ii >= argc) {
         cerr << "'-L' takes parameter" << endl;
         exit(1);
       }
-      state->runBinaryFromFile(argv[ii]);
+      exitIfError(state->runBinaryFromFile(argv[ii]));
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
@@ -256,11 +280,9 @@ int main(int argc, char* argv[]) {
         if (!compileFile(state, argv[i], bNoRun))
           exit(1);
       } else if (bBinary) {
-        if (!state->runBinaryFromFile(argv[i]))
-          exit(1);
+        exitIfError(state->runBinaryFromFile(argv[i]));
       } else {
-        if (!state->runFromFile(argv[i]))
-          exit(1);
+        exitIfError(state->runFromFile(argv[i]));
       }
     }
   }

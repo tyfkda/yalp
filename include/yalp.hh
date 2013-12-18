@@ -13,6 +13,8 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
+#include "yalp/error_code.hh"
+
 #include <setjmp.h>
 #include <stddef.h>  // for size_t, NULL
 #include <stdio.h>  // for FILE
@@ -107,8 +109,8 @@ public:
   // Execute compiled code.
   bool runBinary(Svalue code, Svalue* pResult);
 
-  bool runFromFile(const char* filename, Svalue* pResult = NULL);
-  bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
   // Check value type, and raise runtime error if the value is not expected type.
   void checkType(Svalue x, Type expected);

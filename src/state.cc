@@ -12,7 +12,6 @@
 #include "vm.hh"
 
 #include <assert.h>
-#include <iostream>
 #include <string.h>  // for strlen
 
 namespace yalp {
@@ -288,12 +287,10 @@ bool State::runBinary(Svalue code, Svalue* pResult) {
   return ret;
 }
 
-bool State::runFromFile(const char* filename, Svalue* pResult) {
+ErrorCode State::runFromFile(const char* filename, Svalue* pResult) {
   FileStream stream(filename, "r");
-  if (!stream.isOpened()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
+  if (!stream.isOpened())
+    return FILE_NOT_FOUND;
 
   Reader reader(this, &stream);
   Svalue result;
@@ -302,25 +299,21 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
   while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
     if (!compile(exp, &code) || isFalse(code))
-      return false;
+      return COMPILE_ERROR;
     if (!runBinary(code, &result))
-      return false;
+      return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE) {
-    std::cerr << "Read error: " << err << std::endl;
-    return false;
-  }
+  if (err != END_OF_FILE)
+    return err;
   if (pResult != NULL)
     *pResult = result;
-  return true;
+  return SUCCESS;
 }
 
-bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
+ErrorCode State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   FileStream stream(filename, "r");
-  if (!stream.isOpened()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
+  if (!stream.isOpened())
+    return FILE_NOT_FOUND;
 
   Reader reader(this, &stream);
   Svalue result = Svalue::NIL;
@@ -328,15 +321,13 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   ErrorCode err;
   while ((err = reader.read(&bin)) == SUCCESS) {
     if (!runBinary(bin, &result))
-      return false;
+      return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE) {
-    std::cerr << "Read error: " << err << std::endl;
-    return false;
-  }
+  if (err != END_OF_FILE)
+    return err;
   if (pResult != NULL)
     *pResult = result;
-  return true;
+  return SUCCESS;
 }
 
 void State::checkType(Svalue x, Type expected) {
@@ -491,7 +482,8 @@ void State::longJmp() {
     longjmp(*jmp_, 1);
 
   // If process comes here, something wrong.
-  std::cerr << "Vm::longJmp failed" << std::endl;
+  FileStream errout(stderr);
+  errout.write("Vm::longJmp failed\n");
   exit(1);
 }
 
