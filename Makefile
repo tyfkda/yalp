@@ -1,33 +1,46 @@
 PROJECT=yalp
 
-SRCPATH=src
-INCPATH=include
-OBJPATH=obj
+SRCDIR=src
+INCDIR=include
+OBJDIR=obj
+LIBDIR=lib
+LIBNAME=$(LIBDIR)/lib$(PROJECT).a
+TOOLSDIR=tools
 
-SRCS=$(wildcard $(SRCPATH)/*.cc)
-OBJS=$(subst $(SRCPATH),$(OBJPATH),$(SRCS:%.cc=%.o))
-DEPS=$(subst $(SRCPATH),$(OBJPATH),$(SRCS:%.cc=%.d))
+SRCS=$(wildcard $(SRCDIR)/*.cc)
+OBJS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.o))
+DEPS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.d))
 
-CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCPATH)
+CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCDIR)
 
 .PHONY: all clean test
 
 all:	$(PROJECT)
 
 clean:
-	rm -rf $(OBJPATH)
+	rm -rf $(OBJDIR) $(LIBDIR)
 	rm -f $(PROJECT)
 
 -include $(DEPS)
+-include $(OBJDIR)/yalp.d
 
-$(PROJECT):	$(OBJS)
-	g++ -o $(PROJECT) $(OBJS)
+$(PROJECT):	$(LIBNAME) $(OBJDIR)/yalp.o
+	g++ -o $(PROJECT) $(LIBNAME) $(OBJDIR)/yalp.o
 
-$(OBJPATH)/%.o:	$(SRCPATH)/%.cc
-	@if ! [ -e $(OBJPATH) ]; then\
-	  mkdir $(OBJPATH);\
+$(LIBNAME):	$(OBJS)
+
+$(OBJDIR)/yalp.o:	$(TOOLSDIR)/src/yalp.cc
+	g++ $(CXXFLAGS) -o $@ -c $<
+
+$(OBJDIR)/%.o:	$(SRCDIR)/%.cc
+	@if ! [ -e $(OBJDIR) ]; then\
+	  mkdir $(OBJDIR);\
+	fi
+	@if ! [ -e $(LIBDIR) ]; then\
+	  mkdir $(LIBDIR);\
 	fi
 	g++ $(CXXFLAGS) -o $@ -c $<
+	ar r $(LIBNAME) $@
 
 test:	$(PROJECT)
 	make -C test

@@ -1,4 +1,5 @@
 /obj/*
+/lib/*
 /test/*.o
 /test/*.d
 /test/*.a
