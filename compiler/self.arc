@@ -350,18 +350,20 @@
 
 (def (compile-defmacro name vars body next)
   (let proper-vars (dotted->proper vars)
-    (with (varnum (if (is vars proper-vars)
-                      (len vars)
-                    (list (- (len proper-vars) 1)
-                          -1))
-           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
-      ;; Macro registeration will be done in other place.
-      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
-      (list* 'MACRO
-             name
-             varnum
-             body-code
-             next))))
+    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
+         (compile-error "Defmacro parameter must be symbol")
+      (with (varnum (if (is vars proper-vars)
+                        (len vars)
+                      (list (- (len proper-vars) 1)
+                            -1))
+             body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
+        ;; Macro registeration will be done in other place.
+        ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+        (list* 'MACRO
+               name
+               varnum
+               body-code
+               next)))))
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)
