@@ -10,9 +10,9 @@
 #include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
+
 #include <alloca.h>
 #include <assert.h>
-#include <iostream>
 #include <tgmath.h>
 
 namespace yalp {
@@ -520,9 +520,8 @@ static Svalue s_apply(State* state) {
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
   Svalue result;
-  if (!state->runBinary(bin, &result)) {
-    std::cerr << "run_binary: failed" << std::endl;
-  }
+  if (!state->runBinary(bin, &result))
+    return Svalue::NIL;
   return result;
 }
 
