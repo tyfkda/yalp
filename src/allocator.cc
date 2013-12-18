@@ -7,6 +7,10 @@
 #include <stdint.h>  // intptr_t
 #include <stdlib.h>  // for malloc, free
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
+
 namespace yalp {
 
 //=============================================================================
@@ -116,8 +120,15 @@ void* Allocator::objAlloc(size_t size) {
 }
 
 void Allocator::collectGarbage() {
+#ifndef NDEBUG
+  std::cerr << "\n**** Start GC ****\n"
+    "  Before #" << objectCount_ << "\n";
+#endif
   callback_->markRoot(userdata_);
   sweep();
+#ifndef NDEBUG
+  std::cerr << "  After  #" << objectCount_ << "\n\n";
+#endif
 }
 
 void Allocator::sweep() {

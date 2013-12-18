@@ -589,7 +589,7 @@ static Svalue s_get_macro_character(State* state) {
 
 static Svalue s_collect_garbage(State* state) {
   state->collectGarbage();
-  return Svalue::NIL;
+  return state->getConstant(State::T);
 }
 
 static Svalue s_exit(State* state) {
