@@ -71,10 +71,7 @@ void Allocator::release() {
 
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
   : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
-  , objectTop_(NULL), objectCount_(0) {
-  (void)callback_;
-  (void)userdata_;
-}
+  , objectTop_(NULL), objectCount_(0) {}
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
