@@ -298,8 +298,8 @@ bool State::runFromFile(const char* filename, Svalue* pResult) {
   Reader reader(this, &stream);
   Svalue result;
   Svalue exp;
-  ReadError err;
-  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
     if (!compile(exp, &code) || isFalse(code))
       return false;
@@ -325,8 +325,8 @@ bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
   Reader reader(this, &stream);
   Svalue result = Svalue::NIL;
   Svalue bin;
-  ReadError err;
-  while ((err = reader.read(&bin)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&bin)) == SUCCESS) {
     if (!runBinary(bin, &result))
       return false;
   }

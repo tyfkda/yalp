@@ -88,8 +88,8 @@ static void dumpLeakedMemory() {
 static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
   Svalue bin;
-  ReadError err;
-  while ((err = reader.read(&bin)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&bin)) == SUCCESS) {
     if (!state->runBinary(bin, NULL))
       return false;
   }
@@ -110,8 +110,8 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   Svalue writess = state->referGlobal(state->intern("write/ss"));
   Reader reader(state, &stream);
   Svalue exp;
-  ReadError err;
-  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
     if (!state->compile(exp, &code)) {
       cerr << "`compile` is not enabled" << endl;
@@ -143,11 +143,11 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
     if (tty)
       cout << "> " << std::flush;
     Svalue s;
-    ReadError err = reader.read(&s);
+    ErrorCode err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
 
-    if (err != READ_SUCCESS) {
+    if (err != SUCCESS) {
       cerr << "Read error: " << err << endl;
       if (tty)
         continue;

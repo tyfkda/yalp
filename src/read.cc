@@ -53,7 +53,7 @@ Reader::~Reader() {
   }
 }
 
-ReadError Reader::read(Svalue* pValue) {
+ErrorCode Reader::read(Svalue* pValue) {
   skipSpaces();
   int c = getc();
   Svalue fn = state_->getMacroCharacter(c);
@@ -61,7 +61,7 @@ ReadError Reader::read(Svalue* pValue) {
     SStream ss(stream_);
     Svalue args[] = { Svalue(&ss), state_->characterValue(c) };
     if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
-      return READ_SUCCESS;
+      return SUCCESS;
     return ILLEGAL_CHAR;
   }
 
@@ -95,7 +95,7 @@ ReadError Reader::read(Svalue* pValue) {
     putback(c);
     if (!isDelimiter(c)) {
       return readSymbolOrNumber(pValue);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
     return ILLEGAL_CHAR;
   }
@@ -129,7 +129,7 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
   return p;
 }
 
-ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
+ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isNotDelimiter);
 
@@ -157,28 +157,28 @@ ReadError Reader::readSymbolOrNumber(Svalue* pValue) {
     *pValue = state_->floatValue(static_cast<Sfloat>(atof(buffer)));
   else
     *pValue = state_->fixnumValue(atol(buffer));
-  return READ_SUCCESS;
+  return SUCCESS;
 }
 
-ReadError Reader::readList(Svalue* pValue) {
+ErrorCode Reader::readList(Svalue* pValue) {
   return readDelimitedList(')', pValue);
 }
 
-ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
+ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
   Svalue value = Svalue::NIL;
   Svalue v;
-  ReadError err;
+  ErrorCode err;
   for (;;) {
     skipSpaces();
     int c = getc();
     if (c == terminator) {
       *pValue = nreverse(value);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
 
     putback(c);
     err = read(&v);
-    if (err != READ_SUCCESS)
+    if (err != SUCCESS)
       break;
     // TODO: Sometimes value is broken here after reader macro executed.
     value = state_->cons(v, value);
@@ -195,7 +195,7 @@ ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
 
       Svalue tail;
       err = read(&tail);
-      if (err != READ_SUCCESS)
+      if (err != SUCCESS)
         return err;
 
       skipSpaces();
@@ -208,7 +208,7 @@ ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
       Svalue lastPair = value;
       *pValue = nreverse(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
     break;
   default:
@@ -216,16 +216,16 @@ ReadError Reader::readDelimitedList(int terminator, Svalue* pValue) {
   }
 }
 
-ReadError Reader::readQuote(Svalue* pValue) {
-  ReadError err = read(pValue);
-  if (err == READ_SUCCESS)
+ErrorCode Reader::readQuote(Svalue* pValue) {
+  ErrorCode err = read(pValue);
+  if (err == SUCCESS)
     *pValue = list(state_, state_->getConstant(State::QUOTE),*pValue);
   return err;
 }
 
-ReadError Reader::readAbbrev(const char* funcname, Svalue* pValue) {
-  ReadError err = read(pValue);
-  if (err == READ_SUCCESS) {
+ErrorCode Reader::readAbbrev(const char* funcname, Svalue* pValue) {
+  ErrorCode err = read(pValue);
+  if (err == SUCCESS) {
     *pValue = list(state_,
                    state_->intern(funcname),
                    *pValue);
@@ -233,7 +233,7 @@ ReadError Reader::readAbbrev(const char* funcname, Svalue* pValue) {
   return err;
 }
 
-ReadError Reader::readString(char closeChar, Svalue* pValue) {
+ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
   BUFFER(buffer, size);
 
   int p = 0;
@@ -263,10 +263,10 @@ ReadError Reader::readString(char closeChar, Svalue* pValue) {
   }
   putBuffer(&buffer, &size, p, '\0');
   *pValue = state_->stringValue(buffer, p);
-  return READ_SUCCESS;
+  return SUCCESS;
 }
 
-ReadError Reader::readSpecial(Svalue* pValue) {
+ErrorCode Reader::readSpecial(Svalue* pValue) {
   int c = getc();
   if (isdigit(c)) {
     putback(c);
@@ -281,7 +281,7 @@ ReadError Reader::readSpecial(Svalue* pValue) {
   }
 }
 
-ReadError Reader::readSharedStructure(Svalue* pValue) {
+ErrorCode Reader::readSharedStructure(Svalue* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isdigit);
 
@@ -290,11 +290,11 @@ ReadError Reader::readSharedStructure(Svalue* pValue) {
   switch (c) {
   case '=':
     {
-      ReadError err = read(pValue);
-      if (err != READ_SUCCESS)
+      ErrorCode err = read(pValue);
+      if (err != SUCCESS)
         return err;
       storeShared(n, *pValue);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
   case '#':
     if (sharedStructures_ != NULL) {
@@ -302,7 +302,7 @@ ReadError Reader::readSharedStructure(Svalue* pValue) {
       if (p == NULL)
         return ILLEGAL_CHAR;
       *pValue = *p;
-      return READ_SUCCESS;
+      return SUCCESS;
     }
     // Fall
   default:
@@ -311,7 +311,7 @@ ReadError Reader::readSharedStructure(Svalue* pValue) {
   }
 }
 
-ReadError Reader::readChar(Svalue* pValue) {
+ErrorCode Reader::readChar(Svalue* pValue) {
   int c = getc();
   switch (c) {
   case ' ': case '\n': case '\t': case -1:
@@ -319,7 +319,7 @@ ReadError Reader::readChar(Svalue* pValue) {
   default:
     if (isDelimiter(c)) {
       *pValue = state_->characterValue(c);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
     putback(c);
     break;
@@ -330,7 +330,7 @@ ReadError Reader::readChar(Svalue* pValue) {
 
   if (p == 1) {
     *pValue = state_->characterValue(reinterpret_cast<unsigned char*>(buffer)[0]);
-    return READ_SUCCESS;
+    return SUCCESS;
   }
 
   struct {
@@ -345,7 +345,7 @@ ReadError Reader::readChar(Svalue* pValue) {
   for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
     if (strcmp(buffer, Table[i].name) == 0) {
       *pValue = state_->fixnumValue(Table[i].code);
-      return READ_SUCCESS;
+      return SUCCESS;
     }
   }
   return ILLEGAL_CHAR;

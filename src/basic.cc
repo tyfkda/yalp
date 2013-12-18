@@ -404,9 +404,9 @@ static Svalue s_read(State* state) {
   Svalue eof = state->getArgNum() > 1 ? state->getArg(1) : Svalue::NIL;
   Reader reader(state, stream);
   Svalue exp;
-  ReadError err = reader.read(&exp);
+  ErrorCode err = reader.read(&exp);
   switch (err) {
-  case READ_SUCCESS:
+  case SUCCESS:
     return exp;
   case END_OF_FILE:
     return eof;
@@ -422,8 +422,8 @@ static Svalue s_read_delimited_list(State* state) {
   Stream* stream = chooseStream(state, 1, "*stdin*");
   Reader reader(state, stream);
   Svalue result;
-  ReadError err = reader.readDelimitedList(delimiter.toCharacter(), &result);
-  if (err != READ_SUCCESS)
+  ErrorCode err = reader.readDelimitedList(delimiter.toCharacter(), &result);
+  if (err != SUCCESS)
     state->runtimeError("Read error %d", err);
   return result;
 }
