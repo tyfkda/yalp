@@ -196,45 +196,46 @@
 
 ;; Compiles ((^(vars) body) args) form
 (def (compile-apply-direct vars body args e s next)
-  (with* (proper-vars (dotted->proper vars)
+  (with* (proper-vars (check-parameters vars)
           ext-vars (append proper-vars (car e)))
-    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
-         (compile-error "Function parameter must be symbol")
-      (with (free (cdr e)  ;(set-intersect (set-union (car e)
-                           ;                 (cdr e))
-                           ;      (find-frees body '() proper-vars))
-             sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
-        (with* (argnum (len args)
-                c (if (is argnum 0)
-                      (compile-lambda-body ext-vars body free sets s
-                                           next)
-                    (list* 'EXPND argnum
-                           (make-boxes sets proper-vars
-                                       (compile-lambda-body ext-vars body free sets s
-                                                            (if (tail? next)
-                                                                next
-                                                              (list* 'SHRNK argnum next)))))))
-          (compile-apply-args args c e s))))))
+    (with (free (cdr e)  ;(set-intersect (set-union (car e)
+                         ;                 (cdr e))
+                         ;      (find-frees body '() proper-vars))
+           sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+      (with* (argnum (len args)
+              c (if (is argnum 0)
+                    (compile-lambda-body ext-vars body free sets s
+                                         next)
+                  (list* 'EXPND argnum
+                         (make-boxes sets proper-vars
+                                     (compile-lambda-body ext-vars body free sets s
+                                                          (if (tail? next)
+                                                              next
+                                                            (list* 'SHRNK argnum next)))))))
+        (compile-apply-args args c e s)))))
 
 (def (compile-lambda vars body e s next)
+  (let proper-vars (check-parameters vars)
+    (with (free (set-intersect (set-union (car e)
+                                          (cdr e))
+                               (find-frees body '() proper-vars))
+           sets (find-setses body proper-vars)
+           varnum (if (is vars proper-vars)
+                      (len vars)
+                    (list (- (len proper-vars) 1)
+                          -1)))
+      (collect-free free e
+                    (list* 'CLOSE varnum (len free)
+                           (make-boxes sets proper-vars
+                                       (compile-lambda-body proper-vars body free sets s '(RET)))
+                           next)))))
+
+;; Check function parameters are valid and returns proper vars.
+(def (check-parameters vars)
   (let proper-vars (dotted->proper vars)
-    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
-         (compile-error "Function parameter must be symbol")
-      (with (free (set-intersect (set-union (car e)
-                                            (cdr e))
-                                 (find-frees body '() proper-vars))
-             sets (find-setses body proper-vars)
-             varnum (if (is vars proper-vars)
-                        (len vars)
-                      (list (- (len proper-vars) 1)
-                            -1)))
-        (collect-free free e
-                      (list* 'CLOSE
-                             varnum
-                             (len free)
-                             (make-boxes sets proper-vars
-                                         (compile-lambda-body proper-vars body free sets s '(RET)))
-                             next))))))
+    (when (member-if (^(var) (no (symbol? var))) vars)
+      (compile-error "parameter must be symbol"))
+    proper-vars))
 
 (def (compile-lambda-body vars body free sets s next)
   (with (ee (cons vars free)
@@ -349,21 +350,16 @@
 ;;; Macro
 
 (def (compile-defmacro name vars body next)
-  (let proper-vars (dotted->proper vars)
-    (aif (member-if (^(var) (no (symbol? var))) proper-vars)
-         (compile-error "Defmacro parameter must be symbol")
-      (with (varnum (if (is vars proper-vars)
-                        (len vars)
-                      (list (- (len proper-vars) 1)
-                            -1))
-             body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
-        ;; Macro registeration will be done in other place.
-        ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
-        (list* 'MACRO
-               name
-               varnum
-               body-code
-               next)))))
+  (let proper-vars (check-parameters vars)
+    (with (varnum (if (is vars proper-vars)
+                      (len vars)
+                    (list (- (len proper-vars) 1)
+                          -1))
+           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
+      ;; Macro registeration will be done in other place.
+      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+      (list* 'MACRO name varnum body-code
+             next))))
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)
