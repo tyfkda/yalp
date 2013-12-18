@@ -24,7 +24,7 @@ clean:
 -include $(DEPS)
 -include $(OBJDIR)/yalp.d
 
-$(PROJECT):	$(LIBNAME) $(OBJDIR)/yalp.o
+$(PROJECT):	$(OBJS) $(OBJDIR)/yalp.o
 	g++ -o $(PROJECT) $(LIBNAME) $(OBJDIR)/yalp.o
 
 $(LIBNAME):	$(OBJS)
