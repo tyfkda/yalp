@@ -12,7 +12,7 @@
              (write ,v)
              (display " expected, but ")
              (write ,result)
-             (newline)
+             (display "\n")
              (exit 1)))))))
 
 (def (test-section name)
