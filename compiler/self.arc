@@ -180,12 +180,12 @@
                                (list 'SHIFT argnum
                                      'APPLY argnum)
                              (list 'APPLY argnum)))
-          bc (compile-apply-args args c e s))
+          bc (compile-apply-args args e s c))
     (if (tail? next)
         bc
       (list* 'FRAME bc next))))
 
-(def (compile-apply-args args next e s)
+(def (compile-apply-args args e s next)
   (awith (args args
           c next)
     (if (no args)
@@ -212,7 +212,7 @@
                                                           (if (tail? next)
                                                               next
                                                             (list* 'SHRNK argnum next)))))))
-        (compile-apply-args args c e s)))))
+        (compile-apply-args args e s c)))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (check-parameters vars)
