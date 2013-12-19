@@ -206,7 +206,7 @@ private:
     if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
     unsigned int hash = policy_->hash(key);
-    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link();
+    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link;
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
