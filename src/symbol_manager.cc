@@ -34,7 +34,7 @@ struct SymbolManager::SymbolPage : public Page {
 };
 
 struct SymbolManager::NamePage : public Page {
-  char buffer[];  // Buffer size is expanded.
+  char buffer[1];  // Buffer size is expanded.
 
   explicit NamePage(NamePage* p) : Page(p)  {}
 };
@@ -133,7 +133,7 @@ void SymbolManager::expandNamePage(int len) {
     bufferSize = (len / NAME_BUFFER_SIZE + 1) * NAME_BUFFER_SIZE;
   }
 
-  NamePage* newPage = new(ALLOC(allocator_, sizeof(*newPage) + bufferSize)) NamePage(namePageTop_);
+  NamePage* newPage = new(ALLOC(allocator_, sizeof(*newPage) + bufferSize - 1)) NamePage(namePageTop_);
   namePageTop_ = newPage;
   nameBufferSize_ = bufferSize;
   nameBufferOffset_ = 0;

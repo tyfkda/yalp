@@ -44,13 +44,13 @@ Svalue::Svalue() : v_(TAG_OBJECT) {
 }
 
 Svalue::Svalue(Sfixnum i)
-  : v_(reinterpret_cast<Sfixnum>(i << 1) | TAG_FIXNUM) {}
+  : v_((i << 1) | TAG_FIXNUM) {}
 
 Svalue::Svalue(class Sobject* object)
   : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
 
 Svalue::Svalue(Sfixnum i, int tag2)
-  : v_(reinterpret_cast<Sfixnum>(i << TAG2_SHIFT) | tag2) {}
+  : v_((i << TAG2_SHIFT) | tag2) {}
 
 Type Svalue::getType() const {
   if (isFixnum(v_))
@@ -123,7 +123,7 @@ void Svalue::output(State* state, Stream* o, bool inspect) const {
 
 Sfixnum Svalue::toFixnum() const {
   assert(isFixnum(v_));
-  return reinterpret_cast<Sfixnum>(v_ >> 1);
+  return v_ >> 1;
 }
 
 Sfloat Svalue::toFloat(State* state) const {

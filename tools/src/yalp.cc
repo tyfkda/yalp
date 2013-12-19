@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
       if (!runBinary(state, &stream))
         exit(1);
     } else {
-      if (!repl(state, &stream, isatty(0), bCompile, bNoRun))
+      if (!repl(state, &stream, isatty(0) != 0, bCompile, bNoRun))
         exit(1);
     }
   } else {
