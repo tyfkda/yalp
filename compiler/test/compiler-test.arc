@@ -25,3 +25,7 @@
 (test "defmacro" '(y) (find-sets '(defmacro foo (x) (set! x 1) (set! y 2)) '(x y)))
 (test "other" '(y) (find-sets '((^(x) (set! x 1)) (set! y 2)) '(x y)))
 (test "dotted-params" '() (find-sets '(^(a . x) (set! x 123)) '(x)))
+
+(test-section "macroexpand")
+(test "macroexpand-1" '(x y . z) (macroexpand-1 '(x y . z)))
+(test "macroexpand-all" '(x y . z) (macroexpand-all '(x y . z) '()))
