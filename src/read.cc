@@ -341,6 +341,7 @@ ErrorCode Reader::readChar(Svalue* pValue) {
     { "nl", '\n' },
     { "newline", '\n' },
     { "tab", '\t' },
+    { "escape", 0x1b },
   };
   for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
     if (strcmp(buffer, Table[i].name) == 0) {
