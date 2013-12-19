@@ -267,8 +267,10 @@ void State::installBasicObjects() {
 
 bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
-  if (isFalse(fn))
+  if (isFalse(fn)) {
+    runtimeError("`compile` is not enabled");
     return false;
+  }
   return funcall(fn, 1, &exp, pValue);
 }
 
@@ -484,7 +486,6 @@ void State::longJmp() {
   // If process comes here, something wrong.
   FileStream errout(stderr);
   errout.write("State::longJmp is empty\n");
-  exit(1);
 }
 
 void State::resetError() {

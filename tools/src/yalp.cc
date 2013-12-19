@@ -115,12 +115,10 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
-    if (!state->compile(exp, &code)) {
-      cerr << "`compile` is not enabled" << endl;
+    if (!state->compile(exp, &code) || state->isFalse(code)) {
+      state->resetError();
       return false;
     }
-    if (state->isFalse(code))  // Compile failed.
-      return false;
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
@@ -156,11 +154,8 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
       return false;
     }
     Svalue code;
-    if (!state->compile(s, &code)) {
-      cerr << "`compile` is not enabled" << endl;
-      return false;
-    }
-    if (state->isFalse(code)) {  // Compile failed.
+    if (!state->compile(s, &code) || state->isFalse(code)) {
+      state->resetError();
       if (tty)
         continue;
       else
@@ -209,7 +204,7 @@ static void exitIfError(ErrorCode err) {
   case ILLEGAL_CHAR:  msg = "Illegal char"; break;
   case COMPILE_ERROR:  msg = "Compile error"; break;
   case FILE_NOT_FOUND:  msg = "File not found"; break;
-  case RUNTIME_ERROR:  msg = "Runtime error"; break;
+  case RUNTIME_ERROR:  return;  // Error message is already printed when runtime error.
   default:
     assert(!"Not handled");
     msg = "Unknown error";
