@@ -158,6 +158,10 @@
                                   (list* 'FRAME c next))))
                      (defmacro (name vars . body)
                        (compile-defmacro name vars body next))
+                     (values args
+                       (compile-values args e s next))
+                     (receive (vars vals . body)
+                       (compile-receive vars vals body e s next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -249,6 +253,25 @@
           (compile-recur (car p) ee ss
                          (loop (cdr p))))))))
 
+(def (compile-values args e s next)
+  (compile-apply-args args e s (list* 'VALS (len args) next)))
+
+(def (compile-receive vars vals body e s next)
+  (with* (proper-vars (check-parameters vars)
+          ext-vars (append proper-vars (car e)))
+    (with (free (cdr e)  ;(set-intersect (set-union (car e)
+                         ;                          (cdr e))
+                         ;               (find-frees body '() proper-vars))
+           sets (set-union s (find-setses body ext-vars)) ;(find-setses body proper-vars))
+           varnum (if (is vars proper-vars)
+                      (len vars)
+                    (list (- (len proper-vars) 1)
+                          -1)))
+      (compile-recur vals e s
+                     (list* 'RECV varnum
+                            (compile-lambda-body ext-vars body free sets s
+                                                 (list* 'SHRNK (len proper-vars) next)))))))
+
 (def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
     (awith (v '()
@@ -278,6 +301,10 @@
                                     (find-free exp b)))
                      (call/cc all (find-frees all b '()))
                      (defmacro (name vars . body) (find-frees body b vars))
+                     (values  all (find-frees all b '()))
+                     (receive (vars vals . body)
+                       (set-union (find-free vals b)
+                                  (find-frees body b vars)))
                      (else        (find-frees x b '())))
     '()))
 
@@ -312,6 +339,10 @@
                    (if      all (find-setses all v))
                    (call/cc all (find-setses all v))
                    (defmacro (name vars . body)  (find-setses body (set-minus v (dotted->proper vars))))
+                   (values  all (find-setses all v))
+                   (receive (vars vals . body)
+                     (set-union (find-sets vals v)
+                                (find-setses body (set-minus v (dotted->proper vars)))))
                    (else        (find-setses x   v)))
     '()))
 

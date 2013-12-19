@@ -76,6 +76,8 @@ private:
   Svalue createRestParams(int argNum, int minArgNum, int s);
   void expandFrame(int n);
   void shrinkFrame(int n);
+  void storeValues(int n, int s);
+  void restoreValues(int min, int max);
 
   int pushArgs(int argNum, const Svalue* args, int s);
 
@@ -89,6 +91,10 @@ private:
   Svalue* stack_;
   int stackSize_;
   bool trace_;
+
+  Svalue* values_;
+  int valuesSize_;
+  int valueCount_;
 
   // Symbols
   Svalue* opcodes_;

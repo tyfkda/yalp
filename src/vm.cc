@@ -40,6 +40,8 @@ namespace yalp {
   OP(MACRO) \
   OP(EXPND) \
   OP(SHRNK) \
+  OP(VALS) \
+  OP(RECV) \
 
 enum Opcode {
 #define OP(name)  name,
@@ -61,6 +63,14 @@ enum Opcode {
 static inline void moveStackElems(Svalue* stack, int dst, int src, int n) {
   if (n > 0)
     memmove(&stack[dst], &stack[src], sizeof(Svalue) * n);
+}
+
+static inline void moveValuesToStack(Svalue* stack, const Svalue* values, Svalue a, int n) {
+  if (n <= 0)
+    return;
+  if (n > 0)
+    memmove(stack, values, sizeof(Svalue) * (n - 1));
+  stack[n - 1] = a;
 }
 
 static bool checkArgNum(State* state, Svalue fn, int argNum, int min, int max) {
@@ -110,6 +120,8 @@ void Vm::release() {
 }
 
 Vm::~Vm() {
+  if (values_ != NULL)
+    FREE(state_->getAllocator(), values_);
   if (stack_ != NULL)
     FREE(state_->getAllocator(), stack_);
   FREE(state_->getAllocator(), opcodes_);
@@ -119,6 +131,7 @@ Vm::Vm(State* state)
   : state_(state)
   , stack_(NULL), stackSize_(0)
   , trace_(false)
+  , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
   a_ = c_ = Svalue::NIL;
   x_ = endOfCode_;
@@ -162,6 +175,9 @@ void Vm::markRoot() {
   // Mark stack.
   for (int n = s_, i = 0; i < n; ++i)
     stack_[i].mark();
+  // Mark values.
+  for (int n = valueCount_ - 1, i = 0; i < n; ++i)
+    values_[i].mark();
   // Mark a registers.
   a_.mark();
   c_.mark();
@@ -329,6 +345,7 @@ Svalue Vm::runLoop() {
     }
     goto again;
   case APPLY:
+    valueCount_ = 1;
     {
       int argNum = CAR(x_).toFixnum();
       if (!a_.isObject() || !a_.toObject()->isCallable())
@@ -474,6 +491,28 @@ Svalue Vm::runLoop() {
       shrinkFrame(n);
     }
     goto again;
+  case VALS:
+    {
+      int n = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      storeValues(n, s_);
+      s_ -= n;
+    }
+    goto again;
+  case RECV:
+    {
+      Svalue nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      x_ = CDR(x_);
+      int min, max;
+      if (nparam.getType() == TT_CELL) {
+        min = CAR(nparam).toFixnum();
+        max = CADR(nparam).toFixnum();
+      } else {
+        min = max = nparam.toFixnum();
+      }
+      restoreValues(min, max);
+    }
+    goto again;
   default:
     state_->runtimeError("Unknown op `%@`", &op);
     return a_;
@@ -604,6 +643,51 @@ void Vm::shrinkFrame(int n) {
   moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
   s_ -= n;
   f_ -= n;
+}
+
+void Vm::storeValues(int n, int s) {
+  // Move arguments from stack to values buffer.
+  if (n - 1 > valuesSize_) {
+    // Allocation size is n - 1, because values[0] is stored in a_ register.
+    void* memory = REALLOC(state_->getAllocator(), values_, sizeof(Svalue) * (n - 1));
+    Svalue* newBuffer = static_cast<Svalue*>(memory);
+    values_ = newBuffer;
+    valuesSize_ = n - 1;
+  }
+
+  // [0] is already stored in a if n > 0.
+  if (n == 0)
+    a_ = Svalue::NIL;
+  for (int i = 1; i < n; ++i)
+    values_[n - i - 1] = index(s, i);  // Stores values in reverse order to fit stack structure.
+  valueCount_ = n;
+}
+
+void Vm::restoreValues(int min, int /*max*/) {
+  int n = valueCount_;
+  assert(n == min);
+  if (f_ == 0) {
+    // No upper frame: create first frame.
+    //   Before: f_[z][y][x]s_
+    //   After:  [B][A]f_[N][z][x][y]s_
+    reserveStack(s_ + n + 1);
+    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
+    moveValuesToStack(&stack_[0], values_, a_, n);
+    stack_[n] = state_->fixnumValue(n);
+    s_ += n + 1;
+    f_ = n;
+    return;
+  }
+
+  // Before: [z][y][x]f_[argnum]s_
+  // After:  [z][y][x][B][A]f_[argnum+n]s_
+  int argNum = stack_[f_].toFixnum();
+  int src = f_, dst = src + n;
+  reserveStack(s_ + n);
+  stack_[f_] = state_->fixnumValue(argNum + n);
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  moveValuesToStack(&stack_[src], values_, a_, n);
+  f_ += n;
 }
 
 Svalue Vm::referGlobal(Svalue sym, bool* pExist) {

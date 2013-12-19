@@ -95,6 +95,13 @@ run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x . y) (list x y)))'
 run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ x x))'
 run empty-body nil '((^ ()))'
 
+# Multiple values
+run values 1 '(values 1 2 3)'
+run values-can-use-in-expression 14 '(+ 1 (values 10 20 30) 3)'
+run receive '(1 2 3)' '(receive (x y z) (values 1 2 3) (list x y z))'
+run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list x y z))'
+run empty-values nil '((^(x) (values)) 123)'
+
 # Abbreviated form
 run quote-x "'x" "''x"
 run quasiquote-x "\`x" "'\`x"
