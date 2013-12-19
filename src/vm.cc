@@ -334,14 +334,13 @@ Svalue Vm::runLoop() {
       if (!a_.isObject() || !a_.toObject()->isCallable())
         state_->runtimeError("Can't call `%@`", &a_);
 
-      pushCallStack(static_cast<Callable*>(a_.toObject()));
-
       switch (a_.getType()) {
       case TT_CLOSURE:
         {
           Closure* closure = static_cast<Closure*>(a_.toObject());
           int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
           checkArgNum(state_, a_, argNum, min, max);
+          pushCallStack(closure);
 
           int ds = 0;
           if (closure->hasRestParam())
@@ -359,6 +358,7 @@ Svalue Vm::runLoop() {
           NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
           int min = native->getMinArgNum(), max = native->getMaxArgNum();
           checkArgNum(state_, a_, argNum, min, max);
+          pushCallStack(native);
 
           f_ = s_;
           s_ = push(state_->fixnumValue(argNum), s_);
@@ -370,6 +370,7 @@ Svalue Vm::runLoop() {
         {
           Continuation* continuation = static_cast<Continuation*>(a_.toObject());
           checkArgNum(state_, a_, argNum, 0, 1);
+          pushCallStack(continuation);
           a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
 
           int savedStackSize = continuation->getStackSize();
@@ -646,8 +647,6 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     return Svalue::NIL;
   }
 
-  pushCallStack(static_cast<Callable*>(fn.toObject()));
-
   Svalue result;
 
   switch (fn.getType()) {
@@ -670,6 +669,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
+      pushCallStack(closure);
 
       int ds = 0;
       if (closure->hasRestParam())
@@ -691,6 +691,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       int min = native->getMinArgNum(), max = native->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
+      pushCallStack(native);
 
       // No frame.
       f_ = pushArgs(argNum, args, s_);
@@ -706,6 +707,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     {
       Continuation* continuation = static_cast<Continuation*>(fn.toObject());
       checkArgNum(state_, fn, argNum, 0, 1);
+      pushCallStack(continuation);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
       int savedStackSize = continuation->getStackSize();
