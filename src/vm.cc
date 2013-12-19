@@ -669,6 +669,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
+      shiftCallStack();
       pushCallStack(closure);
 
       int ds = 0;
@@ -682,8 +683,6 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       a_ = c_ = fn;
       //result = runLoop();
       // runLoop will run after this function exited.
-
-      shiftCallStack();
     }
     break;
   case TT_NATIVEFUNC:
@@ -691,6 +690,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       int min = native->getMinArgNum(), max = native->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
+      shiftCallStack();
       pushCallStack(native);
 
       // No frame.
@@ -707,6 +707,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
     {
       Continuation* continuation = static_cast<Continuation*>(fn.toObject());
       checkArgNum(state_, fn, argNum, 0, 1);
+      shiftCallStack();
       pushCallStack(continuation);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
@@ -720,7 +721,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       f_ = index(s_, 1).toFixnum();
       c_ = index(s_, 2);
       s_ -= 3;
-      //popCallStack();
+      // runLoop will run after this function exited.
     }
     break;
   default:
