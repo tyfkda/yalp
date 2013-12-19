@@ -44,6 +44,7 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+  Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
   void resetError();
 
   int getCallStackDepth() const  { return callStack_.size(); }

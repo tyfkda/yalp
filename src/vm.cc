@@ -634,20 +634,23 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
   case TT_CONTINUATION:
-    tailcall(fn, argNum, args);
+    funcallSetup(fn, argNum, args, false);
     return runLoop();
   default:
-    return tailcall(fn, argNum, args);
+    return funcallSetup(fn, argNum, args, false);
   }
 }
 
 Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
+  shiftCallStack();
+  return funcallSetup(fn, argNum, args, true);
+}
+
+Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {
   if (!fn.isObject() || !fn.toObject()->isCallable()) {
     state_->runtimeError("Can't call `%@`", &fn);
     return Svalue::NIL;
   }
-
-  Svalue result;
 
   switch (fn.getType()) {
   case TT_CLOSURE:
@@ -659,7 +662,7 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
         int calleeArgNum = index(f_, -1).toFixnum();
         s_ = pushArgs(argNum, args, s_);
         s_ = shiftArgs(argNum, calleeArgNum, s_);
-        // TODO: Confirm callstack is consistent.
+        shiftCallStack();
       } else {
         // Makes frame.
         s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
@@ -669,7 +672,6 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
-      shiftCallStack();
       pushCallStack(closure);
 
       int ds = 0;
@@ -681,33 +683,33 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       f_ = s_;
       s_ = push(state_->fixnumValue(argNum), s_);
       a_ = c_ = fn;
-      //result = runLoop();
       // runLoop will run after this function exited.
     }
-    break;
+    return Svalue::NIL;
   case TT_NATIVEFUNC:
     {
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
       int min = native->getMinArgNum(), max = native->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
-      shiftCallStack();
       pushCallStack(native);
 
       // No frame.
       f_ = pushArgs(argNum, args, s_);
       s_ = push(state_->fixnumValue(argNum), f_);
-      result = native->call(state_);
+      Svalue result = native->call(state_);
 
-      popCallStack();
+      if (tailcall)
+        shiftCallStack();
+      else
+        popCallStack();
 
       s_ -= argNum + 1;
+      return result;
     }
-    break;
   case TT_CONTINUATION:
     {
       Continuation* continuation = static_cast<Continuation*>(fn.toObject());
       checkArgNum(state_, fn, argNum, 0, 1);
-      shiftCallStack();
       pushCallStack(continuation);
       a_ = (argNum == 0) ? Svalue::NIL : args[0];
 
@@ -723,13 +725,11 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
       s_ -= 3;
       // runLoop will run after this function exited.
     }
-    break;
+    return Svalue::NIL;
   default:
     assert(!"Must not happen");
-    break;
+    return Svalue::NIL;
   }
-
-  return result;
 }
 
 void Vm::resetError() {
@@ -756,6 +756,7 @@ void Vm::pushCallStack(Callable* callable) {
 }
 
 void Vm::popCallStack() {
+  assert(!callStack_.empty());
   callStack_.pop_back();
   while (!callStack_.empty() && callStack_[callStack_.size() - 1].isTailCall)
     callStack_.pop_back();
@@ -763,6 +764,7 @@ void Vm::popCallStack() {
 
 void Vm::shiftCallStack() {
   size_t n = callStack_.size();
+  assert(n > 0);
   if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
       callStack_[n - 2].isTailCall) {
     // Self tail recursive case: eliminate call stack.
