@@ -483,7 +483,7 @@ void State::longJmp() {
 
   // If process comes here, something wrong.
   FileStream errout(stderr);
-  errout.write("Vm::longJmp failed\n");
+  errout.write("State::longJmp is empty\n");
   exit(1);
 }
 
