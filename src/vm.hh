@@ -14,14 +14,15 @@ class Callable;
 class SHashTable;
 class Symbol;
 
+class CallStack {
+public:
+  Callable* callable;
+  bool isTailCall;
+};
+
 // Vm class.
 class Vm {
 public:
-  struct CallStack {
-    Callable* callable;
-    bool isTailCall;
-  };
-
   static Vm* create(State* state);
   void release();
 

@@ -420,7 +420,7 @@ void State::runtimeError(const char* msg, ...) {
   errout.write('\n');
   va_end(ap);
 
-  const Vm::CallStack* callStack = vm_->getCallStack();
+  const CallStack* callStack = vm_->getCallStack();
   for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
     const Symbol* name = callStack[i].callable->getName();
     format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "_noname_"));

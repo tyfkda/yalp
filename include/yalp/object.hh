@@ -25,6 +25,7 @@ struct HashPolicy;
 template <class Key, class Value>
 class HashTable;
 
+class CallStack;
 class Stream;
 
 // Symbol class
@@ -264,11 +265,14 @@ protected:
 // Continuation class.
 class Continuation : public Callable {
 public:
-  Continuation(Allocator* allocator, const Svalue* stack, int size);
+  Continuation(Allocator* allocator, const Svalue* stack, int size,
+               const CallStack* callStack, int callStackSize);
   virtual Type getType() const override;
 
   int getStackSize() const  { return stackSize_; }
   const Svalue* getStack() const  { return copiedStack_; }
+  int getCallStackSize() const  { return callStackSize_; }
+  const CallStack* getCallStack() const  { return callStack_; }
 
   virtual void output(State*, Stream* o, bool) const override;
 
@@ -279,6 +283,8 @@ protected:
 
   Svalue* copiedStack_;
   int stackSize_;
+  CallStack* callStack_;
+  int callStackSize_;
 };
 
 class SStream : public Sobject {

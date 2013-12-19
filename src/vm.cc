@@ -378,6 +378,15 @@ Svalue Vm::runLoop() {
           memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
           s_ = savedStackSize;
 
+          int callStackSize = continuation->getCallStackSize();
+          if (callStackSize == 0)
+            callStack_.clear();
+          else {
+            const CallStack* callStack = continuation->getCallStack();
+            callStack_.resize(callStackSize);
+            memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
+          }
+
           // do-return
           x_ = index(s_, 0);
           f_ = index(s_, 1).toFixnum();
@@ -489,7 +498,8 @@ Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxAr
 Svalue Vm::createContinuation(int s) {
   Allocator* allocator = state_->getAllocator();
   void* memory = OBJALLOC(allocator, sizeof(Continuation));
-  return Svalue(new(memory) Continuation(allocator, stack_, s));
+  return Svalue(new(memory) Continuation(allocator, stack_, s,
+                                         &callStack_[0], callStack_.size()));
 }
 
 Svalue Vm::box(Svalue x) {

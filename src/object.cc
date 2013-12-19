@@ -5,6 +5,7 @@
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "hash_table.hh"
+#include "vm.hh"  // for CallStack
 
 #include <assert.h>
 #include <new>
@@ -341,16 +342,27 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 }
 
 //=============================================================================
-Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size)
-  : Callable(), copiedStack_(NULL), stackSize_(0) {
+Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size,
+                           const CallStack* callStack, int callStackSize)
+  : Callable(), copiedStack_(NULL), stackSize_(0)
+  , callStack_(NULL), callStackSize_(0) {
   if (size > 0) {
     copiedStack_ = static_cast<Svalue*>(ALLOC(allocator, sizeof(Svalue) * size));
     stackSize_ = size;
     memcpy(copiedStack_, stack, sizeof(Svalue) * size);
   }
+
+  if (--callStackSize > 0) {
+    int nbytes = sizeof(CallStack) * callStackSize;
+    callStack_ = static_cast<CallStack*>(ALLOC(allocator, nbytes));
+    callStackSize_ = callStackSize;
+    memcpy(callStack_, callStack, nbytes);
+  }
 }
 
 void Continuation::destruct(Allocator* allocator) {
+  if (callStack_ != NULL)
+    FREE(allocator, callStack_);
   if (copiedStack_ != NULL)
     FREE(allocator, copiedStack_);
   Callable::destruct(allocator);
