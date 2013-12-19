@@ -196,8 +196,8 @@ static StateAllocatorCallback stateAllocatorCallback;
 struct State::HashPolicyEq : public HashPolicy<Svalue> {
   HashPolicyEq(State* state) : state_(state)  {}
 
-  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(state_); }
-  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+  virtual unsigned int hash(Svalue a) override  { return a.calcHash(state_); }
+  virtual bool equal(Svalue a, Svalue b) override  { return a.eq(b); }
 
 private:
   State* state_;

@@ -57,9 +57,9 @@ namespace yalp {
 template <class Key>
 struct HashPolicy {
   // return some unsigned integer to distribute keys.
-  virtual unsigned int hash(const Key a) = 0;
+  virtual unsigned int hash(Key a) = 0;
   // return true if 2 keys are same.
-  virtual bool equal(const Key a, const Key b) = 0;
+  virtual bool equal(Key a, Key b) = 0;
 };
 
 // Hash table
