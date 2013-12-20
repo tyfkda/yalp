@@ -1,4 +1,4 @@
-;;;; Compiler
+;;;; Yalp compiler
 ;;;; Based on 3imp.
 
 ; Stack usage:
@@ -32,6 +32,8 @@
 ;   4. Use APPLY opcode to apply function,
 ;      then argument number is pushed to stack:
 ;     [c][f][ret][b1]f[argnum]s
+
+;(load "./boot.arc")
 
 (defmacro record (args parm . exprs)
   `(apply (^ ,parm
