@@ -213,14 +213,13 @@
            sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
       (with* (argnum (len args)
               c (if (is argnum 0)
-                    (compile-lambda-body ext-vars body free sets s
-                                         next)
+                    (compile-body ext-vars body free sets s
+                                  next)
                   (list* 'EXPND argnum
-                         (make-boxes sets proper-vars
-                                     (compile-lambda-body ext-vars body free sets s
-                                                          (if (tail? next)
-                                                              next
-                                                            (list* 'SHRNK argnum next)))))))
+                         (compile-body ext-vars body free sets s
+                                       (if (tail? next)
+                                           next
+                                         (list* 'SHRNK argnum next))))))
         (compile-apply-args args e s c)))))
 
 (def (compile-lambda vars body e s next)
@@ -235,8 +234,7 @@
                           -1)))
       (collect-free free e
                     (list* 'CLOSE varnum (len free)
-                           (make-boxes sets proper-vars
-                                       (compile-lambda-body proper-vars body free sets s '(RET)))
+                           (compile-body proper-vars body free sets s '(RET))
                            next)))))
 
 ;; Check function parameters are valid and returns proper vars.
@@ -246,17 +244,27 @@
       (compile-error "parameter must be symbol"))
     proper-vars))
 
-(def (compile-lambda-body vars body free sets s next)
-  (with (ee (cons vars free)
-         ss (set-union sets
-                       (set-intersect s free)))
-    (if body
-        (awith (p body)
-          (if p
-              (compile-recur (car p) ee ss
-                             (loop (cdr p)))
-            next))
-      (compile-undef next))))
+(def (compile-body vars body free sets s next)
+  (make-boxes sets vars
+              (with (ee (cons vars free)
+                     ss (set-union sets
+                                   (set-intersect s free)))
+                (if body
+                    (awith (p body)
+                      (if p
+                          (compile-recur (car p) ee ss
+                                         (loop (cdr p)))
+                        next))
+                  (compile-undef next)))))
+
+(def (make-boxes sets vars next)
+  (awith (vars vars
+          n 0)
+    (if vars
+        (if (set-member? (car vars) sets)
+            (list* 'BOX n (loop (cdr vars) (+ n 1)))
+          (loop (cdr vars) (+ n 1)))
+      next)))
 
 (def (compile-values args e s next)
   (compile-apply-args args e s (list* 'VALS (len args) next)))
@@ -274,8 +282,8 @@
                           -1)))
       (compile-recur vals e s
                      (list* 'RECV varnum
-                            (compile-lambda-body ext-vars body free sets s
-                                                 (list* 'SHRNK (len proper-vars) next)))))))
+                            (compile-body ext-vars body free sets s
+                                          (list* 'SHRNK (len proper-vars) next)))))))
 
 (def (find-frees xs b vars)
   (let bb (set-union (dotted->proper vars) b)
@@ -351,15 +359,6 @@
                    (else        (find-setses x   v)))
     '()))
 
-(def (make-boxes sets vars next)
-  (awith (vars vars
-          n 0)
-    (if vars
-        (if (set-member? (car vars) sets)
-            (list* 'BOX n (loop (cdr vars) (+ n 1)))
-          (loop (cdr vars) (+ n 1)))
-      next)))
-
 (def (compile-refer var e next)
   (compile-lookup var e
                   (^(n) (list* 'LREF n next))
@@ -393,7 +392,7 @@
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))
-           body-code (compile-lambda-body proper-vars body (list proper-vars) '() '() '(RET)))
+           body-code (compile-body proper-vars body (list proper-vars) '() '() '(RET)))
       ;; Macro registeration will be done in other place.
       ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list* 'MACRO name varnum body-code
