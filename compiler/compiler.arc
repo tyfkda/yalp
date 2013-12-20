@@ -143,17 +143,17 @@
                                             (compile-recur (car rest) e s next))
                                         (compile-undef next)))
                            (compile-recur test e s (list* 'TEST thenc elsec))))
-                     (set! (var x)
+                     (set! (var val)
                            (compile-lookup var e
-                                           (^(n) (compile-recur x e s (list* 'LSET n next)))
-                                           (^(n) (compile-recur x e s (list* 'FSET n next)))
-                                           (^()  (compile-recur x e s (list* 'GSET var next)))))
-                     (def (var x)
-                         (compile-recur x e s (list* 'DEF var next)))
-                     (call/cc (x)
+                                           (^(n) (compile-recur val e s (list* 'LSET n next)))
+                                           (^(n) (compile-recur val e s (list* 'FSET n next)))
+                                           (^()  (compile-recur val e s (list* 'GSET var next)))))
+                     (def (var val)
+                          (compile-recur val e s (list* 'DEF var next)))
+                     (call/cc (func)
                               (let c (list* 'CONTI (if (tail? next) 't 'nil)
                                             'PUSH
-                                            (compile-recur x e s
+                                            (compile-recur func e s
                                                            (if (tail? next)
                                                                '(SHIFT 1
                                                                  APPLY 1)
