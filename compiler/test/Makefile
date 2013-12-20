@@ -4,7 +4,6 @@ RUNTEST=$(YALP) test.arc
 all:	test
 
 test:	util-test compiler-test
-	echo SUCCESS
 
 util-test:
 	$(RUNTEST) util-test.arc

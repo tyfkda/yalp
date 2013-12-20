@@ -20,6 +20,7 @@ all:	$(PROJECT)
 clean:
 	rm -rf $(OBJDIR) $(LIBDIR)
 	rm -f $(PROJECT)
+	make -C test clean
 
 -include $(DEPS)
 -include $(OBJDIR)/yalp.d
@@ -43,7 +44,8 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cc
 	ar r $(LIBNAME) $@
 
 test:	$(PROJECT)
-	make -C test
+	make -C compiler test
+	make -C test test
 
 check-length:
 	wc -l src/* include/**/* compiler/*.arc | sort -nr

@@ -18,3 +18,6 @@
 (def (test-section name)
   (display "==== ")
   (print name))
+
+(def (test-complete)
+  (display "\x1b[1;32mSUCCESS\x1b[0;39m\n"))

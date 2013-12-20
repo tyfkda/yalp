@@ -29,3 +29,5 @@
 (test-section "macroexpand")
 (test "macroexpand-1" '(x y . z) (macroexpand-1 '(x y . z)))
 (test "macroexpand-all" '(x y . z) (macroexpand-all '(x y . z) '()))
+
+(test-complete)

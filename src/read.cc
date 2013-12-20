@@ -31,6 +31,16 @@ const int DEFAULT_SIZE = 24;
     }                                                   \
   } while (0)
 
+static int hexChar(int c) {
+  if (isdigit(c))
+    return c - '0';
+  if ('A' <= c && c <= 'F')
+    return c - ('A' - 10);
+  if ('a' <= c && c <= 'f')
+    return c - ('a' - 10);
+  return -1;
+}
+
 struct Reader::IntHashPolicy : public HashPolicy<int> {
   virtual unsigned int hash(int a) override  { return a; }
   virtual bool equal(int a, int b) override  { return a == b; }
@@ -248,15 +258,25 @@ ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
     case '\\':
       c = getc();
       if (c == EOF)
-        return NO_CLOSE_STRING;
-      if (c != closeChar)
+        return ILLEGAL_CHAR;
+      if (c != closeChar) {
         switch (c) {
         case '0':  c = '\0'; break;
         case 'n':  c = '\n'; break;
         case 'r':  c = '\r'; break;
         case 't':  c = '\t'; break;
+        case 'x':
+          {
+            int c1 = hexChar(getc());
+            int c2 = hexChar(getc());
+            if (c1 < 0 || c2 < 0)
+              return ILLEGAL_CHAR;
+            c = (c1 << 4) | c2;
+          }
+          break;
         default:   break;
         }
+      }
       break;
     }
     p = putBuffer(&buffer, &size, p, c);
