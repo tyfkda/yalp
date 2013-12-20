@@ -164,9 +164,9 @@
                      (defmacro (name vars . body)
                        (compile-defmacro name vars body next))
                      (values args
-                       (compile-values args e s next))
+                             (compile-values args e s next))
                      (receive (vars vals . body)
-                       (compile-receive vars vals body e s next))
+                              (compile-receive vars vals body e s next))
                      (else
                       (with (func (car x)
                              args (cdr x))
@@ -323,8 +323,8 @@
                      (defmacro (name vars . body) (find-frees body b vars))
                      (values  all (find-frees all b '()))
                      (receive (vars vals . body)
-                       (set-union (find-free vals b)
-                                  (find-frees body b vars)))
+                              (set-union (find-free vals b)
+                                         (find-frees body b vars)))
                      (else        (find-frees x b '())))
     '()))
 
@@ -354,8 +354,8 @@
                    (defmacro (name vars . body)  (find-setses body (set-minus v (dotted->proper vars))))
                    (values  all (find-setses all v))
                    (receive (vars vals . body)
-                     (set-union (find-sets vals v)
-                                (find-setses body (set-minus v (dotted->proper vars)))))
+                            (set-union (find-sets vals v)
+                                       (find-setses body (set-minus v (dotted->proper vars)))))
                    (else        (find-setses x   v)))
     '()))
 
@@ -429,6 +429,12 @@
                (defmacro (name vars . body)
                  (let new-scope-vars (append (dotted->proper vars) scope-vars)
                    `(defmacro ,name ,vars ,@(map-macroexpand-all body new-scope-vars))))
+               (values all
+                       `(values ,@(map-macroexpand-all all scope-vars)))
+               (receive (vars vals . body)
+                        (let new-scope-vars (append (dotted->proper vars) scope-vars)
+                          `(receive ,vars ,(macroexpand-all vals scope-vars)
+                             ,@(map-macroexpand-all body new-scope-vars))))
                (else (map-macroexpand-all exp scope-vars))))
 
 (def (macroexpand exp)
