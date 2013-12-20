@@ -150,6 +150,11 @@ public:
   // Gets argument value for the index.
   Svalue getArg(int index) const;
 
+  // Gets result number.
+  int getResultNum() const;
+  // Gets result value for the index.
+  Svalue getResult(int index) const;
+
   // Raises runtime error.
   void runtimeError(const char* msg, ...);
 

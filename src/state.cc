@@ -412,6 +412,14 @@ Svalue State::getArg(int index) const {
   return vm_->getArg(index);
 }
 
+int State::getResultNum() const {
+  return vm_->getResultNum();
+}
+
+Svalue State::getResult(int index) const {
+  return vm_->getResult(index);
+}
+
 void State::runtimeError(const char* msg, ...) {
   FileStream errout(stderr);
   va_list ap;

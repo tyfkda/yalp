@@ -725,6 +725,16 @@ Svalue Vm::getArg(int index) const {
   return this->index(f_, index);
 }
 
+int Vm::getResultNum() const {
+  return valueCount_;
+}
+
+Svalue Vm::getResult(int index) const {
+  if (index == 0)
+    return a_;
+  return values_[valueCount_ - index - 1];
+}
+
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:

@@ -175,9 +175,14 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
       continue;
     }
     if (!bCompile && tty) {
-      cout << "=> ";
-      result.output(state, &out, true);
-      cout << endl;
+      const char* prompt = "=> ";
+      for (int n = state->getResultNum(), i = 0; i < n; ++i) {
+        Svalue result = state->getResult(i);
+        cout << prompt;
+        result.output(state, &out, true);
+        cout << endl;
+        prompt = "   ";
+      }
     }
   }
   if (tty)

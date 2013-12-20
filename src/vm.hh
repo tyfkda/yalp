@@ -34,6 +34,11 @@ public:
   // Gets argument value for the index.
   Svalue getArg(int index) const;
 
+  // Gets result number.
+  int getResultNum() const;
+  // Gets result value for the index.
+  Svalue getResult(int index) const;
+
   Svalue referGlobal(Svalue sym, bool* pExist);
   void defineGlobal(Svalue sym, Svalue value);
   bool assignGlobal(Svalue sym, Svalue value);
