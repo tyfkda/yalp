@@ -70,6 +70,7 @@ private:
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
   Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
+  void apply(Svalue fn, int argNum);
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);

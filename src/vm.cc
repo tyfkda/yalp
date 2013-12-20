@@ -346,77 +346,9 @@ Svalue Vm::runLoop() {
     }
     goto again;
   case APPLY:
-    valueCount_ = 1;
     {
       int argNum = CAR(x_).toFixnum();
-      if (!a_.isObject() || !a_.toObject()->isCallable())
-        state_->runtimeError("Can't call `%@`", &a_);
-
-      switch (a_.getType()) {
-      case TT_CLOSURE:
-        {
-          Closure* closure = static_cast<Closure*>(a_.toObject());
-          int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-          checkArgNum(state_, a_, argNum, min, max);
-          pushCallStack(closure);
-
-          int ds = 0;
-          if (closure->hasRestParam())
-            ds = modifyRestParams(argNum, min, s_);
-          s_ += ds;
-          argNum += ds;
-          x_ = closure->getBody();
-          f_ = s_;
-          c_ = a_;
-          s_ = push(state_->fixnumValue(argNum), s_);
-        }
-        break;
-      case TT_NATIVEFUNC:
-        {
-          NativeFunc* native = static_cast<NativeFunc*>(a_.toObject());
-          int min = native->getMinArgNum(), max = native->getMaxArgNum();
-          checkArgNum(state_, a_, argNum, min, max);
-          pushCallStack(native);
-
-          f_ = s_;
-          s_ = push(state_->fixnumValue(argNum), s_);
-          x_ = return_;
-          a_ = native->call(state_);
-        }
-        break;
-      case TT_CONTINUATION:
-        {
-          Continuation* continuation = static_cast<Continuation*>(a_.toObject());
-          checkArgNum(state_, a_, argNum, 0, 1);
-          pushCallStack(continuation);
-          a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
-
-          int savedStackSize = continuation->getStackSize();
-          const Svalue* savedStack = continuation->getStack();
-          memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
-          s_ = savedStackSize;
-
-          int callStackSize = continuation->getCallStackSize();
-          if (callStackSize == 0)
-            callStack_.clear();
-          else {
-            const CallStack* callStack = continuation->getCallStack();
-            callStack_.resize(callStackSize);
-            memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
-          }
-
-          // do-return
-          x_ = index(s_, 0);
-          f_ = index(s_, 1).toFixnum();
-          c_ = index(s_, 2);
-          s_ -= 3;
-          //popCallStack();
-        }
-        break;
-      default:
-        assert(!"Must not happen");
-        break;
-      }
+      apply(a_, argNum);
     }
     goto again;
   case RET:
@@ -752,16 +684,10 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
 }
 
 Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {
-  if (!fn.isObject() || !fn.toObject()->isCallable()) {
-    state_->runtimeError("Can't call `%@`", &fn);
-    return Svalue::NIL;
-  }
-
   switch (fn.getType()) {
   case TT_CLOSURE:
     {
       bool isTail = CAR(x_).eq(opcodes_[RET]);
-
       if (isTail) {
         // Shifts arguments.
         int calleeArgNum = index(f_, -1).toFixnum();
@@ -773,7 +699,49 @@ Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall
         s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
         s_ = pushArgs(argNum, args, s_);
       }
+      apply(fn, argNum);
+      // runLoop will run after this function exited.
+    }
+    return Svalue::NIL;
+  case TT_NATIVEFUNC:
+    {
+      // Save to local variable, instead of creating call frame.
+      int oldS = s_;
+      Svalue oldX = x_;
 
+      s_ = pushArgs(argNum, args, s_);
+      apply(fn, argNum);
+
+      if (tailcall)
+        shiftCallStack();
+      else
+        popCallStack();
+
+      s_ = oldS;
+      x_ = oldX;
+      return a_;
+    }
+  case TT_CONTINUATION:
+    {
+      s_ = push(argNum == 0 ? Svalue::NIL : args[0], s_);
+      apply(fn, argNum);
+      // runLoop will run after this function exited.
+    }
+    return Svalue::NIL;
+  default:
+    assert(!"Must not happen");
+    return Svalue::NIL;
+  }
+}
+
+void Vm::apply(Svalue fn, int argNum) {
+  if (!fn.isObject() || !fn.toObject()->isCallable())
+    state_->runtimeError("Can't call `%@`", &fn);
+
+  valueCount_ = 1;
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+    {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
       checkArgNum(state_, fn, argNum, min, max);
@@ -786,11 +754,10 @@ Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall
       argNum += ds;
       x_ = closure->getBody();
       f_ = s_;
+      c_ = fn;
       s_ = push(state_->fixnumValue(argNum), s_);
-      a_ = c_ = fn;
-      // runLoop will run after this function exited.
     }
-    return Svalue::NIL;
+    break;
   case TT_NATIVEFUNC:
     {
       NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
@@ -798,42 +765,43 @@ Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall
       checkArgNum(state_, fn, argNum, min, max);
       pushCallStack(native);
 
-      // No frame.
-      f_ = pushArgs(argNum, args, s_);
-      s_ = push(state_->fixnumValue(argNum), f_);
-      Svalue result = native->call(state_);
-
-      if (tailcall)
-        shiftCallStack();
-      else
-        popCallStack();
-
-      s_ -= argNum + 1;
-      return result;
+      f_ = s_;
+      s_ = push(state_->fixnumValue(argNum), s_);
+      x_ = return_;
+      a_ = native->call(state_);
     }
+    break;
   case TT_CONTINUATION:
     {
       Continuation* continuation = static_cast<Continuation*>(fn.toObject());
       checkArgNum(state_, fn, argNum, 0, 1);
       pushCallStack(continuation);
-      a_ = (argNum == 0) ? Svalue::NIL : args[0];
+      a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
 
       int savedStackSize = continuation->getStackSize();
       const Svalue* savedStack = continuation->getStack();
       memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
       s_ = savedStackSize;
 
+      int callStackSize = continuation->getCallStackSize();
+      if (callStackSize == 0)
+        callStack_.clear();
+      else {
+        const CallStack* callStack = continuation->getCallStack();
+        callStack_.resize(callStackSize);
+        memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
+      }
+
       // do-return
       x_ = index(s_, 0);
       f_ = index(s_, 1).toFixnum();
       c_ = index(s_, 2);
       s_ -= 3;
-      // runLoop will run after this function exited.
     }
-    return Svalue::NIL;
+    break;
   default:
     assert(!"Must not happen");
-    return Svalue::NIL;
+    break;
   }
 }
 
