@@ -179,7 +179,7 @@
 ;; Check function parameters are valid and returns proper vars.
 (def (check-parameters vars)
   (let proper-vars (dotted->proper vars)
-    (when (member-if (^(var) (no (symbol? var))) vars)
+    (when (member-if [no (symbol? _)] vars)
       (compile-error "parameter must be symbol"))
     proper-vars))
 
@@ -341,8 +341,7 @@
     exp))
 
 (def (map-macroexpand-all ls svars)
-  (map (^(e) (macroexpand-all e svars))
-       ls))
+  (map [macroexpand-all _ svars] ls))
 
 (def (macroexpand-all-sub exp scope-vars)
   (record-case exp
