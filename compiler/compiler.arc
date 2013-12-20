@@ -394,7 +394,7 @@
                           -1))
            body-code (compile-body proper-vars body (list proper-vars) '() '() '(RET)))
       ;; Macro registeration will be done in other place.
-      ;(register-macro name (closure body-code 0 %running-stack-pointer min max))
+      ;;(register-macro name (closure body-code 0 %running-stack-pointer min max))
       (list* 'MACRO name varnum body-code
              next))))
 
