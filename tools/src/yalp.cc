@@ -209,13 +209,14 @@ static void exitIfError(ErrorCode err) {
   case ILLEGAL_CHAR:  msg = "Illegal char"; break;
   case COMPILE_ERROR:  msg = "Compile error"; break;
   case FILE_NOT_FOUND:  msg = "File not found"; break;
-  case RUNTIME_ERROR:  return;  // Error message is already printed when runtime error.
+  case RUNTIME_ERROR:  break;  // Error message is already printed when runtime error.
   default:
     assert(!"Not handled");
     msg = "Unknown error";
     break;
   }
-  std::cout << msg << std::endl;
+  if (msg != NULL)
+    std::cout << msg << std::endl;
   exit(1);
 }
 
