@@ -91,7 +91,7 @@
   `(if ,test (do ,@body)))
 
 (defmacro unless (test . body)
-  `(if (not ,test) (do ,@body)))
+  `(if ,test (do) (do ,@body)))
 
 (defmacro def (name . body)
   (if (pair? name)
