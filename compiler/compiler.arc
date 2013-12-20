@@ -207,20 +207,20 @@
 (def (compile-apply-direct vars body args e s next)
   (with* (proper-vars (check-parameters vars)
           ext-vars (append proper-vars (car e)))
-    (with (free (cdr e)  ;(set-intersect (set-union (car e)
+    (with (argnum (len args)
+           free (cdr e)  ;(set-intersect (set-union (car e)
                          ;                 (cdr e))
                          ;      (find-frees body '() proper-vars))
            sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
-      (with* (argnum (len args)
-              c (if (is argnum 0)
-                    (compile-body ext-vars body free sets s
-                                  next)
-                  (list* 'EXPND argnum
-                         (compile-body ext-vars body free sets s
-                                       (if (tail? next)
-                                           next
-                                         (list* 'SHRNK argnum next))))))
-        (compile-apply-args args e s c)))))
+      (compile-apply-args args e s
+                          (if (is argnum 0)
+                              (compile-body ext-vars body free sets s
+                                            next)
+                            (list* 'EXPND argnum
+                                   (compile-body ext-vars body free sets s
+                                                 (if (tail? next)
+                                                     next
+                                                   (list* 'SHRNK argnum next)))))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (check-parameters vars)
@@ -236,6 +236,13 @@
                     (list* 'CLOSE varnum (len free)
                            (compile-body proper-vars body free sets s '(RET))
                            next)))))
+
+(def (collect-free vars e next)
+  (if vars
+      (collect-free (cdr vars) e
+                    (compile-refer (car vars) e
+                                   (list* 'PUSH next)))
+    next))
 
 ;; Check function parameters are valid and returns proper vars.
 (def (check-parameters vars)
@@ -320,13 +327,6 @@
                                   (find-frees body b vars)))
                      (else        (find-frees x b '())))
     '()))
-
-(def (collect-free vars e next)
-  (if vars
-      (collect-free (cdr vars) e
-                    (compile-refer (car vars) e
-                                   (list* 'PUSH next)))
-    next))
 
 (def (find-setses xs v)
   (awith (b '()
