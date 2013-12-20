@@ -38,14 +38,13 @@
 
 ;;;; set
 
-(def (set-cons x s)
-  (if (member x s)
-      s
-    (cons x s)))
-
 (def (set-union s1 s2)
   (if s1
-      (set-union (cdr s1) (set-cons (car s1) s2))
+      (set-union (cdr s1)
+                 (let x (car s1)
+                   (if (member x s2)
+                       s2
+                     (cons x s2))))
     s2))
 
 (def (set-minus s1 s2)
