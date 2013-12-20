@@ -62,11 +62,12 @@
 (test "aif false" nil (aif nil it nil it))
 
 ;; awhile
-;(test "awhile" 3 (with (x '(1 2 nil 4 5)
-;                        acc 0)
-;                     (awhile (car x)
-;                       (set! acc (+ acc it))
-;                       (set! x (cdr x)))))
+(test "awhile" 3 (with (x '(1 2 nil 4 5)
+                        acc 0)
+                     (awhile (car x)
+                       (set! acc (+ acc it))
+                       (set! x (cdr x)))
+                     acc))
 
 ;; and
 (test "and" 3 (and 1 2 3))
