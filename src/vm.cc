@@ -233,6 +233,7 @@ Svalue Vm::runLoop() {
     return a_;
   case UNDEF:
     a_ = Svalue::NIL;
+    valueCount_ = 0;
     goto again;
   case CONST:
     a_ = CAR(x_);

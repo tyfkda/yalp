@@ -206,7 +206,10 @@
       next)))
 
 (def (compile-values args e s next)
-  (compile-apply-args args e s (list* 'VALS (len args) next)))
+  (let argnum (len args)
+    (if (is argnum 0)
+        (compile-undef next)
+      (compile-apply-args args e s (list* 'VALS argnum next)))))
 
 (def (compile-receive vars vals body e s next)
   (with* (proper-vars (check-parameters vars)
