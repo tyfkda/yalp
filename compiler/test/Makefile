@@ -3,7 +3,10 @@ RUNTEST=$(YALP) test.arc
 
 all:	test
 
-test:	util-test compiler-test
+test:	boot-test util-test compiler-test
+
+boot-test:
+	$(RUNTEST) boot-test.arc
 
 util-test:
 	$(RUNTEST) util-test.arc

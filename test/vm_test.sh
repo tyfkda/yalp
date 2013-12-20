@@ -157,8 +157,6 @@ run /float '8.695652' '(/ 2 0.23)'
 run /invert '4.347826' '(/ 0.23)'
 run '<float' t '(< 1 1.1)'
 
-run map '(1 4 9)' "(map (^(x) (* x x)) '(1 2 3))"
-run map3 '(111 222 333)' "(map + '(1 2 3) '(10 20 30) '(100 200 300))"
 run apply-native 15 "(apply + 1 2 '(3 4 5))"
 run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 
@@ -184,7 +182,7 @@ fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
 fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
 #fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
 fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
-fail no-var-set '(set! x 123)'
+fail set-unbound-var '(set! x 123)'
 
 ################################################################
 # All tests succeeded.
