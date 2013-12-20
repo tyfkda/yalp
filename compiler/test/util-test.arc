@@ -7,8 +7,6 @@
 (test "symbol" '(abc)   (dotted->proper 'abc))
 
 (test-section "set")
-(test "member-yes" t (set-member? 'b '(a b c)))
-(test "member-no" nil (set-member? 'x '(a b c)))
 (test "cons-add" '(x a b c) (set-cons 'x '(a b c)))
 (test "cons-already" '(a b c) (set-cons 'b '(a b c)))
 (test "union" '(c a b d x) (set-union '(a b c) '(b d x)))

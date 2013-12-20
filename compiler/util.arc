@@ -38,15 +38,8 @@
 
 ;;;; set
 
-(def (set-member? x s)
-  (if s
-      (if (is x (car s))
-          t
-        (set-member? x (cdr s)))
-    nil))
-
 (def (set-cons x s)
-  (if (set-member? x s)
+  (if (member x s)
       s
     (cons x s)))
 
@@ -57,14 +50,14 @@
 
 (def (set-minus s1 s2)
   (if s1
-      (if (set-member? (car s1) s2)
+      (if (member (car s1) s2)
           (set-minus (cdr s1) s2)
         (cons (car s1) (set-minus (cdr s1) s2)))
     '()))
 
 (def (set-intersect s1 s2)
   (if s1
-      (if (set-member? (car s1) s2)
+      (if (member (car s1) s2)
           (cons (car s1) (set-intersect (cdr s1) s2))
         (set-intersect (cdr s1) s2))
     '()))

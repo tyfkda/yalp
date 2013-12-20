@@ -59,7 +59,7 @@
 (def (compile-recur x e s next)
   (if (symbol? x)
         (compile-refer x e
-                       (if (set-member? x s)
+                       (if (member x s)
                            (list* 'UNBOX next)
                          next))
       (pair? x)
@@ -200,7 +200,7 @@
   (awith (vars vars
           n 0)
     (if vars
-        (if (set-member? (car vars) sets)
+        (if (member (car vars) sets)
             (list* 'BOX n (loop (cdr vars) (+ n 1)))
           (loop (cdr vars) (+ n 1)))
       next)))
@@ -241,7 +241,7 @@
 ;; are listed up.
 (def (find-free x b)
   (if (symbol? x)
-        (if (set-member? x b) '() (list x))
+        (if (member x b) '() (list x))
       (pair? x)
         (record-case x
                      (^ (vars . body)
@@ -249,10 +249,10 @@
                      (quote (obj) '())
                      (if      all (find-frees all b '()))
                      (set! (var exp)
-                           (set-union (if (set-member? var b) '() (list var))
+                           (set-union (if (member var b) '() (list var))
                                       (find-free exp b)))
                      (def (var exp)
-                         (set-union (if (set-member? var b) '() (list var))
+                         (set-union (if (member var b) '() (list var))
                                     (find-free exp b)))
                      (call/cc all (find-frees all b '()))
                      (defmacro (name vars . body) (find-frees body b vars))
@@ -277,7 +277,7 @@
   (if (pair? x)
       (record-case x
                    (set! (var val)
-                         (set-union (if (set-member? var v) (list var) '())
+                         (set-union (if (member var v) (list var) '())
                                     (find-sets val v)))
                    (def (var val)
                        (find-sets val v))
