@@ -50,7 +50,6 @@ public:
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
-  Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
   void resetError();
 
   int getCallStackDepth() const  { return callStack_.size(); }
@@ -70,6 +69,7 @@ private:
   int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
+  Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
   Svalue box(Svalue x);
 
   int push(Svalue x, int s);
