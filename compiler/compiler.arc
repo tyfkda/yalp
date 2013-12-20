@@ -58,24 +58,27 @@
 
 ;;; dotted pair -> proper list
 (def (dotted->proper ls)
-  (if (or (no ls)
-          (and (pair? ls)
-               (no (cdr (last ls)))))
-      ls
-    (awith (p ls
-            acc '())
-      (if (pair? p)
-          (loop (cdr p)
-                (cons (car p) acc))
-        (reverse! (cons p acc))))))
+  (if (and ls
+           (or (no (pair? ls))
+               (cdr (last ls))))
+      ;; Symbol or dotted list: convert it to proper list.
+      (awith (p ls
+              acc '())
+        (if (pair? p)
+            (loop (cdr p)
+                  (cons (car p) acc))
+          (reverse! (cons p acc))))
+    ;; nil or proper list: return as is.
+    ls))
 
 ;;;; set
 
 (def (set-member? x s)
-  (if
-   (no s) nil
-   (is x (car s)) t
-   (set-member? x (cdr s))))
+  (if s
+      (if (is x (car s))
+          t
+        (set-member? x (cdr s)))
+    nil))
 
 (def (set-cons x s)
   (if (set-member? x s)
@@ -83,23 +86,23 @@
     (cons x s)))
 
 (def (set-union s1 s2)
-  (if (no s1)
-      s2
-    (set-union (cdr s1) (set-cons (car s1) s2))))
+  (if s1
+      (set-union (cdr s1) (set-cons (car s1) s2))
+    s2))
 
 (def (set-minus s1 s2)
-  (if (no s1)
-        '()
-      (set-member? (car s1) s2)
-        (set-minus (cdr s1) s2)
-      (cons (car s1) (set-minus (cdr s1) s2))))
+  (if s1
+      (if (set-member? (car s1) s2)
+          (set-minus (cdr s1) s2)
+        (cons (car s1) (set-minus (cdr s1) s2)))
+    '()))
 
 (def (set-intersect s1 s2)
-  (if (no s1)
-        '()
-      (set-member? (car s1) s2)
-        (cons (car s1) (set-intersect (cdr s1) s2))
-      (set-intersect (cdr s1) s2)))
+  (if s1
+      (if (set-member? (car s1) s2)
+          (cons (car s1) (set-intersect (cdr s1) s2))
+        (set-intersect (cdr s1) s2))
+    '()))
 
 ;;; Compiler
 
@@ -134,11 +137,11 @@
                         (compile-lambda vars body e s next))
                      (if (test then . rest)
                          (with (thenc (compile-recur then e s next)
-                                elsec (if (no rest)
-                                            (compile-undef next)
-                                          (no (cdr rest))
-                                            (compile-recur (car rest) e s next)
-                                          (compile-recur `(if ,@rest) e s next)))
+                                elsec (if rest
+                                          (if (cdr rest)
+                                              (compile-recur `(if ,@rest) e s next)
+                                            (compile-recur (car rest) e s next))
+                                        (compile-undef next)))
                            (compile-recur test e s (list* 'TEST thenc elsec))))
                      (set! (var x)
                            (compile-lookup var e
@@ -194,11 +197,11 @@
 (def (compile-apply-args args e s next)
   (awith (args args
           c next)
-    (if (no args)
-        c
-      (loop (cdr args)
-            (compile-recur (car args) e s
-                           (list* 'PUSH c))))))
+    (if args
+        (loop (cdr args)
+              (compile-recur (car args) e s
+                             (list* 'PUSH c)))
+      c)))
 
 ;; Compiles ((^(vars) body) args) form
 (def (compile-apply-direct vars body args e s next)
@@ -247,13 +250,13 @@
   (with (ee (cons vars free)
          ss (set-union sets
                        (set-intersect s free)))
-    (if (no body)
-        (compile-undef next)
-      (awith (p body)
-        (if (no p)
-            next
-          (compile-recur (car p) ee ss
-                         (loop (cdr p))))))))
+    (if body
+        (awith (p body)
+          (if p
+              (compile-recur (car p) ee ss
+                             (loop (cdr p)))
+            next))
+      (compile-undef next))))
 
 (def (compile-values args e s next)
   (compile-apply-args args e s (list* 'VALS (len args) next)))
@@ -278,10 +281,10 @@
   (let bb (set-union (dotted->proper vars) b)
     (awith (v '()
             p xs)
-      (if (no p)
-          v
-        (loop (set-union v (find-free (car p) bb))
-              (cdr p))))))
+      (if p
+          (loop (set-union v (find-free (car p) bb))
+                (cdr p))
+        v))))
 
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
@@ -311,19 +314,19 @@
     '()))
 
 (def (collect-free vars e next)
-  (if (no vars)
-      next
-    (collect-free (cdr vars) e
-                  (compile-refer (car vars) e
-                                 (list* 'PUSH next)))))
+  (if vars
+      (collect-free (cdr vars) e
+                    (compile-refer (car vars) e
+                                   (list* 'PUSH next)))
+    next))
 
 (def (find-setses xs v)
   (awith (b '()
           p xs)
-    (if (no p)
-        b
-      (loop (set-union b (find-sets (car p) v))
-            (cdr p)))))
+    (if p
+        (loop (set-union b (find-sets (car p) v))
+              (cdr p))
+      b)))
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
@@ -351,11 +354,11 @@
 (def (make-boxes sets vars next)
   (awith (vars vars
           n 0)
-    (if (no vars)
-          next
-        (set-member? (car vars) sets)
-          (list* 'BOX n (loop (cdr vars) (+ n 1)))
-        (loop (cdr vars) (+ n 1)))))
+    (if vars
+        (if (set-member? (car vars) sets)
+            (list* 'BOX n (loop (cdr vars) (+ n 1)))
+          (loop (cdr vars) (+ n 1)))
+      next)))
 
 (def (compile-refer var e next)
   (compile-lookup var e
@@ -366,9 +369,11 @@
 (def (find-index x ls)
   (awith (ls ls
           idx 0)
-    (if (no ls) nil
-        (is (car ls) x) idx
-        (loop (cdr ls) (+ idx 1)))))
+    (if ls
+        (if (is (car ls) x)
+            idx
+          (loop (cdr ls) (+ idx 1)))
+      nil)))
 
 (def (compile-lookup var e return-local return-free return-global)
   (with (locals (car e)
@@ -396,12 +401,12 @@
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)
-      (if (no (member (car exp) scope-vars))
-          (let expanded (macroexpand-1 exp)
-            (if (iso expanded exp)
-                (macroexpand-all-sub exp scope-vars)
-              (macroexpand-all expanded scope-vars)))
-        (macroexpand-all-sub exp scope-vars))
+      (if (member (car exp) scope-vars)
+          (macroexpand-all-sub exp scope-vars)
+        (let expanded (macroexpand-1 exp)
+          (if (iso expanded exp)
+              (macroexpand-all-sub exp scope-vars)
+            (macroexpand-all expanded scope-vars))))
     exp))
 
 (def (map-macroexpand-all ls svars)
