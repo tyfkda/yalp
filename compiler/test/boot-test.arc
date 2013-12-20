@@ -89,6 +89,10 @@
 (test "last" '(3) (last '(1 2 3)))
 (test "last dotted" '(3 . 4) (last '(1 2 3 . 4)))
 
+;; reverse
+(test "reverse" '(3 2 1) (reverse '(1 2 3)))
+(test "reverse dotted" '(3 2 1) (reverse '(1 2 3 . 4)))
+
 ;; member-if
 (test "member-if" '(x 3) (member-if symbol? '(1 x 3)))
 (test "member-if fail" nil (member-if symbol? '(1 2 3)))

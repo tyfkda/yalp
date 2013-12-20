@@ -210,6 +210,13 @@
       (last (cdr ls))
     ls))
 
+(def (reverse ls)
+  (awith (ls ls
+          acc '())
+    (if (pair? ls)
+        (loop (cdr ls) (cons (car ls) acc))
+      acc)))
+
 (def (member-if f ls)
   (when (pair? ls)
     (if (f (car ls))
