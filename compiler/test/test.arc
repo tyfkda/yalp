@@ -1,23 +1,16 @@
 (defmacro test (name expected actual)
   (w/uniq (v result)
     `(let ,v ,expected
-       (display "Testing ")
-       (display ',name)
-       (display " ... ")
+       (format *stdout* "Testing %@ ... " ',name)
        (let ,result ,actual
          (if (iso ,v ,result)
              (print "ok")
            (do
-             (display "FAILED: ")
-             (write ,v)
-             (display " expected, but ")
-             (write ,result)
-             (display "\n")
+             (format *stdout* "FAILED: %@ expected, but %@\n" ,v ,result)
              (exit 1)))))))
 
 (def (test-section name)
-  (display "==== ")
-  (print name))
+  (format *stdout* "==== %@\n" name))
 
 (def (test-complete)
   (display "\x1b[1;32mSUCCESS\x1b[0;39m\n"))

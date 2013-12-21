@@ -25,6 +25,7 @@ int length(Value v);
 // Print format.
 void format(State* state, Stream* out, const char* fmt, ...);
 void format(State* state, Stream* out, const char* fmt, va_list ap);
+void format(State* state, Stream* out, const char* fmt, const Value* values);
 
 }  // namespace yalp
 

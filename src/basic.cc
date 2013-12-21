@@ -399,6 +399,19 @@ static Value s_display(State* state) {
   return output(state, false);
 }
 
+static Value s_format(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdout*");
+  Value fmt = state->getArg(1);
+  state->checkType(fmt, TT_STRING);
+
+  int argNum = state->getArgNum() - 2;
+  Value* values = static_cast<Value*>(alloca(sizeof(Value) * argNum));
+  for (int i = 0; i < argNum; ++i)
+    values[i] = state->getArg(i + 2);
+  format(state, stream, static_cast<String*>(fmt.toObject())->c_str(), values);
+  return Value::NIL;
+}
+
 static Value s_read(State* state) {
   Stream* stream = chooseStream(state, 0, "*stdin*");
   Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
@@ -669,6 +682,7 @@ void installBasicFunctions(State* state) {
 
   state->defineNative("display", s_display, 1, 2);
   state->defineNative("write", s_write, 1, 2);
+  state->defineNative("format", s_format, 2, -1);
 
   state->defineNative("read", s_read, 0, 2);
   state->defineNative("read-delimited-list", s_read_delimited_list, 2);
