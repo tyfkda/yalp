@@ -113,18 +113,19 @@ public:
 
   inline Svalue referGlobal(const char* sym, bool* pExist = NULL);
   inline void defineGlobal(const char* sym, Svalue value);
+  inline void defineNative(const char* name, NativeFuncType func, int minArgNum);
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void defineGlobal(Svalue sym, Svalue value);
-  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
-    defineNative(name, func, minArgNum, minArgNum);
-  }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
+  inline bool isTrue(Svalue x) const;
+  inline bool isFalse(Svalue x) const;
+
   // Converts C++ bool value to lisp bool value.
-  Svalue boolean(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
+  inline Svalue boolean(bool b) const;
 
   // Converts C++ int value to lisp Fixnum.
-  Svalue fixnum(Fixnum i)  { return Svalue(i); }
+  inline Svalue fixnum(Fixnum i) const;
 
   // Returns symbol value.
   Svalue intern(const char* name);
@@ -137,7 +138,7 @@ public:
   Svalue cdr(Svalue s);
 
   // Converts character code to lisp character value.
-  Svalue character(int c)  { return Svalue(c); }  // Use fixnum as a character.
+  inline Svalue character(int c) const;
 
   // Converts C string to lisp String.
   Svalue string(const char* str);
@@ -177,8 +178,6 @@ public:
     NUMBER_OF_CONSTANT
   };
   Svalue getConstant(Constant c) const  { return constant_[c]; }
-  bool isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
-  bool isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
 
   Allocator* getAllocator()  { return allocator_; }
 
@@ -227,8 +226,16 @@ private:
   friend struct StateAllocatorCallback;
 };
 
+inline bool State::isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
+inline bool State::isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
+
+inline Svalue State::boolean(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
+inline Svalue State::fixnum(Fixnum i) const  { return Svalue(i); }
+inline Svalue State::character(int c) const  { return Svalue(c); }  // Use fixnum as a character.
+
 inline Svalue State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
 inline void State::defineGlobal(const char* sym, Svalue value)  { return defineGlobal(intern(sym), value); }
+inline void State::defineNative(const char* name, NativeFuncType func, int minArgNum)  { defineNative(name, func, minArgNum, minArgNum); }
 
 }  // namespace yalp
 
