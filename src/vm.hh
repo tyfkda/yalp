@@ -92,8 +92,10 @@ private:
   inline bool isTailCall(Value x) const;
   inline int pushCallFrame(Value ret, int s);
   inline int popCallFrame(int s);
-  inline int findOpcode(Value op);
   inline Value box(Value x);
+
+  inline int findOpcode(Value op);
+  void replaceOpcodes(Value code);
 
   State* state_;
   Value* stack_;

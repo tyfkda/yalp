@@ -12,6 +12,16 @@
 #include <iostream>
 #include <string.h>  // for memmove
 
+#define REPLACE_OPCODE
+
+#ifdef REPLACE_OPCODE
+#define OPCVAL(op)  (state_->fixnum(op))
+#define OPIDX(op)  ((op).toFixnum())
+#else
+#define OPCVAL(op)  (opcodes_[op])
+#define OPIDX(op)  (findOpcode(op))
+#endif
+
 namespace yalp {
 
 //=============================================================================
@@ -130,7 +140,7 @@ int Vm::shiftArgs(int n, int m, int s) {
   return s - m - 1;
 }
 
-bool Vm::isTailCall(Value x) const  { return CAR(x).eq(opcodes_[RET]); }
+bool Vm::isTailCall(Value x) const  { return CAR(x).eq(OPCVAL(RET)); }
 int Vm::pushCallFrame(Value ret, int s) {
   return push(ret, push(state_->fixnum(f_), push(c_, s)));
 }
@@ -208,8 +218,8 @@ Vm::Vm(State* state)
     macroTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 
-  endOfCode_ = list(state_, opcodes_[HALT]);
-  return_ = list(state_, opcodes_[RET]);
+  endOfCode_ = list(state_, OPCVAL(HALT));
+  return_ = list(state_, OPCVAL(RET));
 }
 
 void Vm::setTrace(bool b) {
@@ -592,7 +602,47 @@ void Vm::restoreValues(int min, int /*max*/) {
   f_ += n;
 }
 
+void Vm::replaceOpcodes(Value x) {
+#ifdef REPLACE_OPCODE
+  for (;;) {
+    Value op = CAR(x);
+    if (op.getType() != TT_SYMBOL) {
+      assert(op.getType() == TT_FIXNUM);
+      return;
+    }
+    int opidx = findOpcode(op);
+    static_cast<Cell*>(x.toObject())->setCar(state_->fixnum(opidx));
+    x = CDR(x);
+    switch (opidx) {
+    case HALT: case APPLY: case RET:
+      return;
+    case UNDEF: case PUSH: case UNBOX:
+      break;
+    case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
+    case GSET: case DEF: case SHIFT: case BOX: case CONTI: case EXPND:
+    case SHRNK: case VALS: case RECV:
+      x = CDR(x);
+      break;
+    case TEST: case FRAME:
+      replaceOpcodes(CAR(x));
+      x = CDR(x);
+      break;
+    case CLOSE: case MACRO:
+      replaceOpcodes(CADDR(x));
+      x = CDDDR(x);
+      break;
+    default:
+      state_->runtimeError("Unknown op `%@`", &op);
+      return;
+    }
+  }
+#else
+  (void)x;
+#endif
+}
+
 Value Vm::run(Value code) {
+  replaceOpcodes(code);
   Value nil = Value::NIL;
   a_ = nil;
   x_ = code;
@@ -613,7 +663,7 @@ Value Vm::runLoop() {
   Value prex = x_;
   Value op = CAR(prex);
   x_ = CDR(prex);
-  int opidx = findOpcode(op);
+  int opidx = OPIDX(op);
   switch (opidx) {
   case HALT:
     x_ = endOfCode_;
@@ -719,7 +769,7 @@ Value Vm::runLoop() {
         // If no free variable, the closure has no reference to environment.
         // So bytecode can be replaced to reuse it.
         // (CLOSE nparam nfree body ...) => (CONST closure ...)
-        CELL(prex)->setCar(opcodes_[CONST]);
+        CELL(prex)->setCar(OPCVAL(CONST));
         CELL(CDR(prex))->setCar(a_);
         CELL(CDR(prex))->setCdr(x_);
       }
