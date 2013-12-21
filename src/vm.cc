@@ -217,10 +217,6 @@ Vm::Vm(State* state)
   , trace_(false)
   , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
-  a_ = c_ = Value::NIL;
-  x_ = endOfCode_;
-  f_ = s_ = 0;
-
   {
     static const char* NameTable[NUMBER_OF_OPCODE] = {
 #define OP(name)  #name,
@@ -247,6 +243,10 @@ Vm::Vm(State* state)
 
   endOfCode_ = list(state_, OPCVAL(HALT));
   return_ = list(state_, OPCVAL(RET));
+
+  a_ = c_ = Value::NIL;
+  x_ = endOfCode_;
+  f_ = s_ = 0;
 }
 
 void Vm::setTrace(bool b) {
