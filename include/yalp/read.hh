@@ -24,6 +24,9 @@ public:
   ErrorCode readDelimitedList(int terminator, Svalue* pValue);
 
 private:
+  inline static bool isSpace(int c);
+  inline int getc();
+  inline void putback(char c);
   inline ErrorCode readQuote(Svalue* pValue);
   inline ErrorCode readQuasiQuote(Svalue* pValue);
   inline ErrorCode readUnquote(Svalue* pValue);
@@ -38,9 +41,6 @@ private:
   void storeShared(int id, Svalue value);
   void skipSpaces();
   void skipUntilNextLine();
-  int getc();
-  void putback(char c);
-  static bool isSpace(int c);
   static bool isDelimiter(int c);
   static inline int isNotDelimiter(int c)  { return !isDelimiter(c); }
 

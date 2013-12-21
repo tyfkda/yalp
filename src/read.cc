@@ -48,6 +48,16 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
+bool Reader::isSpace(int c) {
+  switch (c) {
+  case ' ': case '\t': case '\n': return true;
+  default: return false;
+  }
+}
+
+int Reader::getc()  { return stream_->get(); }
+void Reader::putback(char c)  { stream_->putback(c); }
+
 ErrorCode Reader::readQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
 ErrorCode Reader::readQuasiQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
 ErrorCode Reader::readUnquote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE), pValue); }
@@ -233,11 +243,8 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
 
 ErrorCode Reader::readAbbrev(Svalue symbol, Svalue* pValue) {
   ErrorCode err = read(pValue);
-  if (err == SUCCESS) {
-    *pValue = list(state_,
-                   symbol,
-                   *pValue);
-  }
+  if (err == SUCCESS)
+    *pValue = list(state_, symbol, *pValue);
   return err;
 }
 
@@ -391,23 +398,6 @@ void Reader::skipUntilNextLine() {
   while (c = getc(), c != '\n' && c != EOF)
     ;
   putback(c);
-}
-
-int Reader::getc() {
-  return stream_->get();
-}
-
-void Reader::putback(char c) {
-  stream_->putback(c);
-}
-
-bool Reader::isSpace(int c) {
-  switch (c) {
-  case ' ': case '\t': case '\n':
-    return true;
-  default:
-    return false;
-  }
 }
 
 bool Reader::isDelimiter(int c) {
