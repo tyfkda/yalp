@@ -107,6 +107,28 @@ protected:
 };
 
 //=============================================================================
+// Inline methods
+
+Svalue Vm::index(int s, int i) const {
+  assert(s - i - 1 >= 0);
+  return stack_[s - i - 1];
+}
+
+void Vm::indexSet(int s, int i, Svalue v) {
+  assert(s - i - 1 >= 0);
+  stack_[s - i - 1] = v;
+}
+
+int Vm::push(Svalue x, int s) {
+  reserveStack(s + 1);
+  stack_[s] = x;
+  return s + 1;
+}
+
+int Vm::shiftArgs(int n, int m, int s) {
+  moveStackElems(stack_, s - n - m - 1, s - n, n);
+  return s - m - 1;
+}
 
 bool Vm::isTailCall(Svalue x) const  { return CAR(x).eq(opcodes_[RET]); }
 int Vm::pushCallFrame(Svalue ret, int s) {
@@ -118,6 +140,13 @@ int Vm::popCallFrame(int s) {
   c_ = index(s, 2);
   return s - 3;
 }
+
+Svalue Vm::box(Svalue x) {
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
+  return Svalue(new(memory) Box(x));
+}
+
+//=============================================================================
 
 Vm* Vm::create(State* state) {
   void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
@@ -481,17 +510,6 @@ Svalue Vm::createContinuation(int s) {
                                          &callStack_[0], callStack_.size()));
 }
 
-Svalue Vm::box(Svalue x) {
-  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
-  return Svalue(new(memory) Box(x));
-}
-
-int Vm::push(Svalue x, int s) {
-  reserveStack(s + 1);
-  stack_[s] = x;
-  return s + 1;
-}
-
 void Vm::reserveStack(int n) {
   if (n <= stackSize_)
     return;
@@ -501,21 +519,6 @@ void Vm::reserveStack(int n) {
   Svalue* newStack = static_cast<Svalue*>(memory);
   stack_ = newStack;
   stackSize_ = newSize;
-}
-
-Svalue Vm::index(int s, int i) const {
-  assert(s - i - 1 >= 0);
-  return stack_[s - i - 1];
-}
-
-void Vm::indexSet(int s, int i, Svalue v) {
-  assert(s - i - 1 >= 0);
-  stack_[s - i - 1] = v;
-}
-
-int Vm::shiftArgs(int n, int m, int s) {
-  moveStackElems(stack_, s - n - m - 1, s - n, n);
-  return s - m - 1;
 }
 
 int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
@@ -656,24 +659,6 @@ bool Vm::assignGlobal(Svalue sym, Svalue value) {
   return true;
 }
 
-int Vm::getArgNum() const {
-  return index(f_, -1).toFixnum();
-}
-
-Svalue Vm::getArg(int index) const {
-  return this->index(f_, index);
-}
-
-int Vm::getResultNum() const {
-  return valueCount_;
-}
-
-Svalue Vm::getResult(int index) const {
-  if (index == 0)
-    return a_;
-  return values_[valueCount_ - index - 1];
-}
-
 Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
@@ -683,11 +668,6 @@ Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
   default:
     return funcallSetup(fn, argNum, args, false);
   }
-}
-
-Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
-  shiftCallStack();
-  return funcallSetup(fn, argNum, args, true);
 }
 
 Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {

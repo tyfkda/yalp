@@ -30,14 +30,14 @@ public:
   Svalue run(Svalue code);
 
   // Gets argument number for current native function.
-  int getArgNum() const;
+  inline int getArgNum() const;
   // Gets argument value for the index.
-  Svalue getArg(int index) const;
+  inline Svalue getArg(int index) const;
 
   // Gets result number.
-  int getResultNum() const;
+  inline int getResultNum() const;
   // Gets result value for the index.
-  Svalue getResult(int index) const;
+  inline Svalue getResult(int index) const;
 
   Svalue referGlobal(Svalue sym, bool* pExist);
   void defineGlobal(Svalue sym, Svalue value);
@@ -49,7 +49,7 @@ public:
   Svalue getMacro(Svalue name);
 
   Svalue funcall(Svalue fn, int argNum, const Svalue* args);
-  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+  inline Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
   void resetError();
 
   int getCallStackDepth() const  { return callStack_.size(); }
@@ -71,13 +71,8 @@ private:
   Svalue createContinuation(int s);
   Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
   void apply(Svalue fn, int argNum);
-  Svalue box(Svalue x);
 
-  int push(Svalue x, int s);
-  Svalue index(int s, int i) const;
-  void indexSet(int s, int i, Svalue v);
   void reserveStack(int n);  // Ensure the stack has enough size of n
-  int shiftArgs(int n, int m, int s);
   int modifyRestParams(int argNum, int minArgNum, int s);
   Svalue createRestParams(int argNum, int minArgNum, int s);
   void expandFrame(int n);
@@ -93,9 +88,14 @@ private:
 
   void registerMacro(Svalue name, int minParam, int maxParam, Svalue body);
 
+  inline Svalue index(int s, int i) const;
+  inline void indexSet(int s, int i, Svalue v);
+  inline int push(Svalue x, int s);
+  inline int shiftArgs(int n, int m, int s);
   inline bool isTailCall(Svalue x) const;
   inline int pushCallFrame(Svalue ret, int s);
   inline int popCallFrame(int s);
+  inline Svalue box(Svalue x);
 
   State* state_;
   Svalue* stack_;
@@ -126,6 +126,16 @@ private:
 
   std::vector<CallStack> callStack_;
 };
+
+int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
+Svalue Vm::getArg(int index) const  { return this->index(f_, index); }
+int Vm::getResultNum() const  { return valueCount_; }
+Svalue Vm::getResult(int index) const  { return (index == 0) ? a_ : values_[valueCount_ - index - 1]; }
+
+Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
+  shiftCallStack();
+  return funcallSetup(fn, argNum, args, true);
+}
 
 }  // namespace yalp
 
