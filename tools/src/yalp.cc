@@ -126,7 +126,7 @@ static bool compile(State* state, Stream* stream, bool bNoRun) {
   return true;
 }
 
-static bool repl(State* state, Stream* stream, bool tty, bool bNoRun) {
+static bool repl(State* state, Stream* stream, bool tty) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
@@ -155,7 +155,7 @@ static bool repl(State* state, Stream* stream, bool tty, bool bNoRun) {
     }
 
     Svalue result;
-    if (!bNoRun && !state->runBinary(code, &result)) {
+    if (!state->runBinary(code, &result)) {
       if (!tty)
         return false;
       state->resetError();
@@ -258,7 +258,7 @@ int main(int argc, char* argv[]) {
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
     else if (bCompile)  result = compile(state, &stream, bNoRun);
-    else                result = repl(state, &stream, isatty(0) != 0, bNoRun);
+    else                result = repl(state, &stream, isatty(0) != 0);
     if (!result)
       exit(1);
   } else {
