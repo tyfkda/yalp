@@ -1,8 +1,8 @@
+*.a
+*.d
+*.o
 /obj/*
 /lib/*
-/test/*.o
-/test/*.d
-/test/*.a
 
 /yalp
 
@@ -12,6 +12,10 @@
 /test/state_test
 /test/symbol_manager_test
 /test/util_test
+
+/embed_examples/001_run_string
+/embed_examples/002_register_c_func
+/embed_examples/003_call_script_func
 
 /_*
 

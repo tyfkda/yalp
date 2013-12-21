@@ -293,8 +293,16 @@ ErrorCode State::runFromFile(const char* filename, Svalue* pResult) {
   FileStream stream(filename, "r");
   if (!stream.isOpened())
     return FILE_NOT_FOUND;
+  return run(&stream, pResult);
+}
 
-  Reader reader(this, &stream);
+ErrorCode State::runFromString(const char* string, Svalue* pResult) {
+  StrStream stream(string);
+  return run(&stream, pResult);
+}
+
+ErrorCode State::run(Stream* stream, Svalue* pResult) {
+  Reader reader(this, stream);
   Svalue result;
   Svalue exp;
   ErrorCode err;

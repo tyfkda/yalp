@@ -110,6 +110,7 @@ public:
   bool runBinary(Svalue code, Svalue* pResult);
 
   ErrorCode runFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runFromString(const char* string, Svalue* pResult = NULL);
   ErrorCode runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
   // Check value type, and raise runtime error if the value is not expected type.
@@ -176,6 +177,8 @@ public:
 
   Allocator* getAllocator()  { return allocator_; }
 
+  inline Svalue referGlobal(const char* sym, bool* pExist = NULL);
+  inline void defineGlobal(const char* sym, Svalue value);
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void defineGlobal(Svalue sym, Svalue value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum) {
@@ -202,6 +205,7 @@ private:
   ~State();
 
   void installBasicObjects();
+  ErrorCode run(Stream* stream, Svalue* pResult);
   void markRoot();
   void allocFailed(void* p, size_t size);
 
@@ -219,6 +223,9 @@ private:
 
   friend struct StateAllocatorCallback;
 };
+
+inline Svalue State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
+inline void State::defineGlobal(const char* sym, Svalue value)  { return defineGlobal(intern(sym), value); }
 
 }  // namespace yalp
 
