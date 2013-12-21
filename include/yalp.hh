@@ -27,7 +27,6 @@ class SHashTable;
 class Sobject;
 class State;
 class Stream;
-class SStream;
 class Symbol;
 class SymbolManager;
 class Vm;
