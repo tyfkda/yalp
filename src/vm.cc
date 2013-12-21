@@ -14,6 +14,10 @@
 
 #define REPLACE_OPCODE
 
+#ifdef __GNUC__
+#define DIRECT_THREADED
+#endif
+
 #ifdef REPLACE_OPCODE
 #define OPCVAL(op)  (state_->fixnum(op))
 #define OPIDX(op)  ((op).toFixnum())
@@ -21,6 +25,29 @@
 #define OPCVAL(op)  (opcodes_[op])
 #define OPIDX(op)  (findOpcode(op))
 #endif
+
+#define FETCH_OP  (prex = x_, x_ = CDR(prex), OPIDX(CAR(prex)))
+
+#ifdef DIRECT_THREADED
+#define INIT_DISPATCH  NEXT;
+#define CASE(opcode)  L_ ## opcode:
+#define NEXT  goto *JumpTable[FETCH_OP];
+#define END_DISPATCH
+
+#else
+#define INIT_DISPATCH  for (;;) { VMTRACE; switch (FETCH_OP) {
+#define CASE(opcode) case opcode:
+#define NEXT break
+#define END_DISPATCH }}
+#endif
+
+#define VMTRACE                                  \
+  if (trace_) {                                  \
+    FileStream out(stdout);                      \
+    std::cout << "run: stack=" << s_ << ", x=";  \
+    x_.output(state_, &out, true);               \
+    std::cout << std::endl;                      \
+  }                                              \
 
 namespace yalp {
 
@@ -652,47 +679,40 @@ Value Vm::run(Value code) {
 }
 
 Value Vm::runLoop() {
- again:
-  if (trace_) {
-    FileStream out(stdout);
-    std::cout << "run: stack=" << s_ << ", x=";
-    x_.output(state_, &out, true);
-    std::cout << std::endl;
-  }
+#ifdef DIRECT_THREADED
+  static const void *JumpTable[] = {
+#define OP(name)  &&L_ ## name ,
+    OPS
+#undef OP
+  };
+#endif
 
-  Value prex = x_;
-  Value op = CAR(prex);
-  x_ = CDR(prex);
-  int opidx = OPIDX(op);
-  switch (opidx) {
-  case HALT:
-    x_ = endOfCode_;
-    return a_;
-  case UNDEF:
-    a_ = Value::NIL;
-    valueCount_ = 0;
-    goto again;
-  case CONST:
-    a_ = CAR(x_);
-    x_ = CDR(x_);
-    goto again;
-  case LREF:
-    {
+  Value prex;
+  INIT_DISPATCH {
+    CASE(HALT) {
+      x_ = endOfCode_;
+      return a_;
+    }
+    CASE(UNDEF) {
+      a_ = Value::NIL;
+      valueCount_ = 0;
+    } NEXT;
+    CASE(CONST) {
+      a_ = CAR(x_);
+      x_ = CDR(x_);
+    } NEXT;
+    CASE(LREF) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       a_ = index(f_, n);
-    }
-    goto again;
-  case FREF:
-    {
+    } NEXT;
+    CASE(FREF) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       assert(c_.getType() == TT_CLOSURE);
       a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
-    }
-    goto again;
-  case GREF:
-    {
+    } NEXT;
+    CASE(GREF) {
       Value sym = CAR(x_);
       x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
@@ -701,56 +721,44 @@ Value Vm::runLoop() {
       if (!exist)
         state_->runtimeError("Unbound `%@`", &sym);
       a_ = aa;
-    }
-    goto again;
-  case LSET:
-    {
+    } NEXT;
+    CASE(LSET) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       Value box = index(f_, n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
-    }
-    goto again;
-  case FSET:
-    {
+    } NEXT;
+    CASE(FSET) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       assert(c_.getType() == TT_CLOSURE);
       Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
-    }
-    goto again;
-  case GSET:
-    {
+    } NEXT;
+    CASE(GSET) {
       Value sym = CAR(x_);
       x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       if (!assignGlobal(sym, a_))
         state_->runtimeError("Global variable `%@` not defined", &sym);
-    }
-    goto again;
-  case DEF:
-    {
+    } NEXT;
+    CASE(DEF) {
       Value sym = CAR(x_);
       x_ = CDR(x_);
       assert(sym.getType() == TT_SYMBOL);
       defineGlobal(sym, a_);
-    }
-    goto again;
-  case PUSH:
-    s_ = push(a_, s_);
-    goto again;
-  case TEST:
-    {
+    } NEXT;
+    CASE(PUSH) {
+      s_ = push(a_, s_);
+    } NEXT;
+    CASE(TEST) {
       Value thn = CAR(x_);
       Value els = CDR(x_);
       x_ = a_.isTrue() ? thn : els;
-    }
-    goto again;
-  case CLOSE:
-    {
+    } NEXT;
+    CASE(CLOSE) {
       Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
       Value body = CADDR(x_);
@@ -773,50 +781,38 @@ Value Vm::runLoop() {
         CELL(CDR(prex))->setCar(a_);
         CELL(CDR(prex))->setCdr(x_);
       }
-    }
-    goto again;
-  case FRAME:
-    {
+    } NEXT;
+    CASE(FRAME) {
       Value ret = CDR(x_);
       x_ = CAR(x_);
       s_ = pushCallFrame(ret, s_);
-    }
-    goto again;
-  case APPLY:
-    {
+    } NEXT;
+    CASE(APPLY) {
       int argNum = CAR(x_).toFixnum();
       apply(a_, argNum);
-    }
-    goto again;
-  case RET:
-    {
+    } NEXT;
+    CASE(RET) {
       int argNum = index(s_, 0).toFixnum();
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
-    }
-    goto again;
-  case SHIFT:
-    {
+    } NEXT;
+    CASE(SHIFT) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
-    }
-    goto again;
-  case BOX:
-    {
+    } NEXT;
+    CASE(BOX) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       indexSet(f_, n, box(index(f_, n)));
-    }
-    goto again;
-  case UNBOX:
-    assert(a_.getType() == TT_BOX);
-    a_ = static_cast<Box*>(a_.toObject())->get();
-    goto again;
-  case CONTI:
-    {
+    } NEXT;
+    CASE(UNBOX) {
+      assert(a_.getType() == TT_BOX);
+      a_ = static_cast<Box*>(a_.toObject())->get();
+    } NEXT;
+    CASE(CONTI) {
       Value tail = CAR(x_);
       x_ = CDR(x_);
       int s = s_;
@@ -825,10 +821,8 @@ Value Vm::runLoop() {
         s -= calleeArgNum + 1;
       }
       a_ = createContinuation(s);
-    }
-    goto again;
-  case MACRO:
-    {
+    } NEXT;
+    CASE(MACRO) {
       Value name = CAR(x_);
       Value nparam = CADR(x_);
       Value body = CADDR(x_);
@@ -841,32 +835,24 @@ Value Vm::runLoop() {
         min = max = nparam.toFixnum();
       }
       registerMacro(name, min, max, body);
-    }
-    goto again;
-  case EXPND:
-    {
+    } NEXT;
+    CASE(EXPND) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       expandFrame(n);
-    }
-    goto again;
-  case SHRNK:
-    {
+    } NEXT;
+    CASE(SHRNK) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       shrinkFrame(n);
-    }
-    goto again;
-  case VALS:
-    {
+    } NEXT;
+    CASE(VALS) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       storeValues(n, s_);
       s_ -= n;
-    }
-    goto again;
-  case RECV:
-    {
+    } NEXT;
+    CASE(RECV) {
       Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       x_ = CDR(x_);
       int min, max;
@@ -877,12 +863,8 @@ Value Vm::runLoop() {
         min = max = nparam.toFixnum();
       }
       restoreValues(min, max);
-    }
-    goto again;
-  default:
-    state_->runtimeError("Unknown op `%@`", &op);
-    return a_;
-  }
+    } NEXT;
+  } END_DISPATCH;
 }
 
 }  // namespace yalp
