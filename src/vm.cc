@@ -141,6 +141,13 @@ int Vm::popCallFrame(int s) {
   return s - 3;
 }
 
+int Vm::findOpcode(Svalue op) {
+  for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
+    if (op.eq(opcodes_[i]))
+      return i;
+  return -1;
+}
+
 Svalue Vm::box(Svalue x) {
   void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
   return Svalue(new(memory) Box(x));
@@ -209,6 +216,15 @@ void Vm::setTrace(bool b) {
   trace_ = b;
 }
 
+void Vm::resetError() {
+  Svalue nil = Svalue::NIL;
+  a_ = nil;
+  x_ = endOfCode_;
+  c_ = nil;
+  f_ = s_ = 0;
+  callStack_.clear();
+}
+
 void Vm::markRoot() {
   globalVariableTable_->mark();
   macroTable_->mark();
@@ -234,6 +250,32 @@ void Vm::reportDebugInfo() const {
   std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
 }
 
+Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
+  const Svalue* result = globalVariableTable_->get(sym);
+  if (pExist != NULL)
+    *pExist = result != NULL;
+  return result != NULL ? *result : Svalue::NIL;
+}
+
+void Vm::defineGlobal(Svalue sym, Svalue value) {
+  state_->checkType(sym, TT_SYMBOL);
+  globalVariableTable_->put(sym, value);
+
+  if (value.isObject() && value.toObject()->isCallable()) {
+    const Symbol* name = sym.toSymbol(state_);
+    static_cast<Callable*>(value.toObject())->setName(name);
+  }
+}
+
+bool Vm::assignGlobal(Svalue sym, Svalue value) {
+  state_->checkType(sym, TT_SYMBOL);
+  if (globalVariableTable_->get(sym) == NULL)
+    return false;
+
+  globalVariableTable_->put(sym, value);
+  return true;
+}
+
 void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
@@ -243,6 +285,311 @@ void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int 
 Svalue Vm::getMacro(Svalue name) {
   const Svalue* result = macroTable_->get(name);
   return result != NULL ? *result : Svalue::NIL;
+}
+
+int Vm::pushArgs(int argNum, const Svalue* args, int s) {
+  for (int i = argNum; --i >= 0; )
+    s = push(args[i], s);
+  return s;
+}
+
+void Vm::pushCallStack(Callable* callable) {
+  CallStack s = {
+    callable,
+    false,
+  };
+  callStack_.push_back(s);
+}
+
+void Vm::popCallStack() {
+  assert(!callStack_.empty());
+  callStack_.pop_back();
+  while (!callStack_.empty() && callStack_[callStack_.size() - 1].isTailCall)
+    callStack_.pop_back();
+}
+
+void Vm::shiftCallStack() {
+  size_t n = callStack_.size();
+  assert(n > 0);
+  if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
+      callStack_[n - 2].isTailCall) {
+    // Self tail recursive case: eliminate call stack.
+    callStack_.pop_back();
+  } else {
+    callStack_[n - 1].isTailCall = true;
+  }
+}
+
+Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+  case TT_CONTINUATION:
+    funcallSetup(fn, argNum, args, false);
+    return runLoop();
+  default:
+    return funcallSetup(fn, argNum, args, false);
+  }
+}
+
+Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+    if (isTailCall(x_)) {
+      // Shifts arguments.
+      int calleeArgNum = index(f_, -1).toFixnum();
+      s_ = pushArgs(argNum, args, s_);
+      s_ = shiftArgs(argNum, calleeArgNum, s_);
+      shiftCallStack();
+    } else {
+      // Makes frame.
+      s_ = pushCallFrame(x_, s_);
+      s_ = pushArgs(argNum, args, s_);
+    }
+    apply(fn, argNum);
+    // runLoop will run after this function exited.
+    return Svalue::NIL;
+  case TT_NATIVEFUNC:
+    {
+      // Save to local variable, instead of creating call frame.
+      int oldS = s_;
+      Svalue oldX = x_;
+
+      s_ = pushArgs(argNum, args, s_);
+      apply(fn, argNum);
+
+      if (tailcall)
+        shiftCallStack();
+      else
+        popCallStack();
+
+      s_ = oldS;
+      x_ = oldX;
+      return a_;
+    }
+  case TT_CONTINUATION:
+    s_ = push(argNum == 0 ? Svalue::NIL : args[0], s_);
+    apply(fn, argNum);
+    // runLoop will run after this function exited.
+    return Svalue::NIL;
+  default:
+    assert(!"Must not happen");
+    return Svalue::NIL;
+  }
+}
+
+void Vm::apply(Svalue fn, int argNum) {
+  if (!fn.isObject() || !fn.toObject()->isCallable())
+    state_->runtimeError("Can't call `%@`", &fn);
+
+  valueCount_ = 1;
+  switch (fn.getType()) {
+  case TT_CLOSURE:
+    {
+      Closure* closure = static_cast<Closure*>(fn.toObject());
+      int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
+      checkArgNum(state_, fn, argNum, min, max);
+      pushCallStack(closure);
+
+      int ds = 0;
+      if (closure->hasRestParam())
+        ds = modifyRestParams(argNum, min, s_);
+      s_ += ds;
+      argNum += ds;
+      x_ = closure->getBody();
+      f_ = s_;
+      c_ = fn;
+      s_ = push(state_->fixnumValue(argNum), s_);
+    }
+    break;
+  case TT_NATIVEFUNC:
+    {
+      NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
+      int min = native->getMinArgNum(), max = native->getMaxArgNum();
+      checkArgNum(state_, fn, argNum, min, max);
+      pushCallStack(native);
+
+      f_ = s_;
+      s_ = push(state_->fixnumValue(argNum), s_);
+      x_ = return_;
+      a_ = native->call(state_);
+    }
+    break;
+  case TT_CONTINUATION:
+    {
+      Continuation* continuation = static_cast<Continuation*>(fn.toObject());
+      checkArgNum(state_, fn, argNum, 0, 1);
+      pushCallStack(continuation);
+      a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
+
+      int savedStackSize = continuation->getStackSize();
+      const Svalue* savedStack = continuation->getStack();
+      memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
+
+      int callStackSize = continuation->getCallStackSize();
+      if (callStackSize == 0)
+        callStack_.clear();
+      else {
+        const CallStack* callStack = continuation->getCallStack();
+        callStack_.resize(callStackSize);
+        memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
+      }
+      s_ = popCallFrame(savedStackSize);
+    }
+    break;
+  default:
+    assert(!"Must not happen");
+    break;
+  }
+}
+
+Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
+  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Closure));
+  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
+  for (int i = 0; i < nfree; ++i)
+    closure->setFreeVariable(i, index(s, i));
+  return Svalue(closure);
+}
+
+void Vm::registerMacro(Svalue name, int minParam, int maxParam, Svalue body) {
+  Svalue closure = createClosure(body, 0, s_, minParam, maxParam);
+
+  assert(name.getType() == TT_SYMBOL);
+  static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
+  defineGlobal(name, state_->intern("*macro*"));
+
+  if (name.getType() != TT_SYMBOL)
+    state_->runtimeError("Must be symbol, but `%@`", &name);
+  macroTable_->put(name, closure);
+}
+
+Svalue Vm::createContinuation(int s) {
+  Allocator* allocator = state_->getAllocator();
+  void* memory = OBJALLOC(allocator, sizeof(Continuation));
+  return Svalue(new(memory) Continuation(allocator, stack_, s,
+                                         &callStack_[0], callStack_.size()));
+}
+
+void Vm::reserveStack(int n) {
+  if (n <= stackSize_)
+    return;
+
+  int newSize = n + 16;
+  void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
+  Svalue* newStack = static_cast<Svalue*>(memory);
+  stack_ = newStack;
+  stackSize_ = newSize;
+}
+
+int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
+  Svalue rest = createRestParams(argNum, minArgNum, s);
+  int ds = 0;
+  if (argNum <= minArgNum) {
+    // No rest param space: move all args +1 to create space.
+    ds = minArgNum - argNum + 1;  // This must be 1 if arguments count is checked, but just in case.
+    reserveStack(s + ds);
+    moveStackElems(stack_, s - argNum + ds, s - argNum, argNum);
+  }
+  indexSet(s + ds, minArgNum, rest);
+  return ds;
+}
+
+Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
+  Svalue acc = Svalue::NIL;
+  for (int i = argNum; --i >= minArgNum; )
+    acc = state_->cons(index(s, i), acc);
+  return acc;
+}
+
+void Vm::expandFrame(int n) {
+  if (f_ == 0) {
+    // No upper frame: create first frame.
+    //   Before: f_[z][y][x][B][A]s_
+    //   After:  [B][A]f_[N][z][x][y]s_
+    reserveStack(s_ + n + 1);
+    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
+    moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
+    stack_[n] = state_->fixnumValue(n);
+    s_ += 1;
+    f_ = n;
+    return;
+  }
+
+  // Before: [z][y][x]f_[argnum][B][A]s_
+  // After:  [z][y][x][B][A]f_[argnum+n]s_
+  int argNum = stack_[f_].toFixnum();
+  int src = f_, dst = src + n;
+  reserveStack(s_ + n);
+  stack_[f_] = state_->fixnumValue(argNum + n);
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  moveStackElems(stack_, src, s_, n);  // Move arguments.
+  f_ += n;
+}
+
+void Vm::shrinkFrame(int n) {
+  if (f_ - n == 0) {
+    assert(stack_[f_].toFixnum() == n);
+    // No upper frame: create first frame.
+    //   Before: [B][A]f_[N][z][x][y]s_
+    //   After:  f_[z][y][x]s_
+    moveStackElems(stack_, 0, f_ + 1, s_ - (f_ + 1));  // Shift stack.
+    s_ -= f_ + 1;
+    f_ = 0;
+    return;
+  }
+
+  // Before: [z][y][x][B][A]f_[argnum]s_
+  // After:  [z][y][x]f_[argnum-n]s_
+  int argnum = stack_[f_].toFixnum();
+  stack_[f_] = state_->fixnumValue(argnum - n);
+  int src = f_, dst = f_ - n;
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  s_ -= n;
+  f_ -= n;
+}
+
+void Vm::storeValues(int n, int s) {
+  // Move arguments from stack to values buffer.
+  if (n - 1 > valuesSize_) {
+    // Allocation size is n - 1, because values[0] is stored in a_ register.
+    void* memory = REALLOC(state_->getAllocator(), values_, sizeof(Svalue) * (n - 1));
+    Svalue* newBuffer = static_cast<Svalue*>(memory);
+    values_ = newBuffer;
+    valuesSize_ = n - 1;
+  }
+
+  // [0] is already stored in a if n > 0.
+  if (n == 0)
+    a_ = Svalue::NIL;
+  for (int i = 1; i < n; ++i)
+    values_[n - i - 1] = index(s, i);  // Stores values in reverse order to fit stack structure.
+  valueCount_ = n;
+}
+
+void Vm::restoreValues(int min, int /*max*/) {
+  int n = valueCount_;
+  assert(n == min);
+  if (f_ == 0) {
+    // No upper frame: create first frame.
+    //   Before: f_[z][y][x]s_
+    //   After:  [B][A]f_[N][z][x][y]s_
+    reserveStack(s_ + n + 1);
+    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
+    moveValuesToStack(&stack_[0], values_, a_, n);
+    stack_[n] = state_->fixnumValue(n);
+    s_ += n + 1;
+    f_ = n;
+    return;
+  }
+
+  // Before: [z][y][x]f_[argnum]s_
+  // After:  [z][y][x][B][A]f_[argnum+n]s_
+  int argNum = stack_[f_].toFixnum();
+  int src = f_, dst = src + n;
+  reserveStack(s_ + n);
+  stack_[f_] = state_->fixnumValue(argNum + n);
+  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
+  moveValuesToStack(&stack_[src], values_, a_, n);
+  f_ += n;
 }
 
 Svalue Vm::run(Svalue code) {
@@ -486,353 +833,6 @@ Svalue Vm::runLoop() {
     state_->runtimeError("Unknown op `%@`", &op);
     return a_;
   }
-}
-
-int Vm::findOpcode(Svalue op) {
-  for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-    if (op.eq(opcodes_[i]))
-      return i;
-  return -1;
-}
-
-Svalue Vm::createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Closure));
-  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
-  for (int i = 0; i < nfree; ++i)
-    closure->setFreeVariable(i, index(s, i));
-  return Svalue(closure);
-}
-
-Svalue Vm::createContinuation(int s) {
-  Allocator* allocator = state_->getAllocator();
-  void* memory = OBJALLOC(allocator, sizeof(Continuation));
-  return Svalue(new(memory) Continuation(allocator, stack_, s,
-                                         &callStack_[0], callStack_.size()));
-}
-
-void Vm::reserveStack(int n) {
-  if (n <= stackSize_)
-    return;
-
-  int newSize = n + 16;
-  void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Svalue) * newSize);
-  Svalue* newStack = static_cast<Svalue*>(memory);
-  stack_ = newStack;
-  stackSize_ = newSize;
-}
-
-int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
-  Svalue rest = createRestParams(argNum, minArgNum, s);
-  int ds = 0;
-  if (argNum <= minArgNum) {
-    // No rest param space: move all args +1 to create space.
-    ds = minArgNum - argNum + 1;  // This must be 1 if arguments count is checked, but just in case.
-    reserveStack(s + ds);
-    moveStackElems(stack_, s - argNum + ds, s - argNum, argNum);
-  }
-  indexSet(s + ds, minArgNum, rest);
-  return ds;
-}
-
-Svalue Vm::createRestParams(int argNum, int minArgNum, int s) {
-  Svalue acc = Svalue::NIL;
-  for (int i = argNum; --i >= minArgNum; )
-    acc = state_->cons(index(s, i), acc);
-  return acc;
-}
-
-void Vm::expandFrame(int n) {
-  if (f_ == 0) {
-    // No upper frame: create first frame.
-    //   Before: f_[z][y][x][B][A]s_
-    //   After:  [B][A]f_[N][z][x][y]s_
-    reserveStack(s_ + n + 1);
-    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
-    moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
-    stack_[n] = state_->fixnumValue(n);
-    s_ += 1;
-    f_ = n;
-    return;
-  }
-
-  // Before: [z][y][x]f_[argnum][B][A]s_
-  // After:  [z][y][x][B][A]f_[argnum+n]s_
-  int argNum = stack_[f_].toFixnum();
-  int src = f_, dst = src + n;
-  reserveStack(s_ + n);
-  stack_[f_] = state_->fixnumValue(argNum + n);
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  moveStackElems(stack_, src, s_, n);  // Move arguments.
-  f_ += n;
-}
-
-void Vm::shrinkFrame(int n) {
-  if (f_ - n == 0) {
-    assert(stack_[f_].toFixnum() == n);
-    // No upper frame: create first frame.
-    //   Before: [B][A]f_[N][z][x][y]s_
-    //   After:  f_[z][y][x]s_
-    moveStackElems(stack_, 0, f_ + 1, s_ - (f_ + 1));  // Shift stack.
-    s_ -= f_ + 1;
-    f_ = 0;
-    return;
-  }
-
-  // Before: [z][y][x][B][A]f_[argnum]s_
-  // After:  [z][y][x]f_[argnum-n]s_
-  int argnum = stack_[f_].toFixnum();
-  stack_[f_] = state_->fixnumValue(argnum - n);
-  int src = f_, dst = f_ - n;
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  s_ -= n;
-  f_ -= n;
-}
-
-void Vm::storeValues(int n, int s) {
-  // Move arguments from stack to values buffer.
-  if (n - 1 > valuesSize_) {
-    // Allocation size is n - 1, because values[0] is stored in a_ register.
-    void* memory = REALLOC(state_->getAllocator(), values_, sizeof(Svalue) * (n - 1));
-    Svalue* newBuffer = static_cast<Svalue*>(memory);
-    values_ = newBuffer;
-    valuesSize_ = n - 1;
-  }
-
-  // [0] is already stored in a if n > 0.
-  if (n == 0)
-    a_ = Svalue::NIL;
-  for (int i = 1; i < n; ++i)
-    values_[n - i - 1] = index(s, i);  // Stores values in reverse order to fit stack structure.
-  valueCount_ = n;
-}
-
-void Vm::restoreValues(int min, int /*max*/) {
-  int n = valueCount_;
-  assert(n == min);
-  if (f_ == 0) {
-    // No upper frame: create first frame.
-    //   Before: f_[z][y][x]s_
-    //   After:  [B][A]f_[N][z][x][y]s_
-    reserveStack(s_ + n + 1);
-    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
-    moveValuesToStack(&stack_[0], values_, a_, n);
-    stack_[n] = state_->fixnumValue(n);
-    s_ += n + 1;
-    f_ = n;
-    return;
-  }
-
-  // Before: [z][y][x]f_[argnum]s_
-  // After:  [z][y][x][B][A]f_[argnum+n]s_
-  int argNum = stack_[f_].toFixnum();
-  int src = f_, dst = src + n;
-  reserveStack(s_ + n);
-  stack_[f_] = state_->fixnumValue(argNum + n);
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  moveValuesToStack(&stack_[src], values_, a_, n);
-  f_ += n;
-}
-
-Svalue Vm::referGlobal(Svalue sym, bool* pExist) {
-  const Svalue* result = globalVariableTable_->get(sym);
-  if (pExist != NULL)
-    *pExist = result != NULL;
-  return result != NULL ? *result : Svalue::NIL;
-}
-
-void Vm::defineGlobal(Svalue sym, Svalue value) {
-  state_->checkType(sym, TT_SYMBOL);
-  globalVariableTable_->put(sym, value);
-
-  if (value.isObject() && value.toObject()->isCallable()) {
-    const Symbol* name = sym.toSymbol(state_);
-    static_cast<Callable*>(value.toObject())->setName(name);
-  }
-}
-
-bool Vm::assignGlobal(Svalue sym, Svalue value) {
-  state_->checkType(sym, TT_SYMBOL);
-  if (globalVariableTable_->get(sym) == NULL)
-    return false;
-
-  globalVariableTable_->put(sym, value);
-  return true;
-}
-
-Svalue Vm::funcall(Svalue fn, int argNum, const Svalue* args) {
-  switch (fn.getType()) {
-  case TT_CLOSURE:
-  case TT_CONTINUATION:
-    funcallSetup(fn, argNum, args, false);
-    return runLoop();
-  default:
-    return funcallSetup(fn, argNum, args, false);
-  }
-}
-
-Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {
-  switch (fn.getType()) {
-  case TT_CLOSURE:
-    if (isTailCall(x_)) {
-      // Shifts arguments.
-      int calleeArgNum = index(f_, -1).toFixnum();
-      s_ = pushArgs(argNum, args, s_);
-      s_ = shiftArgs(argNum, calleeArgNum, s_);
-      shiftCallStack();
-    } else {
-      // Makes frame.
-      s_ = pushCallFrame(x_, s_);
-      s_ = pushArgs(argNum, args, s_);
-    }
-    apply(fn, argNum);
-    // runLoop will run after this function exited.
-    return Svalue::NIL;
-  case TT_NATIVEFUNC:
-    {
-      // Save to local variable, instead of creating call frame.
-      int oldS = s_;
-      Svalue oldX = x_;
-
-      s_ = pushArgs(argNum, args, s_);
-      apply(fn, argNum);
-
-      if (tailcall)
-        shiftCallStack();
-      else
-        popCallStack();
-
-      s_ = oldS;
-      x_ = oldX;
-      return a_;
-    }
-  case TT_CONTINUATION:
-    s_ = push(argNum == 0 ? Svalue::NIL : args[0], s_);
-    apply(fn, argNum);
-    // runLoop will run after this function exited.
-    return Svalue::NIL;
-  default:
-    assert(!"Must not happen");
-    return Svalue::NIL;
-  }
-}
-
-void Vm::apply(Svalue fn, int argNum) {
-  if (!fn.isObject() || !fn.toObject()->isCallable())
-    state_->runtimeError("Can't call `%@`", &fn);
-
-  valueCount_ = 1;
-  switch (fn.getType()) {
-  case TT_CLOSURE:
-    {
-      Closure* closure = static_cast<Closure*>(fn.toObject());
-      int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
-      checkArgNum(state_, fn, argNum, min, max);
-      pushCallStack(closure);
-
-      int ds = 0;
-      if (closure->hasRestParam())
-        ds = modifyRestParams(argNum, min, s_);
-      s_ += ds;
-      argNum += ds;
-      x_ = closure->getBody();
-      f_ = s_;
-      c_ = fn;
-      s_ = push(state_->fixnumValue(argNum), s_);
-    }
-    break;
-  case TT_NATIVEFUNC:
-    {
-      NativeFunc* native = static_cast<NativeFunc*>(fn.toObject());
-      int min = native->getMinArgNum(), max = native->getMaxArgNum();
-      checkArgNum(state_, fn, argNum, min, max);
-      pushCallStack(native);
-
-      f_ = s_;
-      s_ = push(state_->fixnumValue(argNum), s_);
-      x_ = return_;
-      a_ = native->call(state_);
-    }
-    break;
-  case TT_CONTINUATION:
-    {
-      Continuation* continuation = static_cast<Continuation*>(fn.toObject());
-      checkArgNum(state_, fn, argNum, 0, 1);
-      pushCallStack(continuation);
-      a_ = (argNum == 0) ? Svalue::NIL : index(s_, 0);
-
-      int savedStackSize = continuation->getStackSize();
-      const Svalue* savedStack = continuation->getStack();
-      memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
-
-      int callStackSize = continuation->getCallStackSize();
-      if (callStackSize == 0)
-        callStack_.clear();
-      else {
-        const CallStack* callStack = continuation->getCallStack();
-        callStack_.resize(callStackSize);
-        memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
-      }
-      s_ = popCallFrame(savedStackSize);
-    }
-    break;
-  default:
-    assert(!"Must not happen");
-    break;
-  }
-}
-
-void Vm::resetError() {
-  Svalue nil = Svalue::NIL;
-  a_ = nil;
-  x_ = endOfCode_;
-  c_ = nil;
-  f_ = s_ = 0;
-  callStack_.clear();
-}
-
-int Vm::pushArgs(int argNum, const Svalue* args, int s) {
-  for (int i = argNum; --i >= 0; )
-    s = push(args[i], s);
-  return s;
-}
-
-void Vm::pushCallStack(Callable* callable) {
-  CallStack s = {
-    callable,
-    false,
-  };
-  callStack_.push_back(s);
-}
-
-void Vm::popCallStack() {
-  assert(!callStack_.empty());
-  callStack_.pop_back();
-  while (!callStack_.empty() && callStack_[callStack_.size() - 1].isTailCall)
-    callStack_.pop_back();
-}
-
-void Vm::shiftCallStack() {
-  size_t n = callStack_.size();
-  assert(n > 0);
-  if (n >= 2 && callStack_[n - 2].callable == callStack_[n - 1].callable &&
-      callStack_[n - 2].isTailCall) {
-    // Self tail recursive case: eliminate call stack.
-    callStack_.pop_back();
-  } else {
-    callStack_[n - 1].isTailCall = true;
-  }
-}
-
-void Vm::registerMacro(Svalue name, int minParam, int maxParam, Svalue body) {
-  Svalue closure = createClosure(body, 0, s_, minParam, maxParam);
-
-  assert(name.getType() == TT_SYMBOL);
-  static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
-  defineGlobal(name, state_->intern("*macro*"));
-
-  if (name.getType() != TT_SYMBOL)
-    state_->runtimeError("Must be symbol, but `%@`", &name);
-  macroTable_->put(name, closure);
 }
 
 }  // namespace yalp

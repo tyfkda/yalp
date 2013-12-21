@@ -66,7 +66,6 @@ private:
   ~Vm();
   void installNativeFunctions();
   Svalue runLoop();
-  int findOpcode(Svalue op);
   Svalue createClosure(Svalue body, int nfree, int s, int minArgNum, int maxArgNum);
   Svalue createContinuation(int s);
   Svalue funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall);
@@ -95,6 +94,7 @@ private:
   inline bool isTailCall(Svalue x) const;
   inline int pushCallFrame(Svalue ret, int s);
   inline int popCallFrame(int s);
+  inline int findOpcode(Svalue op);
   inline Svalue box(Svalue x);
 
   State* state_;
