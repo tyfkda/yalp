@@ -228,7 +228,7 @@ State::State(AllocFunc allocFunc)
   , jmp_(NULL) {
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANT] = {
-    "t", "quote", "quasiquote", "unquote", "unquote-splicing"
+    "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile"
   };
   for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
     constant_[i] = intern(constSymbols[i]);
@@ -266,7 +266,7 @@ void State::installBasicObjects() {
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {
-  Svalue fn = referGlobal("compile");
+  Svalue fn = referGlobal(getConstant(COMPILE));
   if (isFalse(fn)) {
     runtimeError("`compile` is not enabled");
     return false;
@@ -303,21 +303,18 @@ ErrorCode State::runFromString(const char* string, Svalue* pResult) {
 
 ErrorCode State::run(Stream* stream, Svalue* pResult) {
   Reader reader(this, stream);
-  Svalue result;
   Svalue exp;
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
     if (!compile(exp, &code) || isFalse(code))
       return COMPILE_ERROR;
-    if (!runBinary(code, &result))
+    if (!runBinary(code, pResult))
       return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE)
-    return err;
-  if (pResult != NULL)
-    *pResult = result;
-  return SUCCESS;
+  if (err == END_OF_FILE)
+    return SUCCESS;
+  return err;
 }
 
 ErrorCode State::runBinaryFromFile(const char* filename, Svalue* pResult) {
@@ -326,18 +323,15 @@ ErrorCode State::runBinaryFromFile(const char* filename, Svalue* pResult) {
     return FILE_NOT_FOUND;
 
   Reader reader(this, &stream);
-  Svalue result = Svalue::NIL;
   Svalue bin;
   ErrorCode err;
   while ((err = reader.read(&bin)) == SUCCESS) {
-    if (!runBinary(bin, &result))
+    if (!runBinary(bin, pResult))
       return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE)
-    return err;
-  if (pResult != NULL)
-    *pResult = result;
-  return SUCCESS;
+  if (err == END_OF_FILE)
+    return SUCCESS;
+  return err;
 }
 
 void State::checkType(Svalue x, Type expected) {

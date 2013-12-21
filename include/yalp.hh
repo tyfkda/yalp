@@ -104,17 +104,21 @@ public:
   // Delete.
   void release();
 
-  bool compile(Svalue exp, Svalue* pValue);
-
-  // Execute compiled code.
-  bool runBinary(Svalue code, Svalue* pResult);
-
   ErrorCode runFromFile(const char* filename, Svalue* pResult = NULL);
   ErrorCode runFromString(const char* string, Svalue* pResult = NULL);
   ErrorCode runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
 
-  // Check value type, and raise runtime error if the value is not expected type.
-  void checkType(Svalue x, Type expected);
+  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
+  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+
+  inline Svalue referGlobal(const char* sym, bool* pExist = NULL);
+  inline void defineGlobal(const char* sym, Svalue value);
+  Svalue referGlobal(Svalue sym, bool* pExist = NULL);
+  void defineGlobal(Svalue sym, Svalue value);
+  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
+    defineNative(name, func, minArgNum, minArgNum);
+  }
+  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   // Converts C++ bool value to lisp bool value.
   Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
@@ -143,6 +147,8 @@ public:
   // Floating point number.
   Svalue floatValue(Sfloat f);
 
+  Svalue createHashTable();
+
   // File stream.
   Svalue createFileStream(FILE* fp);
 
@@ -166,6 +172,7 @@ public:
     QUASIQUOTE,
     UNQUOTE,
     UNQUOTE_SPLICING,
+    COMPILE,
 
     NUMBER_OF_CONSTANT
   };
@@ -173,28 +180,24 @@ public:
   bool isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
   bool isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
 
-  Svalue createHashTable();
-
   Allocator* getAllocator()  { return allocator_; }
 
-  inline Svalue referGlobal(const char* sym, bool* pExist = NULL);
-  inline void defineGlobal(const char* sym, Svalue value);
-  Svalue referGlobal(Svalue sym, bool* pExist = NULL);
-  void defineGlobal(Svalue sym, Svalue value);
-  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
-    defineNative(name, func, minArgNum, minArgNum);
-  }
-  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   void setMacroCharacter(int c, Svalue func);
   Svalue getMacroCharacter(int c);
   Svalue getMacro(Svalue name);
 
-  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
-  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
-  void resetError();
+  // Check value type, and raise runtime error if the value is not expected type.
+  void checkType(Svalue x, Type expected);
 
   void collectGarbage();
   void setVmTrace(bool b);
+
+  bool compile(Svalue exp, Svalue* pValue);
+
+  // Execute compiled code.
+  bool runBinary(Svalue code, Svalue* pResult);
+
+  void resetError();
 
   void reportDebugInfo() const;
 
