@@ -24,13 +24,13 @@ public:
   ErrorCode readDelimitedList(int terminator, Svalue* pValue);
 
 private:
+  inline ErrorCode readQuote(Svalue* pValue);
+  inline ErrorCode readQuasiQuote(Svalue* pValue);
+  inline ErrorCode readUnquote(Svalue* pValue);
+  inline ErrorCode readUnquoteSplicing(Svalue* pValue);
   ErrorCode readSymbolOrNumber(Svalue* pValue);
   ErrorCode readList(Svalue* pValue);
-  ErrorCode readQuote(Svalue* pValue);
-  ErrorCode readQuasiQuote(Svalue* pValue)  { return readAbbrev("quasiquote", pValue); }
-  ErrorCode readUnquote(Svalue* pValue)  { return readAbbrev("unquote", pValue); }
-  ErrorCode readUnquoteSplicing(Svalue* pValue)  { return readAbbrev("unquote-splicing", pValue); }
-  ErrorCode readAbbrev(const char* funcname, Svalue* pValue);
+  ErrorCode readAbbrev(Svalue symbol, Svalue* pValue);
   ErrorCode readString(char closeChar, Svalue* pValue);
   ErrorCode readSpecial(Svalue* pValue);
   ErrorCode readSharedStructure(Svalue* pValue);

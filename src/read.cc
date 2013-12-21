@@ -48,6 +48,11 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
+ErrorCode Reader::readQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
+ErrorCode Reader::readQuasiQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
+ErrorCode Reader::readUnquote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE), pValue); }
+ErrorCode Reader::readUnquoteSplicing(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE_SPLICING), pValue); }
+
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
@@ -226,18 +231,11 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
   }
 }
 
-ErrorCode Reader::readQuote(Svalue* pValue) {
-  ErrorCode err = read(pValue);
-  if (err == SUCCESS)
-    *pValue = list(state_, state_->getConstant(State::QUOTE),*pValue);
-  return err;
-}
-
-ErrorCode Reader::readAbbrev(const char* funcname, Svalue* pValue) {
+ErrorCode Reader::readAbbrev(Svalue symbol, Svalue* pValue) {
   ErrorCode err = read(pValue);
   if (err == SUCCESS) {
     *pValue = list(state_,
-                   state_->intern(funcname),
+                   symbol,
                    *pValue);
   }
   return err;
