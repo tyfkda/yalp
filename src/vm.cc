@@ -721,11 +721,9 @@ Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall
       return a_;
     }
   case TT_CONTINUATION:
-    {
-      s_ = push(argNum == 0 ? Svalue::NIL : args[0], s_);
-      apply(fn, argNum);
-      // runLoop will run after this function exited.
-    }
+    s_ = push(argNum == 0 ? Svalue::NIL : args[0], s_);
+    apply(fn, argNum);
+    // runLoop will run after this function exited.
     return Svalue::NIL;
   default:
     assert(!"Must not happen");
