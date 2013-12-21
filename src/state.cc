@@ -266,7 +266,7 @@ void State::installBasicObjects() {
 }
 
 bool State::compile(Svalue exp, Svalue* pValue) {
-  Svalue fn = referGlobal(intern("compile"));
+  Svalue fn = referGlobal("compile");
   if (isFalse(fn)) {
     runtimeError("`compile` is not enabled");
     return false;

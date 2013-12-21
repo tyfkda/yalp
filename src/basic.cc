@@ -379,7 +379,7 @@ static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
   Svalue ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(state->intern(defaultStreamName));
+    state->referGlobal(defaultStreamName);
   state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject())->getStream();
 }
