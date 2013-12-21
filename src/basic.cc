@@ -429,6 +429,19 @@ static Value s_read(State* state) {
   }
 }
 
+static Value s_read_from_string(State* state) {
+  Value s = state->getArg(0);
+  state->checkType(s, TT_STRING);
+
+  StrStream stream(static_cast<String*>(s.toObject())->c_str());
+  Reader reader(state, &stream);
+  Value exp;
+  ErrorCode err = reader.read(&exp);
+  if (err != SUCCESS)
+    state->runtimeError("Read error %d", err);
+  return exp;
+}
+
 static Value s_read_delimited_list(State* state) {
   Value delimiter = state->getArg(0);
   state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
@@ -685,6 +698,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("format", s_format, 2, -1);
 
   state->defineNative("read", s_read, 0, 2);
+  state->defineNative("read-from-string", s_read_from_string, 1);
   state->defineNative("read-delimited-list", s_read_delimited_list, 2);
   state->defineNative("read-char", s_read_char, 0, 1);
   state->defineNative("read-line", s_read_line, 0, 1);
