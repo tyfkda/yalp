@@ -93,6 +93,8 @@ private:
 
   void registerMacro(Svalue name, int minParam, int maxParam, Svalue body);
 
+  inline bool isTailCall(Svalue x) const;
+
   State* state_;
   Svalue* stack_;
   int stackSize_;

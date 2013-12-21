@@ -108,6 +108,8 @@ protected:
 
 //=============================================================================
 
+bool Vm::isTailCall(Svalue x) const  { return CAR(x).eq(opcodes_[RET]); }
+
 Vm* Vm::create(State* state) {
   void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
   return new(memory) Vm(state);
@@ -686,22 +688,19 @@ Svalue Vm::tailcall(Svalue fn, int argNum, const Svalue* args) {
 Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall) {
   switch (fn.getType()) {
   case TT_CLOSURE:
-    {
-      bool isTail = CAR(x_).eq(opcodes_[RET]);
-      if (isTail) {
-        // Shifts arguments.
-        int calleeArgNum = index(f_, -1).toFixnum();
-        s_ = pushArgs(argNum, args, s_);
-        s_ = shiftArgs(argNum, calleeArgNum, s_);
-        shiftCallStack();
-      } else {
-        // Makes frame.
-        s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
-        s_ = pushArgs(argNum, args, s_);
-      }
-      apply(fn, argNum);
-      // runLoop will run after this function exited.
+    if (isTailCall(x_)) {
+      // Shifts arguments.
+      int calleeArgNum = index(f_, -1).toFixnum();
+      s_ = pushArgs(argNum, args, s_);
+      s_ = shiftArgs(argNum, calleeArgNum, s_);
+      shiftCallStack();
+    } else {
+      // Makes frame.
+      s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
+      s_ = pushArgs(argNum, args, s_);
     }
+    apply(fn, argNum);
+    // runLoop will run after this function exited.
     return Svalue::NIL;
   case TT_NATIVEFUNC:
     {
