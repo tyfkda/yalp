@@ -102,15 +102,8 @@ static bool runBinary(State* state, Stream* stream) {
   return true;
 }
 
-static bool compileFile(State* state, const char* filename, bool bNoRun) {
-  FileStream stream(filename, "r");
-  if (!stream.isOpened()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
-
-  Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, &stream);
+static bool compile(State* state, Stream* stream, bool bNoRun) {
+  Reader reader(state, stream);
   Svalue exp;
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
@@ -119,6 +112,7 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
       state->resetError();
       return false;
     }
+    Svalue writess = state->referGlobal(state->intern("write/ss"));
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
@@ -132,11 +126,10 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   return true;
 }
 
-static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNoRun) {
+static bool repl(State* state, Stream* stream, bool tty, bool bNoRun) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
-  Svalue writess = state->referGlobal(state->intern("write/ss"));
   FileStream out(stdout);
   Reader reader(state, stream);
   for (;;) {
@@ -149,22 +142,16 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
 
     if (err != SUCCESS) {
       cerr << "Read error: " << err << endl;
-      if (tty)
-        continue;
-      return false;
+      if (!tty)
+        return false;
+      continue;
     }
     Svalue code;
     if (!state->compile(s, &code) || state->isFalse(code)) {
       state->resetError();
-      if (tty)
-        continue;
-      else
+      if (!tty)
         return false;
-    }
-
-    if (bCompile) {
-      state->funcall(writess, 1, &code, NULL);
-      cout << endl;
+      continue;
     }
 
     Svalue result;
@@ -174,7 +161,7 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
       state->resetError();
       continue;
     }
-    if (!bCompile && tty) {
+    if (tty) {
       const char* prompt = "=> ";
       for (int n = state->getResultNum(), i = 0; i < n; ++i) {
         Svalue result = state->getResult(i);
@@ -191,9 +178,9 @@ static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNo
 }
 
 static bool runMain(State* state) {
-  Svalue main = state->referGlobal(state->intern("main"));
-  if (!state->isTrue(main))
-    return true;
+  Svalue main = state->referGlobal("main");
+  if (state->isFalse(main))
+    return true;  // If no `main` function, it is ok.
   return state->funcall(main, 0, NULL, NULL);
 }
 
@@ -268,17 +255,21 @@ int main(int argc, char* argv[]) {
 
   if (ii >= argc) {
     FileStream stream(stdin);
-    if (bBinary) {
-      if (!runBinary(state, &stream))
-        exit(1);
-    } else {
-      if (!repl(state, &stream, isatty(0) != 0, bCompile, bNoRun))
-        exit(1);
-    }
+    bool result;
+    if (bBinary)        result = runBinary(state, &stream);
+    else if (bCompile)  result = compile(state, &stream, bNoRun);
+    else                result = repl(state, &stream, isatty(0) != 0, bNoRun);
+    if (!result)
+      exit(1);
   } else {
     for (int i = ii; i < argc; ++i) {
       if (bCompile) {
-        if (!compileFile(state, argv[i], bNoRun))
+        FileStream stream(argv[i], "r");
+        if (!stream.isOpened()) {
+          std::cerr << "File not found: " << argv[i] << std::endl;
+          exit(1);
+        }
+        if (!compile(state, &stream, bNoRun))
           exit(1);
       } else if (bBinary) {
         exitIfError(state->runBinaryFromFile(argv[i]));
