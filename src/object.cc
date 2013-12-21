@@ -4,6 +4,7 @@
 
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "yalp/util.hh"  // for strHash
 #include "hash_table.hh"
 #include "vm.hh"  // for CallStack
 

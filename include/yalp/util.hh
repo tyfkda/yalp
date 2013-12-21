@@ -13,6 +13,9 @@ class State;
 class Stream;
 class Svalue;
 
+// Hash function
+unsigned int strHash(const char* s);
+
 Svalue list(State* state, Svalue v1);
 Svalue list(State* state, Svalue v1, Svalue v2);
 Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3);
