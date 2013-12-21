@@ -166,6 +166,10 @@ run hash-table 123 "((^(h)
                         (hash-table-get h 'key))
                      (make-hash-table))"
 
+# eval
+run eval "'x" "(eval '(quote (quote x)))"
+run eval "x" "(eval (eval '(quote (quote x))))"
+
 # Scheme - yalp value differences
 run '() is false' 3 '(if () 2 3)'
 run '() is nil' t '(is () nil)'

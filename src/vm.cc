@@ -670,12 +670,14 @@ void Vm::replaceOpcodes(Value x) {
 
 Value Vm::run(Value code) {
   replaceOpcodes(code);
-  Value nil = Value::NIL;
-  a_ = nil;
+
+  Value oldX = x_;
+  a_ = c_ = Value::NIL;
   x_ = code;
-  c_ = nil;
-  f_ = 0;
-  return runLoop();
+  Value result = runLoop();
+
+  x_ = oldX;
+  return result;
 }
 
 Value Vm::runLoop() {
