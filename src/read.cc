@@ -84,7 +84,7 @@ ErrorCode Reader::read(Svalue* pValue) {
   Svalue fn = state_->getMacroCharacter(c);
   if (state_->isTrue(fn)) {
     SStream ss(stream_);
-    Svalue args[] = { Svalue(&ss), state_->characterValue(c) };
+    Svalue args[] = { Svalue(&ss), state_->character(c) };
     if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
       return SUCCESS;
     return ILLEGAL_CHAR;
@@ -179,9 +179,9 @@ ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
-    *pValue = state_->flonumValue(static_cast<Flonum>(atof(buffer)));
+    *pValue = state_->flonum(static_cast<Flonum>(atof(buffer)));
   else
-    *pValue = state_->fixnumValue(atol(buffer));
+    *pValue = state_->fixnum(atol(buffer));
   return SUCCESS;
 }
 
@@ -287,7 +287,7 @@ ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
     p = putBuffer(&buffer, &size, p, c);
   }
   putBuffer(&buffer, &size, p, '\0');
-  *pValue = state_->stringValue(buffer, p);
+  *pValue = state_->string(buffer, p);
   return SUCCESS;
 }
 
@@ -343,7 +343,7 @@ ErrorCode Reader::readChar(Svalue* pValue) {
     return ILLEGAL_CHAR;
   default:
     if (isDelimiter(c)) {
-      *pValue = state_->characterValue(c);
+      *pValue = state_->character(c);
       return SUCCESS;
     }
     putback(c);
@@ -354,7 +354,7 @@ ErrorCode Reader::readChar(Svalue* pValue) {
   int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
 
   if (p == 1) {
-    *pValue = state_->characterValue(reinterpret_cast<unsigned char*>(buffer)[0]);
+    *pValue = state_->character(reinterpret_cast<unsigned char*>(buffer)[0]);
     return SUCCESS;
   }
 
@@ -370,7 +370,7 @@ ErrorCode Reader::readChar(Svalue* pValue) {
   };
   for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
     if (strcmp(buffer, Table[i].name) == 0) {
-      *pValue = state_->fixnumValue(Table[i].code);
+      *pValue = state_->fixnum(Table[i].code);
       return SUCCESS;
     }
   }

@@ -132,7 +132,7 @@ int Vm::shiftArgs(int n, int m, int s) {
 
 bool Vm::isTailCall(Svalue x) const  { return CAR(x).eq(opcodes_[RET]); }
 int Vm::pushCallFrame(Svalue ret, int s) {
-  return push(ret, push(state_->fixnumValue(f_), push(c_, s)));
+  return push(ret, push(state_->fixnum(f_), push(c_, s)));
 }
 int Vm::popCallFrame(int s) {
   x_ = index(s, 0);
@@ -398,7 +398,7 @@ void Vm::apply(Svalue fn, int argNum) {
       x_ = closure->getBody();
       f_ = s_;
       c_ = fn;
-      s_ = push(state_->fixnumValue(argNum), s_);
+      s_ = push(state_->fixnum(argNum), s_);
     }
     break;
   case TT_NATIVEFUNC:
@@ -409,7 +409,7 @@ void Vm::apply(Svalue fn, int argNum) {
       pushCallStack(native);
 
       f_ = s_;
-      s_ = push(state_->fixnumValue(argNum), s_);
+      s_ = push(state_->fixnum(argNum), s_);
       x_ = return_;
       a_ = native->call(state_);
     }
@@ -508,7 +508,7 @@ void Vm::expandFrame(int n) {
     reserveStack(s_ + n + 1);
     moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
     moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
-    stack_[n] = state_->fixnumValue(n);
+    stack_[n] = state_->fixnum(n);
     s_ += 1;
     f_ = n;
     return;
@@ -519,7 +519,7 @@ void Vm::expandFrame(int n) {
   int argNum = stack_[f_].toFixnum();
   int src = f_, dst = src + n;
   reserveStack(s_ + n);
-  stack_[f_] = state_->fixnumValue(argNum + n);
+  stack_[f_] = state_->fixnum(argNum + n);
   moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
   moveStackElems(stack_, src, s_, n);  // Move arguments.
   f_ += n;
@@ -540,7 +540,7 @@ void Vm::shrinkFrame(int n) {
   // Before: [z][y][x][B][A]f_[argnum]s_
   // After:  [z][y][x]f_[argnum-n]s_
   int argnum = stack_[f_].toFixnum();
-  stack_[f_] = state_->fixnumValue(argnum - n);
+  stack_[f_] = state_->fixnum(argnum - n);
   int src = f_, dst = f_ - n;
   moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
   s_ -= n;
@@ -575,7 +575,7 @@ void Vm::restoreValues(int min, int /*max*/) {
     reserveStack(s_ + n + 1);
     moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
     moveValuesToStack(&stack_[0], values_, a_, n);
-    stack_[n] = state_->fixnumValue(n);
+    stack_[n] = state_->fixnum(n);
     s_ += n + 1;
     f_ = n;
     return;
@@ -586,7 +586,7 @@ void Vm::restoreValues(int min, int /*max*/) {
   int argNum = stack_[f_].toFixnum();
   int src = f_, dst = src + n;
   reserveStack(s_ + n);
-  stack_[f_] = state_->fixnumValue(argNum + n);
+  stack_[f_] = state_->fixnum(argNum + n);
   moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
   moveValuesToStack(&stack_[src], values_, a_, n);
   f_ += n;

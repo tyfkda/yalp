@@ -374,26 +374,26 @@ Svalue State::createHashTable() {
   return Svalue(h);
 }
 
-Svalue State::stringValue(const char* string) {
-  return stringValue(string, strlen(string));
+Svalue State::string(const char* str) {
+  return string(str, strlen(str));
 }
 
-Svalue State::stringValue(const char* string, int len) {
+Svalue State::string(const char* str, int len) {
   void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
-  memcpy(copiedString, string, len);
+  memcpy(copiedString, str, len);
   copiedString[len] = '\0';
-  return allocatedStringValue(copiedString, len);
+  return allocatedString(copiedString, len);
 }
 
-Svalue State::allocatedStringValue(const char* string, int len) {
+Svalue State::allocatedString(const char* str, int len) {
   void* memory = OBJALLOC(allocator_, sizeof(String));
-  String* s = new(memory) String(string, len);
+  String* s = new(memory) String(str, len);
   return Svalue(s);
 }
 
 
-Svalue State::flonumValue(Flonum f) {
+Svalue State::flonum(Flonum f) {
   void* memory = OBJALLOC(allocator_, sizeof(SFlonum));
   SFlonum* p = new(memory) SFlonum(f);
   return Svalue(p);
@@ -452,11 +452,11 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
 }
 
 void State::setMacroCharacter(int c, Svalue func) {
-  readTable_->put(characterValue(c), func);
+  readTable_->put(character(c), func);
 }
 
 Svalue State::getMacroCharacter(int c) {
-  const Svalue* p = readTable_->get(characterValue(c));
+  const Svalue* p = readTable_->get(character(c));
   return (p != NULL) ? *p : Svalue::NIL;
 }
 

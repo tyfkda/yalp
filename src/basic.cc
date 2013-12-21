@@ -106,12 +106,12 @@ static Svalue s_listStar(State* state) {
 
 static Svalue s_pairp(State* state) {
   Svalue a = state->getArg(0);
-  return state->boolValue(a.getType() == TT_CELL);
+  return state->boolean(a.getType() == TT_CELL);
 }
 
 static Svalue s_symbolp(State* state) {
   Svalue a = state->getArg(0);
-  return state->boolValue(a.getType() == TT_SYMBOL);
+  return state->boolean(a.getType() == TT_SYMBOL);
 }
 
 static Svalue s_append(State* state) {
@@ -150,7 +150,7 @@ struct BinOp {
   static Svalue calc(State* state) {
     int n = state->getArgNum();
     if (n <= 0)
-      return state->fixnumValue(Op::base());
+      return state->fixnum(Op::base());
     Svalue x = state->getArg(0);
     Fixnum acc;
     switch (x.getType()) {
@@ -165,7 +165,7 @@ struct BinOp {
       break;
     }
     if (n == 1)
-      return state->fixnumValue(Op::single(acc));
+      return state->fixnum(Op::single(acc));
 
     for (int i = 1; i < n; ++i) {
       Svalue x = state->getArg(i);
@@ -180,13 +180,13 @@ struct BinOp {
         break;
       }
     }
-    return state->fixnumValue(acc);
+    return state->fixnum(acc);
   }
 
   static Svalue calcf(State* state, int i, Flonum acc) {
     int n = state->getArgNum();
     if (n == 1)
-      return state->flonumValue(Op::single(acc));
+      return state->flonum(Op::single(acc));
 
     for (; i < n; ++i) {
       Svalue x = state->getArg(i);
@@ -202,7 +202,7 @@ struct BinOp {
         break;
       }
     }
-    return state->flonumValue(acc);
+    return state->flonum(acc);
   }
 };
 
@@ -246,13 +246,13 @@ static Svalue s_div(State* state) {
 static Svalue s_is(State* state) {
   Svalue a = state->getArg(0);
   Svalue b = state->getArg(1);
-  return state->boolValue(a.eq(b));
+  return state->boolean(a.eq(b));
 }
 
 static Svalue s_iso(State* state) {
   Svalue a = state->getArg(0);
   Svalue b = state->getArg(1);
-  return state->boolValue(a.equal(b));
+  return state->boolean(a.equal(b));
 }
 
 template <class Op>
@@ -281,7 +281,7 @@ struct CompareOp {
         {
           Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
@@ -292,7 +292,7 @@ struct CompareOp {
         break;
       }
     }
-    return state->boolValue(true);
+    return state->boolean(true);
   }
 
   static Svalue calcf(State* state, int i, Flonum acc) {
@@ -304,7 +304,7 @@ struct CompareOp {
         {
           Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
@@ -312,7 +312,7 @@ struct CompareOp {
         {
           Flonum xx = x.toFlonum(state);
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
@@ -321,7 +321,7 @@ struct CompareOp {
         break;
       }
     }
-    return state->boolValue(true);
+    return state->boolean(true);
   }
 };
 
@@ -356,14 +356,14 @@ static Svalue s_greaterEqual(State* state) {
 
 template <typename Func>
 Svalue FloatFunc1(State* state, Func f) {
-  return state->flonumValue(f(state->getArg(0).toFlonum(state)));
+  return state->flonum(f(state->getArg(0).toFlonum(state)));
 }
 
 template <typename Func>
 Svalue FloatFunc2(State* state, Func f) {
   Flonum x = state->getArg(0).toFlonum(state);
   Flonum y = state->getArg(1).toFlonum(state);
-  return state->flonumValue(f(x, y));
+  return state->flonum(f(x, y));
 }
 
 static Svalue s_sin(State* state) { return FloatFunc1(state, sin); }
@@ -431,7 +431,7 @@ static Svalue s_read_delimited_list(State* state) {
 static Svalue s_read_char(State* state) {
   Stream* stream = chooseStream(state, 0, "*stdin*");
   int c = stream->get();
-  return c == EOF ? Svalue::NIL : state->characterValue(c);
+  return c == EOF ? Svalue::NIL : state->character(c);
 }
 
 static char* reallocateString(Allocator* allocator, char* heap, int heapSize,
@@ -471,14 +471,14 @@ static Svalue s_read_line(State* state) {
     if (len == 0 && c == EOF)
       return Svalue::NIL;
     local[len] = '\0';
-    return state->stringValue(local);
+    return state->string(local);
   }
 
   char* copiedString = reallocateString(state->getAllocator(), heap, heapSize,
                                         local, len + 1);
   len = heapSize + len;
   copiedString[len] = '\0';
-  return state->allocatedStringValue(copiedString, len);
+  return state->allocatedString(copiedString, len);
 }
 
 static Svalue s_uniq(State* state) {
@@ -553,14 +553,14 @@ static Svalue s_hash_table_exists(State* state) {
   Svalue key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
   Svalue result;
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
+  return state->boolean(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
 
 static Svalue s_hash_table_delete(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
+  return state->boolean(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
 static Svalue s_hash_table_keys(State* state) {
@@ -626,7 +626,7 @@ static Svalue s_close(State* state) {
 
   SStream* ss = static_cast<SStream*>(v.toObject());
   Stream* stream = ss->getStream();
-  return state->boolValue(stream->close());
+  return state->boolean(stream->close());
 }
 
 void installBasicFunctions(State* state) {

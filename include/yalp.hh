@@ -4,7 +4,7 @@
 
 Naming convension:
 
-SomeType to Svalue:   Svalue someTypeValue(SomeType x);
+SomeType to Svalue:   Svalue someType(SomeType x);
 Svalue to SomeType:   Svalue toSomeType(Svalue s);
 
  */
@@ -121,10 +121,10 @@ public:
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   // Converts C++ bool value to lisp bool value.
-  Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
+  Svalue boolean(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 
   // Converts C++ int value to lisp Fixnum.
-  Svalue fixnumValue(Fixnum i)  { return Svalue(i); }
+  Svalue fixnum(Fixnum i)  { return Svalue(i); }
 
   // Returns symbol value.
   Svalue intern(const char* name);
@@ -137,15 +137,15 @@ public:
   Svalue cdr(Svalue s);
 
   // Converts character code to lisp character value.
-  Svalue characterValue(int c)  { return Svalue(c); }  // Use fixnum as a character.
+  Svalue character(int c)  { return Svalue(c); }  // Use fixnum as a character.
 
   // Converts C string to lisp String.
-  Svalue stringValue(const char* string);
-  Svalue stringValue(const char* string, int len);
-  Svalue allocatedStringValue(const char* string, int len);  // string is passed.
+  Svalue string(const char* str);
+  Svalue string(const char* str, int len);
+  Svalue allocatedString(const char* string, int len);  // string is passed.
 
   // Floating point number.
-  Svalue flonumValue(Flonum f);
+  Svalue flonum(Flonum f);
 
   Svalue createHashTable();
 

@@ -10,7 +10,7 @@ int main() {
   state->runBinaryFromFile("../boot.bin");
 
   Svalue fn = state->referGlobal("+");
-  Svalue args[] = { state->fixnumValue(1), state->fixnumValue(2) };
+  Svalue args[] = { state->fixnum(1), state->fixnum(2) };
   Svalue result;
   if (state->funcall(fn, 2, args, &result)) {
     cout << "Result: " << result.toFixnum() << endl;
