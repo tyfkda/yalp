@@ -13,7 +13,7 @@ class State;
 class Stream;
 class Value;
 
-// Hash function
+// Hash function for C string.
 unsigned int strHash(const char* s);
 
 Value list(State* state, Value v1);

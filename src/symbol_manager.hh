@@ -26,7 +26,7 @@ public:
   // Create symbol from c-string.
   SymbolId intern(const char* name);
 
-  // Generate new symbol.
+  // Generate unique symbol.
   SymbolId gensym();
 
   const Symbol* get(SymbolId symbolId) const;
@@ -53,6 +53,7 @@ private:
   Symbol** symbolArray_;
   SymbolId symbolIndex_;
 
+  // Memory blocks for Names.
   struct NamePage;
   NamePage* namePageTop_;
   int nameBufferSize_;

@@ -12,7 +12,6 @@ namespace yalp {
 
 class Callable;
 class SHashTable;
-class Symbol;
 
 class CallStack {
 public:
@@ -42,18 +41,18 @@ public:
   Value referGlobal(Value sym, bool* pExist);
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
-  void defineNative(const char* name, NativeFuncType func, int minArgNum) {
-    defineNative(name, func, minArgNum, minArgNum);
-  }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   Value getMacro(Value name);
 
+  // Calls function.
   Value funcall(Value fn, int argNum, const Value* args);
+  // Calls function at tail position.
   inline Value tailcall(Value fn, int argNum, const Value* args);
+
   void resetError();
 
-  int getCallStackDepth() const  { return callStack_.size(); }
-  const CallStack* getCallStack() const  { return &callStack_[0]; }
+  inline int getCallStackDepth() const;
+  inline const CallStack* getCallStack() const;
 
   void setTrace(bool b);
 
@@ -78,7 +77,6 @@ private:
   void shrinkFrame(int n);
   void storeValues(int n, int s);
   void restoreValues(int min, int max);
-
   int pushArgs(int argNum, const Value* args, int s);
 
   void pushCallStack(Callable* callable);
@@ -136,6 +134,9 @@ Value Vm::tailcall(Value fn, int argNum, const Value* args) {
   shiftCallStack();
   return funcallSetup(fn, argNum, args, true);
 }
+
+int Vm::getCallStackDepth() const  { return callStack_.size(); }
+const CallStack* Vm::getCallStack() const  { return &callStack_[0]; }
 
 }  // namespace yalp
 

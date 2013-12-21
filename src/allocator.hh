@@ -18,14 +18,15 @@ public:
   static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);
   void release();
 
-  // Non managed memory allocation.
+  // Allocates non managed memory.
   void* alloc(size_t size);
   void* realloc(void* p, size_t size);
   void free(void* p);
 
-  // Managed memory allocation.
+  // Allocates managed memory.
   void* objAlloc(size_t size);
 
+  // Runs garbage collection.
   void collectGarbage();
 
 private:

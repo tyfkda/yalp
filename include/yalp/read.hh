@@ -21,6 +21,9 @@ public:
 
   // Reads one s-expression from stream.
   ErrorCode read(Value* pValue);
+
+  // Reads s-expressions until terminator is appearred,
+  // and returns them in a list.
   ErrorCode readDelimitedList(int terminator, Value* pValue);
 
 private:
