@@ -3,9 +3,13 @@
 //=============================================================================
 
 #include "yalp/object.hh"
+#include "yalp/stream.hh"
 #include "hash_table.hh"
+#include "vm.hh"  // for CallStack
+
 #include <assert.h>
-#include <iomanip>
+#include <new>
+#include <string.h>  // for memcmp
 
 namespace yalp {
 
@@ -38,11 +42,11 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
-void Cell::output(State* state, std::ostream& o, bool inspect) const {
+void Cell::output(State* state, Stream* o, bool inspect) const {
   if (state != NULL) {
     const char* abbrev = isAbbrev(state);
     if (abbrev != NULL) {
-      o << abbrev;
+      o->write(abbrev);
       state->car(cdr()).output(state, o, inspect);
       return;
     }
@@ -51,17 +55,17 @@ void Cell::output(State* state, std::ostream& o, bool inspect) const {
   char c = '(';
   const Cell* p;
   for (p = this; ; p = static_cast<Cell*>(p->cdr_.toObject())) {
-    o << c;
+    o->write(c);
     p->car_.output(state, o, inspect);
     if (p->cdr_.getType() != TT_CELL)
       break;
     c = ' ';
   }
-  if (state == NULL || !p->cdr_.eq(state->nil())) {
-    o << " . ";
+  if (!p->cdr_.eq(Svalue::NIL)) {
+    o->write(" . ");
     p->cdr_.output(state, o, inspect);
   }
-  o << ')';
+  o->write(')');
 }
 
 void Cell::mark() {
@@ -83,7 +87,7 @@ void Cell::setCdr(Svalue d) {
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(state->nil()))
+      !state->cdr(cdr()).eq(Svalue::NIL))
     return NULL;
 
   struct {
@@ -104,9 +108,9 @@ const char* Cell::isAbbrev(State* state) const {
 
 //=============================================================================
 
-String::String(const char* string)
+String::String(const char* string, int len)
   : Sobject()
-  , string_(string) {
+  , string_(string), len_(len) {
 }
 
 void String::destruct(Allocator* allocator) {
@@ -118,44 +122,44 @@ Type String::getType() const  { return TT_STRING; }
 
 bool String::equal(const Sobject* target) const {
   const String* p = static_cast<const String*>(target);
-  return strcmp(string_, p->string_) == 0;
+  return len_ == p->len_ &&
+    memcmp(string_, p->string_, len_) == 0;
 }
 
 unsigned int String::calcHash() const {
   return strHash(string_);
 }
 
-void String::output(State*, std::ostream& o, bool inspect) const {
+void String::output(State*, Stream* o, bool inspect) const {
   if (!inspect) {
-    o << string_;
+    o->write(string_, len_);
     return;
   }
 
-  o << '"';
-  for (const char* p = string_; *p != '\0'; ) {
-    char c = *p++;
+  o->write('"');
+  int prev = 0;
+  for (int n = len_, i = 0; i < n; ++i) {
+    unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
+    const char* s = NULL;
     switch (c) {
-    case '\n':
-      o << "\\n";
-      break;
-    case '\r':
-      o << "\\r";
-      break;
-    case '\t':
-      o << "\\t";
-      break;
-    case '\\':
-      o << "\\\\";
-      break;
-    case '"':
-      o << "\\\"";
-      break;
-    default:
-      o << c;
-      break;
+    case '\n':  s = "\\n"; break;
+    case '\r':  s = "\\r"; break;
+    case '\t':  s = "\\t"; break;
+    case '\0':  s = "\\0"; break;
+    case '\\':  s = "\\\\"; break;
+    case '"':  s = "\\\""; break;
     }
+    if (s == NULL)
+      continue;
+
+    if (prev != i)
+      o->write(&string_[prev], i - prev);
+    o->write(s);
+    prev = i + 1;
   }
-  o << '"';
+  if (prev != len_)
+    o->write(&string_[prev], len_ - prev);
+  o->write('"');
 }
 
 //=============================================================================
@@ -172,8 +176,10 @@ bool Float::equal(const Sobject* target) const {
   return v_ == p->v_;
 }
 
-void Float::output(State*, std::ostream& o, bool) const {
-  o << std::fixed << v_;
+void Float::output(State*, Stream* o, bool) const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%f", v_);
+  o->write(buffer);
 }
 
 //=============================================================================
@@ -192,15 +198,15 @@ void Vector::destruct(Allocator* allocator) {
 
 Type Vector::getType() const { return TT_VECTOR; }
 
-void Vector::output(State* state, std::ostream& o, bool inspect) const {
-  o << "#";
+void Vector::output(State* state, Stream* o, bool inspect) const {
+  o->write('#');
   char c = '(';
   for (int i = 0; i < size_; ++i) {
-    o << c;
+    o->write(c);
     buffer_[i].output(state, o, inspect);
     c = ' ';
   }
-  o << ")";
+  o->write(')');
 }
 
 void Vector::mark() {
@@ -237,8 +243,10 @@ void SHashTable::destruct(Allocator* allocator) {
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
-void SHashTable::output(State*, std::ostream& o, bool) const {
-  o << "#<hash-table:" << this << ">";
+void SHashTable::output(State*, Stream* o, bool) const {
+  char buffer[64];
+  snprintf(buffer, sizeof(buffer), "#<hash-table:%p>", this);
+  o->write(buffer);
 }
 
 void SHashTable::mark() {
@@ -296,11 +304,13 @@ void Closure::destruct(Allocator* allocator) {
 
 Type Closure::getType() const  { return TT_CLOSURE; }
 
-void Closure::output(State*, std::ostream& o, bool) const {
+void Closure::output(State*, Stream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
-  o << "#<closure " << name << ">";
+  o->write("#<closure ");
+  o->write(name);
+  o->write('>');
 }
 
 void Closure::mark() {
@@ -322,19 +332,69 @@ NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
 
 Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
 
-Svalue NativeFunc::call(State* state, int argNum) {
-  if (argNum < minArgNum_)
-    state->runtimeError("Too few arguments");
-  else if (maxArgNum_ >= 0 && argNum > maxArgNum_)
-    state->runtimeError("Too many arguments");
-  return func_(state);
-}
-
-void NativeFunc::output(State*, std::ostream& o, bool) const {
+void NativeFunc::output(State*, Stream* o, bool) const {
   const char* name = "_noname_";
   if (name_ != NULL)
     name = name_->c_str();
-  o << "#<subr " << name << ">";
+  o->write("#<subr ");
+  o->write(name);
+  o->write('>');
+}
+
+//=============================================================================
+Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size,
+                           const CallStack* callStack, int callStackSize)
+  : Callable(), copiedStack_(NULL), stackSize_(0)
+  , callStack_(NULL), callStackSize_(0) {
+  if (size > 0) {
+    copiedStack_ = static_cast<Svalue*>(ALLOC(allocator, sizeof(Svalue) * size));
+    stackSize_ = size;
+    memcpy(copiedStack_, stack, sizeof(Svalue) * size);
+  }
+
+  if (--callStackSize > 0) {
+    int nbytes = sizeof(CallStack) * callStackSize;
+    callStack_ = static_cast<CallStack*>(ALLOC(allocator, nbytes));
+    callStackSize_ = callStackSize;
+    memcpy(callStack_, callStack, nbytes);
+  }
+}
+
+void Continuation::destruct(Allocator* allocator) {
+  if (callStack_ != NULL)
+    FREE(allocator, callStack_);
+  if (copiedStack_ != NULL)
+    FREE(allocator, copiedStack_);
+  Callable::destruct(allocator);
+}
+
+Type Continuation::getType() const  { return TT_CONTINUATION; }
+
+void Continuation::output(State*, Stream* o, bool) const {
+  o->write("#<continuation>");
+}
+
+void Continuation::mark() {
+  if (isMarked())
+    return;
+  Callable::mark();
+  for (int n = stackSize_, i = 0; i < n; ++i)
+    copiedStack_[i].mark();
+}
+
+//=============================================================================
+SStream::SStream(Stream* stream)
+  : Sobject(), stream_(stream)  {}
+
+void SStream::destruct(Allocator* allocator) {
+  FREE(allocator, stream_);
+}
+
+Type SStream::getType() const  { return TT_STREAM; }
+
+void SStream::output(State*, Stream* o, bool) const {
+  o->write("#<stream:");
+  o->write('>');
 }
 
 //=============================================================================

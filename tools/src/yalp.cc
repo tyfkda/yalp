@@ -1,5 +1,9 @@
 #include "yalp.hh"
+#include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
+
+#include <assert.h>
 #include <fstream>
 #include <iostream>
 #include <unistd.h>  // for isatty()
@@ -83,11 +87,11 @@ static void dumpLeakedMemory() {
 }
 #endif
 
-static bool runBinary(State* state, std::istream& strm) {
-  Reader reader(state, strm);
+static bool runBinary(State* state, Stream* stream) {
+  Reader reader(state, stream);
   Svalue bin;
-  ReadError err;
-  while ((err = reader.read(&bin)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&bin)) == SUCCESS) {
     if (!state->runBinary(bin, NULL))
       return false;
   }
@@ -98,29 +102,27 @@ static bool runBinary(State* state, std::istream& strm) {
   return true;
 }
 
-static bool compileFile(State* state, const char* filename) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
+static bool compileFile(State* state, const char* filename, bool bNoRun) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened()) {
     std::cerr << "File not found: " << filename << std::endl;
     return false;
   }
 
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, strm);
+  Reader reader(state, &stream);
   Svalue exp;
-  ReadError err;
-  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
-    if (!state->compile(exp, &code)) {
-      cerr << "`compile` is not enabled" << endl;
+    if (!state->compile(exp, &code) || state->isFalse(code)) {
+      state->resetError();
       return false;
     }
-    if (state->isFalse(code))  // Compile failed.
-      return false;
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
-    if (!state->runBinary(code, NULL))
+    if (!bNoRun && !state->runBinary(code, NULL))
       return false;
   }
   if (err != END_OF_FILE) {
@@ -130,47 +132,57 @@ static bool compileFile(State* state, const char* filename) {
   return true;
 }
 
-static bool repl(State* state, std::istream& istrm, bool tty, bool bCompile) {
+static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNoRun) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Svalue q = state->intern(":q");
   Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, istrm);
+  FileStream out(stdout);
+  Reader reader(state, stream);
   for (;;) {
     if (tty)
       cout << "> " << std::flush;
     Svalue s;
-    ReadError err = reader.read(&s);
+    ErrorCode err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
 
-    if (err != READ_SUCCESS)
-      return false;
-    Svalue code;
-    if (!state->compile(s, &code)) {
-      cerr << "`compile` is not enabled" << endl;
+    if (err != SUCCESS) {
+      cerr << "Read error: " << err << endl;
+      if (tty)
+        continue;
       return false;
     }
-    if (state->isFalse(code)) {  // Compile failed.
+    Svalue code;
+    if (!state->compile(s, &code) || state->isFalse(code)) {
+      state->resetError();
       if (tty)
         continue;
       else
         return false;
     }
+
+    if (bCompile) {
+      state->funcall(writess, 1, &code, NULL);
+      cout << endl;
+    }
+
     Svalue result;
-    if (!state->runBinary(code, &result)) {
+    if (!bNoRun && !state->runBinary(code, &result)) {
       if (!tty)
         return false;
       state->resetError();
       continue;
     }
-    if (bCompile) {
-      state->funcall(writess, 1, &code, NULL);
-      cout << endl;
-    } else if (tty) {
-      cout << "=> ";
-      result.output(state, cout, true);
-      cout << endl;
+    if (!bCompile && tty) {
+      const char* prompt = "=> ";
+      for (int n = state->getResultNum(), i = 0; i < n; ++i) {
+        Svalue result = state->getResult(i);
+        cout << prompt;
+        result.output(state, &out, true);
+        cout << endl;
+        prompt = "   ";
+      }
     }
   }
   if (tty)
@@ -185,12 +197,36 @@ static bool runMain(State* state) {
   return state->funcall(main, 0, NULL, NULL);
 }
 
+static void exitIfError(ErrorCode err) {
+  const char* msg = NULL;
+  switch (err) {
+  case SUCCESS:
+    return;
+  case END_OF_FILE:  msg = "End of file"; break;
+  case NO_CLOSE_PAREN:  msg = "No close paren"; break;
+  case EXTRA_CLOSE_PAREN:  msg = "Extra close paren"; break;
+  case DOT_AT_BASE:  msg = "Dot at base"; break;
+  case ILLEGAL_CHAR:  msg = "Illegal char"; break;
+  case COMPILE_ERROR:  msg = "Compile error"; break;
+  case FILE_NOT_FOUND:  msg = "File not found"; break;
+  case RUNTIME_ERROR:  break;  // Error message is already printed when runtime error.
+  default:
+    assert(!"Not handled");
+    msg = "Unknown error";
+    break;
+  }
+  if (msg != NULL)
+    std::cout << msg << std::endl;
+  exit(1);
+}
+
 int main(int argc, char* argv[]) {
   State* state = State::create(&myAllocFunc);
 
   bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
+  bool bNoRun = false;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -206,19 +242,23 @@ int main(int argc, char* argv[]) {
     case 'c':
       bCompile = true;
       break;
+    case 'C':  // Compile, and not run the code.
+      bCompile = true;
+      bNoRun = true;
+      break;
     case 'l':  // Library.
       if (++ii >= argc) {
         cerr << "'-l' takes parameter" << endl;
         exit(1);
       }
-      state->runFromFile(argv[ii]);
+      exitIfError(state->runFromFile(argv[ii]));
       break;
     case 'L':  // Binary library.
       if (++ii >= argc) {
         cerr << "'-L' takes parameter" << endl;
         exit(1);
       }
-      state->runBinaryFromFile(argv[ii]);
+      exitIfError(state->runBinaryFromFile(argv[ii]));
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
@@ -227,24 +267,23 @@ int main(int argc, char* argv[]) {
   }
 
   if (ii >= argc) {
+    FileStream stream(stdin);
     if (bBinary) {
-      if (!runBinary(state, cin))
+      if (!runBinary(state, &stream))
         exit(1);
     } else {
-      if (!repl(state, cin, isatty(0), bCompile))
+      if (!repl(state, &stream, isatty(0) != 0, bCompile, bNoRun))
         exit(1);
     }
   } else {
     for (int i = ii; i < argc; ++i) {
       if (bCompile) {
-        if (!compileFile(state, argv[i]))
+        if (!compileFile(state, argv[i], bNoRun))
           exit(1);
       } else if (bBinary) {
-        if (!state->runBinaryFromFile(argv[i]))
-          exit(1);
+        exitIfError(state->runBinaryFromFile(argv[i]));
       } else {
-        if (!state->runFromFile(argv[i]))
-          exit(1);
+        exitIfError(state->runFromFile(argv[i]));
       }
     }
   }

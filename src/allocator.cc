@@ -7,6 +7,10 @@
 #include <stdint.h>  // intptr_t
 #include <stdlib.h>  // for malloc, free
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
+
 namespace yalp {
 
 //=============================================================================
@@ -67,10 +71,7 @@ void Allocator::release() {
 
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
   : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
-  , objectTop_(NULL), objectCount_(0) {
-  (void)callback_;
-  (void)userdata_;
-}
+  , objectTop_(NULL), objectCount_(0) {}
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
@@ -116,8 +117,15 @@ void* Allocator::objAlloc(size_t size) {
 }
 
 void Allocator::collectGarbage() {
+#ifndef NDEBUG
+  std::cerr << "\n**** Start GC ****\n"
+    "  Before #" << objectCount_ << "\n";
+#endif
   callback_->markRoot(userdata_);
   sweep();
+#ifndef NDEBUG
+  std::cerr << "  After  #" << objectCount_ << "\n\n";
+#endif
 }
 
 void Allocator::sweep() {

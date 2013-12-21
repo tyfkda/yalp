@@ -13,13 +13,21 @@ Svalue to SomeType:   Svalue toSomeType(Svalue s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
-#include <ostream>
+#include "yalp/error_code.hh"
+
+#include <setjmp.h>
+#include <stddef.h>  // for size_t, NULL
+#include <stdio.h>  // for FILE
 
 namespace yalp {
 
 class Allocator;
+class Reader;
+class SHashTable;
 class Sobject;
 class State;
+class Stream;
+class SStream;
 class Symbol;
 class SymbolManager;
 class Vm;
@@ -28,7 +36,7 @@ class Vm;
 typedef long Sfixnum;
 typedef double Sfloat;
 
-typedef void* (*AllocFunc)(void*p, size_t size);
+typedef void* (*AllocFunc)(void* p, size_t size);
 
 enum Type {
   TT_UNKNOWN,
@@ -39,9 +47,11 @@ enum Type {
   TT_FLOAT,
   TT_CLOSURE,
   TT_NATIVEFUNC,
-  TT_BOX,
+  TT_CONTINUATION,
   TT_VECTOR,
   TT_HASH_TABLE,
+  TT_STREAM,
+  TT_BOX,  // TODO: This label should not be public, so hide this.
 };
 
 // Variant type.
@@ -57,21 +67,20 @@ public:
   bool isObject() const;
   Sobject* toObject() const;
   const Symbol* toSymbol(State* state) const;
+  int toCharacter() const  { return toFixnum(); }
 
   // Object euality.
   bool eq(Svalue target) const  { return v_ == target.v_; }
   bool equal(Svalue target) const;
 
-  void output(State* state, std::ostream& o, bool inspect) const;
+  void output(State* state, Stream* o, bool inspect) const;
 
   long getId() const  { return v_; }
   unsigned int calcHash(State* state) const;
 
-  friend std::ostream& operator<<(std::ostream& o, Svalue s) {
-    s.output(NULL, o, true); return o;
-  }
-
   void mark();
+
+  static const Svalue NIL;
 
 private:
   explicit Svalue(Sfixnum i);
@@ -80,6 +89,7 @@ private:
 
   Sfixnum v_;
 
+  friend Reader;
   friend State;
   friend Vm;
 };
@@ -99,11 +109,14 @@ public:
   // Execute compiled code.
   bool runBinary(Svalue code, Svalue* pResult);
 
-  bool runFromFile(const char* filename, Svalue* pResult = NULL);
-  bool runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
+
+  // Check value type, and raise runtime error if the value is not expected type.
+  void checkType(Svalue x, Type expected);
 
   // Converts C++ bool value to lisp bool value.
-  Svalue boolValue(bool b) const  { return b ? t() : nil(); }
+  Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 
   // Converts C++ int value to lisp Fixnum.
   Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
@@ -118,23 +131,35 @@ public:
   Svalue car(Svalue s);
   Svalue cdr(Svalue s);
 
+  // Converts character code to lisp character value.
+  Svalue characterValue(int c)  { return Svalue(c); }  // Use fixnum as a character.
+
   // Converts C string to lisp String.
   Svalue stringValue(const char* string);
+  Svalue stringValue(const char* string, int len);
+  Svalue allocatedStringValue(const char* string, int len);  // string is passed.
 
   // Floating point number.
   Svalue floatValue(Sfloat f);
+
+  // File stream.
+  Svalue createFileStream(FILE* fp);
 
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.
   Svalue getArg(int index) const;
 
+  // Gets result number.
+  int getResultNum() const;
+  // Gets result value for the index.
+  Svalue getResult(int index) const;
+
   // Raises runtime error.
-  void runtimeError(const char* msg);
+  void runtimeError(const char* msg, ...);
 
   // Constant
   enum Constant {
-    NIL,
     T,
     QUOTE,
     QUASIQUOTE,
@@ -144,10 +169,8 @@ public:
     NUMBER_OF_CONSTANT
   };
   Svalue getConstant(Constant c) const  { return constant_[c]; }
-  Svalue nil() const  { return constant_[NIL]; }
-  Svalue t() const  { return constant_[T]; }
-  bool isTrue(Svalue x) const  { return !x.eq(nil()); }
-  bool isFalse(Svalue x) const  { return x.eq(nil()); }
+  bool isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
+  bool isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
 
   Svalue createHashTable();
 
@@ -159,12 +182,16 @@ public:
     defineNative(name, func, minArgNum, minArgNum);
   }
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  void setMacroCharacter(int c, Svalue func);
+  Svalue getMacroCharacter(int c);
+  Svalue getMacro(Svalue name);
 
   bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
   Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
   void resetError();
 
   void collectGarbage();
+  void setVmTrace(bool b);
 
   void reportDebugInfo() const;
 
@@ -174,15 +201,21 @@ private:
   State(AllocFunc allocFunc);
   ~State();
 
+  void installBasicObjects();
   void markRoot();
   void allocFailed(void* p, size_t size);
+
+  jmp_buf* setJmpbuf(jmp_buf* jmp);
+  void longJmp();
 
   AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Svalue constant_[NUMBER_OF_CONSTANT];
   HashPolicyEq* hashPolicyEq_;
+  SHashTable* readTable_;
   Vm* vm_;
+  jmp_buf* jmp_;
 
   friend struct StateAllocatorCallback;
 };

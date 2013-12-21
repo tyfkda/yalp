@@ -2,11 +2,11 @@
 #define _ALLOCATOR_HH_
 
 #include "yalp/gc_object.hh"
-#include <stdio.h>  // for size_t
+#include <stddef.h>  // for size_t
 
 namespace yalp {
 
-typedef void* (*AllocFunc)(void*p, size_t size);
+typedef void* (*AllocFunc)(void* p, size_t size);
 
 class Allocator {
 public:

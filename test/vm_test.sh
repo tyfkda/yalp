@@ -1,10 +1,10 @@
-#!/bin/zsh
+#!/bin/bash
 
 ################################################################
 # Test framework.
 
 function error_exit() {
-  echo -n -e '\e[1;31m[ERROR]\e[0m '
+  echo -n -e "\033[1;31m[ERROR]\033[0;39m "
   echo "$1"
   exit 1
 }
@@ -29,7 +29,7 @@ function run_raw() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" | ../yalp -L ../boot.bin 2>& /dev/null
+  echo "$2" | ../yalp -L ../boot.bin 1>/dev/null 2>/dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi
@@ -55,10 +55,18 @@ run multiple-exp 3 '((^()
                        2
                        3)
                      )'
-run set-local 111 '((^(x)
-                      (set! x 111)
+run set-local 2 '((^(x)
+                      (set! x 2)
                       x)
-                    123)'
+                    1)'
+run set-result 2 '((^(x)
+                      (set! x 2))
+                    1)'
+run multi-set '(3 4)' '((^(x y)
+                          (set! x 3
+                                y 4)
+                          (list x y))
+                        1 2)'
 run closure 1 '(((^(x)
                    (^(y)
                      x))
@@ -80,9 +88,18 @@ run_raw invoke-call/cc '1234' '(def *cc* ())
                                (*cc* 34)'
 run global-var 111 '(def global 111)
                     global'
-run restargs '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
-run restargs-all '(1 2 3)' '((^ x x) 1 2 3)'
+#run restargs-direct '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
+run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x . y) (list x y)))'
+#run restargs-all-direct '(1 2 3)' '((^ x x) 1 2 3)'
+run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ x x))'
 run empty-body nil '((^ ()))'
+
+# Multiple values
+run values 1 '(values 1 2 3)'
+run values-can-use-in-expression 14 '(+ 1 (values 10 20 30) 3)'
+run receive '(1 2 3)' '(receive (x y z) (values 1 2 3) (list x y z))'
+run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list x y z))'
+run empty-values nil '((^(x) (values)) 123)'
 
 # Abbreviated form
 run quote-x "'x" "''x"
@@ -102,6 +119,8 @@ run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
 run cons '(1 . 2)' '(cons 1 2)'
 run car '1' "(car '(1 2 3))"
 run cdr '(2 3)' "(cdr '(1 2 3))"
+run car-no-cell 123 "(car 123)"
+run cdr-no-cell nil "(cdr 123)"
 run set-car! '(3 2)' "((^(x) (set-car! x 3) x) '(1 2))"
 run set-cdr! '(1 . 3)' "((^(x) (set-cdr! x 3) x) '(1 2))"
 run list '(1 2 (3 4))' "(list 1 2 '(3 4))"
@@ -157,11 +176,15 @@ fail no-global '((^(x) y) 123)'
 fail invalid-apply '(1 2 3)'
 fail too-few-arg-native '(cons 1)'
 fail too-many-arg-native '(cons 1 2 3)'
-fail too-few-arg-lambda '((^(x y)) 1)'
-fail too-many-arg-lambda '((^(x y)) 1 2 3)'
-fail empty-param-not-rest-param '((^() nil) 1 2 3)'
+#fail too-few-arg-lambda-direct '((^(x y)) 1)'
+fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
+#fail too-many-arg-lambda-direct '((^(x y)) 1 2 3)'
+fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
+#fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
+fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
+fail set-unbound-var '(set! x 123)'
 
 ################################################################
 # All tests succeeded.
 
-echo -n -e "\e[1;32mALL SUCCESS!\e[0m\n"
+echo -n -e "\033[1;32mVM-TEST ALL SUCCEEDED!\033[0;39m\n"

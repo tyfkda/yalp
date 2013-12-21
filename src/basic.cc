@@ -6,17 +6,48 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 #include "vm.hh"
+
+#include <alloca.h>
 #include <assert.h>
-#include <iostream>
 #include <tgmath.h>
 
 namespace yalp {
 
 //=============================================================================
 // Native functions
+
+// Expand macro if the given expression is macro expression,
+// otherwise return itself.
+/*
+(def (macroexpand-1 exp)
+  (if (and (pair? exp)
+           (macro? (car exp)))
+      (with (name (car exp)
+             args (cdr exp))
+        (let closure (hash-table-get *macro-table* name)
+          (apply closure args)))
+    exp))
+*/
+static Svalue s_macroexpand_1(State* state) {
+  Svalue exp = state->getArg(0);
+  if (exp.getType() != TT_CELL)
+    return exp;
+  Svalue name = state->car(exp);
+  Svalue closure = state->getMacro(name);
+  if (state->isFalse(closure))
+    return exp;
+
+  Svalue args = state->cdr(exp);
+  int argNum = length(args);
+  Svalue* argsArray = static_cast<Svalue*>(alloca(sizeof(Svalue) * argNum));
+  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
+    argsArray[i] = state->car(args);
+  return state->tailcall(closure, argNum, argsArray);
+}
 
 static Svalue s_cons(State* state) {
   Svalue a = state->getArg(0);
@@ -50,7 +81,7 @@ static Svalue s_set_cdr(State* state) {
 
 static Svalue s_list(State* state) {
   int n = state->getArgNum();
-  Svalue res = state->nil();
+  Svalue res = Svalue::NIL;
   for (int i = n; --i >= 0; ) {
     Svalue a = state->getArg(i);
     res = state->cons(a, res);
@@ -62,7 +93,7 @@ static Svalue s_listStar(State* state) {
   int n = state->getArgNum();
   Svalue res;
   if (n <= 0)
-    res = state->nil();
+    res = Svalue::NIL;
   else {
     res = state->getArg(n - 1);
     for (int i = n - 1; --i >= 0; ) {
@@ -85,7 +116,7 @@ static Svalue s_symbolp(State* state) {
 
 static Svalue s_append(State* state) {
   int n = state->getArgNum();
-  Svalue nil = state->nil();
+  Svalue nil = Svalue::NIL;
   Svalue last = nil;
   int lastIndex;
   for (lastIndex = n; --lastIndex >= 0; ) {
@@ -105,9 +136,13 @@ static Svalue s_append(State* state) {
   if (copied.eq(nil))
     return last;
 
-  Svalue fin = nreverse(state, copied);
+  Svalue fin = nreverse(copied);
   static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
+}
+
+static Svalue s_nreverse(State* state) {
+  return nreverse(state->getArg(0));
 }
 
 template <class Op>
@@ -126,7 +161,7 @@ struct BinOp {
       return calcf(state, 1, x.toFloat(state));
       break;
     default:
-      state->runtimeError("Number expected");
+      state->runtimeError("Number expected, but `%@`", &x);
       break;
     }
     if (n == 1)
@@ -141,7 +176,7 @@ struct BinOp {
       case TT_FLOAT:
         return calcf(state, i, static_cast<Sfloat>(acc));
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -163,7 +198,7 @@ struct BinOp {
         acc = Op::op(acc, x.toFloat(state));
         break;
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -171,39 +206,40 @@ struct BinOp {
   }
 };
 
+struct Add {
+  static Sfixnum base()  { return 0; }
+  template <class X> static X single(X x)  { return x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x + y; }
+};
+struct Sub {
+  static Sfixnum base()  { return 0; }
+  template <class X> static X single(X x)  { return -x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x - y; }
+};
+struct Mul {
+  static Sfixnum base()  { return 1; }
+  template <class X> static X single(X x)  { return x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x * y; }
+};
+struct Div {
+  static Sfixnum base()  { return 1; }
+  template <class X> static X single(X x)  { return 1 / x; }
+  template <class X, class Y> static X op(X x, Y y)  { return x / y; }
+};
+
 static Svalue s_add(State* state) {
-  struct Add {
-    static Sfixnum base()  { return 0; }
-    template <class X> static X single(X x)  { return x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x + y; }
-  };
   return BinOp<Add>::calc(state);
 }
 
 static Svalue s_sub(State* state) {
-  struct Sub {
-    static Sfixnum base()  { return 0; }
-    template <class X> static X single(X x)  { return -x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x - y; }
-  };
   return BinOp<Sub>::calc(state);
 }
 
 static Svalue s_mul(State* state) {
-  struct Mul {
-    static Sfixnum base()  { return 1; }
-    template <class X> static X single(X x)  { return x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x * y; }
-  };
   return BinOp<Mul>::calc(state);
 }
 
 static Svalue s_div(State* state) {
-  struct Div {
-    static Sfixnum base()  { return 1; }
-    template <class X> static X single(X x)  { return 1 / x; }
-    template <class X, class Y> static X op(X x, Y y)  { return x / y; }
-  };
   return BinOp<Div>::calc(state);
 }
 
@@ -234,7 +270,7 @@ struct CompareOp {
       return calcf(state, 1, x.toFloat(state));
       break;
     default:
-      state->runtimeError("Number expected");
+      state->runtimeError("Number expected, but `%@`", &x);
       break;
     }
 
@@ -252,7 +288,7 @@ struct CompareOp {
       case TT_FLOAT:
         return calcf(state, i, static_cast<Sfloat>(acc));
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -281,7 +317,7 @@ struct CompareOp {
         }
         break;
       default:
-        state->runtimeError("Number expected");
+        state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
@@ -289,31 +325,32 @@ struct CompareOp {
   }
 };
 
+struct LessThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
+};
+struct GreaterThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
+};
+struct LessEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
+};
+struct GreaterEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
+};
+
 static Svalue s_lessThan(State* state) {
-  struct LessThan {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
-  };
   return CompareOp<LessThan>::calc(state);
 }
 
 static Svalue s_greaterThan(State* state) {
-  struct GreaterThan {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
-  };
   return CompareOp<GreaterThan>::calc(state);
 }
 
 static Svalue s_lessEqual(State* state) {
-  struct LessEqual {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
-  };
   return CompareOp<LessEqual>::calc(state);
 }
 
 static Svalue s_greaterEqual(State* state) {
-  struct GreaterEqual {
-    template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
-  };
   return CompareOp<GreaterEqual>::calc(state);
 }
 
@@ -339,16 +376,109 @@ static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
 static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
 static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
 
-static Svalue s_write(State* state) {
+static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+  Svalue ss = state->getArgNum() > argIndex ?
+    state->getArg(argIndex) :
+    state->referGlobal(state->intern(defaultStreamName));
+  state->checkType(ss, TT_STREAM);
+  return static_cast<SStream*>(ss.toObject())->getStream();
+}
+
+static Svalue output(State* state, bool inspect) {
   Svalue x = state->getArg(0);
-  x.output(state, std::cout, true);
+  Stream* stream = chooseStream(state, 1, "*stdout*");
+  x.output(state, stream, inspect);
   return x;
 }
 
+static Svalue s_write(State* state) {
+  return output(state, true);
+}
+
 static Svalue s_display(State* state) {
-  Svalue x = state->getArg(0);
-  x.output(state, std::cout, false);
-  return x;
+  return output(state, false);
+}
+
+static Svalue s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  Svalue eof = state->getArgNum() > 1 ? state->getArg(1) : Svalue::NIL;
+  Reader reader(state, stream);
+  Svalue exp;
+  ErrorCode err = reader.read(&exp);
+  switch (err) {
+  case SUCCESS:
+    return exp;
+  case END_OF_FILE:
+    return eof;
+  default:
+    state->runtimeError("Read error %d", err);
+    return Svalue::NIL;
+  }
+}
+
+static Svalue s_read_delimited_list(State* state) {
+  Svalue delimiter = state->getArg(0);
+  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
+  Stream* stream = chooseStream(state, 1, "*stdin*");
+  Reader reader(state, stream);
+  Svalue result;
+  ErrorCode err = reader.readDelimitedList(delimiter.toCharacter(), &result);
+  if (err != SUCCESS)
+    state->runtimeError("Read error %d", err);
+  return result;
+}
+
+static Svalue s_read_char(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  int c = stream->get();
+  return c == EOF ? Svalue::NIL : state->characterValue(c);
+}
+
+static char* reallocateString(Allocator* allocator, char* heap, int heapSize,
+                              const char* local, int len) {
+  // Copy local to heap.
+  int newSize = heapSize + len;
+  char* newHeap = static_cast<char*>(REALLOC(allocator, heap, sizeof(*heap) * newSize));
+  // TODO: Handle memory over.
+  memcpy(&newHeap[heapSize], local, sizeof(*heap) * len);
+  return newHeap;
+}
+
+static Svalue s_read_line(State* state) {
+  const int SIZE = 8;
+  char local[SIZE];
+  int len = 0;
+  char* heap = NULL;
+  int heapSize = 0;
+
+  Stream* stream = chooseStream(state, 0, "*stdin*");
+  int c;
+  for (;;) {
+    c = stream->get();
+    if (c == EOF || c == '\n')
+      break;
+    if (len >= SIZE) {
+      // Copy local to heap.
+      heap = reallocateString(state->getAllocator(), heap, heapSize,
+                              local, len);
+      heapSize += len;
+      len = 0;
+    }
+    local[len++] = c;
+  }
+
+  if (heapSize == 0 && len < SIZE) {
+    if (len == 0 && c == EOF)
+      return Svalue::NIL;
+    local[len] = '\0';
+    return state->stringValue(local);
+  }
+
+  char* copiedString = reallocateString(state->getAllocator(), heap, heapSize,
+                                        local, len + 1);
+  len = heapSize + len;
+  copiedString[len] = '\0';
+  return state->allocatedStringValue(copiedString, len);
 }
 
 static Svalue s_uniq(State* state) {
@@ -359,16 +489,16 @@ static Svalue s_apply(State* state) {
   int n = state->getArgNum();
   // Counts argument number for the given function.
   int argNum = n - 1;
-  Svalue last = state->nil();
+  Svalue last = Svalue::NIL;
   if (n > 1) {
     // Last argument should be a list and its elements are function arguments.
     last = state->getArg(n - 1);
-    if (last.eq(state->nil()))
+    if (last.eq(Svalue::NIL))
       argNum -= 1;
-    else if (last.getType() != TT_CELL)
-      state->runtimeError("pair expected");
-    else
-      argNum += length(state, last) - 1;
+    else {
+      state->checkType(last, TT_CELL);
+      argNum += length(last) - 1;
+    }
   }
 
   Svalue* args = NULL;
@@ -387,21 +517,11 @@ static Svalue s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
-static Svalue s_read(State* state) {
-  Reader reader(state, std::cin);
-  Svalue exp;
-  ReadError err = reader.read(&exp);
-  if (err != READ_SUCCESS)
-    state->runtimeError("Read error");
-  return exp;
-}
-
 static Svalue s_run_binary(State* state) {
   Svalue bin = state->getArg(0);
   Svalue result;
-  if (!state->runBinary(bin, &result)) {
-    std::cerr << "run_binary: failed" << std::endl;
-  }
+  if (!state->runBinary(bin, &result))
+    return Svalue::NIL;
   return result;
 }
 
@@ -412,11 +532,10 @@ static Svalue s_make_hash_table(State* state) {
 static Svalue s_hash_table_get(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
   if (result == NULL)
-    return state->nil();
+    return Svalue::NIL;
   return *result;
 }
 
@@ -424,8 +543,7 @@ static Svalue s_hash_table_put(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
   Svalue value = state->getArg(2);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   static_cast<SHashTable*>(h.toObject())->put(key, value);
   return value;
 }
@@ -433,8 +551,7 @@ static Svalue s_hash_table_put(State* state) {
 static Svalue s_hash_table_exists(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   Svalue result;
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
@@ -442,32 +559,81 @@ static Svalue s_hash_table_exists(State* state) {
 static Svalue s_hash_table_delete(State* state) {
   Svalue h = state->getArg(0);
   Svalue key = state->getArg(1);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
   return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
 static Svalue s_hash_table_keys(State* state) {
   Svalue h = state->getArg(0);
-  if (h.getType() != TT_HASH_TABLE)
-    state->runtimeError("Hash table expected");
+  state->checkType(h, TT_HASH_TABLE);
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
-  Svalue result = state->nil();
+  Svalue result = Svalue::NIL;
   for (auto kv : *ht)
     result = state->cons(kv.key, result);
   return result;
 }
 
+static Svalue s_set_macro_character(State* state) {
+  Svalue chr = state->getArg(0);
+  Svalue fn = state->getArg(1);
+  state->setMacroCharacter(chr.toCharacter(), fn);
+  return fn;
+}
+
+static Svalue s_get_macro_character(State* state) {
+  Svalue chr = state->getArg(0);
+  return state->getMacroCharacter(chr.toCharacter());
+}
+
 static Svalue s_collect_garbage(State* state) {
   state->collectGarbage();
-  return state->nil();
+  return state->getConstant(State::T);
+}
+
+static Svalue s_exit(State* state) {
+  Svalue v = state->getArg(0);
+  state->checkType(v, TT_FIXNUM);
+  int code = v.toFixnum();
+  exit(code);
+  return Svalue::NIL;
+}
+
+static Svalue s_vmtrace(State* state) {
+  Svalue v = state->getArg(0);
+  bool b = state->isTrue(v);
+  state->setVmTrace(b);
+  return state->getConstant(State::T);
+}
+
+static Svalue s_open(State* state) {
+  Svalue filespec = state->getArg(0);
+  state->checkType(filespec, TT_STRING);
+  const char* mode = "rb";
+  if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
+    mode = "wb";
+
+  const char* path = static_cast<String*>(filespec.toObject())->c_str();
+  FILE* fp = fopen(path, mode);
+  if (fp == NULL)
+    return Svalue::NIL;
+  return state->createFileStream(fp);
+}
+
+static Svalue s_close(State* state) {
+  Svalue v = state->getArg(0);
+  state->checkType(v, TT_STREAM);
+
+  SStream* ss = static_cast<SStream*>(v.toObject());
+  Stream* stream = ss->getStream();
+  return state->boolValue(stream->close());
 }
 
 void installBasicFunctions(State* state) {
-  state->defineGlobal(state->nil(), state->nil());
-  state->defineGlobal(state->t(), state->t());
+  state->defineGlobal(Svalue::NIL, Svalue::NIL);
+  state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
+  state->defineNative("macroexpand-1", s_macroexpand_1, 1);
   state->defineNative("cons", s_cons, 2);
   state->defineNative("car", s_car, 1);
   state->defineNative("cdr", s_cdr, 1);
@@ -478,6 +644,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("pair?", s_pairp, 1);
   state->defineNative("symbol?", s_symbolp, 1);
   state->defineNative("append", s_append, 0, -1);
+  state->defineNative("reverse!", s_nreverse, 1);
   state->defineNative("+", s_add, 0, -1);
   state->defineNative("-", s_sub, 0, -1);
   state->defineNative("*", s_mul, 0, -1);
@@ -500,12 +667,16 @@ void installBasicFunctions(State* state) {
   state->defineNative("atan2", s_atan2, 2);
   state->defineNative("expt", s_expt, 2);
 
-  state->defineNative("display", s_display, 1);
-  state->defineNative("write", s_write, 1);
+  state->defineNative("display", s_display, 1, 2);
+  state->defineNative("write", s_write, 1, 2);
+
+  state->defineNative("read", s_read, 0, 2);
+  state->defineNative("read-delimited-list", s_read_delimited_list, 2);
+  state->defineNative("read-char", s_read_char, 0, 1);
+  state->defineNative("read-line", s_read_line, 0, 1);
 
   state->defineNative("uniq", s_uniq, 0);
   state->defineNative("apply", s_apply, 1, -1);
-  state->defineNative("read", s_read, 0);
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);
@@ -515,7 +686,15 @@ void installBasicFunctions(State* state) {
   state->defineNative("hash-table-delete!", s_hash_table_delete, 2);
   state->defineNative("hash-table-keys", s_hash_table_keys, 1);
 
+  state->defineNative("set-macro-character", s_set_macro_character, 2);
+  state->defineNative("get-macro-character", s_get_macro_character, 1);
+
   state->defineNative("collect-garbage", s_collect_garbage, 0);
+  state->defineNative("exit", s_exit, 1);
+  state->defineNative("vmtrace", s_vmtrace, 1);
+
+  state->defineNative("open", s_open, 1, 2);
+  state->defineNative("close", s_close, 1);
 }
 
 }  // namespace yalp

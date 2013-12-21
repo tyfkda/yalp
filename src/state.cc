@@ -5,13 +5,14 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
+#include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "basic.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
+
 #include <assert.h>
-#include <fstream>
-#include <iostream>
+#include <string.h>  // for strlen
 
 namespace yalp {
 
@@ -35,18 +36,21 @@ const Sfixnum TAG2_SYMBOL = 3;
 
 inline static bool isFixnum(Sfixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
+// Assumes that first symbol is nil.
+const Svalue Svalue::NIL = Svalue(0, TAG2_SYMBOL);
+
 Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }
 
 Svalue::Svalue(Sfixnum i)
-  : v_(reinterpret_cast<Sfixnum>(i << 1) | TAG_FIXNUM) {}
+  : v_((i << 1) | TAG_FIXNUM) {}
 
 Svalue::Svalue(class Sobject* object)
   : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
 
 Svalue::Svalue(Sfixnum i, int tag2)
-  : v_(reinterpret_cast<Sfixnum>(i << TAG2_SHIFT) | tag2) {}
+  : v_((i << TAG2_SHIFT) | tag2) {}
 
 Type Svalue::getType() const {
   if (isFixnum(v_))
@@ -87,9 +91,11 @@ void Svalue::mark() {
     toObject()->mark();
 }
 
-void Svalue::output(State* state, std::ostream& o, bool inspect) const {
+void Svalue::output(State* state, Stream* o, bool inspect) const {
   if (isFixnum(v_)) {
-    o << toFixnum();
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
+    o->write(buffer);
     return;
   }
 
@@ -104,9 +110,12 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       if (state != NULL)
-        o << toSymbol(state)->c_str();
-      else
-        o << "#<symbol:" << (v_ >> TAG2_SHIFT) << ">";
+        o->write(toSymbol(state)->c_str());
+      else {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "#symbol:%ld>", v_ >> TAG2_SHIFT);
+        o->write(buffer);
+      }
       return;
     }
   }
@@ -114,7 +123,7 @@ void Svalue::output(State* state, std::ostream& o, bool inspect) const {
 
 Sfixnum Svalue::toFixnum() const {
   assert(isFixnum(v_));
-  return reinterpret_cast<Sfixnum>(v_ >> 1);
+  return v_ >> 1;
 }
 
 Sfloat Svalue::toFloat(State* state) const {
@@ -124,8 +133,7 @@ Sfloat Svalue::toFloat(State* state) const {
   case TT_FIXNUM:
     return static_cast<Sfloat>(toFixnum());
   default:
-    std::cerr << *this << ": ";
-    state->runtimeError("Float expected");
+    state->runtimeError("Float expected, but `%@`", this);
     return 0;
   }
 }
@@ -188,8 +196,8 @@ static StateAllocatorCallback stateAllocatorCallback;
 struct State::HashPolicyEq : public HashPolicy<Svalue> {
   HashPolicyEq(State* state) : state_(state)  {}
 
-  virtual unsigned int hash(const Svalue a) override  { return a.calcHash(state_); }
-  virtual bool equal(const Svalue a, const Svalue b) override  { return a.eq(b); }
+  virtual unsigned int hash(Svalue a) override  { return a.calcHash(state_); }
+  virtual bool equal(Svalue a, Svalue b) override  { return a.eq(b); }
 
 private:
   State* state_;
@@ -215,15 +223,25 @@ State::State(AllocFunc allocFunc)
   , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
-  , vm_(NULL) {
+  , readTable_(NULL)
+  , vm_(NULL)
+  , jmp_(NULL) {
+  intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANT] = {
-    "nil", "t", "quote", "quasiquote", "unquote", "unquote-splicing"
+    "t", "quote", "quasiquote", "unquote", "unquote-splicing"
   };
   for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
     constant_[i] = intern(constSymbols[i]);
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+  installBasicObjects();
+
+  {
+    Svalue ht = createHashTable();
+    assert(ht.getType() == TT_HASH_TABLE);
+    readTable_ = static_cast<SHashTable*>(ht.toObject());
+  }
 }
 
 State::~State() {
@@ -233,66 +251,90 @@ State::~State() {
   allocator_->release();
 }
 
+void State::installBasicObjects() {
+  struct {
+    FILE* fp;
+    const char* name;
+  } static const Table[] = {
+    { stdin, "*stdin*" },
+    { stdout, "*stdout*" },
+    { stderr, "*stderr*" },
+  };
+
+  for (auto e : Table)
+    defineGlobal(intern(e.name), Svalue(createFileStream(e.fp)));
+}
+
 bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(intern("compile"));
-  if (fn.eq(nil()))
+  if (isFalse(fn)) {
+    runtimeError("`compile` is not enabled");
     return false;
+  }
   return funcall(fn, 1, &exp, pValue);
 }
 
 bool State::runBinary(Svalue code, Svalue* pResult) {
-  return vm_->run(code, pResult);
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue result = vm_->run(code);
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
 }
 
-bool State::runFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
+ErrorCode State::runFromFile(const char* filename, Svalue* pResult) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened())
+    return FILE_NOT_FOUND;
 
-  Reader reader(this, strm);
+  Reader reader(this, &stream);
   Svalue result;
   Svalue exp;
-  ReadError err;
-  while ((err = reader.read(&exp)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
     if (!compile(exp, &code) || isFalse(code))
-      return false;
+      return COMPILE_ERROR;
     if (!runBinary(code, &result))
-      return false;
+      return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE) {
-    std::cerr << "Read error: " << err << std::endl;
-    return false;
-  }
+  if (err != END_OF_FILE)
+    return err;
   if (pResult != NULL)
     *pResult = result;
-  return true;
+  return SUCCESS;
 }
 
-bool State::runBinaryFromFile(const char* filename, Svalue* pResult) {
-  std::ifstream strm(filename);
-  if (!strm.is_open()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
+ErrorCode State::runBinaryFromFile(const char* filename, Svalue* pResult) {
+  FileStream stream(filename, "r");
+  if (!stream.isOpened())
+    return FILE_NOT_FOUND;
 
-  Reader reader(this, strm);
-  Svalue result = nil();
+  Reader reader(this, &stream);
+  Svalue result = Svalue::NIL;
   Svalue bin;
-  ReadError err;
-  while ((err = reader.read(&bin)) == READ_SUCCESS) {
+  ErrorCode err;
+  while ((err = reader.read(&bin)) == SUCCESS) {
     if (!runBinary(bin, &result))
-      return false;
+      return RUNTIME_ERROR;
   }
-  if (err != END_OF_FILE) {
-    std::cerr << "Read error: " << err << std::endl;
-    return false;
-  }
+  if (err != END_OF_FILE)
+    return err;
   if (pResult != NULL)
     *pResult = result;
-  return true;
+  return SUCCESS;
+}
+
+void State::checkType(Svalue x, Type expected) {
+  if (x.getType() != expected)
+    runtimeError("Type error, %d expected, but `%@`", expected, &x);
 }
 
 Svalue State::intern(const char* name) {
@@ -315,15 +357,13 @@ Svalue State::cons(Svalue a, Svalue d) {
 }
 
 Svalue State::car(Svalue s) {
-  if (s.getType() != TT_CELL)
-    runtimeError("Cell expected");
-  return static_cast<Cell*>(s.toObject())->car();
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->car() : s;
 }
 
 Svalue State::cdr(Svalue s) {
-  if (s.getType() != TT_CELL)
-    runtimeError("Cell expected");
-  return static_cast<Cell*>(s.toObject())->cdr();
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->cdr() : Svalue::NIL;
 }
 
 Svalue State::createHashTable() {
@@ -333,20 +373,35 @@ Svalue State::createHashTable() {
 }
 
 Svalue State::stringValue(const char* string) {
-  int len = strlen(string);
+  return stringValue(string, strlen(string));
+}
+
+Svalue State::stringValue(const char* string, int len) {
   void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
-  strcpy(copiedString, string);
+  memcpy(copiedString, string, len);
+  copiedString[len] = '\0';
+  return allocatedStringValue(copiedString, len);
+}
 
+Svalue State::allocatedStringValue(const char* string, int len) {
   void* memory = OBJALLOC(allocator_, sizeof(String));
-  String* s = new(memory) String(copiedString);
+  String* s = new(memory) String(string, len);
   return Svalue(s);
 }
+
 
 Svalue State::floatValue(Sfloat f) {
   void* memory = OBJALLOC(allocator_, sizeof(Float));
   Float* p = new(memory) Float(f);
   return Svalue(p);
+}
+
+Svalue State::createFileStream(FILE* fp) {
+  void* memory = ALLOC(allocator_, sizeof(FileStream));
+  FileStream* stream = new(memory) FileStream(fp);
+  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
+  return Svalue(new(memory2) SStream(stream));
 }
 
 int State::getArgNum() const {
@@ -357,16 +412,29 @@ Svalue State::getArg(int index) const {
   return vm_->getArg(index);
 }
 
-void State::runtimeError(const char* msg) {
-  std::cerr << msg << std::endl;
+int State::getResultNum() const {
+  return vm_->getResultNum();
+}
 
-  const Vm::CallStack* callStack = vm_->getCallStack();
+Svalue State::getResult(int index) const {
+  return vm_->getResult(index);
+}
+
+void State::runtimeError(const char* msg, ...) {
+  FileStream errout(stderr);
+  va_list ap;
+  va_start(ap, msg);
+  format(this, &errout, msg, ap);
+  errout.write('\n');
+  va_end(ap);
+
+  const CallStack* callStack = vm_->getCallStack();
   for (int n = vm_->getCallStackDepth(), i = n; --i >= 0; ) {
     const Symbol* name = callStack[i].callable->getName();
-    std::cerr << "\tfrom " << (name != NULL ? name->c_str() : "_noname_") << std::endl;
+    format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "_noname_"));
   }
 
-  vm_->longJmp();
+  longJmp();
 }
 
 Svalue State::referGlobal(Svalue sym, bool* pExist) {
@@ -381,12 +449,51 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
+void State::setMacroCharacter(int c, Svalue func) {
+  readTable_->put(characterValue(c), func);
+}
+
+Svalue State::getMacroCharacter(int c) {
+  const Svalue* p = readTable_->get(characterValue(c));
+  return (p != NULL) ? *p : Svalue::NIL;
+}
+
+Svalue State::getMacro(Svalue name) {
+  return vm_->getMacro(name);
+}
+
 bool State::funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult) {
-  return vm_->funcall(fn, argNum, args, pResult);
+  jmp_buf* old = NULL;
+  jmp_buf jmp;
+  bool ret = false;
+  if (setjmp(jmp) == 0) {
+    old = setJmpbuf(&jmp);
+    Svalue result = vm_->funcall(fn, argNum, args);
+    if (pResult != NULL)
+      *pResult = result;
+    ret = true;
+  }
+  setJmpbuf(old);
+  return ret;
 }
 
 Svalue State::tailcall(Svalue fn, int argNum, const Svalue* args) {
   return vm_->tailcall(fn, argNum, args);
+}
+
+jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
+  jmp_buf* old = jmp_;
+  jmp_ = jmp;
+  return old;
+}
+
+void State::longJmp() {
+  if (jmp_ != NULL)
+    longjmp(*jmp_, 1);
+
+  // If process comes here, something wrong.
+  FileStream errout(stderr);
+  errout.write("State::longJmp is empty\n");
 }
 
 void State::resetError() {
@@ -397,7 +504,12 @@ void State::collectGarbage() {
   allocator_->collectGarbage();
 }
 
+void State::setVmTrace(bool b) {
+  vm_->setTrace(b);
+}
+
 void State::markRoot() {
+  readTable_->mark();
   vm_->markRoot();
 }
 

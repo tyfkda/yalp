@@ -6,6 +6,9 @@ Derived classes should hide their destructor,
 and thier destructor should do nothing,
 because yalp uses GC and destructor is not called.
 
+Destructor is called if a instance is created explicitly (in C stack).
+`destruct` virtual method is called when a instance is managed with
+Allocator.
  */
 //=============================================================================
 
@@ -15,14 +18,15 @@ because yalp uses GC and destructor is not called.
 #include "yalp.hh"
 #include "yalp/gc_object.hh"
 
-#include <ostream>
-
 namespace yalp {
 
 template <class Key>
 struct HashPolicy;
 template <class Key, class Value>
 class HashTable;
+
+class CallStack;
+class Stream;
 
 // Symbol class
 class Symbol {
@@ -48,7 +52,7 @@ public:
   virtual bool equal(const Sobject* target) const;
   virtual unsigned int calcHash() const;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const = 0;
+  virtual void output(State* state, Stream* o, bool inspect) const = 0;
 
   virtual bool isCallable() const;
 
@@ -72,7 +76,7 @@ public:
   void setCar(Svalue a);
   void setCdr(Svalue d);
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
   Cell(Svalue a, Svalue d);
@@ -95,16 +99,20 @@ public:
   virtual bool equal(const Sobject* target) const override;
   virtual unsigned int calcHash() const override;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  const char* c_str() const  { return string_; }
+  int len() const  { return len_; }
+
+  virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
   // The given string is allocated in heap and be taken ownership.
-  String(const char* string);
+  String(const char* string, int len);
   ~String()  {}
 private:
   virtual void destruct(Allocator* allocator) override;
 
   const char* string_;
+  int len_;
 
   friend State;
 };
@@ -117,7 +125,7 @@ public:
 
   Sfloat toFloat() const  { return v_; }
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
   Float(Sfloat v);
@@ -138,7 +146,7 @@ public:
   Svalue get(int index);
   void set(int index, Svalue x);
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
   Vector(Allocator* allocator, int size);
@@ -160,7 +168,7 @@ public:
 
   virtual Type getType() const override;
 
-  virtual void output(State* state, std::ostream& o, bool inspect) const override;
+  virtual void output(State* state, Stream* o, bool inspect) const override;
 
   void put(Svalue key, Svalue value);
   const Svalue* get(Svalue key) const;
@@ -220,7 +228,7 @@ public:
     return freeVariables_[index];
   }
 
-  virtual void output(State*, std::ostream& o, bool) const override;
+  virtual void output(State*, Stream* o, bool) const override;
 
 protected:
   ~Closure()  {}
@@ -240,9 +248,11 @@ public:
   NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum);
   virtual Type getType() const override;
 
-  Svalue call(State* state, int argNum);
+  int getMinArgNum() const  { return minArgNum_; }
+  int getMaxArgNum() const  { return maxArgNum_; }
+  Svalue call(State* state)  { return func_(state); }
 
-  virtual void output(State*, std::ostream& o, bool) const override;
+  virtual void output(State*, Stream* o, bool) const override;
 
 protected:
   ~NativeFunc()  {}
@@ -250,6 +260,50 @@ protected:
   NativeFuncType func_;
   int minArgNum_;
   int maxArgNum_;
+};
+
+// Continuation class.
+class Continuation : public Callable {
+public:
+  Continuation(Allocator* allocator, const Svalue* stack, int size,
+               const CallStack* callStack, int callStackSize);
+  virtual Type getType() const override;
+
+  int getStackSize() const  { return stackSize_; }
+  const Svalue* getStack() const  { return copiedStack_; }
+  int getCallStackSize() const  { return callStackSize_; }
+  const CallStack* getCallStack() const  { return callStack_; }
+
+  virtual void output(State*, Stream* o, bool) const override;
+
+protected:
+  ~Continuation()  {}
+  virtual void destruct(Allocator* allocator) override;
+  virtual void mark();
+
+  Svalue* copiedStack_;
+  int stackSize_;
+  CallStack* callStack_;
+  int callStackSize_;
+};
+
+class SStream : public Sobject {
+public:
+  virtual Type getType() const override;
+
+  virtual void output(State*, Stream* o, bool) const override;
+
+  inline Stream* getStream() const  { return stream_; }
+
+protected:
+  explicit SStream(Stream* stream);
+  ~SStream()  {}
+  virtual void destruct(Allocator* allocator) override;
+
+  Stream* stream_;
+
+  friend Reader;
+  friend State;
 };
 
 }  // namespace yalp

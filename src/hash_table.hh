@@ -57,16 +57,16 @@ namespace yalp {
 template <class Key>
 struct HashPolicy {
   // return some unsigned integer to distribute keys.
-  virtual unsigned int hash(const Key a) = 0;
+  virtual unsigned int hash(Key a) = 0;
   // return true if 2 keys are same.
-  virtual bool equal(const Key a, const Key b) = 0;
+  virtual bool equal(Key a, Key b) = 0;
 };
 
 // Hash table
 template <class Key, class Value>
 class HashTable {
 public:
-  static constexpr int INITIAL_BUFFER_SIZE = 5;
+  static constexpr unsigned int INITIAL_BUFFER_SIZE = 5;
 
   explicit HashTable(HashPolicy<Key>* policy, Allocator* allocator)
     : policy_(policy), allocator_(allocator)
@@ -206,7 +206,7 @@ private:
     if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
     unsigned int hash = policy_->hash(key);
-    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link();
+    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link;
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
