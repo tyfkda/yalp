@@ -15,3 +15,13 @@ Under construction.
 * Case sensitive symbol
 * Continuation
 * Macro
+* Self compiler
+
+## No
+* Bignum/Rational number/Complex number
+
+## Release
+### v004
+* Add multiple values
+* Add stream
+* Add read macro (set-macro-character)
