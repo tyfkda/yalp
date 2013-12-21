@@ -109,6 +109,15 @@ protected:
 //=============================================================================
 
 bool Vm::isTailCall(Svalue x) const  { return CAR(x).eq(opcodes_[RET]); }
+int Vm::pushCallFrame(Svalue ret, int s) {
+  return push(ret, push(state_->fixnumValue(f_), push(c_, s)));
+}
+int Vm::popCallFrame(int s) {
+  x_ = index(s, 0);
+  f_ = index(s, 1).toFixnum();
+  c_ = index(s, 2);
+  return s - 3;
+}
 
 Vm* Vm::create(State* state) {
   void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
@@ -344,7 +353,7 @@ Svalue Vm::runLoop() {
     {
       Svalue ret = CDR(x_);
       x_ = CAR(x_);
-      s_ = push(ret, push(state_->fixnumValue(f_), push(c_, s_)));
+      s_ = pushCallFrame(ret, s_);
     }
     goto again;
   case APPLY:
@@ -356,11 +365,7 @@ Svalue Vm::runLoop() {
   case RET:
     {
       int argNum = index(s_, 0).toFixnum();
-      s_ -= argNum + 1;
-      x_ = index(s_, 0);
-      f_ = index(s_, 1).toFixnum();
-      c_ = index(s_, 2);
-      s_ -= 3;
+      s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
     }
     goto again;
@@ -696,7 +701,7 @@ Svalue Vm::funcallSetup(Svalue fn, int argNum, const Svalue* args, bool tailcall
       shiftCallStack();
     } else {
       // Makes frame.
-      s_ = push(x_, push(state_->fixnumValue(s_), push(c_, s_)));
+      s_ = pushCallFrame(x_, s_);
       s_ = pushArgs(argNum, args, s_);
     }
     apply(fn, argNum);
@@ -778,7 +783,6 @@ void Vm::apply(Svalue fn, int argNum) {
       int savedStackSize = continuation->getStackSize();
       const Svalue* savedStack = continuation->getStack();
       memcpy(stack_, savedStack, sizeof(Svalue) * savedStackSize);
-      s_ = savedStackSize;
 
       int callStackSize = continuation->getCallStackSize();
       if (callStackSize == 0)
@@ -788,12 +792,7 @@ void Vm::apply(Svalue fn, int argNum) {
         callStack_.resize(callStackSize);
         memcpy(&callStack_[0], callStack, sizeof(CallStack) * callStackSize);
       }
-
-      // do-return
-      x_ = index(s_, 0);
-      f_ = index(s_, 1).toFixnum();
-      c_ = index(s_, 2);
-      s_ -= 3;
+      s_ = popCallFrame(savedStackSize);
     }
     break;
   default:
