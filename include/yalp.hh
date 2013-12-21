@@ -33,7 +33,7 @@ class SymbolManager;
 class Vm;
 
 // This must be able to hold native pointer size value.
-typedef long Sfixnum;
+typedef long Fixnum;
 typedef double Flonum;
 
 typedef void* (*AllocFunc)(void* p, size_t size);
@@ -62,7 +62,7 @@ public:
   // Gets value type.
   Type getType() const;
 
-  Sfixnum toFixnum() const;
+  Fixnum toFixnum() const;
   Flonum toFlonum(State* state) const;
   bool isObject() const;
   Sobject* toObject() const;
@@ -83,11 +83,11 @@ public:
   static const Svalue NIL;
 
 private:
-  explicit Svalue(Sfixnum i);
+  explicit Svalue(Fixnum i);
   explicit Svalue(Sobject* object);
-  explicit Svalue(Sfixnum i, int tag2);
+  explicit Svalue(Fixnum i, int tag2);
 
-  Sfixnum v_;
+  Fixnum v_;
 
   friend Reader;
   friend State;
@@ -124,7 +124,7 @@ public:
   Svalue boolValue(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 
   // Converts C++ int value to lisp Fixnum.
-  Svalue fixnumValue(Sfixnum i)  { return Svalue(i); }
+  Svalue fixnumValue(Fixnum i)  { return Svalue(i); }
 
   // Returns symbol value.
   Svalue intern(const char* name);

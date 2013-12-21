@@ -24,17 +24,17 @@ namespace yalp {
     XXXX0011 : Symbol
  */
 
-const Sfixnum TAG_SHIFT = 2;
-const Sfixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Sfixnum TAG_FIXNUM = 0;
-const Sfixnum TAG_OBJECT = 1;
-const Sfixnum TAG_OTHER = 3;
+const Fixnum TAG_SHIFT = 2;
+const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Fixnum TAG_FIXNUM = 0;
+const Fixnum TAG_OBJECT = 1;
+const Fixnum TAG_OTHER = 3;
 
-const Sfixnum TAG2_SHIFT = 4;
-const Sfixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
-const Sfixnum TAG2_SYMBOL = 3;
+const Fixnum TAG2_SHIFT = 4;
+const Fixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
+const Fixnum TAG2_SYMBOL = 3;
 
-inline static bool isFixnum(Sfixnum v)  { return (v & 1) == TAG_FIXNUM; }
+inline static bool isFixnum(Fixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
 // Assumes that first symbol is nil.
 const Svalue Svalue::NIL = Svalue(0, TAG2_SYMBOL);
@@ -43,13 +43,13 @@ Svalue::Svalue() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
 }
 
-Svalue::Svalue(Sfixnum i)
+Svalue::Svalue(Fixnum i)
   : v_((i << 1) | TAG_FIXNUM) {}
 
 Svalue::Svalue(class Sobject* object)
-  : v_(reinterpret_cast<Sfixnum>(object) | TAG_OBJECT) {}
+  : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
 
-Svalue::Svalue(Sfixnum i, int tag2)
+Svalue::Svalue(Fixnum i, int tag2)
   : v_((i << TAG2_SHIFT) | tag2) {}
 
 Type Svalue::getType() const {
@@ -121,7 +121,7 @@ void Svalue::output(State* state, Stream* o, bool inspect) const {
   }
 }
 
-Sfixnum Svalue::toFixnum() const {
+Fixnum Svalue::toFixnum() const {
   assert(isFixnum(v_));
   return v_ >> 1;
 }

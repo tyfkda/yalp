@@ -1,11 +1,11 @@
 #include "yalp.hh"
 
-using yalp::Sfixnum;
+using yalp::Fixnum;
 using yalp::State;
 using yalp::Svalue;
 
 Svalue square(State* state) {
-  Sfixnum x = state->getArg(0).toFixnum();
+  Fixnum x = state->getArg(0).toFixnum();
   return state->fixnumValue(x * x);
 }
 

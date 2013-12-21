@@ -1,7 +1,6 @@
 #include "yalp.hh"
 #include <iostream>
 
-using yalp::Sfixnum;
 using yalp::State;
 using yalp::Svalue;
 using namespace std;

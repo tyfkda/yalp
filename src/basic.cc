@@ -152,7 +152,7 @@ struct BinOp {
     if (n <= 0)
       return state->fixnumValue(Op::base());
     Svalue x = state->getArg(0);
-    Sfixnum acc;
+    Fixnum acc;
     switch (x.getType()) {
     case TT_FIXNUM:
       acc = x.toFixnum();
@@ -207,22 +207,22 @@ struct BinOp {
 };
 
 struct Add {
-  static Sfixnum base()  { return 0; }
+  static Fixnum base()  { return 0; }
   template <class X> static X single(X x)  { return x; }
   template <class X, class Y> static X op(X x, Y y)  { return x + y; }
 };
 struct Sub {
-  static Sfixnum base()  { return 0; }
+  static Fixnum base()  { return 0; }
   template <class X> static X single(X x)  { return -x; }
   template <class X, class Y> static X op(X x, Y y)  { return x - y; }
 };
 struct Mul {
-  static Sfixnum base()  { return 1; }
+  static Fixnum base()  { return 1; }
   template <class X> static X single(X x)  { return x; }
   template <class X, class Y> static X op(X x, Y y)  { return x * y; }
 };
 struct Div {
-  static Sfixnum base()  { return 1; }
+  static Fixnum base()  { return 1; }
   template <class X> static X single(X x)  { return 1 / x; }
   template <class X, class Y> static X op(X x, Y y)  { return x / y; }
 };
@@ -261,7 +261,7 @@ struct CompareOp {
     int n = state->getArgNum();
     assert(n >= 1);
     Svalue x = state->getArg(0);
-    Sfixnum acc;
+    Fixnum acc;
     switch (x.getType()) {
     case TT_FIXNUM:
       acc = x.toFixnum();
@@ -279,7 +279,7 @@ struct CompareOp {
       switch (x.getType()) {
       case TT_FIXNUM:
         {
-          Sfixnum xx = x.toFixnum();
+          Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
             return state->boolValue(false);
           acc = xx;
@@ -302,7 +302,7 @@ struct CompareOp {
       switch (x.getType()) {
       case TT_FIXNUM:
         {
-          Sfixnum xx = x.toFixnum();
+          Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
             return state->boolValue(false);
           acc = xx;
