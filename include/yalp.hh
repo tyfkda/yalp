@@ -34,7 +34,7 @@ class Vm;
 
 // This must be able to hold native pointer size value.
 typedef long Sfixnum;
-typedef double Sfloat;
+typedef double Flonum;
 
 typedef void* (*AllocFunc)(void* p, size_t size);
 
@@ -44,7 +44,7 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
-  TT_FLOAT,
+  TT_FLONUM,  // Floating point number
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_CONTINUATION,
@@ -63,7 +63,7 @@ public:
   Type getType() const;
 
   Sfixnum toFixnum() const;
-  Sfloat toFloat(State* state) const;
+  Flonum toFlonum(State* state) const;
   bool isObject() const;
   Sobject* toObject() const;
   const Symbol* toSymbol(State* state) const;
@@ -145,7 +145,7 @@ public:
   Svalue allocatedStringValue(const char* string, int len);  // string is passed.
 
   // Floating point number.
-  Svalue floatValue(Sfloat f);
+  Svalue flonumValue(Flonum f);
 
   Svalue createHashTable();
 

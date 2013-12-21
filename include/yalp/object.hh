@@ -118,20 +118,20 @@ private:
 };
 
 // Floating point number class.
-class Float : public Sobject {
+class SFlonum : public Sobject {
 public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
 
-  Sfloat toFloat() const  { return v_; }
+  Flonum toFlonum() const  { return v_; }
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Float(Sfloat v);
-  ~Float()  {}
+  SFlonum(Flonum v);
+  ~SFlonum()  {}
 
-  Sfloat v_;
+  Flonum v_;
 
   friend State;
 };

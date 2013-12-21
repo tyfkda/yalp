@@ -164,19 +164,19 @@ void String::output(State*, Stream* o, bool inspect) const {
 
 //=============================================================================
 
-Float::Float(Sfloat v)
+SFlonum::SFlonum(Flonum v)
   : Sobject()
   , v_(v) {
 }
 
-Type Float::getType() const  { return TT_FLOAT; }
+Type SFlonum::getType() const  { return TT_FLONUM; }
 
-bool Float::equal(const Sobject* target) const {
-  const Float* p = static_cast<const Float*>(target);
+bool SFlonum::equal(const Sobject* target) const {
+  const SFlonum* p = static_cast<const SFlonum*>(target);
   return v_ == p->v_;
 }
 
-void Float::output(State*, Stream* o, bool) const {
+void SFlonum::output(State*, Stream* o, bool) const {
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "%f", v_);
   o->write(buffer);

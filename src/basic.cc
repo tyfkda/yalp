@@ -157,8 +157,8 @@ struct BinOp {
     case TT_FIXNUM:
       acc = x.toFixnum();
       break;
-    case TT_FLOAT:
-      return calcf(state, 1, x.toFloat(state));
+    case TT_FLONUM:
+      return calcf(state, 1, x.toFlonum(state));
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
@@ -173,8 +173,8 @@ struct BinOp {
       case TT_FIXNUM:
         acc = Op::op(acc, x.toFixnum());
         break;
-      case TT_FLOAT:
-        return calcf(state, i, static_cast<Sfloat>(acc));
+      case TT_FLONUM:
+        return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
@@ -183,10 +183,10 @@ struct BinOp {
     return state->fixnumValue(acc);
   }
 
-  static Svalue calcf(State* state, int i, Sfloat acc) {
+  static Svalue calcf(State* state, int i, Flonum acc) {
     int n = state->getArgNum();
     if (n == 1)
-      return state->floatValue(Op::single(acc));
+      return state->flonumValue(Op::single(acc));
 
     for (; i < n; ++i) {
       Svalue x = state->getArg(i);
@@ -194,15 +194,15 @@ struct BinOp {
       case TT_FIXNUM:
         acc = Op::op(acc, x.toFixnum());
         break;
-      case TT_FLOAT:
-        acc = Op::op(acc, x.toFloat(state));
+      case TT_FLONUM:
+        acc = Op::op(acc, x.toFlonum(state));
         break;
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
-    return state->floatValue(acc);
+    return state->flonumValue(acc);
   }
 };
 
@@ -266,8 +266,8 @@ struct CompareOp {
     case TT_FIXNUM:
       acc = x.toFixnum();
       break;
-    case TT_FLOAT:
-      return calcf(state, 1, x.toFloat(state));
+    case TT_FLONUM:
+      return calcf(state, 1, x.toFlonum(state));
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
@@ -285,8 +285,8 @@ struct CompareOp {
           acc = xx;
         }
         break;
-      case TT_FLOAT:
-        return calcf(state, i, static_cast<Sfloat>(acc));
+      case TT_FLONUM:
+        return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
@@ -295,7 +295,7 @@ struct CompareOp {
     return state->boolValue(true);
   }
 
-  static Svalue calcf(State* state, int i, Sfloat acc) {
+  static Svalue calcf(State* state, int i, Flonum acc) {
     int n = state->getArgNum();
     for (; i < n; ++i) {
       Svalue x = state->getArg(i);
@@ -308,9 +308,9 @@ struct CompareOp {
           acc = xx;
         }
         break;
-      case TT_FLOAT:
+      case TT_FLONUM:
         {
-          Sfloat xx = x.toFloat(state);
+          Flonum xx = x.toFlonum(state);
           if (!Op::satisfy(acc, xx))
             return state->boolValue(false);
           acc = xx;
@@ -356,14 +356,14 @@ static Svalue s_greaterEqual(State* state) {
 
 template <typename Func>
 Svalue FloatFunc1(State* state, Func f) {
-  return state->floatValue(f(state->getArg(0).toFloat(state)));
+  return state->flonumValue(f(state->getArg(0).toFlonum(state)));
 }
 
 template <typename Func>
 Svalue FloatFunc2(State* state, Func f) {
-  Sfloat x = state->getArg(0).toFloat(state);
-  Sfloat y = state->getArg(1).toFloat(state);
-  return state->floatValue(f(x, y));
+  Flonum x = state->getArg(0).toFlonum(state);
+  Flonum y = state->getArg(1).toFlonum(state);
+  return state->flonumValue(f(x, y));
 }
 
 static Svalue s_sin(State* state) { return FloatFunc1(state, sin); }

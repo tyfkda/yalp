@@ -126,14 +126,14 @@ Sfixnum Svalue::toFixnum() const {
   return v_ >> 1;
 }
 
-Sfloat Svalue::toFloat(State* state) const {
+Flonum Svalue::toFlonum(State* state) const {
   switch (getType()) {
-  case TT_FLOAT:
-    return static_cast<Float*>(toObject())->toFloat();
+  case TT_FLONUM:
+    return static_cast<SFlonum*>(toObject())->toFlonum();
   case TT_FIXNUM:
-    return static_cast<Sfloat>(toFixnum());
+    return static_cast<Flonum>(toFixnum());
   default:
-    state->runtimeError("Float expected, but `%@`", this);
+    state->runtimeError("Flonum expected, but `%@`", this);
     return 0;
   }
 }
@@ -393,9 +393,9 @@ Svalue State::allocatedStringValue(const char* string, int len) {
 }
 
 
-Svalue State::floatValue(Sfloat f) {
-  void* memory = OBJALLOC(allocator_, sizeof(Float));
-  Float* p = new(memory) Float(f);
+Svalue State::flonumValue(Flonum f) {
+  void* memory = OBJALLOC(allocator_, sizeof(SFlonum));
+  SFlonum* p = new(memory) SFlonum(f);
   return Svalue(p);
 }
 

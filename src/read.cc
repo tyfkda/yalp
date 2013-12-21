@@ -179,7 +179,7 @@ ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
-    *pValue = state_->floatValue(static_cast<Sfloat>(atof(buffer)));
+    *pValue = state_->flonumValue(static_cast<Flonum>(atof(buffer)));
   else
     *pValue = state_->fixnumValue(atol(buffer));
   return SUCCESS;
