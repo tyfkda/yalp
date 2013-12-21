@@ -2,9 +2,9 @@
 
 using yalp::Fixnum;
 using yalp::State;
-using yalp::Svalue;
+using yalp::Value;
 
-Svalue square(State* state) {
+Value square(State* state) {
   Fixnum x = state->getArg(0).toFixnum();
   return state->fixnum(x * x);
 }

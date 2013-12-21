@@ -19,12 +19,12 @@ protected:
 };
 
 TEST_F(StateTest, Fixnum) {
-  Svalue s = state_->fixnum(123);
+  Value s = state_->fixnum(123);
   ASSERT_TRUE(state_->fixnum(123).eq(s));
 }
 
 TEST_F(StateTest, Symbol) {
-  Svalue s = state_->intern("symbol");
+  Value s = state_->intern("symbol");
   ASSERT_TRUE(state_->intern("symbol").eq(s));
   ASSERT_FALSE(state_->intern("otherSymbol").eq(s));
 
@@ -33,31 +33,31 @@ TEST_F(StateTest, Symbol) {
 }
 
 TEST_F(StateTest, Nil) {
-  Svalue nil = state_->intern("nil");
-  ASSERT_TRUE(nil.eq(Svalue::NIL));
+  Value nil = state_->intern("nil");
+  ASSERT_TRUE(nil.eq(Value::NIL));
 }
 
 TEST_F(StateTest, Cons) {
-  Svalue v = state_->cons(state_->fixnum(1), state_->fixnum(2));
+  Value v = state_->cons(state_->fixnum(1), state_->fixnum(2));
   ASSERT_EQ(TT_CELL, v.getType());
   ASSERT_TRUE(state_->fixnum(1).eq(state_->car(v)));
   ASSERT_TRUE(state_->fixnum(2).eq(state_->cdr(v)));
   ASSERT_TRUE(v.eq(v));
   ASSERT_TRUE(v.equal(v));
 
-  Svalue v2 = state_->cons(state_->fixnum(1), state_->fixnum(2));
+  Value v2 = state_->cons(state_->fixnum(1), state_->fixnum(2));
   ASSERT_FALSE(v.eq(v2));
   ASSERT_TRUE(v.equal(v2));
 
-  Svalue v3 = state_->cons(state_->fixnum(10), state_->fixnum(20));
+  Value v3 = state_->cons(state_->fixnum(10), state_->fixnum(20));
   ASSERT_FALSE(v.eq(v3));
   ASSERT_FALSE(v.equal(v3));
 }
 
 TEST_F(StateTest, Funcall) {
-  Svalue args[] = { state_->fixnum(1), state_->fixnum(2), state_->fixnum(3) };
-  Svalue fn = state_->referGlobal(state_->intern("+"));
-  Svalue result;
+  Value args[] = { state_->fixnum(1), state_->fixnum(2), state_->fixnum(3) };
+  Value fn = state_->referGlobal(state_->intern("+"));
+  Value result;
   ASSERT_TRUE(state_->funcall(fn, sizeof(args) / sizeof(*args), args, &result));
   ASSERT_EQ(TT_FIXNUM, result.getType());
   ASSERT_EQ(6, result.toFixnum());

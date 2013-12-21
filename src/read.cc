@@ -58,10 +58,10 @@ bool Reader::isSpace(int c) {
 int Reader::getc()  { return stream_->get(); }
 void Reader::putback(char c)  { stream_->putback(c); }
 
-ErrorCode Reader::readQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
-ErrorCode Reader::readQuasiQuote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
-ErrorCode Reader::readUnquote(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE), pValue); }
-ErrorCode Reader::readUnquoteSplicing(Svalue* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE_SPLICING), pValue); }
+ErrorCode Reader::readQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
+ErrorCode Reader::readQuasiQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
+ErrorCode Reader::readUnquote(Value* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE), pValue); }
+ErrorCode Reader::readUnquoteSplicing(Value* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE_SPLICING), pValue); }
 
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
@@ -73,18 +73,18 @@ Reader::~Reader() {
   if (buffer_ != NULL)
     FREE(state_->getAllocator(), buffer_);
   if (sharedStructures_ != NULL) {
-    sharedStructures_->~HashTable<int, Svalue>();
+    sharedStructures_->~HashTable<int, Value>();
     FREE(state_->getAllocator(), sharedStructures_);
   }
 }
 
-ErrorCode Reader::read(Svalue* pValue) {
+ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
   int c = getc();
-  Svalue fn = state_->getMacroCharacter(c);
+  Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
     SStream ss(stream_);
-    Svalue args[] = { Svalue(&ss), state_->character(c) };
+    Value args[] = { Value(&ss), state_->character(c) };
     if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
       return SUCCESS;
     return ILLEGAL_CHAR;
@@ -154,7 +154,7 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
   return p;
 }
 
-ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
+ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isNotDelimiter);
 
@@ -185,13 +185,13 @@ ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
   return SUCCESS;
 }
 
-ErrorCode Reader::readList(Svalue* pValue) {
+ErrorCode Reader::readList(Value* pValue) {
   return readDelimitedList(')', pValue);
 }
 
-ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
-  Svalue value = Svalue::NIL;
-  Svalue v;
+ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
+  Value value = Value::NIL;
+  Value v;
   ErrorCode err;
   for (;;) {
     skipSpaces();
@@ -215,10 +215,10 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
     return NO_CLOSE_PAREN;
   case DOT_AT_BASE:
     {
-      if (value.eq(Svalue::NIL))
+      if (value.eq(Value::NIL))
         return ILLEGAL_CHAR;
 
-      Svalue tail;
+      Value tail;
       err = read(&tail);
       if (err != SUCCESS)
         return err;
@@ -230,7 +230,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
         return NO_CLOSE_PAREN;
       }
 
-      Svalue lastPair = value;
+      Value lastPair = value;
       *pValue = nreverse(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       return SUCCESS;
@@ -241,14 +241,14 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
   }
 }
 
-ErrorCode Reader::readAbbrev(Svalue symbol, Svalue* pValue) {
+ErrorCode Reader::readAbbrev(Value symbol, Value* pValue) {
   ErrorCode err = read(pValue);
   if (err == SUCCESS)
     *pValue = list(state_, symbol, *pValue);
   return err;
 }
 
-ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
+ErrorCode Reader::readString(char closeChar, Value* pValue) {
   BUFFER(buffer, size);
 
   int p = 0;
@@ -291,7 +291,7 @@ ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
   return SUCCESS;
 }
 
-ErrorCode Reader::readSpecial(Svalue* pValue) {
+ErrorCode Reader::readSpecial(Value* pValue) {
   int c = getc();
   if (isdigit(c)) {
     putback(c);
@@ -306,7 +306,7 @@ ErrorCode Reader::readSpecial(Svalue* pValue) {
   }
 }
 
-ErrorCode Reader::readSharedStructure(Svalue* pValue) {
+ErrorCode Reader::readSharedStructure(Value* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isdigit);
 
@@ -323,7 +323,7 @@ ErrorCode Reader::readSharedStructure(Svalue* pValue) {
     }
   case '#':
     if (sharedStructures_ != NULL) {
-      const Svalue* p = sharedStructures_->get(n);
+      const Value* p = sharedStructures_->get(n);
       if (p == NULL)
         return ILLEGAL_CHAR;
       *pValue = *p;
@@ -336,7 +336,7 @@ ErrorCode Reader::readSharedStructure(Svalue* pValue) {
   }
 }
 
-ErrorCode Reader::readChar(Svalue* pValue) {
+ErrorCode Reader::readChar(Value* pValue) {
   int c = getc();
   switch (c) {
   case ' ': case '\n': case '\t': case -1:
@@ -377,10 +377,10 @@ ErrorCode Reader::readChar(Svalue* pValue) {
   return ILLEGAL_CHAR;
 }
 
-void Reader::storeShared(int id, Svalue value) {
+void Reader::storeShared(int id, Value value) {
   if (sharedStructures_ == NULL) {
     void* memory = ALLOC(state_->getAllocator(), sizeof(*sharedStructures_));
-    sharedStructures_ = new(memory) HashTable<int, Svalue>(&s_hashPolicy,
+    sharedStructures_ = new(memory) HashTable<int, Value>(&s_hashPolicy,
                                                            state_->getAllocator());
   }
   sharedStructures_->put(id, value);

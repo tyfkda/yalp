@@ -89,7 +89,7 @@ static void dumpLeakedMemory() {
 
 static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
-  Svalue bin;
+  Value bin;
   ErrorCode err;
   while ((err = reader.read(&bin)) == SUCCESS) {
     if (!state->runBinary(bin, NULL))
@@ -104,15 +104,15 @@ static bool runBinary(State* state, Stream* stream) {
 
 static bool compile(State* state, Stream* stream, bool bNoRun) {
   Reader reader(state, stream);
-  Svalue exp;
+  Value exp;
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
-    Svalue code;
+    Value code;
     if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       return false;
     }
-    Svalue writess = state->referGlobal(state->intern("write/ss"));
+    Value writess = state->referGlobal(state->intern("write/ss"));
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
@@ -129,13 +129,13 @@ static bool compile(State* state, Stream* stream, bool bNoRun) {
 static bool repl(State* state, Stream* stream, bool tty) {
   if (tty)
     cout << "type ':q' to quit" << endl;
-  Svalue q = state->intern(":q");
+  Value q = state->intern(":q");
   FileStream out(stdout);
   Reader reader(state, stream);
   for (;;) {
     if (tty)
       cout << "> " << std::flush;
-    Svalue s;
+    Value s;
     ErrorCode err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
@@ -146,7 +146,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
         return false;
       continue;
     }
-    Svalue code;
+    Value code;
     if (!state->compile(s, &code) || code.isFalse()) {
       state->resetError();
       if (!tty)
@@ -154,7 +154,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
 
-    Svalue result;
+    Value result;
     if (!state->runBinary(code, &result)) {
       if (!tty)
         return false;
@@ -164,7 +164,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
     if (tty) {
       const char* prompt = "=> ";
       for (int n = state->getResultNum(), i = 0; i < n; ++i) {
-        Svalue result = state->getResult(i);
+        Value result = state->getResult(i);
         cout << prompt;
         result.output(state, &out, true);
         cout << endl;
@@ -178,7 +178,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
 }
 
 static bool runMain(State* state) {
-  Svalue main = state->referGlobal("main");
+  Value main = state->referGlobal("main");
   if (main.isFalse())
     return true;  // If no `main` function, it is ok.
   return state->funcall(main, 0, NULL, NULL);

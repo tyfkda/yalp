@@ -4,8 +4,8 @@
 
 Naming convension:
 
-SomeType to Svalue:   Svalue someType(SomeType x);
-Svalue to SomeType:   Svalue toSomeType(Svalue s);
+SomeType to Value:   Value someType(SomeType x);
+Value to SomeType:   Value toSomeType(Value s);
 
  */
 //=============================================================================
@@ -55,9 +55,9 @@ enum Type {
 };
 
 // Variant type.
-class Svalue {
+class Value {
 public:
-  Svalue();
+  Value();
 
   // Gets value type.
   Type getType() const;
@@ -70,8 +70,8 @@ public:
   int toCharacter() const  { return toFixnum(); }
 
   // Object euality.
-  bool eq(Svalue target) const  { return v_ == target.v_; }
-  bool equal(Svalue target) const;
+  bool eq(Value target) const  { return v_ == target.v_; }
+  bool equal(Value target) const;
 
   void output(State* state, Stream* o, bool inspect) const;
 
@@ -80,15 +80,15 @@ public:
 
   void mark();
 
-  static const Svalue NIL;
+  static const Value NIL;
 
   inline bool isTrue() const;
   inline bool isFalse() const;
 
 private:
-  explicit Svalue(Fixnum i);
-  explicit Svalue(Sobject* object);
-  explicit Svalue(Fixnum i, int tag2);
+  explicit Value(Fixnum i);
+  explicit Value(Sobject* object);
+  explicit Value(Fixnum i, int tag2);
 
   Fixnum v_;
 
@@ -97,7 +97,7 @@ private:
   friend Vm;
 };
 
-typedef Svalue (*NativeFuncType)(State* state);
+typedef Value (*NativeFuncType)(State* state);
 
 // State class.
 class State {
@@ -107,61 +107,61 @@ public:
   // Delete.
   void release();
 
-  ErrorCode runFromFile(const char* filename, Svalue* pResult = NULL);
-  ErrorCode runFromString(const char* string, Svalue* pResult = NULL);
-  ErrorCode runBinaryFromFile(const char* filename, Svalue* pResult = NULL);
+  ErrorCode runFromFile(const char* filename, Value* pResult = NULL);
+  ErrorCode runFromString(const char* string, Value* pResult = NULL);
+  ErrorCode runBinaryFromFile(const char* filename, Value* pResult = NULL);
 
-  bool funcall(Svalue fn, int argNum, const Svalue* args, Svalue* pResult);
-  Svalue tailcall(Svalue fn, int argNum, const Svalue* args);
+  bool funcall(Value fn, int argNum, const Value* args, Value* pResult);
+  Value tailcall(Value fn, int argNum, const Value* args);
 
-  inline Svalue referGlobal(const char* sym, bool* pExist = NULL);
-  inline void defineGlobal(const char* sym, Svalue value);
+  inline Value referGlobal(const char* sym, bool* pExist = NULL);
+  inline void defineGlobal(const char* sym, Value value);
   inline void defineNative(const char* name, NativeFuncType func, int minArgNum);
-  Svalue referGlobal(Svalue sym, bool* pExist = NULL);
-  void defineGlobal(Svalue sym, Svalue value);
+  Value referGlobal(Value sym, bool* pExist = NULL);
+  void defineGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   // Converts C++ bool value to lisp bool value.
-  inline Svalue boolean(bool b) const;
+  inline Value boolean(bool b) const;
 
   // Converts C++ int value to lisp Fixnum.
-  inline Svalue fixnum(Fixnum i) const;
+  inline Value fixnum(Fixnum i) const;
 
   // Returns symbol value.
-  Svalue intern(const char* name);
-  Svalue gensym();
+  Value intern(const char* name);
+  Value gensym();
   const Symbol* getSymbol(unsigned int symbolId) const;
 
   // Creates cell.
-  Svalue cons(Svalue a, Svalue d);
-  Svalue car(Svalue s);
-  Svalue cdr(Svalue s);
+  Value cons(Value a, Value d);
+  Value car(Value s);
+  Value cdr(Value s);
 
   // Converts character code to lisp character value.
-  inline Svalue character(int c) const;
+  inline Value character(int c) const;
 
   // Converts C string to lisp String.
-  Svalue string(const char* str);
-  Svalue string(const char* str, int len);
-  Svalue allocatedString(const char* string, int len);  // string is passed.
+  Value string(const char* str);
+  Value string(const char* str, int len);
+  Value allocatedString(const char* string, int len);  // string is passed.
 
   // Floating point number.
-  Svalue flonum(Flonum f);
+  Value flonum(Flonum f);
 
-  Svalue createHashTable();
+  Value createHashTable();
 
   // File stream.
-  Svalue createFileStream(FILE* fp);
+  Value createFileStream(FILE* fp);
 
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.
-  Svalue getArg(int index) const;
+  Value getArg(int index) const;
 
   // Gets result number.
   int getResultNum() const;
   // Gets result value for the index.
-  Svalue getResult(int index) const;
+  Value getResult(int index) const;
 
   // Raises runtime error.
   void runtimeError(const char* msg, ...);
@@ -177,24 +177,24 @@ public:
 
     NUMBER_OF_CONSTANT
   };
-  Svalue getConstant(Constant c) const  { return constant_[c]; }
+  Value getConstant(Constant c) const  { return constant_[c]; }
 
   Allocator* getAllocator()  { return allocator_; }
 
-  void setMacroCharacter(int c, Svalue func);
-  Svalue getMacroCharacter(int c);
-  Svalue getMacro(Svalue name);
+  void setMacroCharacter(int c, Value func);
+  Value getMacroCharacter(int c);
+  Value getMacro(Value name);
 
   // Check value type, and raise runtime error if the value is not expected type.
-  void checkType(Svalue x, Type expected);
+  void checkType(Value x, Type expected);
 
   void collectGarbage();
   void setVmTrace(bool b);
 
-  bool compile(Svalue exp, Svalue* pValue);
+  bool compile(Value exp, Value* pValue);
 
   // Execute compiled code.
-  bool runBinary(Svalue code, Svalue* pResult);
+  bool runBinary(Value code, Value* pResult);
 
   void resetError();
 
@@ -207,7 +207,7 @@ private:
   ~State();
 
   void installBasicObjects();
-  ErrorCode run(Stream* stream, Svalue* pResult);
+  ErrorCode run(Stream* stream, Value* pResult);
   void markRoot();
   void allocFailed(void* p, size_t size);
 
@@ -217,7 +217,7 @@ private:
   AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
-  Svalue constant_[NUMBER_OF_CONSTANT];
+  Value constant_[NUMBER_OF_CONSTANT];
   HashPolicyEq* hashPolicyEq_;
   SHashTable* readTable_;
   Vm* vm_;
@@ -226,15 +226,15 @@ private:
   friend struct StateAllocatorCallback;
 };
 
-inline bool Svalue::isTrue() const  { return !eq(Svalue::NIL); }
-inline bool Svalue::isFalse() const  { return eq(Svalue::NIL); }
+inline bool Value::isTrue() const  { return !eq(Value::NIL); }
+inline bool Value::isFalse() const  { return eq(Value::NIL); }
 
-inline Svalue State::boolean(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
-inline Svalue State::fixnum(Fixnum i) const  { return Svalue(i); }
-inline Svalue State::character(int c) const  { return Svalue(c); }  // Use fixnum as a character.
+inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
+inline Value State::fixnum(Fixnum i) const  { return Value(i); }
+inline Value State::character(int c) const  { return Value(c); }  // Use fixnum as a character.
 
-inline Svalue State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
-inline void State::defineGlobal(const char* sym, Svalue value)  { return defineGlobal(intern(sym), value); }
+inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
+inline void State::defineGlobal(const char* sym, Value value)  { return defineGlobal(intern(sym), value); }
 inline void State::defineNative(const char* name, NativeFuncType func, int minArgNum)  { defineNative(name, func, minArgNum, minArgNum); }
 
 }  // namespace yalp

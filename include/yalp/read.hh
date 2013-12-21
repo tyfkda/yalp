@@ -20,25 +20,25 @@ public:
   ~Reader();
 
   // Reads one s-expression from stream.
-  ErrorCode read(Svalue* pValue);
-  ErrorCode readDelimitedList(int terminator, Svalue* pValue);
+  ErrorCode read(Value* pValue);
+  ErrorCode readDelimitedList(int terminator, Value* pValue);
 
 private:
   inline static bool isSpace(int c);
   inline int getc();
   inline void putback(char c);
-  inline ErrorCode readQuote(Svalue* pValue);
-  inline ErrorCode readQuasiQuote(Svalue* pValue);
-  inline ErrorCode readUnquote(Svalue* pValue);
-  inline ErrorCode readUnquoteSplicing(Svalue* pValue);
-  ErrorCode readSymbolOrNumber(Svalue* pValue);
-  ErrorCode readList(Svalue* pValue);
-  ErrorCode readAbbrev(Svalue symbol, Svalue* pValue);
-  ErrorCode readString(char closeChar, Svalue* pValue);
-  ErrorCode readSpecial(Svalue* pValue);
-  ErrorCode readSharedStructure(Svalue* pValue);
-  ErrorCode readChar(Svalue* pValue);
-  void storeShared(int id, Svalue value);
+  inline ErrorCode readQuote(Value* pValue);
+  inline ErrorCode readQuasiQuote(Value* pValue);
+  inline ErrorCode readUnquote(Value* pValue);
+  inline ErrorCode readUnquoteSplicing(Value* pValue);
+  ErrorCode readSymbolOrNumber(Value* pValue);
+  ErrorCode readList(Value* pValue);
+  ErrorCode readAbbrev(Value symbol, Value* pValue);
+  ErrorCode readString(char closeChar, Value* pValue);
+  ErrorCode readSpecial(Value* pValue);
+  ErrorCode readSharedStructure(Value* pValue);
+  ErrorCode readChar(Value* pValue);
+  void storeShared(int id, Value value);
   void skipSpaces();
   void skipUntilNextLine();
   static bool isDelimiter(int c);
@@ -52,7 +52,7 @@ private:
 
   State* state_;
   Stream* stream_;
-  HashTable<int, Svalue>* sharedStructures_;
+  HashTable<int, Value>* sharedStructures_;
   char* buffer_;
   int size_;
 };

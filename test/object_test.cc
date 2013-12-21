@@ -17,9 +17,9 @@ protected:
 };
 
 TEST_F(ObjectTest, cell) {
-  Svalue a = state_->fixnum(111);
-  Svalue d = state_->fixnum(222);
-  Svalue cell = state_->cons(a, d);
+  Value a = state_->fixnum(111);
+  Value d = state_->fixnum(222);
+  Value cell = state_->cons(a, d);
   ASSERT_EQ(TT_CELL, cell.getType());
   ASSERT_TRUE(state_->car(cell).eq(a));
   ASSERT_TRUE(state_->cdr(cell).eq(d));

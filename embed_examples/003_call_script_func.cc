@@ -2,16 +2,16 @@
 #include <iostream>
 
 using yalp::State;
-using yalp::Svalue;
+using yalp::Value;
 using namespace std;
 
 int main() {
   State* state = State::create();
   state->runBinaryFromFile("../boot.bin");
 
-  Svalue fn = state->referGlobal("+");
-  Svalue args[] = { state->fixnum(1), state->fixnum(2) };
-  Svalue result;
+  Value fn = state->referGlobal("+");
+  Value args[] = { state->fixnum(1), state->fixnum(2) };
+  Value result;
   if (state->funcall(fn, 2, args, &result)) {
     cout << "Result: " << result.toFixnum() << endl;
   } else {

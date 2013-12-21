@@ -62,7 +62,7 @@ protected:
   ~Sobject()  {}
 
   friend State;
-  friend Svalue;
+  friend Value;
 };
 
 // Cell class.
@@ -71,23 +71,23 @@ public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
 
-  Svalue car() const  { return car_; }
-  Svalue cdr() const  { return cdr_; }
-  void setCar(Svalue a);
-  void setCdr(Svalue d);
+  Value car() const  { return car_; }
+  Value cdr() const  { return cdr_; }
+  void setCar(Value a);
+  void setCdr(Value d);
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Cell(Svalue a, Svalue d);
+  Cell(Value a, Value d);
   ~Cell()  {}
   virtual void mark();
 
 private:
   const char* isAbbrev(State* state) const;
 
-  Svalue car_;
-  Svalue cdr_;
+  Value car_;
+  Value cdr_;
 
   friend State;
 };
@@ -143,8 +143,8 @@ public:
 
   int size() const  { return size_; }
 
-  Svalue get(int index);
-  void set(int index, Svalue x);
+  Value get(int index);
+  void set(int index, Value x);
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
@@ -154,7 +154,7 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue* buffer_;
+  Value* buffer_;
   int size_;
 
   friend State;
@@ -164,15 +164,15 @@ protected:
 // HashTable class.
 class SHashTable : public Sobject {
 public:
-  typedef HashTable<Svalue, Svalue> TableType;
+  typedef HashTable<Value, Value> TableType;
 
   virtual Type getType() const override;
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
-  void put(Svalue key, Svalue value);
-  const Svalue* get(Svalue key) const;
-  bool remove(Svalue key);
+  void put(Value key, Value value);
+  const Value* get(Value key) const;
+  bool remove(Value key);
 
   int getCapacity() const;
   int getEntryCount() const;
@@ -182,7 +182,7 @@ public:
   const TableType* getHashTable() const  { return table_; }
 
 protected:
-  explicit SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy);
+  explicit SHashTable(Allocator* allocator, HashPolicy<Value>* policy);
   ~SHashTable();
   virtual void mark();
 
@@ -211,20 +211,20 @@ protected:
 // Closure class.
 class Closure : public Callable {
 public:
-  Closure(State* state, Svalue body, int freeVarCount,
+  Closure(State* state, Value body, int freeVarCount,
           int minArgNum, int maxArgNum);
   virtual Type getType() const override;
 
-  Svalue getBody() const  { return body_; }
+  Value getBody() const  { return body_; }
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
   bool hasRestParam() const  { return maxArgNum_ < 0; }
 
-  void setFreeVariable(int index, Svalue value) {
+  void setFreeVariable(int index, Value value) {
     freeVariables_[index] = value;
   }
 
-  Svalue getFreeVariable(int index) const {
+  Value getFreeVariable(int index) const {
     return freeVariables_[index];
   }
 
@@ -235,8 +235,8 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue body_;
-  Svalue* freeVariables_;
+  Value body_;
+  Value* freeVariables_;
   int freeVarCount_;
   int minArgNum_;
   int maxArgNum_;
@@ -250,7 +250,7 @@ public:
 
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
-  Svalue call(State* state)  { return func_(state); }
+  Value call(State* state)  { return func_(state); }
 
   virtual void output(State*, Stream* o, bool) const override;
 
@@ -265,12 +265,12 @@ protected:
 // Continuation class.
 class Continuation : public Callable {
 public:
-  Continuation(Allocator* allocator, const Svalue* stack, int size,
+  Continuation(Allocator* allocator, const Value* stack, int size,
                const CallStack* callStack, int callStackSize);
   virtual Type getType() const override;
 
   int getStackSize() const  { return stackSize_; }
-  const Svalue* getStack() const  { return copiedStack_; }
+  const Value* getStack() const  { return copiedStack_; }
   int getCallStackSize() const  { return callStackSize_; }
   const CallStack* getCallStack() const  { return callStack_; }
 
@@ -281,7 +281,7 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue* copiedStack_;
+  Value* copiedStack_;
   int stackSize_;
   CallStack* callStack_;
   int callStackSize_;

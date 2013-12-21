@@ -17,26 +17,26 @@ unsigned int strHash(const char* s) {
   return v;
 }
 
-Svalue list(State* state, Svalue v1) {
-  return state->cons(v1, Svalue::NIL);
+Value list(State* state, Value v1) {
+  return state->cons(v1, Value::NIL);
 }
 
-Svalue list(State* state, Svalue v1, Svalue v2) {
-  return state->cons(v1, state->cons(v2, Svalue::NIL));
+Value list(State* state, Value v1, Value v2) {
+  return state->cons(v1, state->cons(v2, Value::NIL));
 }
 
-Svalue list(State* state, Svalue v1, Svalue v2, Svalue v3) {
-  return state->cons(v1, state->cons(v2, state->cons(v3, Svalue::NIL)));
+Value list(State* state, Value v1, Value v2, Value v3) {
+  return state->cons(v1, state->cons(v2, state->cons(v3, Value::NIL)));
 }
 
-Svalue nreverse(Svalue v) {
+Value nreverse(Value v) {
   if (v.getType() != TT_CELL)
     return v;
 
-  Svalue tail = Svalue::NIL;
+  Value tail = Value::NIL;
   for (;;) {
     Cell* cell = static_cast<Cell*>(v.toObject());
-    Svalue d = cell->cdr();
+    Value d = cell->cdr();
     cell->setCdr(tail);
     if (d.getType() != TT_CELL)
       return v;
@@ -45,7 +45,7 @@ Svalue nreverse(Svalue v) {
   }
 }
 
-int length(Svalue v) {
+int length(Value v) {
   int len = 0;
   for (; v.getType() == TT_CELL; v = static_cast<Cell*>(v.toObject())->cdr())
     ++len;
@@ -75,7 +75,7 @@ void format(State* state, Stream* out, const char* fmt, va_list ap) {
     case '\0':  goto L_exit;
     case '@':
       {
-        const Svalue* p = va_arg(ap, const Svalue*);
+        const Value* p = va_arg(ap, const Value*);
         p->output(state, out, false);
       }
       break;

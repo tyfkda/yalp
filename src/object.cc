@@ -33,7 +33,7 @@ unsigned int Sobject::calcHash() const {
 bool Sobject::isCallable() const  { return false; }
 
 //=============================================================================
-Cell::Cell(Svalue a, Svalue d)
+Cell::Cell(Value a, Value d)
   : Sobject(), car_(a), cdr_(d) {}
 
 Type Cell::getType() const  { return TT_CELL; }
@@ -62,7 +62,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
       break;
     c = ' ';
   }
-  if (!p->cdr_.eq(Svalue::NIL)) {
+  if (!p->cdr_.eq(Value::NIL)) {
     o->write(" . ");
     p->cdr_.output(state, o, inspect);
   }
@@ -77,18 +77,18 @@ void Cell::mark() {
   cdr_.mark();
 }
 
-void Cell::setCar(Svalue a) {
+void Cell::setCar(Value a) {
   car_ = a;
 }
 
-void Cell::setCdr(Svalue d) {
+void Cell::setCdr(Value d) {
   cdr_ = d;
 }
 
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(Svalue::NIL))
+      !state->cdr(cdr()).eq(Value::NIL))
     return NULL;
 
   struct {
@@ -100,7 +100,7 @@ const char* Cell::isAbbrev(State* state) const {
     { State::UNQUOTE, "," },
     { State::UNQUOTE_SPLICING, ",@" },
   };
-  Svalue a = car();
+  Value a = car();
   for (auto t : Table)
     if (a.eq(state->getConstant(t.c)))
       return t.abbrev;
@@ -188,8 +188,8 @@ void SFlonum::output(State*, Stream* o, bool) const {
 Vector::Vector(Allocator* allocator, int size)
   : Sobject()
   , size_(size) {
-  void* memory = ALLOC(allocator, sizeof(Svalue) * size_);
-  buffer_ = new(memory) Svalue[size_];
+  void* memory = ALLOC(allocator, sizeof(Value) * size_);
+  buffer_ = new(memory) Value[size_];
 }
 
 void Vector::destruct(Allocator* allocator) {
@@ -218,19 +218,19 @@ void Vector::mark() {
     buffer_[i].mark();
 }
 
-Svalue Vector::get(int index)  {
+Value Vector::get(int index)  {
   assert(0 <= index && index < size_);
   return buffer_[index];
 }
 
-void Vector::set(int index, Svalue x)  {
+void Vector::set(int index, Value x)  {
   assert(0 <= index && index < size_);
   buffer_[index] = x;
 }
 
 //=============================================================================
 
-SHashTable::SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy)
+SHashTable::SHashTable(Allocator* allocator, HashPolicy<Value>* policy)
   : Sobject() {
   void* memory = ALLOC(allocator, sizeof(*table_));
   table_ = new(memory) TableType(policy, allocator);
@@ -256,7 +256,7 @@ void SHashTable::mark() {
   Sobject::mark();
   TableType& table = *table_;
   for (auto kv : table)
-    const_cast<Svalue*>(&kv.value)->mark();
+    const_cast<Value*>(&kv.value)->mark();
 }
 
 int SHashTable::getCapacity() const  { return table_->getCapacity(); }
@@ -264,15 +264,15 @@ int SHashTable::getEntryCount() const  { return table_->getEntryCount(); }
 int SHashTable::getConflictCount() const  { return table_->getConflictCount(); }
 int SHashTable::getMaxDepth() const  { return table_->getMaxDepth(); }
 
-void SHashTable::put(Svalue key, Svalue value) {
+void SHashTable::put(Value key, Value value) {
   table_->put(key, value);
 }
 
-const Svalue* SHashTable::get(Svalue key) const {
+const Value* SHashTable::get(Value key) const {
   return table_->get(key);
 }
 
-bool SHashTable::remove(Svalue key) {
+bool SHashTable::remove(Value key) {
   return table_->remove(key);
 }
 
@@ -287,13 +287,13 @@ void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
-Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
+Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int maxArgNum)
   : Callable()
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
-    void* memory = ALLOC(state->getAllocator(), sizeof(Svalue) * freeVarCount);
-    freeVariables_ = new(memory) Svalue[freeVarCount];
+    void* memory = ALLOC(state->getAllocator(), sizeof(Value) * freeVarCount);
+    freeVariables_ = new(memory) Value[freeVarCount];
   }
 }
 
@@ -343,14 +343,14 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 }
 
 //=============================================================================
-Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size,
+Continuation::Continuation(Allocator* allocator, const Value* stack, int size,
                            const CallStack* callStack, int callStackSize)
   : Callable(), copiedStack_(NULL), stackSize_(0)
   , callStack_(NULL), callStackSize_(0) {
   if (size > 0) {
-    copiedStack_ = static_cast<Svalue*>(ALLOC(allocator, sizeof(Svalue) * size));
+    copiedStack_ = static_cast<Value*>(ALLOC(allocator, sizeof(Value) * size));
     stackSize_ = size;
-    memcpy(copiedStack_, stack, sizeof(Svalue) * size);
+    memcpy(copiedStack_, stack, sizeof(Value) * size);
   }
 
   if (--callStackSize > 0) {
