@@ -38,7 +38,7 @@ static Svalue s_macroexpand_1(State* state) {
     return exp;
   Svalue name = state->car(exp);
   Svalue closure = state->getMacro(name);
-  if (state->isFalse(closure))
+  if (closure.isFalse())
     return exp;
 
   Svalue args = state->cdr(exp);
@@ -601,7 +601,7 @@ static Svalue s_exit(State* state) {
 
 static Svalue s_vmtrace(State* state) {
   Svalue v = state->getArg(0);
-  bool b = state->isTrue(v);
+  bool b = v.isTrue();
   state->setVmTrace(b);
   return state->getConstant(State::T);
 }
@@ -610,7 +610,7 @@ static Svalue s_open(State* state) {
   Svalue filespec = state->getArg(0);
   state->checkType(filespec, TT_STRING);
   const char* mode = "rb";
-  if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
+  if (state->getArgNum() > 1 && state->getArg(1).isTrue())
     mode = "wb";
 
   const char* path = static_cast<String*>(filespec.toObject())->c_str();

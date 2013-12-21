@@ -82,6 +82,9 @@ public:
 
   static const Svalue NIL;
 
+  inline bool isTrue() const;
+  inline bool isFalse() const;
+
 private:
   explicit Svalue(Fixnum i);
   explicit Svalue(Sobject* object);
@@ -117,9 +120,6 @@ public:
   Svalue referGlobal(Svalue sym, bool* pExist = NULL);
   void defineGlobal(Svalue sym, Svalue value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
-
-  inline bool isTrue(Svalue x) const;
-  inline bool isFalse(Svalue x) const;
 
   // Converts C++ bool value to lisp bool value.
   inline Svalue boolean(bool b) const;
@@ -226,8 +226,8 @@ private:
   friend struct StateAllocatorCallback;
 };
 
-inline bool State::isTrue(Svalue x) const  { return !x.eq(Svalue::NIL); }
-inline bool State::isFalse(Svalue x) const  { return x.eq(Svalue::NIL); }
+inline bool Svalue::isTrue() const  { return !eq(Svalue::NIL); }
+inline bool Svalue::isFalse() const  { return eq(Svalue::NIL); }
 
 inline Svalue State::boolean(bool b) const  { return b ? getConstant(T) : Svalue::NIL; }
 inline Svalue State::fixnum(Fixnum i) const  { return Svalue(i); }

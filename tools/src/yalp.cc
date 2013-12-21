@@ -108,7 +108,7 @@ static bool compile(State* state, Stream* stream, bool bNoRun) {
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
-    if (!state->compile(exp, &code) || state->isFalse(code)) {
+    if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       return false;
     }
@@ -147,7 +147,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
     Svalue code;
-    if (!state->compile(s, &code) || state->isFalse(code)) {
+    if (!state->compile(s, &code) || code.isFalse()) {
       state->resetError();
       if (!tty)
         return false;
@@ -179,7 +179,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
 
 static bool runMain(State* state) {
   Svalue main = state->referGlobal("main");
-  if (state->isFalse(main))
+  if (main.isFalse())
     return true;  // If no `main` function, it is ok.
   return state->funcall(main, 0, NULL, NULL);
 }

@@ -82,7 +82,7 @@ ErrorCode Reader::read(Svalue* pValue) {
   skipSpaces();
   int c = getc();
   Svalue fn = state_->getMacroCharacter(c);
-  if (state_->isTrue(fn)) {
+  if (fn.isTrue()) {
     SStream ss(stream_);
     Svalue args[] = { Svalue(&ss), state_->character(c) };
     if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))

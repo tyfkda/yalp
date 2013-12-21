@@ -267,7 +267,7 @@ void State::installBasicObjects() {
 
 bool State::compile(Svalue exp, Svalue* pValue) {
   Svalue fn = referGlobal(getConstant(COMPILE));
-  if (isFalse(fn)) {
+  if (fn.isFalse()) {
     runtimeError("`compile` is not enabled");
     return false;
   }
@@ -307,7 +307,7 @@ ErrorCode State::run(Stream* stream, Svalue* pResult) {
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
     Svalue code;
-    if (!compile(exp, &code) || isFalse(code))
+    if (!compile(exp, &code) || code.isFalse())
       return COMPILE_ERROR;
     if (!runBinary(code, pResult))
       return RUNTIME_ERROR;

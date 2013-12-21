@@ -696,7 +696,7 @@ Svalue Vm::runLoop() {
     {
       Svalue thn = CAR(x_);
       Svalue els = CDR(x_);
-      x_ = state_->isTrue(a_) ? thn : els;
+      x_ = a_.isTrue() ? thn : els;
     }
     goto again;
   case CLOSE:
@@ -770,7 +770,7 @@ Svalue Vm::runLoop() {
       Svalue tail = CAR(x_);
       x_ = CDR(x_);
       int s = s_;
-      if (state_->isTrue(tail)) {
+      if (tail.isTrue()) {
         int calleeArgNum = index(s_, 0).toFixnum();
         s -= calleeArgNum + 1;
       }
