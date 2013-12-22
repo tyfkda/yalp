@@ -49,6 +49,11 @@ static Value s_macroexpand_1(State* state) {
   return state->tailcall(closure, argNum, argsArray);
 }
 
+static Value s_type(State* state) {
+  Value v = state->getArg(0);
+  return state->getTypeSymbol(v.getType());
+}
+
 static Value s_cons(State* state) {
   Value a = state->getArg(0);
   Value d = state->getArg(1);
@@ -102,16 +107,6 @@ static Value s_listStar(State* state) {
     }
   }
   return res;
-}
-
-static Value s_pairp(State* state) {
-  Value a = state->getArg(0);
-  return state->boolean(a.getType() == TT_CELL);
-}
-
-static Value s_symbolp(State* state) {
-  Value a = state->getArg(0);
-  return state->boolean(a.getType() == TT_SYMBOL);
 }
 
 static Value s_append(State* state) {
@@ -660,6 +655,7 @@ void installBasicFunctions(State* state) {
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
   state->defineNative("macroexpand-1", s_macroexpand_1, 1);
+  state->defineNative("type", s_type, 1);
   state->defineNative("cons", s_cons, 2);
   state->defineNative("car", s_car, 1);
   state->defineNative("cdr", s_cdr, 1);
@@ -667,8 +663,6 @@ void installBasicFunctions(State* state) {
   state->defineNative("set-cdr!", s_set_cdr, 2);
   state->defineNative("list", s_list, 0, -1);
   state->defineNative("list*", s_listStar, 0, -1);
-  state->defineNative("pair?", s_pairp, 1);
-  state->defineNative("symbol?", s_symbolp, 1);
   state->defineNative("append", s_append, 0, -1);
   state->defineNative("reverse!", s_nreverse, 1);
   state->defineNative("+", s_add, 0, -1);

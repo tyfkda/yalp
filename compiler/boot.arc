@@ -1,4 +1,13 @@
 (def no (^(x) (if x nil t)))
+(def fixnum? (^(x) (is (type x) 'fixnum)))
+(def pair? (^(x) (is (type x) 'pair)))
+(def symbol? (^(x) (is (type x) 'symbol)))
+(def string? (^(x) (is (type x) 'string)))
+(def flonum? (^(x) (is (type x) 'flonum)))
+(def procedure? (^(x) (let tt (type x)
+                        (or (is tt 'closure)
+                            (is tt 'subr)
+                            (is tt 'continuation)))))
 
 (def any?
   (^(f ls)

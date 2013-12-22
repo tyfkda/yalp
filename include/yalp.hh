@@ -51,6 +51,7 @@ enum Type {
   TT_HASH_TABLE,
   TT_STREAM,
   TT_BOX,  // TODO: This label should not be public, so hide this.
+  NUMBER_OF_TYPES,
 };
 
 // Variant type.
@@ -176,6 +177,7 @@ public:
     NUMBER_OF_CONSTANTS
   };
   inline Value getConstant(Constant c) const;
+  inline Value getTypeSymbol(Type type) const;
 
   Allocator* getAllocator()  { return allocator_; }
 
@@ -216,6 +218,7 @@ private:
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Value constants_[NUMBER_OF_CONSTANTS];
+  Value typeSymbols_[NUMBER_OF_TYPES];
   HashPolicyEq* hashPolicyEq_;
   SHashTable* readTable_;
   Vm* vm_;
@@ -228,6 +231,7 @@ inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
+inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
 inline Value State::fixnum(Fixnum i) const  { return Value(i); }

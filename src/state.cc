@@ -234,6 +234,13 @@ State::State(AllocFunc allocFunc)
   for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
     constants_[i] = intern(constSymbols[i]);
 
+  static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
+    "unknown", "fixnum", "symbol", "pair", "string", "flonum", "closure",
+    "subr", "continuation", "vector", "table", "stream", "box",
+  };
+  for (int i = 0; i < NUMBER_OF_TYPES; ++i)
+    typeSymbols_[i] = intern(TypeSymbolStrings[i]);
+
   vm_ = Vm::create(this);
   installBasicFunctions(this);
   installBasicObjects();
