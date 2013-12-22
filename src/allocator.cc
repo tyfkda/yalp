@@ -82,7 +82,7 @@ Allocator::~Allocator() {
     GcObject* gcobj = objectTop_;
     objectTop_ = gcobj->next_;
     gcobj->destruct(this);
-    FREE(this, gcobj);
+    this->free(gcobj);
   }
 }
 
@@ -113,7 +113,7 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
-  GcObject* gcobj = static_cast<GcObject*>(ALLOC(this, size));
+  GcObject* gcobj = static_cast<GcObject*>(this->alloc(size));
   gcobj->next_ = objectTop_;
   objectTop_ = gcobj;
   ++objectCount_;
@@ -150,7 +150,7 @@ void Allocator::sweep() {
     else
       prev->next_ = next;
     gcobj->destruct(this);
-    FREE(this, gcobj);
+    this->free(gcobj);
     gcobj = next;
   }
   objectCount_ = n;

@@ -51,14 +51,14 @@ struct SymbolManager::StrHashPolicy : public HashPolicy<const char*> {
 SymbolManager::StrHashPolicy SymbolManager::s_hashPolicy;
 
 SymbolManager* SymbolManager::create(Allocator* allocator) {
-  void* memory = ALLOC(allocator, sizeof(SymbolManager));
+  void* memory = allocator->alloc(sizeof(SymbolManager));
   return new(memory) SymbolManager(allocator);
 }
 
 void SymbolManager::release() {
   Allocator* allocator = allocator_;
   this->~SymbolManager();
-  FREE(allocator, this);
+  allocator->free(this);
 }
 
 SymbolManager::SymbolManager(Allocator* allocator)
@@ -73,18 +73,18 @@ SymbolManager::~SymbolManager() {
   // Frees name pages.
   for (Page* page = namePageTop_; page != NULL; ) {
     Page* next = page->next;
-    FREE(allocator_, page);
+    allocator_->free(page);
     page = next;
   }
   // Frees symbol pages.
   for (Page* page = symbolPageTop_; page != NULL; ) {
     Page* next = page->next;
-    FREE(allocator_, page);
+    allocator_->free(page);
     page = next;
   }
   // Frees array.
   if (symbolArray_ != NULL)
-    FREE(allocator_, symbolArray_);
+    allocator_->free(symbolArray_);
 }
 
 SymbolId SymbolManager::intern(const char* name) {
@@ -123,11 +123,11 @@ SymbolId SymbolManager::generate(const char* name) {
 
 void SymbolManager::expandSymbolPage(SymbolId oldSize) {
   SymbolId extendedCount = oldSize + PAGE_OBJECT_COUNT;
-  SymbolPage* newPage = new(ALLOC(allocator_, sizeof(*newPage))) SymbolPage(symbolPageTop_);
+  SymbolPage* newPage = new(allocator_->alloc(sizeof(*newPage))) SymbolPage(symbolPageTop_);
   symbolPageTop_ = newPage;
 
-  symbolArray_ = static_cast<Symbol**>(REALLOC(allocator_, symbolArray_,
-                                         sizeof(Symbol*) * extendedCount));
+  symbolArray_ = static_cast<Symbol**>(allocator_->realloc(symbolArray_,
+                                                           sizeof(Symbol*) * extendedCount));
 }
 
 void SymbolManager::expandNamePage(int len) {
@@ -136,7 +136,7 @@ void SymbolManager::expandNamePage(int len) {
     bufferSize = (len / NAME_BUFFER_SIZE + 1) * NAME_BUFFER_SIZE;
   }
 
-  NamePage* newPage = new(ALLOC(allocator_, sizeof(*newPage) + bufferSize - 1)) NamePage(namePageTop_);
+  NamePage* newPage = new(allocator_->alloc(sizeof(*newPage) + bufferSize - 1)) NamePage(namePageTop_);
   namePageTop_ = newPage;
   nameBufferSize_ = bufferSize;
   nameBufferOffset_ = 0;

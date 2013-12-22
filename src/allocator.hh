@@ -47,11 +47,6 @@ private:
 
 AllocFunc getDefaultAllocFunc();
 
-#define ALLOC(allocator, size)  ((allocator)->alloc((size)))
-#define REALLOC(allocator, ptr, size)  ((allocator)->realloc((ptr), (size)))
-#define FREE(allocator, ptr)  ((allocator)->free((ptr)))
-#define OBJALLOC(allocator, size)  ((allocator)->objAlloc((size)))
-
 }  // namespace yalp
 
 #endif

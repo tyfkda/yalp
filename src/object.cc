@@ -115,7 +115,7 @@ String::String(const char* string, int len)
 }
 
 void String::destruct(Allocator* allocator) {
-  FREE(allocator, const_cast<char*>(string_));
+  allocator->free(const_cast<char*>(string_));
   Sobject::destruct(allocator);
 }
 
@@ -188,12 +188,12 @@ void SFlonum::output(State*, Stream* o, bool) const {
 Vector::Vector(Allocator* allocator, int size)
   : Sobject()
   , size_(size) {
-  void* memory = ALLOC(allocator, sizeof(Value) * size_);
+  void* memory = allocator->alloc(sizeof(Value) * size_);
   buffer_ = new(memory) Value[size_];
 }
 
 void Vector::destruct(Allocator* allocator) {
-  FREE(allocator, buffer_);
+  allocator->free(buffer_);
   Sobject::destruct(allocator);
 }
 
@@ -232,13 +232,13 @@ void Vector::set(int index, Value x)  {
 
 SHashTable::SHashTable(Allocator* allocator, HashPolicy<Value>* policy)
   : Sobject() {
-  void* memory = ALLOC(allocator, sizeof(*table_));
+  void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) TableType(policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
   table_->~TableType();
-  FREE(allocator, table_);
+  allocator->free(table_);
   Sobject::destruct(allocator);
 }
 
@@ -299,7 +299,7 @@ Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int 
 
 void Closure::destruct(Allocator* allocator) {
   if (freeVariables_ != NULL)
-    FREE(allocator, freeVariables_);
+    allocator->free(freeVariables_);
   Callable::destruct(allocator);
 }
 
@@ -363,9 +363,9 @@ Continuation::Continuation(State* state, const Value* stack, int size,
 
 void Continuation::destruct(Allocator* allocator) {
   if (callStack_ != NULL)
-    FREE(allocator, callStack_);
+    allocator->free(callStack_);
   if (copiedStack_ != NULL)
-    FREE(allocator, copiedStack_);
+    allocator->free(copiedStack_);
   Callable::destruct(allocator);
 }
 
@@ -388,7 +388,7 @@ SStream::SStream(Stream* stream)
   : Sobject(), stream_(stream)  {}
 
 void SStream::destruct(Allocator* allocator) {
-  FREE(allocator, stream_);
+  allocator->free(stream_);
 }
 
 Type SStream::getType() const  { return TT_STREAM; }

@@ -209,21 +209,21 @@ State* State::create() {
 
 State* State::create(AllocFunc allocFunc) {
   Allocator* allocator = Allocator::create(allocFunc, &stateAllocatorCallback);
-  void* memory = ALLOC(allocator, sizeof(State));
+  void* memory = allocator->alloc(sizeof(State));
   return new(memory) State(allocator);
 }
 
 void State::release() {
   Allocator* allocator = allocator_;
   this->~State();
-  FREE(allocator, this);
+  allocator->free(this);
   allocator_->release();
 }
 
 State::State(Allocator* allocator)
   : allocator_(allocator)
   , symbolManager_(SymbolManager::create(allocator_))
-  , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
+  , hashPolicyEq_(new(allocator_->alloc(sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , readTable_(NULL)
   , vm_(NULL)
   , jmp_(NULL) {
@@ -256,7 +256,7 @@ State::State(Allocator* allocator)
 }
 
 State::~State() {
-  FREE(allocator_, hashPolicyEq_);
+  allocator_->free(hashPolicyEq_);
   vm_->release();
   symbolManager_->release();
 }
@@ -350,19 +350,19 @@ void State::checkType(Value x, Type expected) {
 }
 
 void* State::alloc(size_t size) const {
-  return ALLOC(allocator_, size);
+  return allocator_->alloc(size);
 }
 
 void* State::realloc(void* ptr, size_t size) const {
-  return REALLOC(allocator_, ptr, size);
+  return allocator_->realloc(ptr, size);
 }
 
 void State::free(void* ptr) const {
-  FREE(allocator_, ptr);
+  allocator_->free(ptr);
 }
 
 void* State::objAlloc(size_t size) const {
-  return OBJALLOC(allocator_, size);
+  return allocator_->objAlloc(size);
 }
 
 Value State::intern(const char* name) {
@@ -379,7 +379,7 @@ const Symbol* State::getSymbol(unsigned int symbolId) const {
 }
 
 Value State::cons(Value a, Value d) {
-  void* memory = OBJALLOC(allocator_, sizeof(Cell));
+  void* memory = allocator_->objAlloc(sizeof(Cell));
   Cell* cell = new(memory) Cell(a, d);
   return Value(cell);
 }
@@ -395,7 +395,7 @@ Value State::cdr(Value s) {
 }
 
 Value State::createHashTable() {
-  void* memory = OBJALLOC(allocator_, sizeof(SHashTable));
+  void* memory = allocator_->objAlloc(sizeof(SHashTable));
   SHashTable* h = new(memory) SHashTable(allocator_, hashPolicyEq_);
   return Value(h);
 }
@@ -405,7 +405,7 @@ Value State::string(const char* str) {
 }
 
 Value State::string(const char* str, int len) {
-  void* stringBuffer = ALLOC(allocator_, sizeof(char) * (len + 1));
+  void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
   memcpy(copiedString, str, len);
   copiedString[len] = '\0';
@@ -413,22 +413,22 @@ Value State::string(const char* str, int len) {
 }
 
 Value State::allocatedString(const char* str, int len) {
-  void* memory = OBJALLOC(allocator_, sizeof(String));
+  void* memory = allocator_->objAlloc(sizeof(String));
   String* s = new(memory) String(str, len);
   return Value(s);
 }
 
 
 Value State::flonum(Flonum f) {
-  void* memory = OBJALLOC(allocator_, sizeof(SFlonum));
+  void* memory = allocator_->objAlloc(sizeof(SFlonum));
   SFlonum* p = new(memory) SFlonum(f);
   return Value(p);
 }
 
 Value State::createFileStream(FILE* fp) {
-  void* memory = ALLOC(allocator_, sizeof(FileStream));
+  void* memory = allocator_->alloc(sizeof(FileStream));
   FileStream* stream = new(memory) FileStream(fp);
-  void* memory2 = OBJALLOC(allocator_, sizeof(SStream));
+  void* memory2 = allocator_->objAlloc(sizeof(SStream));
   return Value(new(memory2) SStream(stream));
 }
 
