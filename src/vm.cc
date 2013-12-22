@@ -186,29 +186,29 @@ int Vm::findOpcode(Value op) {
 }
 
 Value Vm::box(Value x) {
-  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Box));
+  void* memory = state_->objAlloc(sizeof(Box));
   return Value(new(memory) Box(x));
 }
 
 //=============================================================================
 
 Vm* Vm::create(State* state) {
-  void* memory = ALLOC(state->getAllocator(), sizeof(Vm));
+  void* memory = state->alloc(sizeof(Vm));
   return new(memory) Vm(state);
 }
 
 void Vm::release() {
-  Allocator* allocator = state_->getAllocator();
+  State* state = state_;
   this->~Vm();
-  FREE(allocator, this);
+  state->free(this);
 }
 
 Vm::~Vm() {
   if (values_ != NULL)
-    FREE(state_->getAllocator(), values_);
+    state_->free(values_);
   if (stack_ != NULL)
-    FREE(state_->getAllocator(), stack_);
-  FREE(state_->getAllocator(), opcodes_);
+    state_->free(stack_);
+  state_->free(opcodes_);
 }
 
 Vm::Vm(State* state)
@@ -224,7 +224,7 @@ Vm::Vm(State* state)
 #undef OP
     };
 
-    void* memory = ALLOC(state_->getAllocator(), sizeof(Value) * NUMBER_OF_OPCODE);
+    void* memory = state_->alloc(sizeof(Value) * NUMBER_OF_OPCODE);
     opcodes_ = new(memory) Value[NUMBER_OF_OPCODE];
     for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
       opcodes_[i] = state_->intern(NameTable[i]);
@@ -314,7 +314,7 @@ bool Vm::assignGlobal(Value sym, Value value) {
 }
 
 void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  void* memory = OBJALLOC(state_->getAllocator(), sizeof(NativeFunc));
+  void* memory = state_->objAlloc(sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   defineGlobal(state_->intern(name), Value(nativeFunc));
 }
@@ -480,7 +480,7 @@ void Vm::apply(Value fn, int argNum) {
 }
 
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = OBJALLOC(state_->getAllocator(), sizeof(Closure));
+  void* memory = state_->objAlloc(sizeof(Closure));
   Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
@@ -500,10 +500,9 @@ void Vm::registerMacro(Value name, int minParam, int maxParam, Value body) {
 }
 
 Value Vm::createContinuation(int s) {
-  Allocator* allocator = state_->getAllocator();
-  void* memory = OBJALLOC(allocator, sizeof(Continuation));
-  return Value(new(memory) Continuation(allocator, stack_, s,
-                                         &callStack_[0], callStack_.size()));
+  void* memory = state_->objAlloc(sizeof(Continuation));
+  return Value(new(memory) Continuation(state_, stack_, s,
+                                        &callStack_[0], callStack_.size()));
 }
 
 void Vm::reserveStack(int n) {
@@ -511,7 +510,7 @@ void Vm::reserveStack(int n) {
     return;
 
   int newSize = n + 16;
-  void* memory = REALLOC(state_->getAllocator(), stack_, sizeof(Value) * newSize);
+  void* memory = state_->realloc(stack_, sizeof(Value) * newSize);
   Value* newStack = static_cast<Value*>(memory);
   stack_ = newStack;
   stackSize_ = newSize;
@@ -588,7 +587,7 @@ void Vm::storeValues(int n, int s) {
   // Move arguments from stack to values buffer.
   if (n - 1 > valuesSize_) {
     // Allocation size is n - 1, because values[0] is stored in a_ register.
-    void* memory = REALLOC(state_->getAllocator(), values_, sizeof(Value) * (n - 1));
+    void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
     Value* newBuffer = static_cast<Value*>(memory);
     values_ = newBuffer;
     valuesSize_ = n - 1;

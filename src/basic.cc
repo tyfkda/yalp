@@ -455,11 +455,11 @@ static Value s_read_char(State* state) {
   return c == EOF ? Value::NIL : state->character(c);
 }
 
-static char* reallocateString(Allocator* allocator, char* heap, int heapSize,
+static char* reallocateString(State* state, char* heap, int heapSize,
                               const char* local, int len) {
   // Copy local to heap.
   int newSize = heapSize + len;
-  char* newHeap = static_cast<char*>(REALLOC(allocator, heap, sizeof(*heap) * newSize));
+  char* newHeap = static_cast<char*>(state->realloc(heap, sizeof(*heap) * newSize));
   // TODO: Handle memory over.
   memcpy(&newHeap[heapSize], local, sizeof(*heap) * len);
   return newHeap;
@@ -480,7 +480,7 @@ static Value s_read_line(State* state) {
       break;
     if (len >= SIZE) {
       // Copy local to heap.
-      heap = reallocateString(state->getAllocator(), heap, heapSize,
+      heap = reallocateString(state, heap, heapSize,
                               local, len);
       heapSize += len;
       len = 0;
@@ -495,7 +495,7 @@ static Value s_read_line(State* state) {
     return state->string(local);
   }
 
-  char* copiedString = reallocateString(state->getAllocator(), heap, heapSize,
+  char* copiedString = reallocateString(state, heap, heapSize,
                                         local, len + 1);
   len = heapSize + len;
   copiedString[len] = '\0';

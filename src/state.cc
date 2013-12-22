@@ -349,6 +349,22 @@ void State::checkType(Value x, Type expected) {
     runtimeError("Type error, %d expected, but `%@`", expected, &x);
 }
 
+void* State::alloc(size_t size) const {
+  return ALLOC(allocator_, size);
+}
+
+void* State::realloc(void* ptr, size_t size) const {
+  return REALLOC(allocator_, ptr, size);
+}
+
+void State::free(void* ptr) const {
+  FREE(allocator_, ptr);
+}
+
+void* State::objAlloc(size_t size) const {
+  return OBJALLOC(allocator_, size);
+}
+
 Value State::intern(const char* name) {
   SymbolId symbolId = symbolManager_->intern(name);
   return Value(symbolId, TAG2_SYMBOL);

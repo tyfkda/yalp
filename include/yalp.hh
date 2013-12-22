@@ -172,6 +172,10 @@ public:
   inline Value getConstant(Constant c) const;
   inline Value getTypeSymbol(Type type) const;
 
+  void* alloc(size_t size) const;
+  void* realloc(void* ptr, size_t size) const;
+  void free(void* ptr) const;
+  void* objAlloc(size_t size) const;
   Allocator* getAllocator()  { return allocator_; }
 
   void setMacroCharacter(int c, Value func);

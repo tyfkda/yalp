@@ -265,7 +265,7 @@ protected:
 // Continuation class.
 class Continuation : public Callable {
 public:
-  Continuation(Allocator* allocator, const Value* stack, int size,
+  Continuation(State* state, const Value* stack, int size,
                const CallStack* callStack, int callStackSize);
   virtual Type getType() const override;
 

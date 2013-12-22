@@ -71,10 +71,10 @@ Reader::Reader(State* state, Stream* stream)
 
 Reader::~Reader() {
   if (buffer_ != NULL)
-    FREE(state_->getAllocator(), buffer_);
+    state_->free(buffer_);
   if (sharedStructures_ != NULL) {
     sharedStructures_->~HashTable<int, Value>();
-    FREE(state_->getAllocator(), sharedStructures_);
+    state_->free(sharedStructures_);
   }
 }
 
@@ -132,10 +132,10 @@ int Reader::putBuffer(char** pBuffer, int* pSize, int p, int c) {
     for (newSize = *pSize; (newSize <<= 1) <= p; );
     char* newBuffer;
     if (buffer_ == NULL) {  // Allocates memory from heap at first time.
-      newBuffer = static_cast<char*>(ALLOC(state_->getAllocator(), newSize));
+      newBuffer = static_cast<char*>(state_->alloc(newSize));
       memcpy(newBuffer, *pBuffer, *pSize);
     } else {  // Already allocated memory from heap, and expand it.
-      newBuffer = static_cast<char*>(REALLOC(state_->getAllocator(), *pBuffer, newSize));
+      newBuffer = static_cast<char*>(state_->realloc(*pBuffer, newSize));
     }
     *pBuffer = buffer_ = newBuffer;
     *pSize = size_ = newSize;
@@ -379,9 +379,9 @@ ErrorCode Reader::readChar(Value* pValue) {
 
 void Reader::storeShared(int id, Value value) {
   if (sharedStructures_ == NULL) {
-    void* memory = ALLOC(state_->getAllocator(), sizeof(*sharedStructures_));
+    void* memory = state_->alloc(sizeof(*sharedStructures_));
     sharedStructures_ = new(memory) HashTable<int, Value>(&s_hashPolicy,
-                                                           state_->getAllocator());
+                                                          state_->getAllocator());
   }
   sharedStructures_->put(id, value);
 }

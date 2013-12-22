@@ -292,7 +292,7 @@ Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int 
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
-    void* memory = ALLOC(state->getAllocator(), sizeof(Value) * freeVarCount);
+    void* memory = state->alloc(sizeof(Value) * freeVarCount);
     freeVariables_ = new(memory) Value[freeVarCount];
   }
 }
@@ -343,19 +343,19 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 }
 
 //=============================================================================
-Continuation::Continuation(Allocator* allocator, const Value* stack, int size,
+Continuation::Continuation(State* state, const Value* stack, int size,
                            const CallStack* callStack, int callStackSize)
   : Callable(), copiedStack_(NULL), stackSize_(0)
   , callStack_(NULL), callStackSize_(0) {
   if (size > 0) {
-    copiedStack_ = static_cast<Value*>(ALLOC(allocator, sizeof(Value) * size));
+    copiedStack_ = static_cast<Value*>(state->alloc(sizeof(Value) * size));
     stackSize_ = size;
     memcpy(copiedStack_, stack, sizeof(Value) * size);
   }
 
   if (--callStackSize > 0) {
     int nbytes = sizeof(CallStack) * callStackSize;
-    callStack_ = static_cast<CallStack*>(ALLOC(allocator, nbytes));
+    callStack_ = static_cast<CallStack*>(state->alloc(nbytes));
     callStackSize_ = callStackSize;
     memcpy(callStack_, callStack, nbytes);
   }
