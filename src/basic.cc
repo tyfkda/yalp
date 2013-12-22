@@ -434,6 +434,14 @@ static Value s_read_char(State* state) {
   return c == EOF ? Value::NIL : state->character(c);
 }
 
+static Value s_unread_char(State* state) {
+  Value ch = state->getArg(0);
+  state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
+  Stream* stream = chooseStream(state, 1, "*stdin*");
+  stream->putback(ch.toCharacter());
+  return ch;
+}
+
 static char* reallocateString(State* state, char* heap, int heapSize,
                               const char* local, int len) {
   // Copy local to heap.
@@ -677,6 +685,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("read-from-string", s_read_from_string, 1);
   state->defineNative("read-delimited-list", s_read_delimited_list, 2);
   state->defineNative("read-char", s_read_char, 0, 1);
+  state->defineNative("unread-char", s_unread_char, 1, 2);
   state->defineNative("read-line", s_read_line, 0, 1);
 
   state->defineNative("uniq", s_uniq, 0);
