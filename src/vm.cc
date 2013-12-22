@@ -449,6 +449,7 @@ void Vm::apply(Value fn, int argNum) {
       s_ = push(Value(argNum), s_);
       x_ = return_;
       a_ = native->call(state_);
+      // x_ might be updated in the above call using #tailcall method.
     }
     break;
   case TT_CONTINUATION:
