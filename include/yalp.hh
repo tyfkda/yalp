@@ -31,9 +31,12 @@ class Symbol;
 class SymbolManager;
 class Vm;
 
-// This must be able to hold native pointer size value.
 typedef long Fixnum;
+static_assert(sizeof(Fixnum) >= sizeof(void*),
+              "Fixnum must have enough size to store pointer value");
+
 typedef double Flonum;
+
 
 typedef void* (*AllocFunc)(void* p, size_t size);
 
