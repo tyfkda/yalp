@@ -8,33 +8,35 @@
 #include "binder.hh"
 #include "yalp.hh"
 
-namespace yalpbind {
+namespace yalp {
+namespace bind {
 
 template <class T>
 struct Type {
-  //static int check(yalp::Value v) = 0;
-  //static int get(yalp::State*, yalp::Value v) = 0;
-  //static yalp::Value ret(yalp::State*, int f) = 0;
+  //static int check(Value v) = 0;
+  //static int get(State*, Value v) = 0;
+  //static Value ret(State*, int f) = 0;
 };
 
 // int
 template<>
 struct Type<int> {
   static const char TYPE_NAME[];
-  static int check(yalp::Value v)  { yalp::Type type = v.getType(); return type == yalp::TT_FIXNUM; }
-  static int get(yalp::State*, yalp::Value v)  { return v.toFixnum(); }
-  static yalp::Value ret(yalp::State*, int f)  { return yalp::Value(f); }
+  static int check(Value v)  { return v.getType() == TT_FIXNUM; }
+  static int get(State*, Value v)  { return v.toFixnum(); }
+  static Value ret(State*, int f)  { return Value(f); }
 };
 
 // double
 template<>
 struct Type<double> {
   static const char TYPE_NAME[];
-  static int check(yalp::Value v)  { yalp::Type type = v.getType(); return type == yalp::TT_FLONUM || type == yalp::TT_FIXNUM; }
-  static double get(yalp::State* state, yalp::Value v)  { return v.toFlonum(state); }
-  static yalp::Value ret(yalp::State* state, double f)  { return state->flonum(f); }
+  static int check(Value v)  { yalp::Type type = v.getType(); return type == TT_FLONUM || type == TT_FIXNUM; }
+  static double get(State* state, Value v)  { return v.toFlonum(state); }
+  static Value ret(State* state, double f)  { return state->flonum(f); }
 };
 
-}  // namespace yalpbind
+}  // namespace bind
+}  // namespace yalp
 
 #endif

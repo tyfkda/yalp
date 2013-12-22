@@ -16,7 +16,7 @@ int main() {
   state->runBinaryFromFile("../boot.bin");
 
   {
-    yalpbind::YalpBind b(state);
+    yalp::bind::Binder b(state);
     b.bind("square", square);
   }
   state->runFromString("(print (square 1111))");

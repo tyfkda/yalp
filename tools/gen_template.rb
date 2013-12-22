@@ -8,10 +8,10 @@ HEADER = <<EOD
 \#define CHECK(i)  {if (!Type<P##i>::check(state->getArg(i))) return RAISE(i);}
 \#define RAISE(i)  raiseTypeError(state, i, Type<P##i>::TYPE_NAME, state->getArg(i))
 
-// Template class for Binder.
-// Binder template class is specialized with type.
+// Template class for Selector.
+// Selector template class is specialized with type.
 template <class T>
-struct Binder {
+struct Selector {
   // Template specialization.
   //static Value call(State* state) = 0;
 };
@@ -26,23 +26,23 @@ EOD
 FUNC_TMPL = <<EOD
 // void f(%PARAMS%);
 template<%CLASSES0%>
-struct Binder<void (*)(%PARAMS%)> {
+struct Selector<void (*)(%PARAMS%)> {
   typedef void (*FuncType)(%PARAMS%);
   static const int NPARAM = %NPARAM%;
-  static yalp::Value call(yalp::State* state) {
+  static Value call(State* state) {
     %ASSERTS%
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(%ARGS%);
-    return yalp::Value::NIL;
+    return Value::NIL;
   }
 };
 
 // R f(%PARAMS%);
 template<class R%CLASSES1%>
-struct Binder<R (*)(%PARAMS%)> {
+struct Selector<R (*)(%PARAMS%)> {
   typedef R (*FuncType)(%PARAMS%);
   static const int NPARAM = %NPARAM%;
-  static yalp::Value call(yalp::State* state) {
+  static Value call(State* state) {
     %ASSERTS%
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     R result = (*funcPtr)(%ARGS%);

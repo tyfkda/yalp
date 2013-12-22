@@ -7,9 +7,8 @@
 
 #include <new>
 
-using namespace yalp;
-
-namespace yalpbind {
+namespace yalp {
+namespace bind {
 
 const char Type<int>::TYPE_NAME[] = "Fixnum";
 const char Type<double>::TYPE_NAME[] = "Flonum";
@@ -39,11 +38,12 @@ void* getBindedFuncPtr(State* state) {
   return fn->getFuncPtr();
 }
 
-yalp::Value raiseTypeError(yalp::State* state, int parameterIndex,
-                           const char* requiredTypeName, yalp::Value value) {
+Value raiseTypeError(State* state, int parameterIndex,
+                     const char* requiredTypeName, Value value) {
   state->runtimeError("Type error: parameter %d requires type %s, but %@",
                       parameterIndex + 1, requiredTypeName, &value);
   return Value::NIL;
 }
 
-}  // namespace yalpbind
+}  // namespace bind
+}  // namespace yalp

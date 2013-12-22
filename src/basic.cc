@@ -16,8 +16,6 @@
 #include <assert.h>
 #include <tgmath.h>
 
-using yalpbind::YalpBind;
-
 namespace yalp {
 
 //=============================================================================
@@ -659,7 +657,7 @@ void installBasicFunctions(State* state) {
   state->defineNative(">=", s_greaterEqual, 2, -1);
 
   {
-    YalpBind b(state);
+    bind::Binder b(state);
     b.bind("sin", sin);
     b.bind("cos", cos);
     b.bind("tan", tan);
