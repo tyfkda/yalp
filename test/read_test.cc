@@ -152,19 +152,19 @@ TEST_F(ReadTest, Float) {
 TEST_F(ReadTest, Char) {
   Value s;
   ASSERT_EQ(SUCCESS, read("#\\A", &s));
-  ASSERT_TRUE(state_->fixnum(65).eq(s));
+  ASSERT_EQ('A', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\[", &s));
-  ASSERT_TRUE(state_->fixnum('[').eq(s));
+  ASSERT_EQ('[', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\space", &s));
-  ASSERT_TRUE(state_->fixnum(' ').eq(s));
+  ASSERT_EQ(' ', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\nl", &s));  // #\newline, or #\nl
-  ASSERT_TRUE(state_->fixnum('\n').eq(s));
+  ASSERT_EQ('\n', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\tab", &s));
-  ASSERT_TRUE(state_->fixnum('\t').eq(s));
+  ASSERT_EQ('\t', s.toCharacter());
 }
 
 TEST_F(ReadTest, Error) {
