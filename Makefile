@@ -48,7 +48,7 @@ test:	$(PROJECT)
 	make -C test test
 
 check-length:
-	wc -l src/* include/**/* compiler/*.arc | sort -nr
+	wc -l src/* include/**/*.hh compiler/*.arc | sort -nr
 
 boot.bin:	self.bin
 	mv self.bin boot.bin
