@@ -28,6 +28,7 @@ public:
   // Execute compiled code.
   Value run(Value code);
 
+  inline Sobject* getFunc() const;
   // Gets argument number for current native function.
   inline int getArgNum() const;
   // Gets argument value for the index.
@@ -127,6 +128,7 @@ private:
   std::vector<CallStack> callStack_;
 };
 
+Sobject* Vm::getFunc() const  { return c_.toObject(); }
 int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
 Value Vm::getArg(int index) const  { return this->index(f_, index); }
 int Vm::getResultNum() const  { return valueCount_; }

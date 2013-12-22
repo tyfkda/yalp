@@ -35,8 +35,8 @@ Value createBindingFunc(State* state, void* funcPtr,
 }
 
 void* getBindedFuncPtr(State* state) {
-  (void)state;
-  return NULL;
+  BindedNativeFunc* fn = static_cast<BindedNativeFunc*>(state->getFunc());
+  return fn->getFuncPtr();
 }
 
 yalp::Value raiseTypeError(yalp::State* state, int parameterIndex,

@@ -28,3 +28,6 @@ clean:
 
 003_call_script_func:	003_call_script_func.o
 	g++ -o $@ $(LIBNAME) 003_call_script_func.o
+
+004_use_binder:	004_use_binder.o
+	g++ -o $@ $(LIBNAME) 004_use_binder.o
