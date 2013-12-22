@@ -432,6 +432,10 @@ Value State::createFileStream(FILE* fp) {
   return Value(new(memory2) SStream(stream));
 }
 
+Sobject* State::getFunc() const {
+  return vm_->getFunc();
+}
+
 int State::getArgNum() const {
   return vm_->getArgNum();
 }

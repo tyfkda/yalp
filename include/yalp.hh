@@ -146,6 +146,7 @@ public:
   // File stream.
   Value createFileStream(FILE* fp);
 
+  Sobject* getFunc() const;
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.

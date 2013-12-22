@@ -48,7 +48,7 @@ test:	$(PROJECT)
 	make -C test test
 
 check-length:
-	wc -l src/* include/**/* compiler/*.arc | sort -nr
+	wc -l src/* include/**/*.hh compiler/*.arc | sort -nr
 
 boot.bin:	self.bin
 	mv self.bin boot.bin
@@ -58,3 +58,6 @@ self.bin:	compiler/boot.arc compiler/util.arc compiler/compiler.arc
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK
+
+include/yalp/binder.inc:	tools/gen_template.rb
+	ruby $< > $@

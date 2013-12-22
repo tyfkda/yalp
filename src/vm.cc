@@ -445,6 +445,7 @@ void Vm::apply(Value fn, int argNum) {
       checkArgNum(state_, fn, argNum, min, max);
       pushCallStack(native);
 
+      c_ = fn;
       f_ = s_;
       s_ = push(Value(argNum), s_);
       x_ = return_;
