@@ -70,15 +70,14 @@ public:
   bool isObject() const;
   Sobject* toObject() const;
   const Symbol* toSymbol(State* state) const;
-  int toCharacter() const  { return toFixnum(); }
+  inline int toCharacter() const;
 
   // Object euality.
-  bool eq(Value target) const  { return v_ == target.v_; }
+  inline bool eq(Value target) const;
   bool equal(Value target) const;
 
   void output(State* state, Stream* o, bool inspect) const;
 
-  long getId() const  { return v_; }
   unsigned int calcHash(State* state) const;
 
   void mark();
@@ -219,8 +218,10 @@ private:
   friend struct StateAllocatorCallback;
 };
 
+inline bool Value::eq(Value target) const  { return v_ == target.v_; }
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
+inline int Value::toCharacter() const  { return toFixnum(); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }
