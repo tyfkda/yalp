@@ -114,6 +114,7 @@ run_raw nil! nil "(defmacro nil! (sym)
                   (write xyz)"
 run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
                         ((^(foo) (print (foo))) (^() 'bar))"
+run_raw macro-capture baz "((^(bar) (defmacro foo() (list 'quote bar))) 'baz) (print (foo))"
 
 # Test native functions
 run cons '(1 . 2)' '(cons 1 2)'

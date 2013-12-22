@@ -94,6 +94,8 @@ enum Opcode {
 #define CDDR(x)  (CDR(CDR(x)))
 #define CADDR(x)  (CAR(CDDR(x)))
 #define CDDDR(x)  (CDR(CDDR(x)))
+#define CADDDR(x)  (CAR(CDDDR(x)))
+#define CDDDDR(x)  (CDR(CDDDR(x)))
 
 //=============================================================================
 
@@ -489,8 +491,8 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
   return Value(closure);
 }
 
-void Vm::registerMacro(Value name, int minParam, int maxParam, Value body) {
-  Value closure = createClosure(body, 0, s_, minParam, maxParam);
+void Vm::registerMacro(Value name, Value body, int nfree, int s, int minParam, int maxParam) {
+  Value closure = createClosure(body, nfree, s, minParam, maxParam);
 
   assert(name.getType() == TT_SYMBOL);
   static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
@@ -657,9 +659,13 @@ void Vm::replaceOpcodes(Value x) {
       replaceOpcodes(CAR(x));
       x = CDR(x);
       break;
-    case CLOSE: case MACRO:
+    case CLOSE:
       replaceOpcodes(CADDR(x));
       x = CDDDR(x);
+      break;
+    case MACRO:
+      replaceOpcodes(CADDDR(x));
+      x = CDDDDR(x);
       break;
     default:
       state_->runtimeError("Unknown op `%@`", &op);
@@ -830,8 +836,9 @@ Value Vm::runLoop() {
     CASE(MACRO) {
       Value name = CAR(x_);
       Value nparam = CADR(x_);
-      Value body = CADDR(x_);
-      x_ = CDDDR(x_);
+      int nfree = CADDR(x_).toFixnum();
+      Value body = CADDDR(x_);
+      x_ = CDDDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -839,7 +846,8 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      registerMacro(name, min, max, body);
+      registerMacro(name, body, nfree, s_, min, max);
+      s_ -= nfree;
     } NEXT;
     CASE(EXPND) {
       int n = CAR(x_).toFixnum();

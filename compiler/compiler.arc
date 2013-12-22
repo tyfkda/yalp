@@ -94,7 +94,7 @@
                                     c
                                   (list* 'FRAME c next))))
                      (defmacro (name vars . body)
-                       (compile-defmacro name vars body next))
+                       (compile-defmacro name vars body e s next))
                      (values args
                              (compile-values args e s next))
                      (receive (vars vals . body)
@@ -321,17 +321,23 @@
 
 ;;; Macro
 
-(def (compile-defmacro name vars body next)
+(def (compile-defmacro name vars body e s next)
   (let proper-vars (check-parameters vars)
-    (with (varnum (if (is vars proper-vars)
+    (with (free (set-intersect (set-union (car e)
+                                          (cdr e))
+                               (find-frees body '() proper-vars))
+           sets (find-setses body proper-vars)
+           varnum (if (is vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
-                          -1))
-           body-code (compile-body proper-vars proper-vars body (list proper-vars) '() '() '(RET)))
+                          -1)))
+      ;(print `(COMPILE-DEFMACRO free= ,free sets= ,sets))
       ;; Macro registeration will be done in other place.
       ;;(register-macro name (closure body-code 0 %running-stack-pointer min max))
-      (list* 'MACRO name varnum body-code
-             next))))
+      (collect-free free e
+                    (list* 'MACRO name varnum (len free)
+                           (compile-body proper-vars proper-vars body free sets s '(RET))
+                           next)))))
 
 (def (macroexpand-all exp scope-vars)
   (if (pair? exp)

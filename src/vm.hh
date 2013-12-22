@@ -73,6 +73,7 @@ private:
   Value runLoop();
   Value createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum);
   Value createContinuation(int s);
+  void registerMacro(Value name, Value body, int nfree, int s, int minParam, int maxParam);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
 
@@ -89,8 +90,6 @@ private:
   void pushCallStack(Callable* callable);
   void popCallStack();
   void shiftCallStack();
-
-  void registerMacro(Value name, int minParam, int maxParam, Value body);
 
   inline Value index(int s, int i) const;
   inline void indexSet(int s, int i, Value v);
