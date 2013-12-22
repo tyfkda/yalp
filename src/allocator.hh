@@ -15,8 +15,10 @@ public:
     virtual void markRoot(void* userdata) = 0;
   };
 
-  static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);
+  static Allocator* create(AllocFunc allocFunc, Callback* callback);
   void release();
+
+  void setUserData(void* userdata)  { userdata_ = userdata; }
 
   // Allocates non managed memory.
   void* alloc(size_t size);
@@ -30,7 +32,7 @@ public:
   void collectGarbage();
 
 private:
-  Allocator(AllocFunc allocFunc, Callback* callback, void* userdata);
+  Allocator(AllocFunc allocFunc, Callback* callback);
   ~Allocator();
 
   void sweep();
@@ -44,10 +46,6 @@ private:
 };
 
 AllocFunc getDefaultAllocFunc();
-
-#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
-#define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
-#define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
 
 #define ALLOC(allocator, size)  ((allocator)->alloc((size)))
 #define REALLOC(allocator, ptr, size)  ((allocator)->realloc((ptr), (size)))

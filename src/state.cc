@@ -208,24 +208,27 @@ State* State::create() {
 }
 
 State* State::create(AllocFunc allocFunc) {
-  void* memory = RAW_ALLOC(allocFunc, sizeof(State));
-  return new(memory) State(allocFunc);
+  Allocator* allocator = Allocator::create(allocFunc, &stateAllocatorCallback);
+  void* memory = ALLOC(allocator, sizeof(State));
+  return new(memory) State(allocator);
 }
 
 void State::release() {
-  AllocFunc allocFunc = allocFunc_;
+  Allocator* allocator = allocator_;
   this->~State();
-  RAW_FREE(allocFunc, this);
+  FREE(allocator, this);
+  allocator_->release();
 }
 
-State::State(AllocFunc allocFunc)
-  : allocFunc_(allocFunc)
-  , allocator_(Allocator::create(allocFunc, &stateAllocatorCallback, this))
+State::State(Allocator* allocator)
+  : allocator_(allocator)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(ALLOC(allocator_, sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , readTable_(NULL)
   , vm_(NULL)
   , jmp_(NULL) {
+
+  allocator->setUserData(this);
 
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
@@ -256,7 +259,6 @@ State::~State() {
   FREE(allocator_, hashPolicyEq_);
   vm_->release();
   symbolManager_->release();
-  allocator_->release();
 }
 
 void State::installBasicObjects() {

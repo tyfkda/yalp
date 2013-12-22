@@ -18,7 +18,7 @@ struct TestHashPolicy : public HashPolicy<Key> {
 class HashTableTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL, NULL);
+    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL);
   }
 
   virtual void TearDown() override {

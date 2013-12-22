@@ -13,6 +13,10 @@
 
 namespace yalp {
 
+#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
+#define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
+#define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
+
 //=============================================================================
 // GcObject
 /*
@@ -58,9 +62,9 @@ void* defaultAllocFunc(void* p, size_t size) {
 
 AllocFunc getDefaultAllocFunc()  { return defaultAllocFunc; }
 
-Allocator* Allocator::create(AllocFunc allocFunc, Callback* callback, void* userdata) {
+Allocator* Allocator::create(AllocFunc allocFunc, Callback* callback) {
   void* memory = RAW_ALLOC(allocFunc, sizeof(Allocator));
-  return new(memory) Allocator(allocFunc, callback, userdata);
+  return new(memory) Allocator(allocFunc, callback);
 }
 
 void Allocator::release() {
@@ -69,8 +73,8 @@ void Allocator::release() {
   RAW_FREE(allocFunc, this);
 }
 
-Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
-  : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
+Allocator::Allocator(AllocFunc allocFunc, Callback* callback)
+  : allocFunc_(allocFunc), callback_(callback), userdata_(NULL)
   , objectTop_(NULL), objectCount_(0) {}
 
 Allocator::~Allocator() {

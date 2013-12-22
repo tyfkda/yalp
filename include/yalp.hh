@@ -37,7 +37,6 @@ static_assert(sizeof(Fixnum) >= sizeof(void*),
 
 typedef double Flonum;
 
-
 typedef void* (*AllocFunc)(void* p, size_t size);
 
 enum Type {
@@ -197,7 +196,7 @@ public:
 private:
   struct HashPolicyEq;
 
-  State(AllocFunc allocFunc);
+  State(Allocator* allocator);
   ~State();
 
   void installBasicObjects();
@@ -208,7 +207,6 @@ private:
   jmp_buf* setJmpbuf(jmp_buf* jmp);
   void longJmp();
 
-  AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
   Value constants_[NUMBER_OF_CONSTANTS];
