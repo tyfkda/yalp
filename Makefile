@@ -58,3 +58,6 @@ self.bin:	compiler/boot.arc compiler/util.arc compiler/compiler.arc
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK
+
+include/yalp/binder.inc:	tools/gen_template.rb
+	ruby $< > $@
