@@ -226,12 +226,13 @@ State::State(AllocFunc allocFunc)
   , readTable_(NULL)
   , vm_(NULL)
   , jmp_(NULL) {
+
   intern("nil");  // "nil" must be the first symbol.
-  static const char* constSymbols[NUMBER_OF_CONSTANT] = {
+  static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
     "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile"
   };
-  for (int i = 0; i < NUMBER_OF_CONSTANT; ++i)
-    constant_[i] = intern(constSymbols[i]);
+  for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
+    constants_[i] = intern(constSymbols[i]);
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);

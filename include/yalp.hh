@@ -173,10 +173,9 @@ public:
     UNQUOTE,
     UNQUOTE_SPLICING,
     COMPILE,
-
-    NUMBER_OF_CONSTANT
+    NUMBER_OF_CONSTANTS
   };
-  Value getConstant(Constant c) const  { return constant_[c]; }
+  inline Value getConstant(Constant c) const;
 
   Allocator* getAllocator()  { return allocator_; }
 
@@ -216,7 +215,7 @@ private:
   AllocFunc allocFunc_;
   Allocator* allocator_;
   SymbolManager* symbolManager_;
-  Value constant_[NUMBER_OF_CONSTANT];
+  Value constants_[NUMBER_OF_CONSTANTS];
   HashPolicyEq* hashPolicyEq_;
   SHashTable* readTable_;
   Vm* vm_;
@@ -227,6 +226,8 @@ private:
 
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
+
+inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
 inline Value State::fixnum(Fixnum i) const  { return Value(i); }
