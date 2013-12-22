@@ -18,9 +18,9 @@ protected:
 };
 
 TEST_F(UtilTest, ListFunctions) {
-  Value a = state_->fixnum(1);
-  Value b = state_->fixnum(2);
-  Value c = state_->fixnum(3);
+  Value a = Value(1);
+  Value b = Value(2);
+  Value c = Value(3);
 
   Value s1 = list(state_, a);
   ASSERT_TRUE(state_->cons(a, Value::NIL).equal(s1));
@@ -28,15 +28,15 @@ TEST_F(UtilTest, ListFunctions) {
   Value s2 = list(state_, a, b);
   ASSERT_TRUE(state_->cons(a, state_->cons(b, Value::NIL)).equal(s2));
 
-  Value s3 = list(state_, state_->fixnum(1), state_->fixnum(2), state_->fixnum(3));
+  Value s3 = list(state_, Value(1), Value(2), Value(3));
   ASSERT_TRUE(state_->cons(a, state_->cons(b,  state_->cons(c, Value::NIL))).equal(s3));
 }
 
 TEST_F(UtilTest, Nreverse) {
-  Value a = state_->fixnum(1);
-  Value b = state_->fixnum(2);
-  Value c = state_->fixnum(3);
-  Value d = state_->fixnum(3);
+  Value a = Value(1);
+  Value b = Value(2);
+  Value c = Value(3);
+  Value d = Value(3);
 
   Value s = list(state_, a);
   Value reversed = nreverse(s);
@@ -52,7 +52,7 @@ TEST_F(UtilTest, Nreverse) {
 }
 
 TEST_F(UtilTest, length) {
-  Value a = state_->fixnum(1);
+  Value a = Value(1);
   ASSERT_EQ(0, length(Value::NIL));
   ASSERT_EQ(3, length(list(state_, a, a, a)));
   ASSERT_EQ(1, length(state_->cons(a, a)));

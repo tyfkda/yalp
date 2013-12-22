@@ -6,7 +6,7 @@ using yalp::Value;
 
 Value square(State* state) {
   Fixnum x = state->getArg(0).toFixnum();
-  return state->fixnum(x * x);
+  return Value(x * x);
 }
 
 int main() {

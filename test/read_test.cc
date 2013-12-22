@@ -28,7 +28,7 @@ protected:
 TEST_F(ReadTest, LineComment) {
   Value s;
   ASSERT_EQ(SUCCESS, read(" ; Line comment\n 123", &s));
-  ASSERT_TRUE(state_->fixnum(123).eq(s));
+  ASSERT_TRUE(Value(123).eq(s));
 }
 
 TEST_F(ReadTest, Eof) {
@@ -39,10 +39,10 @@ TEST_F(ReadTest, Eof) {
 TEST_F(ReadTest, Fixnum) {
   Value s;
   ASSERT_EQ(SUCCESS, read("123", &s));
-  ASSERT_TRUE(state_->fixnum(123).eq(s));
+  ASSERT_TRUE(Value(123).eq(s));
 
   ASSERT_EQ(SUCCESS, read("-123", &s));
-  ASSERT_TRUE(state_->fixnum(-123).eq(s));
+  ASSERT_TRUE(Value(-123).eq(s));
 }
 
 TEST_F(ReadTest, Symbol) {
@@ -56,21 +56,21 @@ TEST_F(ReadTest, Symbol) {
 TEST_F(ReadTest, List) {
   Value s;
   ASSERT_EQ(SUCCESS, read("(123)", &s));
-  ASSERT_TRUE(list(state_, state_->fixnum(123)).equal(s));
+  ASSERT_TRUE(list(state_, Value(123)).equal(s));
 
   Value s2;
   ASSERT_EQ(SUCCESS, read("(1 2 3)", &s2));
   ASSERT_TRUE(list(state_,
-                   state_->fixnum(1),
-                   state_->fixnum(2),
-                   state_->fixnum(3)).equal(s2));
+                   Value(1),
+                   Value(2),
+                   Value(3)).equal(s2));
 
   Value s3;
   ASSERT_EQ(SUCCESS, read("(1 (2) 3)", &s3));
   ASSERT_TRUE(list(state_,
-                   state_->fixnum(1),
-                   list(state_, state_->fixnum(2)),
-                   state_->fixnum(3)).equal(s3));
+                   Value(1),
+                   list(state_, Value(2)),
+                   Value(3)).equal(s3));
 }
 
 TEST_F(ReadTest, DottedList) {
@@ -78,9 +78,9 @@ TEST_F(ReadTest, DottedList) {
   ASSERT_EQ(DOT_AT_BASE, read(".", &s)) << "Dot is not a symbol";
 
   ASSERT_EQ(SUCCESS, read("(1 2 . 3)", &s));
-  ASSERT_TRUE(state_->cons(state_->fixnum(1),
-                           state_->cons(state_->fixnum(2),
-                                        state_->fixnum(3))).equal(s));
+  ASSERT_TRUE(state_->cons(Value(1),
+                           state_->cons(Value(2),
+                                        Value(3))).equal(s));
 }
 
 TEST_F(ReadTest, Quote) {

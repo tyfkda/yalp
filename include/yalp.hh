@@ -58,6 +58,9 @@ enum Type {
 class Value {
 public:
   Value();
+  explicit Value(Fixnum i);
+  explicit Value(Sobject* object);
+  explicit Value(Fixnum i, int tag2);
 
   // Gets value type.
   Type getType() const;
@@ -86,15 +89,7 @@ public:
   inline bool isFalse() const;
 
 private:
-  explicit Value(Fixnum i);
-  explicit Value(Sobject* object);
-  explicit Value(Fixnum i, int tag2);
-
   Fixnum v_;
-
-  friend Reader;
-  friend State;
-  friend Vm;
 };
 
 typedef Value (*NativeFuncType)(State* state);
@@ -123,9 +118,6 @@ public:
 
   // Converts C++ bool value to lisp bool value.
   inline Value boolean(bool b) const;
-
-  // Converts C++ int value to lisp Fixnum.
-  inline Value fixnum(Fixnum i) const;
 
   // Returns symbol value.
   Value intern(const char* name);
@@ -234,7 +226,6 @@ inline Value State::getConstant(State::Constant c) const  { return constants_[c]
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
-inline Value State::fixnum(Fixnum i) const  { return Value(i); }
 inline Value State::character(int c) const  { return Value(c); }  // Use fixnum as a character.
 
 inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }

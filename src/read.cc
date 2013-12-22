@@ -181,7 +181,7 @@ ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   else if (hasDot)
     *pValue = state_->flonum(static_cast<Flonum>(atof(buffer)));
   else
-    *pValue = state_->fixnum(atol(buffer));
+    *pValue = Value(atol(buffer));
   return SUCCESS;
 }
 
@@ -370,7 +370,7 @@ ErrorCode Reader::readChar(Value* pValue) {
   };
   for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
     if (strcmp(buffer, Table[i].name) == 0) {
-      *pValue = state_->fixnum(Table[i].code);
+      *pValue = state_->character(Table[i].code);
       return SUCCESS;
     }
   }

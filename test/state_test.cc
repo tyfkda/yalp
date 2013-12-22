@@ -19,8 +19,8 @@ protected:
 };
 
 TEST_F(StateTest, Fixnum) {
-  Value s = state_->fixnum(123);
-  ASSERT_TRUE(state_->fixnum(123).eq(s));
+  Value s = Value(123);
+  ASSERT_TRUE(Value(123).eq(s));
 }
 
 TEST_F(StateTest, Symbol) {
@@ -38,24 +38,24 @@ TEST_F(StateTest, Nil) {
 }
 
 TEST_F(StateTest, Cons) {
-  Value v = state_->cons(state_->fixnum(1), state_->fixnum(2));
+  Value v = state_->cons(Value(1), Value(2));
   ASSERT_EQ(TT_CELL, v.getType());
-  ASSERT_TRUE(state_->fixnum(1).eq(state_->car(v)));
-  ASSERT_TRUE(state_->fixnum(2).eq(state_->cdr(v)));
+  ASSERT_TRUE(Value(1).eq(state_->car(v)));
+  ASSERT_TRUE(Value(2).eq(state_->cdr(v)));
   ASSERT_TRUE(v.eq(v));
   ASSERT_TRUE(v.equal(v));
 
-  Value v2 = state_->cons(state_->fixnum(1), state_->fixnum(2));
+  Value v2 = state_->cons(Value(1), Value(2));
   ASSERT_FALSE(v.eq(v2));
   ASSERT_TRUE(v.equal(v2));
 
-  Value v3 = state_->cons(state_->fixnum(10), state_->fixnum(20));
+  Value v3 = state_->cons(Value(10), Value(20));
   ASSERT_FALSE(v.eq(v3));
   ASSERT_FALSE(v.equal(v3));
 }
 
 TEST_F(StateTest, Funcall) {
-  Value args[] = { state_->fixnum(1), state_->fixnum(2), state_->fixnum(3) };
+  Value args[] = { Value(1), Value(2), Value(3) };
   Value fn = state_->referGlobal(state_->intern("+"));
   Value result;
   ASSERT_TRUE(state_->funcall(fn, sizeof(args) / sizeof(*args), args, &result));

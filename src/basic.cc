@@ -145,7 +145,7 @@ struct BinOp {
   static Value calc(State* state) {
     int n = state->getArgNum();
     if (n <= 0)
-      return state->fixnum(Op::base());
+      return Value(Op::base());
     Value x = state->getArg(0);
     Fixnum acc;
     switch (x.getType()) {
@@ -160,7 +160,7 @@ struct BinOp {
       break;
     }
     if (n == 1)
-      return state->fixnum(Op::single(acc));
+      return Value(Op::single(acc));
 
     for (int i = 1; i < n; ++i) {
       Value x = state->getArg(i);
@@ -175,7 +175,7 @@ struct BinOp {
         break;
       }
     }
-    return state->fixnum(acc);
+    return Value(acc);
   }
 
   static Value calcf(State* state, int i, Flonum acc) {
