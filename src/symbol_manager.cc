@@ -5,6 +5,7 @@
 #include "symbol_manager.hh"
 #include "yalp/object.hh"
 #include "yalp/util.hh"  // for strHash
+
 #include <assert.h>
 #include <iostream>
 #include <string.h>
@@ -103,6 +104,7 @@ SymbolId SymbolManager::gensym() {
 }
 
 const Symbol* SymbolManager::get(SymbolId symbolId) const {
+  assert(symbolId < symbolIndex_);
   return symbolArray_[symbolId];
 }
 
