@@ -444,6 +444,11 @@ Value State::getArg(int index) const {
   return vm_->getArg(index);
 }
 
+Value State::multiValues() const  { return vm_->multiValues(); }
+Value State::multiValues(Value v0) const  { return vm_->multiValues(v0); }
+Value State::multiValues(Value v0, Value v1) const  { return vm_->multiValues(v0, v1); }
+Value State::multiValues(Value v0, Value v1, Value v2) const  { return vm_->multiValues(v0, v1, v2); }
+
 int State::getResultNum() const {
   return vm_->getResultNum();
 }

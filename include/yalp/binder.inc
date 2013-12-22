@@ -20,7 +20,7 @@ struct Selector<void (*)(void)> {
     (void)(state);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)();
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -46,7 +46,7 @@ struct Selector<void (*)(P0)> {
     CHECK(0);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -72,7 +72,7 @@ struct Selector<void (*)(P0, P1)> {
     CHECK(0); CHECK(1);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -98,7 +98,7 @@ struct Selector<void (*)(P0, P1, P2)> {
     CHECK(0); CHECK(1); CHECK(2);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -124,7 +124,7 @@ struct Selector<void (*)(P0, P1, P2, P3)> {
     CHECK(0); CHECK(1); CHECK(2); CHECK(3);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2), ARG(3));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -150,7 +150,7 @@ struct Selector<void (*)(P0, P1, P2, P3, P4)> {
     CHECK(0); CHECK(1); CHECK(2); CHECK(3); CHECK(4);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -176,7 +176,7 @@ struct Selector<void (*)(P0, P1, P2, P3, P4, P5)> {
     CHECK(0); CHECK(1); CHECK(2); CHECK(3); CHECK(4); CHECK(5);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -202,7 +202,7 @@ struct Selector<void (*)(P0, P1, P2, P3, P4, P5, P6)> {
     CHECK(0); CHECK(1); CHECK(2); CHECK(3); CHECK(4); CHECK(5); CHECK(6);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5), ARG(6));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 
@@ -228,7 +228,7 @@ struct Selector<void (*)(P0, P1, P2, P3, P4, P5, P6, P7)> {
     CHECK(0); CHECK(1); CHECK(2); CHECK(3); CHECK(4); CHECK(5); CHECK(6); CHECK(7);
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5), ARG(6), ARG(7));
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 

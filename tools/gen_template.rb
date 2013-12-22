@@ -33,7 +33,7 @@ struct Selector<void (*)(%PARAMS%)> {
     %ASSERTS%
     FuncType funcPtr = reinterpret_cast<FuncType>(getBindedFuncPtr(state));
     (*funcPtr)(%ARGS%);
-    return Value::NIL;
+    return state->multiValues();
   }
 };
 

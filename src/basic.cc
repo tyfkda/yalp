@@ -542,9 +542,11 @@ static Value s_hash_table_get(State* state) {
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
   const Value* result = static_cast<SHashTable*>(h.toObject())->get(key);
-  if (result == NULL)
-    return Value::NIL;
-  return *result;
+  if (result == NULL) {
+    Value v = state->getArgNum() > 2 ? state->getArg(2) : Value::NIL;
+    return state->multiValues(v, Value::NIL);
+  }
+  return state->multiValues(*result, state->getConstant(State::T));
 }
 
 static Value s_hash_table_put(State* state) {
@@ -604,7 +606,7 @@ static Value s_exit(State* state) {
   state->checkType(v, TT_FIXNUM);
   int code = v.toFixnum();
   exit(code);
-  return Value::NIL;
+  return state->multiValues();
 }
 
 static Value s_vmtrace(State* state) {
@@ -693,7 +695,7 @@ void installBasicFunctions(State* state) {
   state->defineNative("run-binary", s_run_binary, 1);
 
   state->defineNative("make-hash-table", s_make_hash_table, 0);
-  state->defineNative("hash-table-get", s_hash_table_get, 2);
+  state->defineNative("hash-table-get", s_hash_table_get, 2, 3);
   state->defineNative("hash-table-put!", s_hash_table_put, 3);
   state->defineNative("hash-table-exists?", s_hash_table_exists, 2);
   state->defineNative("hash-table-delete!", s_hash_table_delete, 2);

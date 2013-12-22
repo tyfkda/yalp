@@ -152,6 +152,12 @@ public:
   // Gets argument value for the index.
   Value getArg(int index) const;
 
+  // Set multiple values to return values from C function.
+  Value multiValues() const;
+  Value multiValues(Value v0) const;
+  Value multiValues(Value v0, Value v1) const;
+  Value multiValues(Value v0, Value v1, Value v2) const;
+
   // Gets result number.
   int getResultNum() const;
   // Gets result value for the index.

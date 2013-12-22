@@ -585,8 +585,7 @@ void Vm::shrinkFrame(int n) {
   f_ -= n;
 }
 
-void Vm::storeValues(int n, int s) {
-  // Move arguments from stack to values buffer.
+void Vm::reserveValuesBuffer(int n) {
   if (n - 1 > valuesSize_) {
     // Allocation size is n - 1, because values[0] is stored in a_ register.
     void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
@@ -594,7 +593,10 @@ void Vm::storeValues(int n, int s) {
     values_ = newBuffer;
     valuesSize_ = n - 1;
   }
+}
 
+void Vm::storeValues(int n, int s) {
+  reserveValuesBuffer(n);
   // [0] is already stored in a if n > 0.
   if (n == 0)
     a_ = Value::NIL;
