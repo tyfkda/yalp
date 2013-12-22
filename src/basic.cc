@@ -4,6 +4,7 @@
 
 #include "basic.hh"
 #include "yalp.hh"
+#include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "yalp/stream.hh"
@@ -14,6 +15,8 @@
 #include <alloca.h>
 #include <assert.h>
 #include <tgmath.h>
+
+using yalpbind::YalpBind;
 
 namespace yalp {
 
@@ -349,28 +352,6 @@ static Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
-template <typename Func>
-Value FloatFunc1(State* state, Func f) {
-  return state->flonum(f(state->getArg(0).toFlonum(state)));
-}
-
-template <typename Func>
-Value FloatFunc2(State* state, Func f) {
-  Flonum x = state->getArg(0).toFlonum(state);
-  Flonum y = state->getArg(1).toFlonum(state);
-  return state->flonum(f(x, y));
-}
-
-static Value s_sin(State* state) { return FloatFunc1(state, sin); }
-static Value s_cos(State* state) { return FloatFunc1(state, cos); }
-static Value s_tan(State* state) { return FloatFunc1(state, tan); }
-static Value s_sqrt(State* state) { return FloatFunc1(state, sqrt); }
-static Value s_log(State* state) { return FloatFunc1(state, log); }
-static Value s_floor(State* state) { return FloatFunc1(state, floor); }
-static Value s_ceil(State* state) { return FloatFunc1(state, ceil); }
-static Value s_atan2(State* state) { return FloatFunc2(state, atan2); }
-static Value s_expt(State* state) { return FloatFunc2(state, pow); }
-
 static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
@@ -677,15 +658,18 @@ void installBasicFunctions(State* state) {
   state->defineNative("<=", s_lessEqual, 2, -1);
   state->defineNative(">=", s_greaterEqual, 2, -1);
 
-  state->defineNative("sin", s_sin, 1);
-  state->defineNative("cos", s_cos, 1);
-  state->defineNative("tan", s_tan, 1);
-  state->defineNative("sqrt", s_sqrt, 1);
-  state->defineNative("log", s_log, 1);
-  state->defineNative("floor", s_floor, 1);
-  state->defineNative("ceil", s_ceil, 1);
-  state->defineNative("atan2", s_atan2, 2);
-  state->defineNative("expt", s_expt, 2);
+  {
+    YalpBind b(state);
+    b.bind("sin", sin);
+    b.bind("cos", cos);
+    b.bind("tan", tan);
+    b.bind("sqrt", sqrt);
+    b.bind("log", log);
+    b.bind("floor", floor);
+    b.bind("ceil", ceil);
+    b.bind("atan2", atan2);
+    b.bind("expt", pow);
+  }
 
   state->defineNative("display", s_display, 1, 2);
   state->defineNative("write", s_write, 1, 2);
