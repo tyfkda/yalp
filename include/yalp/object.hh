@@ -61,8 +61,8 @@ protected:
   Sobject()  {}  // Empty construct needed, otherwise member cleared.
   ~Sobject()  {}
 
-  friend State;
-  friend Value;
+  friend class State;
+  friend class Value;
 };
 
 // Cell class.
@@ -89,7 +89,7 @@ private:
   Value car_;
   Value cdr_;
 
-  friend State;
+  friend class State;
 };
 
 // String class.
@@ -114,7 +114,7 @@ private:
   const char* string_;
   int len_;
 
-  friend State;
+  friend class State;
 };
 
 // Floating point number class.
@@ -133,7 +133,7 @@ protected:
 
   Flonum v_;
 
-  friend State;
+  friend class State;
 };
 
 // Vector class.
@@ -157,8 +157,8 @@ protected:
   Value* buffer_;
   int size_;
 
-  friend State;
-  friend Vm;
+  friend class State;
+  friend class Vm;
 };
 
 // HashTable class.
@@ -191,8 +191,8 @@ private:
 
   TableType* table_;
 
-  friend State;
-  friend Vm;
+  friend class State;
+  friend class Vm;
 };
 
 class Callable : public Sobject {
@@ -302,8 +302,8 @@ protected:
 
   Stream* stream_;
 
-  friend Reader;
-  friend State;
+  friend class Reader;
+  friend class State;
 };
 
 }  // namespace yalp
