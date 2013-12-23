@@ -120,7 +120,6 @@ ErrorCode Reader::read(Value* pValue) {
     putback(c);
     if (!isDelimiter(c)) {
       return readSymbolOrNumber(pValue);
-      return SUCCESS;
     }
     return ILLEGAL_CHAR;
   }
