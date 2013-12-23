@@ -217,7 +217,7 @@ void State::release() {
   Allocator* allocator = allocator_;
   this->~State();
   allocator->free(this);
-  allocator_->release();
+  allocator->release();
 }
 
 State::State(Allocator* allocator)
