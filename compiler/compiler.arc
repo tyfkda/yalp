@@ -137,22 +137,40 @@
 
 ;; Compiles ((^(vars) body) args) form
 (def (compile-apply-direct vars body args e s next)
-  (with* (proper-vars (check-parameters vars)
-          ext-vars (append proper-vars (car e)))
-    (with (argnum (len args)
-           free (cdr e)  ;(set-intersect (set-union (car e)
-                         ;                 (cdr e))
-                         ;      (find-frees body '() proper-vars))
-           sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
-      (compile-apply-args args e s
-                          (if (is argnum 0)
-                              (compile-body proper-vars ext-vars body free sets s
-                                            next)
-                            (list* 'EXPND argnum
-                                   (compile-body proper-vars ext-vars body free sets s
-                                                 (if (tail? next)
-                                                     next
-                                                   (list* 'SHRNK argnum next)))))))))
+  (with (proper-vars (check-parameters vars)
+         argnum (len args)
+         varnum (len vars))
+    (if (isnt vars proper-vars)  ;; Has rest param.
+        ;; Tweak arguments.
+        (if (< argnum varnum)  ;; Error handled in the below.
+              (compile-apply-direct proper-vars body args e s next)
+            ;; ((^(x y . z) ...) 1 2 3 4) => ((^(x y z) ...) 1 2 '(3 4))
+            (> argnum varnum)
+              (compile-recur `((^ ,proper-vars ,@body)
+                               ,@(take varnum args)
+                               (list ,@(drop varnum args)))
+                             e s next)
+          ;; ((^(x y . z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
+          (compile-apply-direct proper-vars body (append args '(()))
+                                e s next))
+      (do
+        (unless (is argnum varnum)
+          (let which (if (< argnum varnum) "few" "many")
+            (compile-error "Too" which "arguments, function requires" varnum "but" argnum)))
+        (let ext-vars (append proper-vars (car e))
+          (with (free (cdr e)  ;(set-intersect (set-union (car e)
+                               ;                 (cdr e))
+                               ;      (find-frees body '() proper-vars))
+                 sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+            (compile-apply-args args e s
+                                (if (is argnum 0)
+                                    (compile-body proper-vars ext-vars body free sets s
+                                                  next)
+                                  (list* 'EXPND argnum
+                                         (compile-body proper-vars ext-vars body free sets s
+                                                       (if (tail? next)
+                                                           next
+                                                         (list* 'SHRNK argnum next))))))))))))
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (check-parameters vars)

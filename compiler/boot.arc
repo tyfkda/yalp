@@ -291,3 +291,19 @@
                               (write/ss-print (cdr s) h stream)
                               (display ")" stream)))))))))
     (write s)))
+
+;; Take first n elements from the list.
+(def (take n ls)
+  (awith (n n
+          acc '()
+          ls ls)
+    (if (and ls (> n 0))
+        (loop (- n 1) (cons (car ls) acc) (cdr ls))
+      (reverse! acc))))
+
+;; Drop first n elements from the list (nthcdr).
+(def (drop n ls)
+  (if ls
+      (if (> n 0)
+          (drop (- n 1) (cdr ls))
+        ls)))
