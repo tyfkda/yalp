@@ -26,7 +26,7 @@ clean:
 -include $(OBJDIR)/yalp.d
 
 $(PROJECT):	$(OBJS) $(OBJDIR)/yalp.o
-	g++ -o $(PROJECT) $(LIBNAME) $(OBJDIR)/yalp.o
+	g++ -o $(PROJECT) $(OBJDIR)/yalp.o $(LIBNAME)
 
 $(LIBNAME):	$(OBJS)
 

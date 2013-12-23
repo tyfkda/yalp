@@ -21,13 +21,13 @@ clean:
 	g++ $(CXXFLAGS) -o $@ -c $<
 
 001_run_string:	001_run_string.o
-	g++ -o $@ $(LIBNAME) 001_run_string.o
+	g++ -o $@ 001_run_string.o $(LIBNAME)
 
 002_register_c_func:	002_register_c_func.o
-	g++ -o $@ $(LIBNAME) 002_register_c_func.o
+	g++ -o $@ 002_register_c_func.o $(LIBNAME)
 
 003_call_script_func:	003_call_script_func.o
-	g++ -o $@ $(LIBNAME) 003_call_script_func.o
+	g++ -o $@ 003_call_script_func.o $(LIBNAME)
 
 004_use_binder:	004_use_binder.o
-	g++ -o $@ $(LIBNAME) 004_use_binder.o
+	g++ -o $@ 004_use_binder.o $(LIBNAME)
