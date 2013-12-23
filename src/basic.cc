@@ -14,6 +14,8 @@
 
 #include <alloca.h>
 #include <assert.h>
+#include <string.h>  // for memcpy
+#include <stdlib.h>  // for exit
 #include <tgmath.h>
 
 namespace yalp {
