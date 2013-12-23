@@ -56,7 +56,7 @@ bool Reader::isSpace(int c) {
 }
 
 int Reader::getc()  { return stream_->get(); }
-void Reader::putback(char c)  { stream_->putback(c); }
+void Reader::ungetc(int c)  { stream_->ungetc(c); }
 
 ErrorCode Reader::readQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
 ErrorCode Reader::readQuasiQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
@@ -107,7 +107,7 @@ ErrorCode Reader::read(Value* pValue) {
       c = getc();
       if (c == '@')
         return readUnquoteSplicing(pValue);
-      putback(c);
+      ungetc(c);
       return readUnquote(pValue);
     }
   case '"':
@@ -117,7 +117,7 @@ ErrorCode Reader::read(Value* pValue) {
   case EOF:
     return END_OF_FILE;
   default:
-    putback(c);
+    ungetc(c);
     if (!isDelimiter(c)) {
       return readSymbolOrNumber(pValue);
     }
@@ -148,7 +148,7 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
   int c;
   while (cond(c = getc()))
     p = putBuffer(pBuffer, pSize, p, c);
-  putback(c);
+  ungetc(c);
   putBuffer(pBuffer, pSize, p, '\0');
   return p;
 }
@@ -200,7 +200,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       return SUCCESS;
     }
 
-    putback(c);
+    ungetc(c);
     err = read(&v);
     if (err != SUCCESS)
       break;
@@ -225,7 +225,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       skipSpaces();
       int c = getc();
       if (c != terminator) {
-        putback(c);
+        ungetc(c);
         return NO_CLOSE_PAREN;
       }
 
@@ -293,14 +293,14 @@ ErrorCode Reader::readString(char closeChar, Value* pValue) {
 ErrorCode Reader::readSpecial(Value* pValue) {
   int c = getc();
   if (isdigit(c)) {
-    putback(c);
+    ungetc(c);
     return readSharedStructure(pValue);
   }
   switch (c) {
   case '\\':
     return readChar(pValue);
   default:
-    putback(c);
+    ungetc(c);
     return ILLEGAL_CHAR;
   }
 }
@@ -330,7 +330,7 @@ ErrorCode Reader::readSharedStructure(Value* pValue) {
     }
     // Fall
   default:
-    putback(c);
+    ungetc(c);
     return ILLEGAL_CHAR;
   }
 }
@@ -345,7 +345,7 @@ ErrorCode Reader::readChar(Value* pValue) {
       *pValue = state_->character(c);
       return SUCCESS;
     }
-    putback(c);
+    ungetc(c);
     break;
   }
 
@@ -389,14 +389,14 @@ void Reader::skipSpaces() {
   int c;
   while (isSpace(c = getc()))
     ;
-  putback(c);
+  ungetc(c);
 }
 
 void Reader::skipUntilNextLine() {
   int c;
   while (c = getc(), c != '\n' && c != EOF)
     ;
-  putback(c);
+  ungetc(c);
 }
 
 bool Reader::isDelimiter(int c) {

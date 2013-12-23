@@ -29,7 +29,7 @@ public:
 private:
   inline static bool isSpace(int c);
   inline int getc();
-  inline void putback(char c);
+  inline void ungetc(int c);
   inline ErrorCode readQuote(Value* pValue);
   inline ErrorCode readQuasiQuote(Value* pValue);
   inline ErrorCode readUnquote(Value* pValue);

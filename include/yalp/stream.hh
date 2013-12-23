@@ -15,7 +15,7 @@ class Stream {
 public:
   virtual bool close();
   virtual int get() = 0;
-  virtual void putback(int c) = 0;
+  virtual void ungetc(int c) = 0;
   virtual bool write(char c);
   virtual bool write(const char* s);
   virtual bool write(const char* s, int len) = 0;
@@ -36,7 +36,7 @@ public:
 
   virtual bool close() override;
   virtual int get() override;
-  virtual void putback(int c) override;
+  virtual void ungetc(int c) override;
   using Stream::write;
   virtual bool write(const char* s, int len) override;
 
@@ -53,7 +53,7 @@ public:
 
   virtual bool close() override;
   virtual int get() override;
-  virtual void putback(int c) override;
+  virtual void ungetc(int c) override;
   using Stream::write;
   virtual bool write(const char* s, int len) override;
 

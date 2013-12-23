@@ -438,7 +438,7 @@ static Value s_unread_char(State* state) {
   Value ch = state->getArg(0);
   state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
   Stream* stream = chooseStream(state, 1, "*stdin*");
-  stream->putback(ch.toCharacter());
+  stream->ungetc(ch.toCharacter());
   return ch;
 }
 

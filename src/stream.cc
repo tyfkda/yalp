@@ -43,8 +43,8 @@ int FileStream::get() {
   return fgetc(fp_);
 }
 
-void FileStream::putback(int c) {
-  ungetc(c, fp_);
+void FileStream::ungetc(int c) {
+  ::ungetc(c, fp_);
 }
 
 bool FileStream::write(const char* s, int len) {
@@ -77,7 +77,7 @@ int StrStream::get() {
   return c;
 }
 
-void StrStream::putback(int c) {
+void StrStream::ungetc(int c) {
   ungetc_ = c;
 }
 
