@@ -238,7 +238,7 @@ State::State(Allocator* allocator)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "fixnum", "symbol", "pair", "string", "flonum", "closure",
+    "unknown", "int", "symbol", "pair", "string", "flonum", "closure",
     "subr", "continuation", "vector", "table", "stream", "box",
   };
   for (int i = 0; i < NUMBER_OF_TYPES; ++i)
