@@ -35,8 +35,8 @@ template<>
 struct Type<float> {
   static const char TYPE_NAME[];
   static int check(Value v)  { yalp::Type type = v.getType(); return type == TT_FLONUM || type == TT_FIXNUM; }
-  static float get(State* state, Value v)  { return v.toFlonum(state); }
-  static Value ret(State* state, float f)  { return state->flonum(f); }
+  static float get(State* state, Value v)  { return static_cast<float>(v.toFlonum(state)); }
+  static Value ret(State* state, float f)  { return state->flonum(static_cast<yalp::Flonum>(f)); }
 };
 
 // double
@@ -44,8 +44,8 @@ template<>
 struct Type<double> {
   static const char TYPE_NAME[];
   static int check(Value v)  { yalp::Type type = v.getType(); return type == TT_FLONUM || type == TT_FIXNUM; }
-  static double get(State* state, Value v)  { return v.toFlonum(state); }
-  static Value ret(State* state, double f)  { return state->flonum(f); }
+  static double get(State* state, Value v)  { return static_cast<double>(v.toFlonum(state)); }
+  static Value ret(State* state, double f)  { return state->flonum(static_cast<yalp::Flonum>(f)); }
 };
 
 // const char* (string)
