@@ -241,6 +241,39 @@ static Value s_div(State* state) {
   return BinOp<Div>::calc(state);
 }
 
+static Value s_mod(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  switch (a.getType()) {
+  case TT_FIXNUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return Value(a.toFixnum() % b.toFixnum());
+    case TT_FLONUM:
+      return state->flonum(fmod(a.toFixnum(), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  case TT_FLONUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(fmod(a.toFlonum(state), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(fmod(a.toFlonum(state), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  default:
+    state->runtimeError("Number expected, but `%@`", &a);
+    break;
+  }
+  return Value::NIL;
+}
+
 static Value s_is(State* state) {
   Value a = state->getArg(0);
   Value b = state->getArg(1);
@@ -739,6 +772,7 @@ void installBasicFunctions(State* state) {
     { "-", s_sub, 0, -1 },
     { "*", s_mul, 0, -1 },
     { "/", s_div, 0, -1 },
+    { "mod", s_mod, 2 },
 
     { "is", s_is, 2 },
     { "iso", s_iso, 2 },
