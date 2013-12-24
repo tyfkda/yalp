@@ -134,9 +134,7 @@
 
 (set-macro-character #\[
                      (^(stream ch)
-                       ;(let body (read-delimited-list #\] stream)  ; Sometimes fail.
-                       ;  body)))
-                       `(^ (_) ,(read-delimited-list #\] stream))))  ; Working?
+                       `(^ (_) ,(read-delimited-list #\] stream))))
 
 ;; Anapholic-with macro.
 ;; Like with macro, but captures "loop" variable to make loop syntax.
