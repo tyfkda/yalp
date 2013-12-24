@@ -49,6 +49,7 @@ public:
   bool assignGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   Value getMacro(Value name);
+  void defineMacro(Value name, Value func);
 
   // Calls function.
   Value funcall(Value fn, int argNum, const Value* args);
@@ -73,7 +74,6 @@ private:
   Value runLoop();
   Value createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum);
   Value createContinuation(int s);
-  void registerMacro(Value name, Value body, int nfree, int s, int minParam, int maxParam);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
 

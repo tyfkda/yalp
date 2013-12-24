@@ -488,6 +488,10 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   vm_->defineNative(name, func, minArgNum, maxArgNum);
 }
 
+void State::defineMacro(const char* name, Value func) {
+  vm_->defineMacro(intern(name), func);
+}
+
 void State::setMacroCharacter(int c, Value func) {
   readTable_->put(character(c), func);
 }

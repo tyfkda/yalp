@@ -491,12 +491,12 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
   return Value(closure);
 }
 
-void Vm::registerMacro(Value name, Value body, int nfree, int s, int minParam, int maxParam) {
-  Value closure = createClosure(body, nfree, s, minParam, maxParam);
-
+void Vm::defineMacro(Value name, Value func) {
   state_->checkType(name, TT_SYMBOL);
-  static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
-  macroTable_->put(name, closure);
+  if (!func.isObject() || !static_cast<Sobject*>(func.toObject())->isCallable())
+    state_->runtimeError("`%@` is not callable", &func);
+  static_cast<Callable*>(func.toObject())->setName(name.toSymbol(state_));
+  macroTable_->put(name, func);
   defineGlobal(name, state_->intern("*macro*"));
 }
 
@@ -834,7 +834,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      registerMacro(name, body, nfree, s_, min, max);
+      defineMacro(name, createClosure(body, nfree, s_, min, max));
       s_ -= nfree;
     } NEXT;
     CASE(EXPND) {
