@@ -164,6 +164,10 @@ public:
   // Gets result value for the index.
   Value getResult(int index) const;
 
+  int saveArena() const;
+  void restoreArena(int index);
+  void restoreArenaWith(int index, Value v);
+
   // Raises runtime error.
   void runtimeError(const char* msg, ...);
 

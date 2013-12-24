@@ -28,13 +28,20 @@ public:
   // Allocates managed memory.
   void* objAlloc(size_t size);
 
+  int saveArena() const  { return arenaIndex_; }
+  void restoreArena(int index)  { arenaIndex_ = index; }
+  void restoreArenaWith(int index, GcObject* gcobj);
+
   // Runs garbage collection.
   void collectGarbage();
 
 private:
+  static const int ARENA_SIZE = 200;
+
   Allocator(AllocFunc allocFunc, Callback* callback);
   ~Allocator();
 
+  inline void markArenaObjects();
   void sweep();
 
   AllocFunc allocFunc_;
@@ -43,6 +50,9 @@ private:
 
   GcObject* objectTop_;
   int objectCount_;
+
+  GcObject* arena_[ARENA_SIZE];
+  int arenaIndex_;
 };
 
 AllocFunc getDefaultAllocFunc();

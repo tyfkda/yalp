@@ -220,6 +220,7 @@ Vm::Vm(State* state)
   , trace_(false)
   , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
+  int arena = state_->saveArena();
   {
     static const char* NameTable[NUMBER_OF_OPCODE] = {
 #define OP(name)  #name,
@@ -250,6 +251,7 @@ Vm::Vm(State* state)
   a_ = c_ = Value::NIL;
   x_ = endOfCode_;
   f_ = s_ = 0;
+  state_->restoreArena(arena);
 }
 
 void Vm::setTrace(bool b) {
@@ -447,12 +449,14 @@ void Vm::apply(Value fn, int argNum) {
       checkArgNum(state_, fn, argNum, min, max);
       pushCallStack(native);
 
+      int arena = state_->saveArena();
       c_ = fn;
       f_ = s_;
       s_ = push(Value(argNum), s_);
       x_ = return_;
       a_ = native->call(state_);
       // x_ might be updated in the above call using #tailcall method.
+      state_->restoreArena(arena);
     }
     break;
   case TT_CONTINUATION:
@@ -765,6 +769,7 @@ Value Vm::runLoop() {
       x_ = a_.isTrue() ? thn : els;
     } NEXT;
     CASE(CLOSE) {
+      int arena = state_->saveArena();
       Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
       Value body = CADDR(x_);
@@ -787,6 +792,7 @@ Value Vm::runLoop() {
         CELL(CDR(prex))->setCar(a_);
         CELL(CDR(prex))->setCdr(x_);
       }
+      state_->restoreArena(arena);
     } NEXT;
     CASE(FRAME) {
       Value ret = CDR(x_);
@@ -813,15 +819,18 @@ Value Vm::runLoop() {
       apply(a_, n);
     } NEXT;
     CASE(BOX) {
+      int arena = state_->saveArena();
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       indexSet(f_, n, box(index(f_, n)));
+      state_->restoreArena(arena);
     } NEXT;
     CASE(UNBOX) {
       assert(a_.getType() == TT_BOX);
       a_ = static_cast<Box*>(a_.toObject())->get();
     } NEXT;
     CASE(CONTI) {
+      int arena = state_->saveArena();
       Value tail = CAR(x_);
       x_ = CDR(x_);
       int s = s_;
@@ -830,8 +839,10 @@ Value Vm::runLoop() {
         s -= calleeArgNum + 1;
       }
       a_ = createContinuation(s);
+      state_->restoreArena(arena);
     } NEXT;
     CASE(MACRO) {
+      int arena = state_->saveArena();
       Value name = CAR(x_);
       Value nparam = CADR(x_);
       int nfree = CADDR(x_).toFixnum();
@@ -846,6 +857,7 @@ Value Vm::runLoop() {
       }
       defineMacro(name, createClosure(body, nfree, s_, min, max));
       s_ -= nfree;
+      state_->restoreArena(arena);
     } NEXT;
     CASE(EXPND) {
       int n = CAR(x_).toFixnum();

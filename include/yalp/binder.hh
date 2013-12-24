@@ -25,10 +25,12 @@ public:
 
   template <class Func>
   void bind(const char* name, Func funcPtr) {
+    int arena = state_->saveArena();
     Value func = createBindingFunc(state_, (void*)funcPtr,
                                    Selector<Func>::call,
                                    Selector<Func>::NPARAM);
     state_->defineGlobal(name, func);
+    state_->restoreArena(arena);
   }
 
 private:

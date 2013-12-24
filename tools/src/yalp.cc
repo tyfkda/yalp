@@ -91,9 +91,14 @@ static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
   Value bin;
   ErrorCode err;
-  while ((err = reader.read(&bin)) == SUCCESS) {
+  for (;;) {
+    int arena = state->saveArena();
+    err = reader.read(&bin);
+    if (err != SUCCESS)
+      break;
     if (!state->runBinary(bin, NULL))
       return false;
+    state->restoreArena(arena);
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
@@ -133,6 +138,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
   FileStream out(stdout);
   Reader reader(state, stream);
   for (;;) {
+    int arena = state->saveArena();
     if (tty)
       cout << "> " << std::flush;
     Value s;
@@ -171,6 +177,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
         prompt = "   ";
       }
     }
+    state->restoreArena(arena);
   }
   if (tty)
     cout << "bye" << endl;

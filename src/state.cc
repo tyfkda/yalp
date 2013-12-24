@@ -239,6 +239,7 @@ State::State(Allocator* allocator)
   , vm_(NULL)
   , jmp_(NULL) {
 
+  int arena = saveArena();
   allocator->setUserData(this);
 
   intern("nil");  // "nil" must be the first symbol.
@@ -264,6 +265,7 @@ State::State(Allocator* allocator)
     assert(ht.getType() == TT_HASH_TABLE);
     readTable_ = static_cast<SHashTable*>(ht.toObject());
   }
+  restoreArena(arena);
 }
 
 State::~State() {
@@ -283,8 +285,10 @@ void State::installBasicObjects() {
     { stderr, "*stderr*" },
   };
 
+  int arena = saveArena();
   for (auto e : Table)
     defineGlobal(intern(e.name), Value(createFileStream(e.fp)));
+  restoreArena(arena);
 }
 
 bool State::compile(Value exp, Value* pValue) {
@@ -327,12 +331,17 @@ ErrorCode State::run(Stream* stream, Value* pResult) {
   Reader reader(this, stream);
   Value exp;
   ErrorCode err;
-  while ((err = reader.read(&exp)) == SUCCESS) {
+  for (;;) {
+    int arena = allocator_->saveArena();
+    err = reader.read(&exp);
+    if (err != SUCCESS)
+      break;
     Value code;
     if (!compile(exp, &code) || code.isFalse())
       return COMPILE_ERROR;
     if (!runBinary(code, pResult))
       return RUNTIME_ERROR;
+    allocator_->restoreArena(arena);
   }
   if (err == END_OF_FILE)
     return SUCCESS;
@@ -347,9 +356,14 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
   Reader reader(this, &stream);
   Value bin;
   ErrorCode err;
-  while ((err = reader.read(&bin)) == SUCCESS) {
+  for (;;) {
+    int arena = allocator_->saveArena();
+    err = reader.read(&bin);
+    if (err != SUCCESS)
+      break;
     if (!runBinary(bin, pResult))
       return RUNTIME_ERROR;
+    allocator_->restoreArena(arena);
   }
   if (err == END_OF_FILE)
     return SUCCESS;
@@ -473,6 +487,15 @@ Value State::getResult(int index) const {
   return vm_->getResult(index);
 }
 
+int State::saveArena() const  { return allocator_->saveArena(); }
+void State::restoreArena(int index)  { allocator_->restoreArena(index); }
+void State::restoreArenaWith(int index, Value v) {
+  if (v.isObject())
+    allocator_->restoreArenaWith(index, v.toObject());
+  else
+    allocator_->restoreArena(index);
+}
+
 void State::runtimeError(const char* msg, ...) {
   FileStream errout(stderr);
   va_list ap;
@@ -501,15 +524,19 @@ void State::defineGlobal(Value sym, Value value) {
 }
 
 void State::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+  int arena = saveArena();
   void* memory = objAlloc(sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   defineGlobal(name, Value(nativeFunc));
+  restoreArena(arena);
 }
 
 void State::defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+  int arena = saveArena();
   void* memory = objAlloc(sizeof(NativeFunc));
   NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
   vm_->defineMacro(intern(name), Value(nativeFunc));
+  restoreArena(arena);
 }
 
 void State::setMacroCharacter(int c, Value func) {
