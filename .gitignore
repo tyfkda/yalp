@@ -20,6 +20,15 @@
 
 /_*
 
+# Windows Visual Studio
+/build/obj/*
+/build/yalp.opensdf
+/build/yalp.sdf
+/build/yalp.sln
+/build/yalp.v11.suo
+/build/yalp.vcxproj.filters
+/build/yalp.vcxproj.user
+
 # GTAGS
 /GPATH
 /GRTAGS
