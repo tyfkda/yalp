@@ -494,13 +494,10 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
 void Vm::registerMacro(Value name, Value body, int nfree, int s, int minParam, int maxParam) {
   Value closure = createClosure(body, nfree, s, minParam, maxParam);
 
-  assert(name.getType() == TT_SYMBOL);
+  state_->checkType(name, TT_SYMBOL);
   static_cast<Closure*>(closure.toObject())->setName(name.toSymbol(state_));
-  defineGlobal(name, state_->intern("*macro*"));
-
-  if (name.getType() != TT_SYMBOL)
-    state_->runtimeError("Must be symbol, but `%@`", &name);
   macroTable_->put(name, closure);
+  defineGlobal(name, state_->intern("*macro*"));
 }
 
 Value Vm::createContinuation(int s) {
