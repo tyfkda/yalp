@@ -10,6 +10,7 @@
 /test/object_test
 /test/read_test
 /test/state_test
+/test/stream_test
 /test/symbol_manager_test
 /test/util_test
 

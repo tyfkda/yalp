@@ -3,6 +3,8 @@
 //=============================================================================
 
 #include "yalp/stream.hh"
+#include "allocator.hh"
+
 #include <string.h>  // for strlen
 
 namespace yalp {
@@ -53,7 +55,7 @@ bool FileStream::write(const char* s, int len) {
 
 //=============================================================================
 StrStream::StrStream(const char* string)
-  : Stream(), string_(string), p_(string), ungetc_(NO_UNGETC) {
+  : Stream(), p_(string), ungetc_(NO_UNGETC) {
 }
 
 StrStream::~StrStream() {
@@ -83,6 +85,35 @@ void StrStream::ungetc(int c) {
 
 bool StrStream::write(const char*, int) {
   return false;
+}
+
+//=============================================================================
+static const size_t BUFFER_BLOCK_SIZE = 256;
+
+StrOStream::StrOStream(Allocator* allocator)
+  : Stream(), allocator_(allocator)
+  , buffer_(NULL), bufferSize_(0), len_(0)  {}
+StrOStream::~StrOStream() {
+  if (buffer_ != NULL)
+    allocator_->free(buffer_);
+}
+
+bool StrOStream::close()  { return true; }
+
+int StrOStream::get()  { return EOF; }
+void StrOStream::ungetc(int)  {}
+bool StrOStream::write(const char* s, int len) {
+  size_t newLen = len_ + len;
+  if (newLen >= bufferSize_) {
+    size_t newSize = newLen + (BUFFER_BLOCK_SIZE - 1);
+    newSize -= newSize % BUFFER_BLOCK_SIZE;
+    buffer_ = static_cast<char*>(allocator_->realloc(buffer_, newSize));
+    bufferSize_ = newSize;
+  }
+  memcpy(&buffer_[len_], s, len);
+  len_ += len;
+  buffer_[len_] = '\0';
+  return true;
 }
 
 }  // namespace yalp

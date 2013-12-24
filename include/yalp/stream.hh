@@ -32,7 +32,7 @@ public:
   explicit FileStream(FILE* fp, bool ownership = false);
   ~FileStream();
 
-  bool isOpened() const  { return fp_ != NULL; }
+  inline bool isOpened() const  { return fp_ != NULL; }
 
   virtual bool close() override;
   virtual int get() override;
@@ -40,12 +40,12 @@ public:
   using Stream::write;
   virtual bool write(const char* s, int len) override;
 
-protected:
+private:
   FILE* fp_;
   bool hasFileOwnership_;
 };
 
-// String stream class.
+// String input stream class.
 class StrStream : public Stream {
 public:
   explicit StrStream(const char* string);
@@ -57,10 +57,31 @@ public:
   using Stream::write;
   virtual bool write(const char* s, int len) override;
 
-protected:
-  const char* string_;
+private:
   const char* p_;
   int ungetc_;
+};
+
+// String output stream class.
+class StrOStream : public Stream {
+public:
+  explicit StrOStream(Allocator* allocator);
+  ~StrOStream();
+
+  inline const char* getString() const  { return buffer_; }
+  inline int getLength() const  { return len_; }
+
+  virtual bool close() override;
+  virtual int get() override;
+  virtual void ungetc(int c) override;
+  using Stream::write;
+  virtual bool write(const char* s, int len) override;
+
+private:
+  Allocator* allocator_;
+  char* buffer_;
+  size_t bufferSize_;
+  int len_;
 };
 
 }  // namespace yalp
