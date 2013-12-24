@@ -712,28 +712,77 @@ void installBasicFunctions(State* state) {
   state->defineGlobal(Value::NIL, Value::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
-  state->defineNative("macroexpand-1", s_macroexpand_1, 1);
-  state->defineNative("type", s_type, 1);
-  state->defineNative("cons", s_cons, 2);
-  state->defineNative("car", s_car, 1);
-  state->defineNative("cdr", s_cdr, 1);
-  state->defineNative("set-car!", s_set_car, 2);
-  state->defineNative("set-cdr!", s_set_cdr, 2);
-  state->defineNative("list", s_list, 0, -1);
-  state->defineNative("list*", s_listStar, 0, -1);
-  state->defineNative("append", s_append, 0, -1);
-  state->defineNative("reverse!", s_nreverse, 1);
-  state->defineNative("+", s_add, 0, -1);
-  state->defineNative("-", s_sub, 0, -1);
-  state->defineNative("*", s_mul, 0, -1);
-  state->defineNative("/", s_div, 0, -1);
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+  struct {
+    const char* name;
+    NativeFuncType func;
+    int minArgNum, maxArgNum;
+  } static const FuncTable[] = {
+    { "macroexpand-1", s_macroexpand_1, 1 },
+    { "type", s_type, 1 },
+    { "cons", s_cons, 2 },
+    { "car", s_car, 1 },
+    { "cdr", s_cdr, 1 },
+    { "set-car!", s_set_car, 2 },
+    { "set-cdr!", s_set_cdr, 2 },
+    { "list", s_list, 0, -1 },
+    { "list*", s_listStar, 0, -1 },
+    { "append", s_append, 0, -1 },
+    { "reverse!", s_nreverse, 1 },
+    { "+", s_add, 0, -1 },
+    { "-", s_sub, 0, -1 },
+    { "*", s_mul, 0, -1 },
+    { "/", s_div, 0, -1 },
 
-  state->defineNative("is", s_is, 2);
-  state->defineNative("iso", s_iso, 2);
-  state->defineNative("<", s_lessThan, 2, -1);
-  state->defineNative(">", s_greaterThan, 2, -1);
-  state->defineNative("<=", s_lessEqual, 2, -1);
-  state->defineNative(">=", s_greaterEqual, 2, -1);
+    { "is", s_is, 2 },
+    { "iso", s_iso, 2 },
+    { "<", s_lessThan, 2, -1 },
+    { ">", s_greaterThan, 2, -1 },
+    { "<=", s_lessEqual, 2, -1 },
+    { ">=", s_greaterEqual, 2, -1 },
+
+    { "display", s_display, 1, 2 },
+    { "write", s_write, 1, 2 },
+    { "format", s_format, 2, -1 },
+
+    { "read", s_read, 0, 2 },
+    { "read-from-string", s_read_from_string, 1 },
+    { "read-delimited-list", s_read_delimited_list, 2 },
+    { "read-char", s_read_char, 0, 1 },
+    { "unread-char", s_unread_char, 1, 2 },
+    { "read-line", s_read_line, 0, 1 },
+
+    { "uniq", s_uniq, 0 },
+    { "apply", s_apply, 1, -1 },
+    { "run-binary", s_run_binary, 1 },
+
+    { "make-hash-table", s_make_hash_table, 0 },
+    { "hash-table-get", s_hash_table_get, 2, 3 },
+    { "hash-table-put!", s_hash_table_put, 3 },
+    { "hash-table-exists?", s_hash_table_exists, 2 },
+    { "hash-table-delete!", s_hash_table_delete, 2 },
+    { "hash-table-keys", s_hash_table_keys, 1 },
+
+    { "set-macro-character", s_set_macro_character, 2 },
+    { "get-macro-character", s_get_macro_character, 1 },
+
+    { "collect-garbage", s_collect_garbage, 0 },
+    { "exit", s_exit, 1 },
+    { "vmtrace", s_vmtrace, 1 },
+
+    { "open", s_open, 1, 2 },
+    { "close", s_close, 1 },
+
+    { "int", s_int, 1 },
+    { "flonum", s_flonum, 1 },
+    { "string", s_string, 1 },
+    { "intern", s_intern, 1 },
+  };
+
+  for (auto it : FuncTable) {
+    int maxArgNum = it.maxArgNum == 0 ? it.minArgNum : it.maxArgNum;
+    state->defineNative(it.name, it.func, it.minArgNum, maxArgNum);
+  }
 
   {
     bind::Binder b(state);
@@ -747,43 +796,6 @@ void installBasicFunctions(State* state) {
     b.bind("atan2", atan2);
     b.bind("expt", pow);
   }
-
-  state->defineNative("display", s_display, 1, 2);
-  state->defineNative("write", s_write, 1, 2);
-  state->defineNative("format", s_format, 2, -1);
-
-  state->defineNative("read", s_read, 0, 2);
-  state->defineNative("read-from-string", s_read_from_string, 1);
-  state->defineNative("read-delimited-list", s_read_delimited_list, 2);
-  state->defineNative("read-char", s_read_char, 0, 1);
-  state->defineNative("unread-char", s_unread_char, 1, 2);
-  state->defineNative("read-line", s_read_line, 0, 1);
-
-  state->defineNative("uniq", s_uniq, 0);
-  state->defineNative("apply", s_apply, 1, -1);
-  state->defineNative("run-binary", s_run_binary, 1);
-
-  state->defineNative("make-hash-table", s_make_hash_table, 0);
-  state->defineNative("hash-table-get", s_hash_table_get, 2, 3);
-  state->defineNative("hash-table-put!", s_hash_table_put, 3);
-  state->defineNative("hash-table-exists?", s_hash_table_exists, 2);
-  state->defineNative("hash-table-delete!", s_hash_table_delete, 2);
-  state->defineNative("hash-table-keys", s_hash_table_keys, 1);
-
-  state->defineNative("set-macro-character", s_set_macro_character, 2);
-  state->defineNative("get-macro-character", s_get_macro_character, 1);
-
-  state->defineNative("collect-garbage", s_collect_garbage, 0);
-  state->defineNative("exit", s_exit, 1);
-  state->defineNative("vmtrace", s_vmtrace, 1);
-
-  state->defineNative("open", s_open, 1, 2);
-  state->defineNative("close", s_close, 1);
-
-  state->defineNative("int", s_int, 1);
-  state->defineNative("flonum", s_flonum, 1);
-  state->defineNative("string", s_string, 1);
-  state->defineNative("intern", s_intern, 1);
 }
 
 }  // namespace yalp
