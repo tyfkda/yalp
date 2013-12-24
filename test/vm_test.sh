@@ -100,6 +100,8 @@ run values-can-use-in-expression 14 '(+ 1 (values 10 20 30) 3)'
 run receive '(1 2 3)' '(receive (x y z) (values 1 2 3) (list x y z))'
 run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list x y z))'
 run empty-values nil '((^(x) (values)) 123)'
+run receive-rest-params '(1 (2 3))' '(receive (x . y) (values 1 2 3) (list x y))'
+run receive-empty-rest '(1 nil)' '(receive (x . y) (values 1) (list x y))'
 
 # Abbreviated form
 run quote-x "'x" "''x"
@@ -185,6 +187,8 @@ fail too-few-arg-lambda-direct '((^(x y)) 1)'
 fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
 fail too-many-arg-lambda-direct '((^(x y)) 1 2 3)'
 fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
+fail too-few-arg-receive '(receive (x y) (values 1))'
+fail too-many-arg-receive '(receive (x y) (values 1 2 3))'
 fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
 fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
 fail set-unbound-var '(set! x 123)'

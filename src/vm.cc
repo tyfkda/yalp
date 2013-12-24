@@ -607,31 +607,22 @@ void Vm::storeValues(int n, int s) {
   valueCount_ = n;
 }
 
-void Vm::restoreValues(int min, int /*max*/) {
-  int n = valueCount_;
-  assert(n == min);
-  if (f_ == 0) {
-    // No upper frame: create first frame.
-    //   Before: f_[z][y][x]s_
-    //   After:  [B][A]f_[N][z][x][y]s_
-    reserveStack(s_ + n + 1);
-    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
-    moveValuesToStack(&stack_[0], values_, a_, n);
-    stack_[n] = Value(n);
-    s_ += n + 1;
-    f_ = n;
-    return;
+void Vm::restoreValues(int min, int max) {
+  int argNum = valueCount_;
+  checkArgNum(state_, Value::NIL, argNum, min, max);
+  reserveStack(s_ + argNum);
+  moveValuesToStack(&stack_[s_], values_, a_, argNum);
+  s_ += argNum;
+  int n = argNum;
+  int ds = 0;
+  if (max < 0) {  // Has rest params.
+    ds = modifyRestParams(argNum, min, s_);
+    s_ += ds;
+    argNum += ds;
+    n = min + 1;
   }
-
-  // Before: [z][y][x]f_[argnum]s_
-  // After:  [z][y][x][B][A]f_[argnum+n]s_
-  int argNum = stack_[f_].toFixnum();
-  int src = f_, dst = src + n;
-  reserveStack(s_ + n);
-  stack_[f_] = Value(argNum + n);
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  moveValuesToStack(&stack_[src], values_, a_, n);
-  f_ += n;
+  expandFrame(n);
+  s_ -= argNum - n;
 }
 
 void Vm::replaceOpcodes(Value x) {
@@ -876,6 +867,7 @@ Value Vm::runLoop() {
         min = max = nparam.toFixnum();
       }
       restoreValues(min, max);
+      valueCount_ = 1;
     } NEXT;
   } END_DISPATCH;
 }
