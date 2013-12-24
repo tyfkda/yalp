@@ -641,6 +641,73 @@ static Value s_close(State* state) {
   return state->boolean(stream->close());
 }
 
+static Value s_int(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FIXNUM:
+    return v;
+  case TT_FLONUM:
+    {
+      Flonum f = v.toFlonum(state);
+      return Value(static_cast<Fixnum>(f));
+    }
+  case TT_STRING:
+    {
+      String* string = static_cast<String*>(v.toObject());
+      long l = atol(string->c_str());
+      return Value(l);
+    }
+  default:
+    break;
+  }
+  state->runtimeError("Cannot convert `%@` to int", &v);
+  return v;
+}
+
+static Value s_flonum(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FLONUM:
+    return v;
+  case TT_FIXNUM:
+    {
+      Fixnum i = v.toFixnum();
+      return state->flonum(static_cast<Flonum>(i));
+    }
+  case TT_STRING:
+    {
+      String* string = static_cast<String*>(v.toObject());
+      double d = atof(string->c_str());
+      return state->flonum(static_cast<Flonum>(d));
+    }
+  default:
+    break;
+  }
+  state->runtimeError("Cannot convert `%@` to flonum", &v);
+  return v;
+}
+
+static Value s_string(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_STRING:
+    return v;
+  default:
+    {
+      StrOStream stream(state->getAllocator());
+      v.output(state, &stream, false);
+      return state->string(stream.getString(), stream.getLength());
+    }
+  }
+}
+
+static Value s_intern(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  String* string = static_cast<String*>(v.toObject());
+  return state->intern(string->c_str());
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Value::NIL, Value::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -712,6 +779,11 @@ void installBasicFunctions(State* state) {
 
   state->defineNative("open", s_open, 1, 2);
   state->defineNative("close", s_close, 1);
+
+  state->defineNative("int", s_int, 1);
+  state->defineNative("flonum", s_flonum, 1);
+  state->defineNative("string", s_string, 1);
+  state->defineNative("intern", s_intern, 1);
 }
 
 }  // namespace yalp
