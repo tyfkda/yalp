@@ -2,6 +2,7 @@
 /// Utility functions
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/util.hh"
 #include "yalp.hh"
 #include "yalp/object.hh"

@@ -2,6 +2,7 @@
 // Allocator
 //=============================================================================
 
+#include "build_env.hh"
 #include "allocator.hh"
 
 #include <assert.h>

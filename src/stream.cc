@@ -2,6 +2,7 @@
 /// Stream
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/stream.hh"
 #include "allocator.hh"
 

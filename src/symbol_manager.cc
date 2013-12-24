@@ -2,6 +2,7 @@
 /// Symbol manager.
 //=============================================================================
 
+#include "build_env.hh"
 #include "symbol_manager.hh"
 #include "yalp/object.hh"
 #include "yalp/util.hh"  // for strHash

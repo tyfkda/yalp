@@ -2,6 +2,7 @@
 /// basic - basic functions
 //=============================================================================
 
+#include "build_env.hh"
 #include "basic.hh"
 #include "yalp.hh"
 #include "yalp/binder.hh"
@@ -12,11 +13,16 @@
 #include "hash_table.hh"
 #include "vm.hh"
 
-#include <alloca.h>
 #include <assert.h>
 #include <string.h>  // for memcpy
 #include <stdlib.h>  // for exit
+
+#ifdef _MSC_VER
+#include <math.h>
+#else
+#include <alloca.h>
 #include <tgmath.h>
+#endif
 
 namespace yalp {
 
@@ -888,15 +894,15 @@ void installBasicFunctions(State* state) {
 
   {
     bind::Binder b(state);
-    b.bind("sin", sin);
-    b.bind("cos", cos);
-    b.bind("tan", tan);
-    b.bind("sqrt", sqrt);
-    b.bind("log", log);
-    b.bind("floor", floor);
-    b.bind("ceil", ceil);
-    b.bind("atan2", atan2);
-    b.bind("expt", pow);
+    b.bind("sin", (double (*)(double)) sin);
+    b.bind("cos", (double (*)(double)) cos);
+    b.bind("tan", (double (*)(double)) tan);
+    b.bind("sqrt", (double (*)(double)) sqrt);
+    b.bind("log", (double (*)(double)) log);
+    b.bind("floor", (double (*)(double)) floor);
+    b.bind("ceil", (double (*)(double)) ceil);
+    b.bind("atan2", (double (*)(double, double)) atan2);
+    b.bind("expt", (double (*)(double, double)) pow);
   }
 }
 
