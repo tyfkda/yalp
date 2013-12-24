@@ -41,7 +41,8 @@
 (def *exit-compile* nil)
 
 (def (compile-error . args)
-  (print args)
+  (apply format *stderr* args)
+  (display "\n")
   (*exit-compile* nil))
 
 (def (compile x)
@@ -156,7 +157,7 @@
       (do
         (unless (is argnum varnum)
           (let which (if (< argnum varnum) "few" "many")
-            (compile-error "Too" which "arguments, function requires" varnum "but" argnum)))
+            (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
         (let ext-vars (append proper-vars (car e))
           (with (free (cdr e)  ;(set-intersect (set-union (car e)
                                ;                 (cdr e))
