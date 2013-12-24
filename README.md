@@ -16,6 +16,7 @@ Under construction.
 
 ## No
 * Bignum / Rational number / Complex number
+* Keyword
 
 ## How to build
 ### Mac, Linux
