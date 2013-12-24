@@ -47,7 +47,6 @@ public:
   Value referGlobal(Value sym, bool* pExist);
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
-  void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   Value getMacro(Value name);
   void defineMacro(Value name, Value func);
 

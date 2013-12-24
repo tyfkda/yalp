@@ -315,12 +315,6 @@ bool Vm::assignGlobal(Value sym, Value value) {
   return true;
 }
 
-void Vm::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  void* memory = state_->objAlloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
-  defineGlobal(state_->intern(name), Value(nativeFunc));
-}
-
 Value Vm::getMacro(Value name) {
   const Value* result = macroTable_->get(name);
   return result != NULL ? *result : Value::NIL;

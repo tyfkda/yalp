@@ -485,7 +485,9 @@ void State::defineGlobal(Value sym, Value value) {
 }
 
 void State::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  vm_->defineNative(name, func, minArgNum, maxArgNum);
+  void* memory = objAlloc(sizeof(NativeFunc));
+  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
+  defineGlobal(name, Value(nativeFunc));
 }
 
 void State::defineMacro(const char* name, Value func) {
