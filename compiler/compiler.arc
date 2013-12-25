@@ -243,6 +243,11 @@
   (let proper-vars (dotted->proper vars)
     (aif (member-if [no (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
+    (awith (p vars)
+      (when p
+        (when (member (car p) (cdr p))
+          (compile-error "Duplicated parameter `%@`" (car p)))
+        (loop (cdr p))))
     proper-vars))
 
 (def (compile-body set-vars vars body free sets s next)
