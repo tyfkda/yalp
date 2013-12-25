@@ -195,8 +195,9 @@
 (defmacro and args
   (if args
       (if (cdr args)
-          `(if ,(car args) (and ,@(cdr args))
-               )  ; Eliminating else-value relies on UNDEF = false
+          `(if ,(car args)
+               (and ,@(cdr args))
+             'nil)
         (car args))
     't))  ; (and) = true
 
