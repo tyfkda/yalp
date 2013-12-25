@@ -165,9 +165,9 @@ run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 
 # Hash table
 run hash-table 123 "((^(h)
-                        (hash-table-put! h 'key 123)
-                        (hash-table-get h 'key))
-                     (make-hash-table))"
+                        (table-put! h 'key 123)
+                        (table-get h 'key))
+                     (table))"
 
 # eval
 run eval "'x" "(eval '(quote (quote x)))"

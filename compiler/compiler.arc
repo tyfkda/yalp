@@ -63,23 +63,23 @@
                   )))
             defs)))
 
-(def *inline-functions* (make-hash-table))
+(def *inline-functions* (table))
 (def (proclaim-inline  sym)
-  (hash-table-put! *inline-functions* sym t))
+  (table-put! *inline-functions* sym t))
 
 (def (inline-function? sym)
   (and (symbol? sym)
-       (hash-table-exists? *inline-functions* sym)))
+       (table-exists? *inline-functions* sym)))
 
 (def (lambda-expression? exp)
   (and (pair? exp)
        (is (car exp) '^)))
 
 (def (register-inline-function sym func)
-  (hash-table-put! *inline-functions* sym func))
+  (table-put! *inline-functions* sym func))
 
 (def (get-inline-function-body sym)
-  (hash-table-get *inline-functions* sym))
+  (table-get *inline-functions* sym))
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.

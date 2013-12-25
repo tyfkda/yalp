@@ -246,7 +246,7 @@ Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
 void SHashTable::output(State*, Stream* o, bool) const {
   char buffer[64];
-  snprintf(buffer, sizeof(buffer), "#<hash-table:%p>", this);
+  snprintf(buffer, sizeof(buffer), "#<table:%p>", this);
   o->write(buffer);
 }
 

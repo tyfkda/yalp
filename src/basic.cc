@@ -31,7 +31,7 @@ namespace yalp {
            (macro? (car exp)))
       (with (name (car exp)
              args (cdr exp))
-        (let closure (hash-table-get *macro-table* name)
+        (let closure (table-get *macro-table* name)
           (apply closure args)))
     exp))
 */
@@ -597,11 +597,11 @@ static Value s_runBinary(State* state) {
   return result;
 }
 
-static Value s_makeHashTable(State* state) {
+static Value s_table(State* state) {
   return state->createHashTable();
 }
 
-static Value s_hashTableGet(State* state) {
+static Value s_tableGet(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
@@ -613,7 +613,7 @@ static Value s_hashTableGet(State* state) {
   return state->multiValues(*result, state->getConstant(State::T));
 }
 
-static Value s_hashTablePut(State* state) {
+static Value s_tablePut(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   Value value = state->getArg(2);
@@ -622,7 +622,7 @@ static Value s_hashTablePut(State* state) {
   return value;
 }
 
-static Value s_hashTableExists(State* state) {
+static Value s_tableExists(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
@@ -630,14 +630,14 @@ static Value s_hashTableExists(State* state) {
   return state->boolean(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
 
-static Value s_hashTableDelete(State* state) {
+static Value s_tableDelete(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
   return state->boolean(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
-static Value s_hashTableKeys(State* state) {
+static Value s_tableKeys(State* state) {
   Value h = state->getArg(0);
   state->checkType(h, TT_HASH_TABLE);
 
@@ -825,12 +825,12 @@ void installBasicFunctions(State* state) {
     { "apply", s_apply, 1, -1 },
     { "run-binary", s_runBinary, 1 },
 
-    { "make-hash-table", s_makeHashTable, 0 },
-    { "hash-table-get", s_hashTableGet, 2, 3 },
-    { "hash-table-put!", s_hashTablePut, 3 },
-    { "hash-table-exists?", s_hashTableExists, 2 },
-    { "hash-table-delete!", s_hashTableDelete, 2 },
-    { "hash-table-keys", s_hashTableKeys, 1 },
+    { "table", s_table, 0 },
+    { "table-get", s_tableGet, 2, 3 },
+    { "table-put!", s_tablePut, 3 },
+    { "table-exists?", s_tableExists, 2 },
+    { "table-delete!", s_tableDelete, 2 },
+    { "table-keys", s_tableKeys, 1 },
 
     { "set-macro-character", s_setMacroCharacter, 2 },
     { "get-macro-character", s_getMacroCharacter, 1 },
