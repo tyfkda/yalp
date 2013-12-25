@@ -317,7 +317,8 @@
                             (loop " " (cdr s))
                           (do (display " . " stream)
                               (write/ss-print (cdr s) h stream)
-                              (display ")" stream)))))))))
+                              (display ")" stream)))))
+                s))))
     (write s)))
 
 ;; Take first n elements from the list.
