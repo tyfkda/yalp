@@ -241,8 +241,8 @@
 ;; Check function parameters are valid and returns proper vars.
 (def (check-parameters vars)
   (let proper-vars (dotted->proper vars)
-    (when (member-if [no (symbol? _)] vars)
-      (compile-error "parameter must be symbol"))
+    (aif (member-if [no (symbol? _)] vars)
+      (compile-error "parameter must be symbol, but `%@`" (car it)))
     proper-vars))
 
 (def (compile-body set-vars vars body free sets s next)
