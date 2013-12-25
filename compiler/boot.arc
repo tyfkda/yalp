@@ -1,3 +1,6 @@
+(proclaim
+ (inline no cadr cddr isnt member))
+
 (def no (^(x) (if x nil t)))
 (def fixnum? (^(x) (is (type x) 'fixnum)))
 (def pair? (^(x) (is (type x) 'pair)))
