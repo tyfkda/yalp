@@ -277,39 +277,39 @@
                     *stdout*)
          h (table))
     (table-put! h 'index 0)
-    (write/ss-print s (write/ss-loop s h) stream)))
+    (write/ss-print s (write/ss-construct s h) stream)))
 
-(def (write/ss-loop s h)
+;; Put cell appear idnex for more than 2 times into table,
+;; and returns the table.
+(def (write/ss-construct s h)
   (if (pair? s)
-      (if (no (table-exists? h s))
-          ;; Put nil for the first appeared object.
-          (do (table-put! h s nil)
-              ;; And check children recursively.
-              (write/ss-loop (car s) (write/ss-loop (cdr s) h)))
-        (do (when (no (table-get h s))
-              ;; Assign index for the object appeared more than 1 time.
-              (let i (table-get h 'index)
-                (table-put! h s i)
-                (table-put! h 'index (+ 1 i))))
-            h))
+      (if (table-exists? h s)
+          (do (unless (table-get h s)
+                ;; Assign index for the object appeared more than 1 time.
+                (let i (table-get h 'index)
+                  (table-put! h s i)
+                  (table-put! h 'index (+ 1 i))))
+              h)
+        ;; Put nil for the first appeared object.
+        (do (table-put! h s nil)
+            ;; And check children recursively.
+            (write/ss-construct (car s)
+              (write/ss-construct (cdr s) h))))
     h))
 
 (def (write/ss-print s h stream)
   (if (pair? s)
       (let index (table-get h s)
         (if (and index (< index 0))
-            (do (display "#" stream)
-                (display (- -1 index) stream)
-                (display "#" stream))
+            ;; Print structure after second time or later.
+            (format stream "#%@#" (- -1 index))
+          ;; Print structure at first time.
           (do (when index
-                (do (display "#" stream)
-                    (display index stream)
-                    (display "=" stream)
-                    (table-put! h s (- -1 index))))
+                (format stream "#%@=" index)
+                (table-put! h s (- -1 index)))
               (awith (c "("
                       s s)
-                (if (no s)
-                      (display ")" stream)
+                (if s
                     (do (display c stream)
                         (write/ss-print (car s) h stream)
                         (if (or (and (pair? (cdr s))
@@ -318,7 +318,8 @@
                             (loop " " (cdr s))
                           (do (display " . " stream)
                               (write/ss-print (cdr s) h stream)
-                              (display ")" stream)))))
+                              (display ")" stream))))
+                  (display ")" stream))
                 s))))
     (write s)))
 
