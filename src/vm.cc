@@ -55,7 +55,7 @@ namespace yalp {
 
 #define OPS \
   OP(HALT) \
-  OP(UNDEF) \
+  OP(VOID) \
   OP(CONST) \
   OP(LREF) \
   OP(FREF) \
@@ -639,7 +639,7 @@ void Vm::replaceOpcodes(Value x) {
     switch (opidx) {
     case HALT: case APPLY: case RET:
       return;
-    case UNDEF: case PUSH: case UNBOX:
+    case VOID: case PUSH: case UNBOX:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case SHIFT: case BOX: case CONTI: case EXPND:
@@ -695,7 +695,7 @@ Value Vm::runLoop() {
       x_ = endOfCode_;
       return a_;
     }
-    CASE(UNDEF) {
+    CASE(VOID) {
       a_ = Value::NIL;
       valueCount_ = 0;
     } NEXT;

@@ -103,7 +103,7 @@
                                           (if (cdr rest)
                                               (compile-recur `(if ,@rest) e s next)
                                             (compile-recur (car rest) e s next))
-                                        (compile-undef next)))
+                                        (compile-void next)))
                            (compile-recur test e s (list* 'TEST thenc elsec))))
                      (set! (var val)
                            (unless (symbol? var)
@@ -146,8 +146,8 @@
                           (compile-apply func args e s next)))))
     (list* 'CONST x next)))
 
-(def (compile-undef next)
-  (list* 'UNDEF next))
+(def (compile-void next)
+  (list* 'VOID next))
 
 (def (direct-invoke? func)
   (and (pair? func)
@@ -256,7 +256,7 @@
                           (compile-recur (car p) ee ss
                                          (loop (cdr p)))
                         next))
-                  (compile-undef next)))))
+                  (compile-void next)))))
 
 (def (make-boxes sets vars next)
   (awith (vars vars
@@ -270,7 +270,7 @@
 (def (compile-values args e s next)
   (let argnum (len args)
     (if (is argnum 0)
-        (compile-undef next)
+        (compile-void next)
       (compile-apply-args args e s (list* 'VALS argnum next)))))
 
 (def (compile-receive vars vals body e s next)
