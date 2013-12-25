@@ -42,6 +42,9 @@
         (mapn-loop f (cons ls rest) '())
       (map1-loop f ls '()))))
 
+(def cadr (^(x) (car (cdr x))))
+(def cddr (^(x) (cdr (cdr x))))
+
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (def pair
     (^(xs)
@@ -51,9 +54,6 @@
             (list (list (car xs)))
           (cons (list (car xs) (cadr xs))
                 (pair (cddr xs))))))
-
-(def cadr (^(x) (car (cdr x))))
-(def cddr (^(x) (cdr (cdr x))))
 
 (def qq-expand
     (^(x)
