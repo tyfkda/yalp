@@ -490,8 +490,10 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   defineGlobal(name, Value(nativeFunc));
 }
 
-void State::defineMacro(const char* name, Value func) {
-  vm_->defineMacro(intern(name), func);
+void State::defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
+  void* memory = objAlloc(sizeof(NativeFunc));
+  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
+  vm_->defineMacro(intern(name), Value(nativeFunc));
 }
 
 void State::setMacroCharacter(int c, Value func) {

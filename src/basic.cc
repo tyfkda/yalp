@@ -708,6 +708,12 @@ static Value s_intern(State* state) {
   return state->intern(string->c_str());
 }
 
+static Value s_declaim(State* state) {
+  // Completely ignored all arguments.
+  // Returns '(values)' to create empty result.
+  return list(state, state->intern("values"));
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Value::NIL, Value::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -783,6 +789,8 @@ void installBasicFunctions(State* state) {
     int maxArgNum = it.maxArgNum == 0 ? it.minArgNum : it.maxArgNum;
     state->defineNative(it.name, it.func, it.minArgNum, maxArgNum);
   }
+
+  state->defineNativeMacro("declaim", s_declaim, 0, -1);
 
   {
     bind::Binder b(state);
