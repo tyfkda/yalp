@@ -114,24 +114,23 @@ static Value s_listStar(State* state) {
 
 static Value s_append(State* state) {
   int n = state->getArgNum();
-  Value nil = Value::NIL;
-  Value last = nil;
+  Value last = Value::NIL;
   int lastIndex;
   for (lastIndex = n; --lastIndex >= 0; ) {
     last = state->getArg(lastIndex);
-    if (!last.eq(nil))
+    if (!last.eq(Value::NIL))
       break;
   }
   if (lastIndex < 0)
-    return nil;
+    return Value::NIL;
 
-  Value copied = nil;
+  Value copied = Value::NIL;
   for (int i = 0; i < lastIndex; ++i) {
     Value ls = state->getArg(i);
     for (; ls.getType() == TT_CELL; ls = state->cdr(ls))
       copied = state->cons(state->car(ls), copied);
   }
-  if (copied.eq(nil))
+  if (copied.eq(Value::NIL))
     return last;
 
   Value fin = nreverse(copied);
