@@ -277,25 +277,23 @@
                     *stdout*)
          h (table))
     (table-put! h 'index 0)
-    (write/ss-print s (write/ss-construct s h) stream)))
+    (write/ss-construct s h)
+    (write/ss-print s h stream)))
 
-;; Put cell appear idnex for more than 2 times into table,
-;; and returns the table.
+;; Put cell appear idnex for more than 2 times into table.
 (def (write/ss-construct s h)
-  (if (pair? s)
-      (if (table-exists? h s)
-          (do (unless (table-get h s)
-                ;; Assign index for the object appeared more than 1 time.
-                (let i (table-get h 'index)
-                  (table-put! h s i)
-                  (table-put! h 'index (+ 1 i))))
-              h)
-        ;; Put nil for the first appeared object.
-        (do (table-put! h s nil)
-            ;; And check children recursively.
-            (write/ss-construct (car s)
-              (write/ss-construct (cdr s) h))))
-    h))
+  (when (pair? s)
+    (if (table-exists? h s)
+        (do (unless (table-get h s)
+              ;; Assign index for the object appeared more than 1 time.
+              (let i (table-get h 'index)
+                (table-put! h s i)
+                (table-put! h 'index (+ 1 i)))))
+      ;; Put nil for the first appeared object.
+      (do (table-put! h s nil)
+          ;; And check children recursively.
+          (write/ss-construct (car s) h)
+          (write/ss-construct (cdr s) h)))))
 
 (def (write/ss-print s h stream)
   (if (pair? s)
