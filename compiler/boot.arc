@@ -273,27 +273,28 @@
 
 ;; Write shared structure.
 (def (write/ss s . rest)
-  (with (stream (if rest (car rest)
-                    *stdout*)
-         h (table))
-    (table-put! h 'index 0)
-    (write/ss-construct s h)
-    (write/ss-print s h stream)))
+  (let stream (if rest (car rest)
+                  *stdout*)
+    (write/ss-print s (write/ss-construct s) stream)))
 
 ;; Put cell appear idnex for more than 2 times into table.
-(def (write/ss-construct s h)
-  (when (pair? s)
-    (if (table-exists? h s)
-        (unless (table-get h s)
-          ;; Assign index for the object appeared more than 1 time.
-          (let i (table-get h 'index)
-            (table-put! h s i)
-            (table-put! h 'index (+ 1 i))))
-      ;; Put nil for the first appeared object.
-      (do (table-put! h s nil)
-          ;; And check children recursively.
-          (write/ss-construct (car s) h)
-          (write/ss-construct (cdr s) h)))))
+(def (write/ss-construct s)
+  (let h (table)
+    (table-put! h 'index 0)
+    (awith (s s)
+      (when (pair? s)
+        (if (table-exists? h s)
+            (unless (table-get h s)
+              ;; Assign index for the object appeared more than 1 time.
+              (let i (table-get h 'index)
+                (table-put! h s i)
+                (table-put! h 'index (+ 1 i))))
+          ;; Put nil for the first appeared object.
+          (do (table-put! h s nil)
+              ;; And check children recursively.
+              (loop (car s))
+              (loop (cdr s))))))
+    h))
 
 (def (write/ss-print s h stream)
   (if (pair? s)
