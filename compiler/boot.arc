@@ -254,10 +254,11 @@
       acc)))
 
 (def (member-if f ls)
-  (when (pair? ls)
-    (if (f (car ls))
-        ls
-      (member-if f (cdr ls)))))
+  (if (pair? ls)
+      (if (f (car ls))
+          ls
+        (member-if f (cdr ls)))
+    nil))
 
 (def (member x ls)
   (member-if [is x _] ls))
