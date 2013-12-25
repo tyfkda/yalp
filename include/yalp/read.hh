@@ -30,13 +30,8 @@ private:
   inline static bool isSpace(int c);
   inline int getc();
   inline void ungetc(int c);
-  inline ErrorCode readQuote(Value* pValue);
-  inline ErrorCode readQuasiQuote(Value* pValue);
-  inline ErrorCode readUnquote(Value* pValue);
-  inline ErrorCode readUnquoteSplicing(Value* pValue);
   ErrorCode readSymbolOrNumber(Value* pValue);
   ErrorCode readList(Value* pValue);
-  ErrorCode readAbbrev(Value symbol, Value* pValue);
   ErrorCode readString(char closeChar, Value* pValue);
   ErrorCode readSpecial(Value* pValue);
   ErrorCode readSharedStructure(Value* pValue);

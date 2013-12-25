@@ -1,6 +1,22 @@
 (proclaim
  (inline no cadr cddr isnt member))
 
+(set-macro-character #\'
+                     (^(stream ch)
+                       (list (quote quote) (read stream))))
+
+(set-macro-character #\`
+                     (^(stream ch)
+                       (list 'quasiquote (read stream))))
+
+(set-macro-character #\,
+                     (^(stream ch)
+                       ((^(c)
+                          (if (is c #\@)
+                              (list 'unquote-splicing (read stream))
+                            (list 'unquote (read (unread-char c stream)))))
+                        (read-char stream))))
+
 (def no (^(x) (if x nil t)))
 (def fixnum? (^(x) (is (type x) 'fixnum)))
 (def pair? (^(x) (is (type x) 'pair)))

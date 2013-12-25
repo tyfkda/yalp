@@ -83,35 +83,6 @@ TEST_F(ReadTest, DottedList) {
                                         Value(3))).equal(s));
 }
 
-TEST_F(ReadTest, Quote) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("'(x y z)", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("quote"),
-                   list(state_,
-                        state_->intern("x"),
-                        state_->intern("y"),
-                        state_->intern("z"))).equal(s));
-}
-
-TEST_F(ReadTest, quasiquote) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("`x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("quasiquote"),
-                   state_->intern("x")).equal(s));
-
-  ASSERT_EQ(SUCCESS, read(",x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("unquote"),
-                   state_->intern("x")).equal(s));
-
-  ASSERT_EQ(SUCCESS, read(",@x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("unquote-splicing"),
-                   state_->intern("x")).equal(s));
-}
-
 TEST_F(ReadTest, SharedStructure) {
   Value s;
   ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));

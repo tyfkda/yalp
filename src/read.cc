@@ -58,11 +58,6 @@ bool Reader::isSpace(int c) {
 int Reader::getc()  { return stream_->get(); }
 void Reader::ungetc(int c)  { stream_->ungetc(c); }
 
-ErrorCode Reader::readQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUOTE), pValue); }
-ErrorCode Reader::readQuasiQuote(Value* pValue)  { return readAbbrev(state_->getConstant(State::QUASIQUOTE), pValue); }
-ErrorCode Reader::readUnquote(Value* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE), pValue); }
-ErrorCode Reader::readUnquoteSplicing(Value* pValue)  { return readAbbrev(state_->getConstant(State::UNQUOTE_SPLICING), pValue); }
-
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
@@ -98,18 +93,6 @@ ErrorCode Reader::read(Value* pValue) {
   case ';':
     skipUntilNextLine();
     return read(pValue);
-  case '\'':
-    return readQuote(pValue);
-  case '`':
-    return readQuasiQuote(pValue);
-  case ',':
-    {
-      c = getc();
-      if (c == '@')
-        return readUnquoteSplicing(pValue);
-      ungetc(c);
-      return readUnquote(pValue);
-    }
   case '"':
     return readString(c, pValue);
   case '#':
@@ -238,13 +221,6 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   default:
     return err;
   }
-}
-
-ErrorCode Reader::readAbbrev(Value symbol, Value* pValue) {
-  ErrorCode err = read(pValue);
-  if (err == SUCCESS)
-    *pValue = list(state_, symbol, *pValue);
-  return err;
 }
 
 ErrorCode Reader::readString(char closeChar, Value* pValue) {
