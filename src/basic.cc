@@ -472,9 +472,9 @@ static Value s_read_char(State* state) {
 static Value s_unread_char(State* state) {
   Value ch = state->getArg(0);
   state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
-  Stream* stream = chooseStream(state, 1, "*stdin*")->getStream();
-  stream->ungetc(ch.toCharacter());
-  return ch;
+  SStream* sstream = chooseStream(state, 1, "*stdin*");
+  sstream->getStream()->ungetc(ch.toCharacter());
+  return Value(sstream);
 }
 
 static char* reallocateString(State* state, char* heap, int heapSize,
