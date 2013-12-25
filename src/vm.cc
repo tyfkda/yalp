@@ -357,8 +357,14 @@ Value Vm::funcall(Value fn, int argNum, const Value* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
   case TT_CONTINUATION:
-    funcallSetup(fn, argNum, args, false);
-    return runLoop();
+    {
+      Value oldX = x_;
+      x_ = endOfCode_;
+      funcallSetup(fn, argNum, args, false);
+      Value result = runLoop();
+      x_ = oldX;
+      return result;
+    }
   default:
     return funcallSetup(fn, argNum, args, false);
   }
