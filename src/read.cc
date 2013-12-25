@@ -299,6 +299,8 @@ ErrorCode Reader::readSpecial(Value* pValue) {
   switch (c) {
   case '\\':
     return readChar(pValue);
+  case '.':
+    return readTimeEval(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -374,6 +376,20 @@ ErrorCode Reader::readChar(Value* pValue) {
     }
   }
   return ILLEGAL_CHAR;
+}
+
+ErrorCode Reader::readTimeEval(Value* pValue) {
+  Value exp;
+  ErrorCode err = read(&exp);
+  if (err != SUCCESS)
+    return err;
+
+  Value code;
+  if (!state_->compile(exp, &code))
+    return COMPILE_ERROR;
+  if (!state_->runBinary(code, pValue))
+    return RUNTIME_ERROR;
+  return SUCCESS;
 }
 
 void Reader::storeShared(int id, Value value) {

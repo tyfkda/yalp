@@ -41,6 +41,7 @@ private:
   ErrorCode readSpecial(Value* pValue);
   ErrorCode readSharedStructure(Value* pValue);
   ErrorCode readChar(Value* pValue);
+  ErrorCode readTimeEval(Value* pValue);
   void storeShared(int id, Value value);
   void skipSpaces();
   void skipUntilNextLine();
