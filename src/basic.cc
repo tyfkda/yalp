@@ -73,14 +73,14 @@ static Value s_cdr(State* state) {
   return state->cdr(cell);
 }
 
-static Value s_set_car(State* state) {
+static Value s_setCar(State* state) {
   Value s = state->getArg(0);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCar(value);
   return value;
 }
 
-static Value s_set_cdr(State* state) {
+static Value s_setCdr(State* state) {
   Value s = state->getArg(0);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCdr(value);
@@ -139,7 +139,7 @@ static Value s_append(State* state) {
   return fin;
 }
 
-static Value s_nreverse(State* state) {
+static Value s_reverseBang(State* state) {
   return nreverse(state->getArg(0));
 }
 
@@ -438,7 +438,7 @@ static Value s_read(State* state) {
   }
 }
 
-static Value s_read_from_string(State* state) {
+static Value s_readFromString(State* state) {
   Value s = state->getArg(0);
   state->checkType(s, TT_STRING);
 
@@ -451,7 +451,7 @@ static Value s_read_from_string(State* state) {
   return exp;
 }
 
-static Value s_read_delimited_list(State* state) {
+static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
   state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
   Stream* stream = chooseStream(state, 1, "*stdin*")->getStream();
@@ -463,13 +463,13 @@ static Value s_read_delimited_list(State* state) {
   return result;
 }
 
-static Value s_read_char(State* state) {
+static Value s_readChar(State* state) {
   Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
   int c = stream->get();
   return c == EOF ? Value::NIL : state->character(c);
 }
 
-static Value s_unread_char(State* state) {
+static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
   state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
   SStream* sstream = chooseStream(state, 1, "*stdin*");
@@ -487,7 +487,7 @@ static char* reallocateString(State* state, char* heap, int heapSize,
   return newHeap;
 }
 
-static Value s_read_line(State* state) {
+static Value s_readLine(State* state) {
   const int SIZE = 8;
   char local[SIZE];
   int len = 0;
@@ -560,7 +560,7 @@ static Value s_apply(State* state) {
   return state->tailcall(f, argNum, args);
 }
 
-static Value s_run_binary(State* state) {
+static Value s_runBinary(State* state) {
   Value bin = state->getArg(0);
   Value result;
   if (!state->runBinary(bin, &result))
@@ -568,11 +568,11 @@ static Value s_run_binary(State* state) {
   return result;
 }
 
-static Value s_make_hash_table(State* state) {
+static Value s_makeHashTable(State* state) {
   return state->createHashTable();
 }
 
-static Value s_hash_table_get(State* state) {
+static Value s_hashTableGet(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
@@ -584,7 +584,7 @@ static Value s_hash_table_get(State* state) {
   return state->multiValues(*result, state->getConstant(State::T));
 }
 
-static Value s_hash_table_put(State* state) {
+static Value s_hashTablePut(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   Value value = state->getArg(2);
@@ -593,7 +593,7 @@ static Value s_hash_table_put(State* state) {
   return value;
 }
 
-static Value s_hash_table_exists(State* state) {
+static Value s_hashTableExists(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
@@ -601,14 +601,14 @@ static Value s_hash_table_exists(State* state) {
   return state->boolean(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
 
-static Value s_hash_table_delete(State* state) {
+static Value s_hashTableDelete(State* state) {
   Value h = state->getArg(0);
   Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
   return state->boolean(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
-static Value s_hash_table_keys(State* state) {
+static Value s_hashTableKeys(State* state) {
   Value h = state->getArg(0);
   state->checkType(h, TT_HASH_TABLE);
 
@@ -619,19 +619,19 @@ static Value s_hash_table_keys(State* state) {
   return result;
 }
 
-static Value s_set_macro_character(State* state) {
+static Value s_setMacroCharacter(State* state) {
   Value chr = state->getArg(0);
   Value fn = state->getArg(1);
   state->setMacroCharacter(chr.toCharacter(), fn);
   return fn;
 }
 
-static Value s_get_macro_character(State* state) {
+static Value s_getMacroCharacter(State* state) {
   Value chr = state->getArg(0);
   return state->getMacroCharacter(chr.toCharacter());
 }
 
-static Value s_collect_garbage(State* state) {
+static Value s_collectGarbage(State* state) {
   state->collectGarbage();
   return state->getConstant(State::T);
 }
@@ -761,12 +761,12 @@ void installBasicFunctions(State* state) {
     { "cons", s_cons, 2 },
     { "car", s_car, 1 },
     { "cdr", s_cdr, 1 },
-    { "set-car!", s_set_car, 2 },
-    { "set-cdr!", s_set_cdr, 2 },
+    { "set-car!", s_setCar, 2 },
+    { "set-cdr!", s_setCdr, 2 },
     { "list", s_list, 0, -1 },
     { "list*", s_listStar, 0, -1 },
     { "append", s_append, 0, -1 },
-    { "reverse!", s_nreverse, 1 },
+    { "reverse!", s_reverseBang, 1 },
     { "+", s_add, 0, -1 },
     { "-", s_sub, 0, -1 },
     { "*", s_mul, 0, -1 },
@@ -785,27 +785,27 @@ void installBasicFunctions(State* state) {
     { "format", s_format, 2, -1 },
 
     { "read", s_read, 0, 2 },
-    { "read-from-string", s_read_from_string, 1 },
-    { "read-delimited-list", s_read_delimited_list, 2 },
-    { "read-char", s_read_char, 0, 1 },
-    { "unread-char", s_unread_char, 1, 2 },
-    { "read-line", s_read_line, 0, 1 },
+    { "read-from-string", s_readFromString, 1 },
+    { "read-delimited-list", s_readDelimitedList, 2 },
+    { "read-char", s_readChar, 0, 1 },
+    { "unread-char", s_unreadChar, 1, 2 },
+    { "read-line", s_readLine, 0, 1 },
 
     { "uniq", s_uniq, 0 },
     { "apply", s_apply, 1, -1 },
-    { "run-binary", s_run_binary, 1 },
+    { "run-binary", s_runBinary, 1 },
 
-    { "make-hash-table", s_make_hash_table, 0 },
-    { "hash-table-get", s_hash_table_get, 2, 3 },
-    { "hash-table-put!", s_hash_table_put, 3 },
-    { "hash-table-exists?", s_hash_table_exists, 2 },
-    { "hash-table-delete!", s_hash_table_delete, 2 },
-    { "hash-table-keys", s_hash_table_keys, 1 },
+    { "make-hash-table", s_makeHashTable, 0 },
+    { "hash-table-get", s_hashTableGet, 2, 3 },
+    { "hash-table-put!", s_hashTablePut, 3 },
+    { "hash-table-exists?", s_hashTableExists, 2 },
+    { "hash-table-delete!", s_hashTableDelete, 2 },
+    { "hash-table-keys", s_hashTableKeys, 1 },
 
-    { "set-macro-character", s_set_macro_character, 2 },
-    { "get-macro-character", s_get_macro_character, 1 },
+    { "set-macro-character", s_setMacroCharacter, 2 },
+    { "get-macro-character", s_getMacroCharacter, 1 },
 
-    { "collect-garbage", s_collect_garbage, 0 },
+    { "collect-garbage", s_collectGarbage, 0 },
     { "exit", s_exit, 1 },
     { "vmtrace", s_vmtrace, 1 },
 
