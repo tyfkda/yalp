@@ -284,11 +284,11 @@
 (def (write/ss-construct s h)
   (when (pair? s)
     (if (table-exists? h s)
-        (do (unless (table-get h s)
-              ;; Assign index for the object appeared more than 1 time.
-              (let i (table-get h 'index)
-                (table-put! h s i)
-                (table-put! h 'index (+ 1 i)))))
+        (unless (table-get h s)
+          ;; Assign index for the object appeared more than 1 time.
+          (let i (table-get h 'index)
+            (table-put! h s i)
+            (table-put! h 'index (+ 1 i))))
       ;; Put nil for the first appeared object.
       (do (table-put! h s nil)
           ;; And check children recursively.
