@@ -138,6 +138,36 @@ static Value s_append(State* state) {
   return fin;
 }
 
+static Value s_appendBang(State* state) {
+  int n = state->getArgNum();
+  Value last = Value::NIL;
+  int lastIndex;
+  for (lastIndex = n; --lastIndex >= 0; ) {
+    last = state->getArg(lastIndex);
+    if (!last.eq(Value::NIL))
+      break;
+  }
+  if (lastIndex < 0)
+    return Value::NIL;
+
+  for (int i = lastIndex; --i >= 0; ) {
+    Value ls = state->getArg(i);
+    if (ls.eq(Value::NIL))
+      continue;
+    state->checkType(ls, TT_CELL);
+    for (Value p = ls;;) {
+      Value d = state->cdr(p);
+      if (d.getType() != TT_CELL) {
+        static_cast<Cell*>(p.toObject())->setCdr(last);
+        break;
+      }
+      p = d;
+    }
+    last = ls;
+  }
+  return last;
+}
+
 static Value s_reverseBang(State* state) {
   return nreverse(state->getArg(0));
 }
@@ -765,6 +795,7 @@ void installBasicFunctions(State* state) {
     { "list", s_list, 0, -1 },
     { "list*", s_listStar, 0, -1 },
     { "append", s_append, 0, -1 },
+    { "append!", s_appendBang, 0, -1 },
     { "reverse!", s_reverseBang, 1 },
     { "+", s_add, 0, -1 },
     { "-", s_sub, 0, -1 },
