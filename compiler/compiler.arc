@@ -52,6 +52,35 @@
      (compile-recur (macroexpand-all x '())
                     '(()) '() '(HALT)))))
 
+(defmacro proclaim defs
+  `(do
+     ,@(map (^(sentence)
+              (when (pair? sentence)
+                (case (car sentence)
+                  inline (do (dolist (sym (cdr sentence))
+                                     (proclaim-inline sym))
+                             '(values))
+                  )))
+            defs)))
+
+(def *inline-functions* (make-hash-table))
+(def (proclaim-inline  sym)
+  (hash-table-put! *inline-functions* sym t))
+
+(def (inline-function? sym)
+  (and (symbol? sym)
+       (hash-table-exists? *inline-functions* sym)))
+
+(def (lambda-expression? exp)
+  (and (pair? exp)
+       (is (car exp) '^)))
+
+(def (register-inline-function sym func)
+  (hash-table-put! *inline-functions* sym func))
+
+(def (get-inline-function-body sym)
+  (hash-table-get *inline-functions* sym))
+
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
 ;;   e : current environment, ((local-vars ...) free-vars ...)
@@ -86,6 +115,9 @@
                      (def (var val)
                           (unless (symbol? var)
                             (compile-error "1st argument for `def` must be symbol, but `%@`" var))
+                          (when (and (inline-function? var)
+                                     (lambda-expression? val))
+                            (register-inline-function var val))
                           (compile-recur val e s (list* 'DEF var next)))
                      (call/cc (func)
                               (let c (list* 'CONTI (if (tail? next) 't 'nil)
@@ -108,7 +140,9 @@
                       (with (func (car x)
                              args (cdr x))
                         (if (direct-invoke? func)
-                            (compile-apply-direct (cadr func) (cddr func) args e s next)
+                              (compile-apply-direct (cadr func) (cddr func) args e s next)
+                            (inline-function? func)
+                              (compile-inline-apply func args e s next)
                           (compile-apply func args e s next)))))
     (list* 'CONST x next)))
 
@@ -130,6 +164,11 @@
     (if (tail? next)
         bc
       (list* 'FRAME bc next))))
+
+(def (compile-inline-apply sym args e s next)
+  (let lambda (get-inline-function-body sym)
+    (compile-recur `(,lambda ,@args)
+                   e s next)))
 
 (def (compile-apply-args args e s next)
   (awith (args args
