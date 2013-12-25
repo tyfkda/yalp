@@ -201,6 +201,16 @@
 (defmacro case (expr . args)
   `(caselet ,(uniq) ,expr ,@args))
 
+(defmacro dolist (vars . body)
+  (with (x (car vars)
+         ls (cadr vars))
+    (w/uniq p
+      `(awith (,p ,ls)
+         (when (pair? ,p)
+           (let ,x (car ,p)
+             ,@body
+             (loop (cdr ,p))))))))
+
 (def (isnt x y)
   (no (is x y)))
 
