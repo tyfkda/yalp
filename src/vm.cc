@@ -425,8 +425,7 @@ void Vm::apply(Value fn, int argNum) {
 
       int ds = 0;
       if (closure->hasRestParam())
-        ds = modifyRestParams(argNum, min, s_);
-      s_ += ds;
+        ds = modifyRestParams(argNum, min);
       argNum += ds;
       x_ = closure->getBody();
       f_ = s_;
@@ -511,16 +510,21 @@ void Vm::reserveStack(int n) {
   stackSize_ = newSize;
 }
 
-int Vm::modifyRestParams(int argNum, int minArgNum, int s) {
-  Value rest = createRestParams(argNum, minArgNum, s);
+int Vm::modifyRestParams(int argNum, int minArgNum) {
+  Value rest = createRestParams(argNum, minArgNum, s_);
   int ds = 0;
   if (argNum <= minArgNum) {
     // No rest param space: move all args +1 to create space.
     ds = minArgNum - argNum + 1;  // This must be 1 if arguments count is checked, but just in case.
-    reserveStack(s + ds);
-    moveStackElems(stack_, s - argNum + ds, s - argNum, argNum);
+    reserveStack(s_ + ds);
+    moveStackElems(stack_, s_ - argNum + ds, s_ - argNum, argNum);
+  } else if (argNum > minArgNum + 1) {
+    // Shrink stack for unused rest parameters.
+    ds = (minArgNum + 1) - argNum;  // Negative value.
+    moveStackElems(stack_, s_ - argNum + 1,  s_ - minArgNum, minArgNum);
   }
-  indexSet(s + ds, minArgNum, rest);
+  s_ += ds;
+  indexSet(s_, minArgNum, rest);
   return ds;
 }
 
@@ -607,13 +611,12 @@ void Vm::restoreValues(int min, int max) {
   int n = argNum;
   int ds = 0;
   if (max < 0) {  // Has rest params.
-    ds = modifyRestParams(argNum, min, s_);
-    s_ += ds;
+    ds = modifyRestParams(argNum, min);
     argNum += ds;
     n = min + 1;
   }
   expandFrame(n);
-  s_ -= argNum - n;
+  //s_ -= argNum - n;
 }
 
 void Vm::replaceOpcodes(Value x) {

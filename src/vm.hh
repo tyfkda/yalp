@@ -77,7 +77,7 @@ private:
   void apply(Value fn, int argNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
-  int modifyRestParams(int argNum, int minArgNum, int s);
+  int modifyRestParams(int argNum, int minArgNum);
   Value createRestParams(int argNum, int minArgNum, int s);
   void expandFrame(int n);
   void shrinkFrame(int n);
