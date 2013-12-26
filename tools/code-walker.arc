@@ -14,6 +14,7 @@
       (CLOSE (nparam nfree $body . $next))
       (FRAME ($next . $ret))
       (APPLY (n))
+      (RET ())
       (SHIFT (n . $next))
       (BOX (n . $next))
       (UNBOX $next)
@@ -38,15 +39,16 @@
       (let index (table-get h code)
         (when (or (no index) (>= index 0))
           (table-put! h code -1)
-          (when (f code recur)
-            (awith (p (table-get *opcode-table* (car code))
-                    c (cdr code))
-              (if (pair? p)
-                  (do (when (car p)
-                        (recur (car c)))
-                      (loop (cdr p) (cdr c)))
-                (when p
-                  (recur c))))))))))
+          (let operands (table-get *opcode-table* (car code))
+            (when (f code recur)
+              (awith (p operands
+                      c (cdr code))
+                (if (pair? p)
+                    (do (when (car p)
+                          (recur (car c)))
+                        (loop (cdr p) (cdr c)))
+                  (when p
+                    (recur c)))))))))))
 
 (def (files-or-stdin args f)
   (if args
