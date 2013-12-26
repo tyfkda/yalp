@@ -43,8 +43,10 @@
                    (cons (f (car ls)) acc))
       (let result (reverse! acc)
         (if ls
-            (do (set-cdr! acc (f ls))
-                result)
+            (if acc
+                (do (set-cdr! acc (f ls))
+                    result)
+              (f ls))
           result)))))
 
 (def mapn-loop
