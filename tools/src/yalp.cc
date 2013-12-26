@@ -177,11 +177,15 @@ static bool repl(State* state, Stream* stream, bool tty) {
   return true;
 }
 
-static bool runMain(State* state) {
+static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
   Value main = state->referGlobal("main");
   if (main.isFalse())
     return true;  // If no `main` function, it is ok.
-  return state->funcall(main, 0, NULL, NULL);
+
+  Value args = Value::NIL;
+  for (int i = argc; --i >= 0; )
+    args = state->cons(state->string(argv[i]), args);
+  return state->funcall(main, 1, &args, pResult);
 }
 
 static void exitIfError(ErrorCode err) {
@@ -220,6 +224,9 @@ int main(int argc, char* argv[]) {
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
+    case '-':  // "--" is splitter.
+      ++ii;
+      goto L_noScriptFiles;
     case 'd':
       bDebug = true;
       break;
@@ -254,6 +261,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (ii >= argc) {
+  L_noScriptFiles:
     FileStream stream(stdin);
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
@@ -262,24 +270,28 @@ int main(int argc, char* argv[]) {
     if (!result)
       exit(1);
   } else {
-    for (int i = ii; i < argc; ++i) {
+    for (; ii < argc; ++ii) {
+      if (strcmp(argv[ii], "--") == 0) {
+        ++ii;
+        break;
+      }
       if (bCompile) {
-        FileStream stream(argv[i], "r");
+        FileStream stream(argv[ii], "r");
         if (!stream.isOpened()) {
-          std::cerr << "File not found: " << argv[i] << std::endl;
+          std::cerr << "File not found: " << argv[ii] << std::endl;
           exit(1);
         }
         if (!compile(state, &stream, bNoRun))
           exit(1);
       } else if (bBinary) {
-        exitIfError(state->runBinaryFromFile(argv[i]));
+        exitIfError(state->runBinaryFromFile(argv[ii]));
       } else {
-        exitIfError(state->runFromFile(argv[i]));
+        exitIfError(state->runFromFile(argv[ii]));
       }
     }
   }
   if (!bCompile)
-    if (!runMain(state))
+    if (!runMain(state, argc - ii, &argv[ii], NULL))
       exit(1);
 
   if (bDebug)
