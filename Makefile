@@ -54,7 +54,9 @@ boot.bin:	self.bin
 	mv self.bin boot.bin
 
 self.bin:	compiler/boot.arc compiler/util.arc compiler/compiler.arc
-	./yalp -L boot.bin -C compiler/boot.arc compiler/util.arc compiler/compiler.arc > self.bin
+	./yalp -L boot.bin -C compiler/boot.arc compiler/util.arc compiler/compiler.arc > _self.bin
+	./yalp -L boot.bin tools/code-walker.arc tools/optimize.arc < _self.bin > self.bin
+	rm _self.bin
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK

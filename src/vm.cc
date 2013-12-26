@@ -79,6 +79,7 @@ namespace yalp {
   OP(SHRNK) \
   OP(VALS) \
   OP(RECV) \
+  OP(NIL) \
 
 enum Opcode {
 #define OP(name)  name,
@@ -639,7 +640,7 @@ void Vm::replaceOpcodes(Value x) {
     switch (opidx) {
     case HALT: case APPLY: case RET:
       return;
-    case VOID: case PUSH: case UNBOX:
+    case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case SHIFT: case BOX: case CONTI: case EXPND:
@@ -698,6 +699,9 @@ Value Vm::runLoop() {
     CASE(VOID) {
       a_ = Value::NIL;
       valueCount_ = 0;
+    } NEXT;
+    CASE(NIL) {
+      a_ = Value::NIL;
     } NEXT;
     CASE(CONST) {
       a_ = CAR(x_);
