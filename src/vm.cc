@@ -611,7 +611,7 @@ void Vm::storeValues(int n, int s) {
 
 void Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
-  checkArgNum(state_, Value::NIL, argNum, min, max);
+  checkArgNum(state_, opcodes_[RECV], argNum, min, max);
   reserveStack(s_ + argNum);
   moveValuesToStack(&stack_[s_], values_, a_, argNum);
   s_ += argNum;
