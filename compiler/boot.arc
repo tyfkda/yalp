@@ -204,10 +204,10 @@
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
             `(do ,@(cdr cl1)))
-          `(let1 ,sym ,(car cl1)
-                (if ,sym
-                    (let1 it ,sym ,@(cdr cl1))
-                  (acond ,@(cdr clauses))))))))
+        `(let1 ,sym ,(car cl1)
+               (if ,sym
+                   (let1 it ,sym ,@(cdr cl1))
+                 (acond ,@(cdr clauses))))))))
 
 (defmacro awhen (expr . body)
   `(aif ,expr
@@ -221,11 +221,11 @@
 
 (defmacro w/uniq (names . body)
   (if (pair? names)
-      ; (w/uniq (a b c) ...) => (let ((a (uniq)) (b (uniq)) (c (uniq)) ...)
+      ;; (w/uniq (a b c) ...) => (let ((a (uniq)) (b (uniq)) (c (uniq)) ...)
       `(let ,(map [list _ '(uniq)]
-                   names)
+                  names)
          ,@body)
-    ; (w/uniq a ...) => (let1 a (uniq) ...)
+    ;; (w/uniq a ...) => (let1 a (uniq) ...)
     `(let1 ,names (uniq) ,@body)))
 
 (defmacro and args
@@ -319,16 +319,14 @@
     '()))
 
 (def (print x . rest)
-  (let1 stream (if rest (car rest)
-                  *stdout*)
+  (let1 stream (if rest (car rest) *stdout*)
     (display x stream)
     (display "\n" stream))
   x)
 
 ;; Write shared structure.
 (def (write/ss s . rest)
-  (let1 stream (if rest (car rest)
-                  *stdout*)
+  (let1 stream (if rest (car rest) *stdout*)
     (write/ss-print s (write/ss-construct s) stream)))
 
 ;; Put cell appear idnex for more than 2 times into table.

@@ -10,16 +10,16 @@
     `(let1 ,g1 ,x
        (case (car ,g1)
          ,@(alet ((p args))
-              (when p
-                (let1 e (car p)
-                  (let ((key (car e))
-                        (vars (cadr e))
-                        (exprs (cddr e)))
-                    (if (is key 'else)
-                          (cdr e)
-                        `(,key
-                          (record (cdr ,g1) ,vars ,@exprs)
-                          ,@(loop (cdr p))))))))))))
+             (when p
+               (let1 e (car p)
+                 (let ((key (car e))
+                       (vars (cadr e))
+                       (exprs (cddr e)))
+                   (if (is key 'else)
+                       (cdr e)
+                       `(,key
+                         (record (cdr ,g1) ,vars ,@exprs)
+                         ,@(loop (cdr p))))))))))))
 
 ;;; dotted pair -> proper list
 (def (dotted->proper ls)
