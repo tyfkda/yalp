@@ -48,57 +48,74 @@
                             (list* 'UNBOX next)
                           next)))
         ((pair? x)
-         (record-case x
-                      (quote (obj) (list* 'CONST obj next))
-                      (^ (vars . body)
-                         (compile-lambda vars body e s next))
-                      (if (test then . rest)
-                          (let ((thenc (compile-recur then e s next))
-                                (elsec (if rest
-                                           (do (when (cdr rest)
-                                                 (compile-error "malformed if"))
-                                               (compile-recur (car rest) e s next))
-                                         (compile-void next))))
-                            (compile-recur test e s (list* 'TEST thenc elsec))))
-                      (set! (var val)
-                            (unless (symbol? var)
-                              (compile-error "1st argument for `set!` must be symbol, but `%@`" var))
-                            (compile-lookup var e
-                                            (^(n) (compile-recur val e s (list* 'LSET n next)))
-                                            (^(n) (compile-recur val e s (list* 'FSET n next)))
-                                            (^()  (compile-recur val e s (list* 'GSET var next)))))
-                      (def (var val)
-                           (unless (symbol? var)
-                             (compile-error "1st argument for `def` must be symbol, but `%@`" var))
-                           (when (and (inline-function? var)
-                                      (lambda-expression? val))
-                             (register-inline-function var val))
-                           (compile-recur val e s (list* 'DEF var next)))
-                      (call/cc (func)
-                               (let1 c (list* 'CONTI (if (tail? next) 't 'nil)
-                                              'PUSH
-                                              (compile-recur func e s
-                                                             (if (tail? next)
-                                                                 '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
-                                                               '(APPLY 1))))
-                                 (if (tail? next)
-                                     c
-                                   (list* 'FRAME c next))))
-                      (defmacro (name vars . body)
-                        (compile-defmacro name vars body e s next))
-                      (values args
-                              (compile-values args e s next))
-                      (receive (vars vals . body)
-                               (compile-receive vars vals body e s next))
-                      (else
-                       (let ((func (car x))
-                             (args (cdr x)))
-                         (cond ((direct-invoke? func)
-                                (compile-apply-direct (cadr func) (cddr func) args e s next))
-                               ((inline-function? func)
-                                (compile-inline-apply func args e s next))
-                               (else (compile-apply func args e s next)))))))
+         (compile-list x e s next))
         (else (list* 'CONST x next))))
+
+(defun compile-list (x e s next)
+  (record-case x
+               ;; Special forms.
+               (quote (obj) (list* 'CONST obj next))
+               (^ (vars . body)
+                  (compile-lambda vars body e s next))
+               (if (test then . rest)
+                   (compile-if test then rest e s next))
+               (set! (var val)
+                     (compile-set! var val e s next))
+               (def (var val)
+                    (compile-def var val e s next))
+               (call/cc (func)
+                        (compile-call/cc func e s next))
+               (defmacro (name vars . body)
+                 (compile-defmacro name vars body e s next))
+               (values args
+                       (compile-values args e s next))
+               (receive (vars vals . body)
+                        (compile-receive vars vals body e s next))
+               (else
+                ;; Normal forms.
+                (let ((func (car x))
+                      (args (cdr x)))
+                  (cond ((direct-invoke? func)
+                         (compile-apply-direct (cadr func) (cddr func) args e s next))
+                        ((inline-function? func)
+                         (compile-inline-apply func args e s next))
+                        (else (compile-apply func args e s next)))))))
+
+(defun compile-if (test then rest e s next)
+  (let ((thenc (compile-recur then e s next))
+        (elsec (if rest
+                   (do (when (cdr rest)
+                         (compile-error "malformed if"))
+                       (compile-recur (car rest) e s next))
+                 (compile-void next))))
+    (compile-recur test e s (list* 'TEST thenc elsec))))
+
+(defun compile-def (var val e s next)
+  (unless (symbol? var)
+    (compile-error "1st argument for `def` must be symbol, but `%@`" var))
+  (when (and (inline-function? var)
+             (lambda-expression? val))
+    (register-inline-function var val))
+  (compile-recur val e s (list* 'DEF var next)))
+
+(defun compile-set! (var val e s next)
+  (unless (symbol? var)
+    (compile-error "1st argument for `set!` must be symbol, but `%@`" var))
+  (compile-lookup var e
+                  (^(n) (compile-recur val e s (list* 'LSET n next)))
+                  (^(n) (compile-recur val e s (list* 'FSET n next)))
+                  (^()  (compile-recur val e s (list* 'GSET var next)))))
+
+(defun compile-call/cc (func e s next)
+  (let1 c (list* 'CONTI (if (tail? next) 't 'nil)
+                 'PUSH
+                 (compile-recur func e s
+                                (if (tail? next)
+                                    '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                  '(APPLY 1))))
+    (if (tail? next)
+        c
+      (list* 'FRAME c next))))
 
 (defun compile-void (next)
   (list* 'VOID next))
