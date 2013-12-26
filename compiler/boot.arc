@@ -155,14 +155,18 @@
                      (^(stream ch)
                        `(^ (_) ,(read-delimited-list #\] stream))))
 
+;; named-with
+(defmacro nwith (name parms . body)
+  `((let ,name nil
+      (set! ,name (^ ,(map car (pair parms))
+                    ,@body)))
+    ,@(map cadr (pair parms))))
+
 ;; Anapholic-with macro.
 ;; Like with macro, but captures "loop" variable to make loop syntax.
 ;; This is similar to named-let syntax in Scheme.
 (defmacro awith (parms . body)
-  `((let loop nil
-      (set! loop (^ ,(map car (pair parms))
-                    ,@body)))
-    ,@(map cadr (pair parms))))
+  `(nwith loop ,parms ,@body))
 
 (defmacro aif (expr . body)
   (if (no body)
