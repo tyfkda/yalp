@@ -139,7 +139,7 @@
                         (pair rest))))
     `(set! ,var ,val)))
 
-(defmacro let (var val . body)
+(defmacro let1 (var val . body)
   `((^(,var) ,@body) ,val))
 
 (defmacro with (parms . body)
@@ -162,7 +162,7 @@
 
 ;; named-with
 (defmacro nwith (name parms . body)
-  `((let ,name nil
+  `((let1 ,name nil
       (set! ,name (^ ,(map car (pair parms))
                     ,@body)))
     ,@(map cadr (pair parms))))
@@ -175,7 +175,7 @@
 
 (defmacro cond clauses
   (if clauses
-      (let clause (car clauses)
+      (let1 clause (car clauses)
         (if (is (car clause) 'else)
             (if (cdr clauses)
                 (compile-error "else clause must comes at last in cond")
@@ -188,7 +188,7 @@
 (defmacro aif (expr . body)
   (if (no body)
       expr
-    `(let it ,expr
+    `(let1 it ,expr
        (if it
            ,@(if (cdr body)
                  `(,(car body) (aif ,@(cdr body)))
@@ -203,9 +203,9 @@
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
             `(do ,@(cdr cl1)))
-          `(let ,sym ,(car cl1)
+          `(let1 ,sym ,(car cl1)
                 (if ,sym
-                    (let it ,sym ,@(cdr cl1))
+                    (let1 it ,sym ,@(cdr cl1))
                   (acond ,@(cdr clauses))))))))
 
 (defmacro awhen (expr . body)
@@ -224,8 +224,8 @@
       `(with ,(apply append (map [list _ '(uniq)]
                                  names))
          ,@body)
-    ; (w/uniq a ...) => (let a (uniq) ...)
-    `(let ,names (uniq) ,@body)))
+    ; (w/uniq a ...) => (let1 a (uniq) ...)
+    `(let1 ,names (uniq) ,@body)))
 
 (defmacro and args
   (if args
@@ -239,11 +239,11 @@
 (defmacro or args
   (and args
        (w/uniq g
-         `(let ,g ,(car args)
+         `(let1 ,g ,(car args)
             (if ,g ,g (or ,@(cdr args)))))))
 
 (defmacro caselet (var expr . args)
-  `(let ,var ,expr
+  `(let1 ,var ,expr
      ,(awith (args args)
         (cond ((no args)  '())
               ((no (cdr args))  (car args))
@@ -261,7 +261,7 @@
     (w/uniq p
       `(awith (,p ,ls)
          (when (pair? ,p)
-           (let ,x (car ,p)
+           (let1 ,x (car ,p)
              ,@body
              (loop (cdr ,p))))))))
 
@@ -304,7 +304,7 @@
 (def (union s1 s2)
   (if s1
       (union (cdr s1)
-             (let x (car s1)
+             (let1 x (car s1)
                (if (member x s2)
                    s2
                  (cons x s2))))
@@ -318,7 +318,7 @@
     '()))
 
 (def (print x . rest)
-  (let stream (if rest (car rest)
+  (let1 stream (if rest (car rest)
                   *stdout*)
     (display x stream)
     (display "\n" stream))
@@ -326,20 +326,20 @@
 
 ;; Write shared structure.
 (def (write/ss s . rest)
-  (let stream (if rest (car rest)
+  (let1 stream (if rest (car rest)
                   *stdout*)
     (write/ss-print s (write/ss-construct s) stream)))
 
 ;; Put cell appear idnex for more than 2 times into table.
 (def (write/ss-construct s)
-  (let h (table)
+  (let1 h (table)
     (table-put! h 'index 0)
     (awith (s s)
       (when (pair? s)
         (if (table-exists? h s)
             (unless (table-get h s)
               ;; Assign index for the object appeared more than 1 time.
-              (let i (table-get h 'index)
+              (let1 i (table-get h 'index)
                 (table-put! h s i)
                 (table-put! h 'index (+ 1 i))))
           ;; Put nil for the first appeared object.
@@ -351,7 +351,7 @@
 
 (def (write/ss-print s h stream)
   (if (pair? s)
-      (let index (table-get h s)
+      (let1 index (table-get h s)
         (if (and index (< index 0))
             ;; Print structure after second time or later.
             (format stream "#%@#" (- -1 index))

@@ -34,12 +34,12 @@
                    (cadr inst))))
 
 (def (vm-walker code f)
-  (let h (write/ss-construct code)
+  (let1 h (write/ss-construct code)
     (nwith recur (code code)
-      (let index (table-get h code)
+      (let1 index (table-get h code)
         (when (or (no index) (>= index 0))
           (table-put! h code -1)
-          (let operands (table-get *opcode-table* (car code))
+          (let1 operands (table-get *opcode-table* (car code))
             (when (f code recur)
               (awith (p operands
                       c (cdr code))
@@ -53,7 +53,7 @@
 (def (files-or-stdin args f)
   (if args
       (dolist (filename args)
-        (let ss (open filename)
+        (let1 ss (open filename)
           (f ss)
           (close ss)))
     (f *stdin*)))

@@ -7,11 +7,11 @@
 
 (defmacro record-case (x . args)
   (w/uniq g1
-    `(let ,g1 ,x
+    `(let1 ,g1 ,x
        (case (car ,g1)
          ,@(awith (p args)
               (when p
-                (let e (car p)
+                (let1 e (car p)
                   (with (key (car e)
                          vars (cadr e)
                          exprs (cddr e))

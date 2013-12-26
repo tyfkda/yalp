@@ -10,7 +10,7 @@
 (def (enumerate a b cont)
   (if (> a b)
       (fail)
-    (let save fail
+    (let1 save fail
       (set! fail
             (^()
               (set! fail save)

@@ -120,7 +120,7 @@
                           (register-inline-function var val))
                         (compile-recur val e s (list* 'DEF var next)))
                       (call/cc (func)
-                               (let c (list* 'CONTI (if (tail? next) 't 'nil)
+                               (let1 c (list* 'CONTI (if (tail? next) 't 'nil)
                                              'PUSH
                                              (compile-recur func e s
                                                             (if (tail? next)
@@ -164,7 +164,7 @@
       (list* 'FRAME bc next))))
 
 (def (compile-inline-apply sym args e s next)
-  (let lambda (get-inline-function-body sym)
+  (let1 lambda (get-inline-function-body sym)
     (compile-recur `(,lambda ,@args)
                    e s next)))
 
@@ -197,9 +197,9 @@
                                           e s next)))
       (do
         (unless (is argnum varnum)
-          (let which (if (< argnum varnum) "few" "many")
+          (let1 which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
-        (let ext-vars (append proper-vars (car e))
+        (let1 ext-vars (append proper-vars (car e))
           (with (free (cdr e)  ;(intersection (union (car e)
                                ;                     (cdr e))
                                ;              (find-frees body '() proper-vars))
@@ -215,7 +215,7 @@
                                                          (list* 'SHRNK argnum next))))))))))))
 
 (def (compile-lambda vars body e s next)
-  (let proper-vars (check-parameters vars)
+  (let1 proper-vars (check-parameters vars)
     (with (free (intersection (union (car e)
                                      (cdr e))
                               (find-frees body '() proper-vars))
@@ -238,7 +238,7 @@
 
 ;; Check function parameters are valid and returns proper vars.
 (def (check-parameters vars)
-  (let proper-vars (dotted->proper vars)
+  (let1 proper-vars (dotted->proper vars)
     (aif (member-if [no (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
     (awith (p vars)
@@ -271,7 +271,7 @@
       next)))
 
 (def (compile-values args e s next)
-  (let argnum (len args)
+  (let1 argnum (len args)
     (if (is argnum 0)
         (compile-void next)
       (compile-apply-args args e s (list* 'VALS argnum next)))))
@@ -293,7 +293,7 @@
                                           (list* 'SHRNK (len proper-vars) next)))))))
 
 (def (find-frees xs b vars)
-  (let bb (union (dotted->proper vars) b)
+  (let1 bb (union (dotted->proper vars) b)
     (awith (v '()
             p xs)
       (if p
@@ -387,7 +387,7 @@
 ;;; Macro
 
 (def (compile-defmacro name vars body e s next)
-  (let proper-vars (check-parameters vars)
+  (let1 proper-vars (check-parameters vars)
     (with (free (intersection (union (car e)
                                      (cdr e))
                               (find-frees body '() proper-vars))
@@ -408,7 +408,7 @@
   (if (pair? exp)
       (if (member (car exp) scope-vars)
           (macroexpand-all-sub exp scope-vars)
-        (let expanded (macroexpand-1 exp)
+        (let1 expanded (macroexpand-1 exp)
           (if (iso expanded exp)
               (macroexpand-all-sub exp scope-vars)
             (macroexpand-all expanded scope-vars))))
@@ -421,7 +421,7 @@
   (record-case exp
                (quote (obj) `(quote ,obj))
                (^ (vars . body)
-                  (let new-scope-vars (append (dotted->proper vars) scope-vars)
+                  (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
                     `(^ ,vars ,@(map-macroexpand-all body new-scope-vars))))
                (if all
                    `(if ,@(map-macroexpand-all all scope-vars)))
@@ -432,18 +432,18 @@
                (call/cc (x)
                         `(call/cc ,(macroexpand-all x scope-vars)))
                (defmacro (name vars . body)
-                 (let new-scope-vars (append (dotted->proper vars) scope-vars)
+                 (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
                    `(defmacro ,name ,vars ,@(map-macroexpand-all body new-scope-vars))))
                (values all
                        `(values ,@(map-macroexpand-all all scope-vars)))
                (receive (vars vals . body)
-                        (let new-scope-vars (append (dotted->proper vars) scope-vars)
+                        (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
                           `(receive ,vars ,(macroexpand-all vals scope-vars)
                              ,@(map-macroexpand-all body new-scope-vars))))
                (else (map-macroexpand-all exp scope-vars))))
 
 (def (macroexpand exp)
-  (let expanded (macroexpand-1 exp)
+  (let1 expanded (macroexpand-1 exp)
     (if (iso expanded exp)
         exp
       (macroexpand expanded))))
