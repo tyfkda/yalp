@@ -34,7 +34,7 @@
     (if (pair? ls)
         (if (f (car ls))
             ls
-            (any? f (cdr ls)))
+          (any? f (cdr ls)))
       nil)))
 
 (def map1-loop
@@ -71,48 +71,48 @@
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (def pair
-    (^(xs)
-      (if (no xs)
-            nil
-          (no (cdr xs))
-            (list (list (car xs)))
-          (cons (list (car xs) (cadr xs))
-                (pair (cddr xs))))))
+  (^(xs)
+    (if (no xs)
+        nil
+      (if (no (cdr xs))
+          (list (list (car xs)))
+        (cons (list (car xs) (cadr xs))
+              (pair (cddr xs)))))))
 
 (def qq-expand
-    (^(x)
-      (if (pair? x)
-          ((^(m)
-             (if (is m 'unquote)
-                   (cadr x)
-                 (is m 'unquote-splicing)
-                   (error "Illegal")
-                 (is m 'quasiquote)
+  (^(x)
+    (if (pair? x)
+        ((^(m)
+           (if (is m 'unquote)
+               (cadr x)
+             (if (is m 'unquote-splicing)
+                 (error "Illegal")
+               (if (is m 'quasiquote)
                    (qq-expand
                     (qq-expand (cadr x)))
-               (list 'append
-                     (qq-expand-list (car x))
-                     (qq-expand (cdr x)))))
-           (car x))
-        (list 'quote x))))
+                 (list 'append
+                       (qq-expand-list (car x))
+                       (qq-expand (cdr x)))))))
+         (car x))
+      (list 'quote x))))
 
 (def qq-expand-list
-    (^(x)
-      (if (pair? x)
-          ((^(m)
-             (if (is m 'unquote)
-                   (list 'list (cadr x))
-                 (is m 'unquote-splicing)
-                   (cadr x)
-                 (is m 'quasiquote)
+  (^(x)
+    (if (pair? x)
+        ((^(m)
+           (if (is m 'unquote)
+               (list 'list (cadr x))
+             (if (is m 'unquote-splicing)
+                 (cadr x)
+               (if (is m 'quasiquote)
                    (qq-expand-list
                     (qq-expand (cadr x)))
-               (list 'list
-                     (list 'append
-                           (qq-expand-list (car x))
-                           (qq-expand (cdr x))))))
-           (car x))
-        (list 'quote (list x)))))
+                 (list 'list
+                       (list 'append
+                             (qq-expand-list (car x))
+                             (qq-expand (cdr x))))))))
+         (car x))
+      (list 'quote (list x)))))
 
 (defmacro quasiquote (x)
   (qq-expand x))
@@ -173,6 +173,18 @@
 (defmacro awith (parms . body)
   `(nwith loop ,parms ,@body))
 
+(defmacro cond clauses
+  (if clauses
+      (let clause (car clauses)
+        (if (is (car clause) 'else)
+            (if (cdr clauses)
+                (compile-error "else clause must comes at last in cond")
+              `(do ,@(cdr clause)))
+          `(if ,(car clause)
+               (do ,@(cdr clause))
+             (cond ,@(cdr clauses)))))
+    nil))
+
 (defmacro aif (expr . body)
   (if (no body)
       expr
@@ -181,6 +193,20 @@
            ,@(if (cdr body)
                  `(,(car body) (aif ,@(cdr body)))
                body)))))
+
+(defmacro acond clauses
+  (if (no clauses)
+      nil
+    (with (cl1 (car clauses)
+           sym (uniq))
+      (if (is (car cl1) 'else)
+          (if (cdr clauses)
+              (compile-error "else clause must comes at last in cond")
+            `(do ,@(cdr cl1)))
+          `(let ,sym ,(car cl1)
+                (if ,sym
+                    (let it ,sym ,@(cdr cl1))
+                  (acond ,@(cdr clauses))))))))
 
 (defmacro awhen (expr . body)
   `(aif ,expr
@@ -219,13 +245,12 @@
 (defmacro caselet (var expr . args)
   `(let ,var ,expr
      ,(awith (args args)
-        (if (no args)
-              '()
-            (no (cdr args))
-              (car args)
-            `(if (is ,var ',(car args))
-                 ,(cadr args)
-               ,(loop (cddr args)))))))
+        (cond ((no args)  '())
+              ((no (cdr args))  (car args))
+              (else
+               `(if (is ,var ',(car args))
+                    ,(cadr args)
+                  ,(loop (cddr args))))))))
 
 (defmacro case (expr . args)
   `(caselet ,(uniq) ,expr ,@args))
@@ -250,7 +275,7 @@
                  n 0)
            (if (pair? x)
                (loop (cdr x) (+ n 1))
-               n))
+             n))
     0))
 
 ;; Returns last pair
