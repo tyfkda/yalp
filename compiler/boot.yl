@@ -1,14 +1,20 @@
 (proclaim
  (inline no cadr cddr isnt member))
 
+;;; Basic read macros.
+
+;; 'x => (quote x)
 (set-macro-character #\'
                      (^(stream ch)
                        (list (quote quote) (read stream))))
 
+;; `x => (quasiquote x)
 (set-macro-character #\`
                      (^(stream ch)
                        (list 'quasiquote (read stream))))
 
+;; ,x => (unquote x)
+;; ,@x => (unquote-splicing x)
 (set-macro-character #\,
                      (^(stream ch)
                        ((^(c)
@@ -17,12 +23,23 @@
                             (list 'unquote (read (unread-char c stream)))))
                         (read-char stream))))
 
+;; Creates simple 1 parameter function with bracket notation.
+;; [...] => (^(_) ...)
+(set-macro-character #\[
+                     (^(stream ch)
+                       ;;`(^ (_) ,(read-delimited-list #\] stream))))
+                       (list '^ '(_) (read-delimited-list #\] stream))))
+
+;;; Basic functions and macros.
+
 (defmacro defun (name vars . body)
   ;; `(def ,name (^ ,vars ,@body))
   (list 'def name
         (list* '^ vars body)))
 
 (defun no (x) (if x nil t))
+(defun cadr (x) (car (cdr x)))
+(defun cddr (x) (cdr (cdr x)))
 (defun fixnum? (x) (is (type x) 'fixnum))
 (defun pair? (x) (is (type x) 'pair))
 (defun symbol? (x) (is (type x) 'symbol))
@@ -67,9 +84,6 @@
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
 
-(defun cadr (x) (car (cdr x)))
-(defun cddr (x) (cdr (cdr x)))
-
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
 (defun pair (xs)
   (if (no xs)
@@ -85,7 +99,7 @@
          (if (is m 'unquote)
              (cadr x)
            (if (is m 'unquote-splicing)
-               (error "Illegal")
+               (error "Illegal ,@")
              (if (is m 'quasiquote)
                  (qq-expand
                   (qq-expand (cadr x)))
@@ -155,10 +169,6 @@
              (let* ,(cdr parms) ,@body))
           ,(cadr par)))
     `(do ,@body)))
-
-(set-macro-character #\[
-                     (^(stream ch)
-                       `(^ (_) ,(read-delimited-list #\] stream))))
 
 ;; Anapholic-let macro.
 ;; Like let macro, but captures "loop" variable to make loop syntax.
