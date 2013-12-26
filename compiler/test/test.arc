@@ -1,8 +1,8 @@
 (defmacro test (name expected actual)
   (w/uniq (v result)
-    `(let ,v ,expected
+    `(let1 ,v ,expected
        (format *stdout* "Testing %@ ... " ',name)
-       (let ,result ,actual
+       (let1 ,result ,actual
          (if (iso ,v ,result)
              (print "ok")
            (do

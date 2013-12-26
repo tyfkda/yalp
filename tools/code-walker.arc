@@ -35,14 +35,14 @@
 
 (def (vm-walker code f)
   (let1 h (write/ss-construct code)
-    (nwith recur (code code)
+    (let recur ((code code))
       (let1 index (table-get h code)
         (when (or (no index) (>= index 0))
           (table-put! h code -1)
           (let1 operands (table-get *opcode-table* (car code))
             (when (f code recur)
-              (awith (p operands
-                      c (cdr code))
+              (alet ((p operands)
+                     (c (cdr code)))
                 (if (pair? p)
                     (do (when (car p)
                           (recur (car c)))

@@ -143,9 +143,18 @@
   `((^(,var) ,@body) ,val))
 
 (defmacro let (parms . body)
-  `((^ ,(map car parms)
-       ,@body)
-    ,@(map cadr parms)))
+  (if (symbol? parms)
+      ;; Named let.
+      ((^(name parms body)
+         `((^ (,name)
+              (set! ,name (^ ,(map car parms)
+                             ,@body))
+              (,name ,@(map cadr parms)))
+           nil))
+       parms (car body) (cdr body))
+    `((^ ,(map car parms)
+         ,@body)
+      ,@(map cadr parms))))
 
 (defmacro let* (parms . body)
   (if parms
@@ -159,18 +168,11 @@
                      (^(stream ch)
                        `(^ (_) ,(read-delimited-list #\] stream))))
 
-;; named-with
-(defmacro nwith (name parms . body)
-  `((let1 ,name nil
-      (set! ,name (^ ,(map car (pair parms))
-                    ,@body)))
-    ,@(map cadr (pair parms))))
-
-;; Anapholic-with macro.
-;; Like with macro, but captures "loop" variable to make loop syntax.
+;; Anapholic-let macro.
+;; Like let macro, but captures "loop" variable to make loop syntax.
 ;; This is similar to named-let syntax in Scheme.
-(defmacro awith (parms . body)
-  `(nwith loop ,parms ,@body))
+(defmacro alet (parms . body)
+  `(let loop ,parms ,@body))
 
 (defmacro cond clauses
   (if clauses
@@ -212,7 +214,7 @@
      (do ,@body)))
 
 (defmacro awhile (expr . body)
-  `(awith ()
+  `(alet ()
      (awhen ,expr
        ,@body
        (loop))))
@@ -243,7 +245,7 @@
 
 (defmacro caselet (var expr . args)
   `(let1 ,var ,expr
-     ,(awith (args args)
+     ,(alet ((args args))
         (cond ((no args)  '())
               ((no (cdr args))  (car args))
               (else
@@ -258,7 +260,7 @@
   (let ((x (car vars))
         (ls (cadr vars)))
     (w/uniq p
-      `(awith (,p ,ls)
+      `(alet ((,p ,ls))
          (when (pair? ,p)
            (let1 ,x (car ,p)
              ,@body
@@ -270,8 +272,8 @@
 (def (len x)
   (case (type x)
     string (string-length x)
-    pair (awith (x x
-                 n 0)
+    pair (alet ((x x)
+                (n 0))
            (if (pair? x)
                (loop (cdr x) (+ n 1))
              n))
@@ -284,8 +286,8 @@
     ls))
 
 (def (reverse ls)
-  (awith (ls ls
-          acc '())
+  (alet ((ls ls)
+         (acc '()))
     (if (pair? ls)
         (loop (cdr ls) (cons (car ls) acc))
       acc)))
@@ -333,7 +335,7 @@
 (def (write/ss-construct s)
   (let1 h (table)
     (table-put! h 'index 0)
-    (awith (s s)
+    (alet ((s s))
       (when (pair? s)
         (if (table-exists? h s)
             (unless (table-get h s)
@@ -358,8 +360,8 @@
           (do (when index
                 (format stream "#%@=" index)
                 (table-put! h s (- -1 index)))
-              (awith (c "("
-                      s s)
+              (alet ((c "(")
+                     (s s))
                 (if s
                     (do (display c stream)
                         (write/ss-print (car s) h stream)
@@ -375,9 +377,9 @@
 
 ;; Take first n elements from the list.
 (def (take n ls)
-  (awith (n n
-          acc '()
-          ls ls)
+  (alet ((n n)
+         (acc '())
+         (ls ls))
     (if (and ls (> n 0))
         (loop (- n 1) (cons (car ls) acc) (cdr ls))
       (reverse! acc))))

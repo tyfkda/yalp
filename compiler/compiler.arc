@@ -169,8 +169,8 @@
                    e s next)))
 
 (def (compile-apply-args args e s next)
-  (awith (args args
-          c next)
+  (alet ((args args)
+         (c next))
     (if args
         (loop (cdr args)
               (compile-recur (car args) e s
@@ -241,7 +241,7 @@
   (let1 proper-vars (dotted->proper vars)
     (aif (member-if [no (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
-    (awith (p vars)
+    (alet ((p vars))
       (when p
         (when (member (car p) (cdr p))
           (compile-error "Duplicated parameter `%@`" (car p)))
@@ -254,7 +254,7 @@
                     (ss (union sets
                                (intersection s free))))
                 (if body
-                    (awith (p body)
+                    (alet ((p body))
                       (if p
                           (compile-recur (car p) ee ss
                                          (loop (cdr p)))
@@ -262,8 +262,8 @@
                   (compile-void next)))))
 
 (def (make-boxes sets vars next)
-  (awith (vars vars
-          n 0)
+  (alet ((vars vars)
+         (n 0))
     (if vars
         (if (member (car vars) sets)
             (list* 'BOX n (loop (cdr vars) (+ n 1)))
@@ -294,8 +294,8 @@
 
 (def (find-frees xs b vars)
   (let1 bb (union (dotted->proper vars) b)
-    (awith (v '()
-            p xs)
+    (alet ((v '())
+           (p xs))
       (if p
           (loop (union v (find-free (car p) bb))
                 (cdr p))
@@ -329,8 +329,8 @@
         (else '())))
 
 (def (find-setses xs v)
-  (awith (b '()
-          p xs)
+  (alet ((b '())
+         (p xs))
     (if p
         (loop (union b (find-sets (car p) v))
               (cdr p))
@@ -366,8 +366,8 @@
                   (^()  (list* 'GREF var next))))
 
 (def (find-index x ls)
-  (awith (ls ls
-          idx 0)
+  (alet ((ls ls)
+         (idx 0))
     (if ls
         (if (is (car ls) x)
             idx

@@ -44,30 +44,30 @@
 ;; let
 (test "let" 3 (let ((x 1) (y 2)) (+ x y)))
 
-;; with*
-(test "with*" 12321 (with* (x 111 x (* x x)) x))
+;; let*
+(test "let*" 12321 (let* ((x 111) (x (* x x))) x))
 
 ;; bracket
 (test "[...]" '(1 4 9) (map [* _ _] '(1 2 3)))
 
 ;; awith
-(test "awith" 55 (awith (i 10
-                         acc 0)
-                   (if (< i 0)
-                       acc
-                     (loop (- i 1) (+ acc i)))))
+(test "alet" 55 (alet ((i 10)
+                       (acc 0))
+                  (if (< i 0)
+                      acc
+                    (loop (- i 1) (+ acc i)))))
 
 ;; aif
 (test "aif true" 1 (aif 1 it 2 it))
 (test "aif false" nil (aif nil it nil it))
 
 ;; awhile
-(test "awhile" 3 (with (x '(1 2 nil 4 5)
-                        acc 0)
-                     (awhile (car x)
-                       (set! acc (+ acc it))
-                       (set! x (cdr x)))
-                     acc))
+(test "awhile" 3 (let ((x '(1 2 nil 4 5))
+                       (acc 0))
+                   (awhile (car x)
+                     (set! acc (+ acc it))
+                     (set! x (cdr x)))
+                   acc))
 
 ;; and
 (test "and" 3 (and 1 2 3))
