@@ -33,53 +33,8 @@
 ;      then argument number is pushed to stack:
 ;     [c][f][ret][b1]f[argnum]s
 
-;(load "./boot.arc")
-;(load "./util.arc")
-
-;;; Compiler
-
-(def *exit-compile* nil)
-
-(defun compile-error args
-  (apply format *stderr* args)
-  (display "\n")
-  (*exit-compile* nil))
-
-(defun compile (x)
-  (call/cc
-   (^(cc)
-     (set! *exit-compile* cc)
-     (compile-recur (macroexpand-all x '())
-                    '(()) '() '(HALT)))))
-
-(defmacro proclaim defs
-  `(do
-     ,@(map (^(sentence)
-              (when (pair? sentence)
-                (case (car sentence)
-                  inline (do (dolist (sym (cdr sentence))
-                                     (proclaim-inline sym))
-                             '(values))
-                  )))
-            defs)))
-
-(def *inline-functions* (table))
-(defun proclaim-inline (sym)
-  (table-put! *inline-functions* sym t))
-
-(defun inline-function? (sym)
-  (and (symbol? sym)
-       (table-exists? *inline-functions* sym)))
-
-(defun lambda-expression? (exp)
-  (and (pair? exp)
-       (is (car exp) '^)))
-
-(defun register-inline-function (sym func)
-  (table-put! *inline-functions* sym func))
-
-(defun get-inline-function-body (sym)
-  (table-get *inline-functions* sym))
+;(load "./boot.yl")
+;(load "./util.yl")
 
 ;; Compiles lisp code into vm code.
 ;;   x : code to be compiled.
@@ -446,7 +401,52 @@
         exp
       (macroexpand expanded))))
 
+;; Proclaim
+
+(defmacro proclaim defs
+  `(do
+     ,@(map (^(sentence)
+              (when (pair? sentence)
+                (case (car sentence)
+                  inline (do (dolist (sym (cdr sentence))
+                                     (proclaim-inline sym))
+                             '(values))
+                  )))
+            defs)))
+
+(def *inline-functions* (table))
+(defun proclaim-inline (sym)
+  (table-put! *inline-functions* sym t))
+
+(defun inline-function? (sym)
+  (and (symbol? sym)
+       (table-exists? *inline-functions* sym)))
+
+(defun lambda-expression? (exp)
+  (and (pair? exp)
+       (is (car exp) '^)))
+
+(defun register-inline-function (sym func)
+  (table-put! *inline-functions* sym func))
+
+(defun get-inline-function-body (sym)
+  (table-get *inline-functions* sym))
+
 ;;
+
+(def *exit-compile* nil)
+
+(defun compile-error args
+  (apply format *stderr* args)
+  (display "\n")
+  (*exit-compile* nil))
+
+(defun compile (x)
+  (call/cc
+   (^(cc)
+     (set! *exit-compile* cc)
+     (compile-recur (macroexpand-all x '())
+                    '(()) '() '(HALT)))))
 
 (defun eval (x)
   (run-binary (compile x)))
