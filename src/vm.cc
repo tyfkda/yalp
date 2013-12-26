@@ -70,7 +70,7 @@ namespace yalp {
   OP(FRAME) \
   OP(APPLY) \
   OP(RET) \
-  OP(SHIFT) \
+  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
@@ -638,13 +638,13 @@ void Vm::replaceOpcodes(Value x) {
     static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
     x = CDR(x);
     switch (opidx) {
-    case HALT: case APPLY: case RET:
+    case HALT: case APPLY: case TAPPLY: case RET:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case SHIFT: case BOX: case CONTI: case EXPND:
-    case SHRNK: case VALS: case RECV:
+    case GSET: case DEF: case BOX: case CONTI: case EXPND: case SHRNK:
+    case VALS: case RECV:
       x = CDR(x);
       break;
     case TEST: case FRAME:
@@ -802,12 +802,15 @@ Value Vm::runLoop() {
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
     } NEXT;
-    CASE(SHIFT) {
+    CASE(TAPPLY) {
+      // SHIFT
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
+      // APPLY
+      apply(a_, n);
     } NEXT;
     CASE(BOX) {
       int n = CAR(x_).toFixnum();

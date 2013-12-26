@@ -124,8 +124,7 @@
                                             'PUSH
                                             (compile-recur func e s
                                                            (if (tail? next)
-                                                               '(SHIFT 1
-                                                                 APPLY 1)
+                                                               '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
                                                              '(APPLY 1))))
                                 (if (tail? next)
                                     c
@@ -157,8 +156,7 @@
   (with* (argnum (len args)
           c (compile-recur func e s
                            (if (tail? next)
-                               (list 'SHIFT argnum
-                                     'APPLY argnum)
+                               (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
                              (list 'APPLY argnum)))
           bc (compile-apply-args args e s c))
     (if (tail? next)

@@ -15,7 +15,7 @@
       (FRAME ($cont . $ret))
       (APPLY (n))
       (RET ())
-      (SHIFT (n . $next))
+      (TAPPLY (n))
       (BOX (n . $next))
       (UNBOX $next)
       (CONTI (tail . $next))
