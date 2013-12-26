@@ -12,9 +12,9 @@
          ,@(awith (p args)
               (when p
                 (let1 e (car p)
-                  (with (key (car e)
-                         vars (cadr e)
-                         exprs (cddr e))
+                  (let ((key (car e))
+                        (vars (cadr e))
+                        (exprs (cddr e)))
                     (if (is key 'else)
                           (cdr e)
                         `(,key

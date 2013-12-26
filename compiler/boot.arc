@@ -142,18 +142,17 @@
 (defmacro let1 (var val . body)
   `((^(,var) ,@body) ,val))
 
-(defmacro with (parms . body)
-  `((^ ,(map car (pair parms))
+(defmacro let (parms . body)
+  `((^ ,(map car parms)
        ,@body)
-    ,@(map cadr (pair parms))))
+    ,@(map cadr parms)))
 
-(defmacro with* (parms . body)
+(defmacro let* (parms . body)
   (if parms
-      `((^ (,(car parms))
-           ,@(if (cddr parms)
-                `((with* ,(cddr parms) ,@body))
-              body))
-        ,(cadr parms))
+      (let1 par (car parms)
+        `((^ (,(car par))
+             (let* ,(cdr parms) ,@body))
+          ,(cadr par)))
     `(do ,@body)))
 
 (set-macro-character #\[
@@ -197,8 +196,8 @@
 (defmacro acond clauses
   (if (no clauses)
       nil
-    (with (cl1 (car clauses)
-           sym (uniq))
+    (let ((cl1 (car clauses))
+          (sym (uniq)))
       (if (is (car cl1) 'else)
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
@@ -220,9 +219,9 @@
 
 (defmacro w/uniq (names . body)
   (if (pair? names)
-      ; (w/uniq (a b c) ...) => (with (a (uniq) b (uniq) c (uniq) ...)
-      `(with ,(apply append (map [list _ '(uniq)]
-                                 names))
+      ; (w/uniq (a b c) ...) => (let ((a (uniq)) (b (uniq)) (c (uniq)) ...)
+      `(let ,(map [list _ '(uniq)]
+                   names)
          ,@body)
     ; (w/uniq a ...) => (let1 a (uniq) ...)
     `(let1 ,names (uniq) ,@body)))
@@ -256,8 +255,8 @@
   `(caselet ,(uniq) ,expr ,@args))
 
 (defmacro dolist (vars . body)
-  (with (x (car vars)
-         ls (cadr vars))
+  (let ((x (car vars))
+        (ls (cadr vars)))
     (w/uniq p
       `(awith (,p ,ls)
          (when (pair? ,p)

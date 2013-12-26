@@ -98,12 +98,12 @@
                       (^ (vars . body)
                          (compile-lambda vars body e s next))
                       (if (test then . rest)
-                          (with (thenc (compile-recur then e s next)
-                                 elsec (if rest
+                          (let ((thenc (compile-recur then e s next))
+                                (elsec (if rest
                                            (do (when (cdr rest)
                                                  (compile-error "malformed if"))
                                                (compile-recur (car rest) e s next))
-                                         (compile-void next)))
+                                         (compile-void next))))
                             (compile-recur test e s (list* 'TEST thenc elsec))))
                       (set! (var val)
                             (unless (symbol? var)
@@ -136,8 +136,8 @@
                       (receive (vars vals . body)
                                (compile-receive vars vals body e s next))
                       (else
-                       (with (func (car x)
-                              args (cdr x))
+                       (let ((func (car x))
+                             (args (cdr x)))
                          (cond ((direct-invoke? func)
                                 (compile-apply-direct (cadr func) (cddr func) args e s next))
                                ((inline-function? func)
@@ -153,12 +153,12 @@
        (is '^ (car func))))
 
 (def (compile-apply func args e s next)
-  (with* (argnum (len args)
-          c (compile-recur func e s
+  (let* ((argnum (len args))
+         (c (compile-recur func e s
                            (if (tail? next)
                                (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
-                             (list 'APPLY argnum)))
-          bc (compile-apply-args args e s c))
+                             (list 'APPLY argnum))))
+         (bc (compile-apply-args args e s c)))
     (if (tail? next)
         bc
       (list* 'FRAME bc next))))
@@ -179,9 +179,9 @@
 
 ;; Compiles ((^(vars) body) args) form
 (def (compile-apply-direct vars body args e s next)
-  (with (proper-vars (check-parameters vars)
-         argnum (len args)
-         varnum (len vars))
+  (let ((proper-vars (check-parameters vars))
+        (argnum (len args))
+        (varnum (len vars)))
     (if (isnt vars proper-vars)  ;; Has rest param.
         ;; Tweak arguments.
         (cond ((< argnum varnum)  ;; Error handled in the below.
@@ -200,10 +200,10 @@
           (let1 which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
         (let1 ext-vars (append proper-vars (car e))
-          (with (free (cdr e)  ;(intersection (union (car e)
-                               ;                     (cdr e))
-                               ;              (find-frees body '() proper-vars))
-                 sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+          (let ((free (cdr e))  ;(intersection (union (car e)
+                                ;                     (cdr e))
+                                ;              (find-frees body '() proper-vars))
+                (sets (union s (find-setses body ext-vars)))) ;(find-setses body proper-vars))
             (compile-apply-args args e s
                                 (if (is argnum 0)
                                     (compile-body proper-vars ext-vars body free sets s
@@ -216,14 +216,14 @@
 
 (def (compile-lambda vars body e s next)
   (let1 proper-vars (check-parameters vars)
-    (with (free (intersection (union (car e)
+    (let ((free (intersection (union (car e)
                                      (cdr e))
-                              (find-frees body '() proper-vars))
-           sets (find-setses body proper-vars)
-           varnum (if (is vars proper-vars)
+                              (find-frees body '() proper-vars)))
+          (sets (find-setses body proper-vars))
+          (varnum (if (is vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
-                          -1)))
+                          -1))))
       (collect-free free e
                     (list* 'CLOSE varnum (len free)
                            (compile-body proper-vars proper-vars body free sets s '(RET))
@@ -250,9 +250,9 @@
 
 (def (compile-body set-vars vars body free sets s next)
   (make-boxes sets set-vars
-              (with (ee (cons vars free)
-                     ss (union sets
-                               (intersection s free)))
+              (let ((ee (cons vars free))
+                    (ss (union sets
+                               (intersection s free))))
                 (if body
                     (awith (p body)
                       (if p
@@ -277,16 +277,16 @@
       (compile-apply-args args e s (list* 'VALS argnum next)))))
 
 (def (compile-receive vars vals body e s next)
-  (with* (proper-vars (check-parameters vars)
-          ext-vars (append proper-vars (car e)))
-    (with (free (cdr e)  ;(intersection (union (car e)
-                         ;                     (cdr e))
-                         ;              (find-frees body '() proper-vars))
-           sets (union s (find-setses body ext-vars)) ;(find-setses body proper-vars))
-           varnum (if (is vars proper-vars)
+  (let* ((proper-vars (check-parameters vars))
+         (ext-vars (append proper-vars (car e))))
+    (let ((free (cdr e))  ;(intersection (union (car e)
+                          ;                     (cdr e))
+                          ;              (find-frees body '() proper-vars))
+          (sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+          (varnum (if (is vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
-                          -1)))
+                          -1))))
       (compile-recur vals e s
                      (list* 'RECV varnum
                             (compile-body ext-vars ext-vars body free sets s
@@ -375,8 +375,8 @@
       nil)))
 
 (def (compile-lookup var e return-local return-free return-global)
-  (with (locals (car e)
-         free   (cdr e))
+  (let ((locals (car e))
+        (free   (cdr e)))
     (acond ((find-index var locals)  (return-local it))
            ((find-index var free)    (return-free it))
            (else (return-global)))))
@@ -388,14 +388,14 @@
 
 (def (compile-defmacro name vars body e s next)
   (let1 proper-vars (check-parameters vars)
-    (with (free (intersection (union (car e)
+    (let ((free (intersection (union (car e)
                                      (cdr e))
-                              (find-frees body '() proper-vars))
-           sets (find-setses body proper-vars)
-           varnum (if (is vars proper-vars)
+                              (find-frees body '() proper-vars)))
+          (sets (find-setses body proper-vars))
+          (varnum (if (is vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
-                          -1)))
+                          -1))))
       ;(print `(COMPILE-DEFMACRO free= ,free sets= ,sets))
       ;; Macro registeration will be done in other place.
       ;;(register-macro name (closure body-code 0 %running-stack-pointer min max))

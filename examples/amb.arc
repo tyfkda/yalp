@@ -18,9 +18,9 @@
       (cont a))))
 
 (print
- (with (x (in-range 2 9)
-        y (in-range 2 9)
-        z (in-range 2 9))
+ (let ((x (in-range 2 9))
+       (y (in-range 2 9))
+       (z (in-range 2 9)))
    (if (is (+ (* x x) (* y y))
            (* z z))
        (list x y z)

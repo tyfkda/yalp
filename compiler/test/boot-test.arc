@@ -38,11 +38,11 @@
                                     (list x y))
                                   1 2))
 
-;; let
-(test "let" 123 (let x 123 x))
+;; let1
+(test "let1" 123 (let1 x 123 x))
 
-;; with
-(test "with" 3 (with (x 1 y 2) (+ x y)))
+;; let
+(test "let" 3 (let ((x 1) (y 2)) (+ x y)))
 
 ;; with*
 (test "with*" 12321 (with* (x 111 x (* x x)) x))
