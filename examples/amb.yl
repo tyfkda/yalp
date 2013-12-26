@@ -10,7 +10,7 @@
 (def (enumerate a b cont)
   (if (> a b)
       (fail)
-    (let save fail
+    (let1 save fail
       (set! fail
             (^()
               (set! fail save)
@@ -18,9 +18,9 @@
       (cont a))))
 
 (print
- (with (x (in-range 2 9)
-        y (in-range 2 9)
-        z (in-range 2 9))
+ (let ((x (in-range 2 9))
+       (y (in-range 2 9))
+       (z (in-range 2 9)))
    (if (is (+ (* x x) (* y y))
            (* z z))
        (list x y z)

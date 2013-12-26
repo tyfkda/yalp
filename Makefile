@@ -48,14 +48,14 @@ test:	$(PROJECT)
 	make -C test test
 
 check-length:
-	wc -l src/* include/**/*.hh compiler/*.arc | sort -nr
+	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr
 
 boot.bin:	self.bin
 	mv self.bin boot.bin
 
-self.bin:	compiler/boot.arc compiler/util.arc compiler/compiler.arc
-	./yalp -L boot.bin -C compiler/boot.arc compiler/util.arc compiler/compiler.arc > _self.bin
-	./yalp -L boot.bin tools/code-walker.arc tools/optimize.arc < _self.bin > self.bin
+self.bin:	compiler/boot.yl compiler/util.yl compiler/compiler.yl
+	./yalp -L boot.bin -C compiler/boot.yl compiler/util.yl compiler/compiler.yl > _self.bin
+	./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
 	rm _self.bin
 
 self-compile:	self.bin

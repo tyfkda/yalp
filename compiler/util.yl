@@ -7,28 +7,28 @@
 
 (defmacro record-case (x . args)
   (w/uniq g1
-    `(let ,g1 ,x
+    `(let1 ,g1 ,x
        (case (car ,g1)
-         ,@(awith (p args)
-              (when p
-                (let e (car p)
-                  (with (key (car e)
-                         vars (cadr e)
-                         exprs (cddr e))
-                    (if (is key 'else)
-                          (cdr e)
-                        `(,key
-                          (record (cdr ,g1) ,vars ,@exprs)
-                          ,@(loop (cdr p))))))))))))
+         ,@(alet ((p args))
+             (when p
+               (let1 e (car p)
+                 (let ((key (car e))
+                       (vars (cadr e))
+                       (exprs (cddr e)))
+                   (if (is key 'else)
+                       (cdr e)
+                       `(,key
+                         (record (cdr ,g1) ,vars ,@exprs)
+                         ,@(loop (cdr p))))))))))))
 
 ;;; dotted pair -> proper list
-(def (dotted->proper ls)
+(defun dotted->proper (ls)
   (if (and ls
            (or (no (pair? ls))
                (cdr (last ls))))
       ;; Symbol or dotted list: convert it to proper list.
-      (awith (p ls
-              acc '())
+      (alet ((p ls)
+             (acc '()))
         (if (pair? p)
             (loop (cdr p)
                   (cons (car p) acc))
@@ -38,7 +38,7 @@
 
 ;;;; set
 
-(def (set-minus s1 s2)
+(defun set-minus (s1 s2)
   (if s1
       (if (member (car s1) s2)
           (set-minus (cdr s1) s2)
