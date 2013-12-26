@@ -70,6 +70,7 @@ class Cell : public Sobject {
 public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
+  virtual unsigned int calcHash(State* state) const override;
 
   Value car() const  { return car_; }
   Value cdr() const  { return cdr_; }

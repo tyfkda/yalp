@@ -43,6 +43,20 @@ bool Cell::equal(const Sobject* target) const {
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
 
+unsigned int Cell::calcHash(State* state) const {
+  const int MUL = 37, ADD = 1;
+  unsigned int hash = 0;
+  const Cell* p = this;
+  for (;;) {
+    hash = hash * MUL + p->car().calcHash(state) + ADD;
+    Value d = p->cdr();
+    if (d.getType() != TT_CELL)
+      break;
+    p = static_cast<Cell*>(d.toObject());
+  }
+  return hash * MUL + p->cdr().calcHash(state);
+}
+
 void Cell::output(State* state, Stream* o, bool inspect) const {
   if (state != NULL) {
     const char* abbrev = isAbbrev(state);
