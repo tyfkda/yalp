@@ -40,12 +40,12 @@
 
 (def *exit-compile* nil)
 
-(def (compile-error . args)
+(defun compile-error args
   (apply format *stderr* args)
   (display "\n")
   (*exit-compile* nil))
 
-(def (compile x)
+(defun compile (x)
   (call/cc
    (^(cc)
      (set! *exit-compile* cc)
@@ -64,21 +64,21 @@
             defs)))
 
 (def *inline-functions* (table))
-(def (proclaim-inline  sym)
+(defun proclaim-inline (sym)
   (table-put! *inline-functions* sym t))
 
-(def (inline-function? sym)
+(defun inline-function? (sym)
   (and (symbol? sym)
        (table-exists? *inline-functions* sym)))
 
-(def (lambda-expression? exp)
+(defun lambda-expression? (exp)
   (and (pair? exp)
        (is (car exp) '^)))
 
-(def (register-inline-function sym func)
+(defun register-inline-function (sym func)
   (table-put! *inline-functions* sym func))
 
-(def (get-inline-function-body sym)
+(defun get-inline-function-body (sym)
   (table-get *inline-functions* sym))
 
 ;; Compiles lisp code into vm code.
@@ -86,7 +86,7 @@
 ;;   e : current environment, ((local-vars ...) free-vars ...)
 ;;   s : sets variables, (sym1 sym2 ...)
 ;;   @result : compiled code (list)
-(def (compile-recur x e s next)
+(defun compile-recur (x e s next)
   (cond ((symbol? x)
          (compile-refer x e
                         (if (member x s)
@@ -145,14 +145,14 @@
                                (else (compile-apply func args e s next)))))))
         (else (list* 'CONST x next))))
 
-(def (compile-void next)
+(defun compile-void (next)
   (list* 'VOID next))
 
-(def (direct-invoke? func)
+(defun direct-invoke? (func)
   (and (pair? func)
        (is '^ (car func))))
 
-(def (compile-apply func args e s next)
+(defun compile-apply (func args e s next)
   (let* ((argnum (len args))
          (c (compile-recur func e s
                            (if (tail? next)
@@ -163,12 +163,12 @@
         bc
       (list* 'FRAME bc next))))
 
-(def (compile-inline-apply sym args e s next)
+(defun compile-inline-apply (sym args e s next)
   (let1 lambda (get-inline-function-body sym)
     (compile-recur `(,lambda ,@args)
                    e s next)))
 
-(def (compile-apply-args args e s next)
+(defun compile-apply-args (args e s next)
   (alet ((args args)
          (c next))
     (if args
@@ -178,7 +178,7 @@
       c)))
 
 ;; Compiles ((^(vars) body) args) form
-(def (compile-apply-direct vars body args e s next)
+(defun compile-apply-direct (vars body args e s next)
   (let ((proper-vars (check-parameters vars))
         (argnum (len args))
         (varnum (len vars)))
@@ -214,7 +214,7 @@
                                                            next
                                                          (list* 'SHRNK argnum next))))))))))))
 
-(def (compile-lambda vars body e s next)
+(defun compile-lambda (vars body e s next)
   (let1 proper-vars (check-parameters vars)
     (let ((free (intersection (union (car e)
                                      (cdr e))
@@ -229,7 +229,7 @@
                            (compile-body proper-vars proper-vars body free sets s '(RET))
                            next)))))
 
-(def (collect-free vars e next)
+(defun collect-free (vars e next)
   (if vars
       (collect-free (cdr vars) e
                     (compile-refer (car vars) e
@@ -237,7 +237,7 @@
     next))
 
 ;; Check function parameters are valid and returns proper vars.
-(def (check-parameters vars)
+(defun check-parameters (vars)
   (let1 proper-vars (dotted->proper vars)
     (aif (member-if [no (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
@@ -248,7 +248,7 @@
         (loop (cdr p))))
     proper-vars))
 
-(def (compile-body set-vars vars body free sets s next)
+(defun compile-body (set-vars vars body free sets s next)
   (make-boxes sets set-vars
               (let ((ee (cons vars free))
                     (ss (union sets
@@ -261,7 +261,7 @@
                         next))
                   (compile-void next)))))
 
-(def (make-boxes sets vars next)
+(defun make-boxes (sets vars next)
   (alet ((vars vars)
          (n 0))
     (if vars
@@ -270,13 +270,13 @@
           (loop (cdr vars) (+ n 1)))
       next)))
 
-(def (compile-values args e s next)
+(defun compile-values (args e s next)
   (let1 argnum (len args)
     (if (is argnum 0)
         (compile-void next)
       (compile-apply-args args e s (list* 'VALS argnum next)))))
 
-(def (compile-receive vars vals body e s next)
+(defun compile-receive (vars vals body e s next)
   (let* ((proper-vars (check-parameters vars))
          (ext-vars (append proper-vars (car e))))
     (let ((free (cdr e))  ;(intersection (union (car e)
@@ -292,7 +292,7 @@
                             (compile-body ext-vars ext-vars body free sets s
                                           (list* 'SHRNK (len proper-vars) next)))))))
 
-(def (find-frees xs b vars)
+(defun find-frees (xs b vars)
   (let1 bb (union (dotted->proper vars) b)
     (alet ((v '())
            (p xs))
@@ -304,7 +304,7 @@
 ;; Find free variables.
 ;; This does not consider upper scope, so every symbol except under scope
 ;; are listed up.
-(def (find-free x b)
+(defun find-free (x b)
   (cond ((symbol? x)
          (if (member x b) '() (list x)))
         ((pair? x)
@@ -328,7 +328,7 @@
                       (else        (find-frees x b '()))))
         (else '())))
 
-(def (find-setses xs v)
+(defun find-setses (xs v)
   (alet ((b '())
          (p xs))
     (if p
@@ -338,7 +338,7 @@
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
-(def (find-sets x v)
+(defun find-sets (x v)
   (if (pair? x)
       (record-case x
                    (set! (var val)
@@ -359,13 +359,13 @@
                    (else        (find-setses x   v)))
     '()))
 
-(def (compile-refer var e next)
+(defun compile-refer (var e next)
   (compile-lookup var e
                   (^(n) (list* 'LREF n next))
                   (^(n) (list* 'FREF n next))
                   (^()  (list* 'GREF var next))))
 
-(def (find-index x ls)
+(defun find-index (x ls)
   (alet ((ls ls)
          (idx 0))
     (if ls
@@ -374,19 +374,19 @@
           (loop (cdr ls) (+ idx 1)))
       nil)))
 
-(def (compile-lookup var e return-local return-free return-global)
+(defun compile-lookup (var e return-local return-free return-global)
   (let ((locals (car e))
         (free   (cdr e)))
     (acond ((find-index var locals)  (return-local it))
            ((find-index var free)    (return-free it))
            (else (return-global)))))
 
-(def (tail? next)
+(defun tail? (next)
   (is (car next) 'RET))
 
 ;;; Macro
 
-(def (compile-defmacro name vars body e s next)
+(defun compile-defmacro (name vars body e s next)
   (let1 proper-vars (check-parameters vars)
     (let ((free (intersection (union (car e)
                                      (cdr e))
@@ -402,7 +402,7 @@
                            (compile-body proper-vars proper-vars body free sets s '(RET))
                            next)))))
 
-(def (macroexpand-all exp scope-vars)
+(defun macroexpand-all (exp scope-vars)
   (if (pair? exp)
       (if (member (car exp) scope-vars)
           (macroexpand-all-sub exp scope-vars)
@@ -412,10 +412,10 @@
             (macroexpand-all expanded scope-vars))))
     exp))
 
-(def (map-macroexpand-all ls svars)
+(defun map-macroexpand-all (ls svars)
   (map [macroexpand-all _ svars] ls))
 
-(def (macroexpand-all-sub exp scope-vars)
+(defun macroexpand-all-sub (exp scope-vars)
   (record-case exp
                (quote (obj) `(quote ,obj))
                (^ (vars . body)
@@ -440,7 +440,7 @@
                              ,@(map-macroexpand-all body new-scope-vars))))
                (else (map-macroexpand-all exp scope-vars))))
 
-(def (macroexpand exp)
+(defun macroexpand (exp)
   (let1 expanded (macroexpand-1 exp)
     (if (iso expanded exp)
         exp
@@ -448,5 +448,5 @@
 
 ;;
 
-(def (eval x)
+(defun eval (x)
   (run-binary (compile x)))

@@ -22,7 +22,7 @@
                          ,@(loop (cdr p))))))))))))
 
 ;;; dotted pair -> proper list
-(def (dotted->proper ls)
+(defun dotted->proper (ls)
   (if (and ls
            (or (no (pair? ls))
                (cdr (last ls))))
@@ -38,7 +38,7 @@
 
 ;;;; set
 
-(def (set-minus s1 s2)
+(defun set-minus (s1 s2)
   (if s1
       (if (member (car s1) s2)
           (set-minus (cdr s1) s2)

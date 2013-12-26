@@ -33,7 +33,7 @@
               (map [is (char-at (string _) 0) #\$]
                    (cadr inst))))
 
-(def (vm-walker code f)
+(defun vm-walker (code f)
   (let1 h (write/ss-construct code)
     (let recur ((code code))
       (let1 index (table-get h code)
@@ -50,7 +50,7 @@
                   (when p
                     (recur c)))))))))))
 
-(def (files-or-stdin args f)
+(defun files-or-stdin (args f)
   (if args
       (dolist (filename args)
         (let1 ss (open filename)

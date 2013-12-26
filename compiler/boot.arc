@@ -17,102 +17,100 @@
                             (list 'unquote (read (unread-char c stream)))))
                         (read-char stream))))
 
-(def no (^(x) (if x nil t)))
-(def fixnum? (^(x) (is (type x) 'fixnum)))
-(def pair? (^(x) (is (type x) 'pair)))
-(def symbol? (^(x) (is (type x) 'symbol)))
-(def string? (^(x) (is (type x) 'string)))
-(def flonum? (^(x) (is (type x) 'flonum)))
-(def procedure? (^(x) ((^(tt)
+(defmacro defun (name vars . body)
+  ;; `(def ,name (^ ,vars ,@body))
+  (list 'def name
+        (list* '^ vars body)))
+
+(defun no (x) (if x nil t))
+(defun fixnum? (x) (is (type x) 'fixnum))
+(defun pair? (x) (is (type x) 'pair))
+(defun symbol? (x) (is (type x) 'symbol))
+(defun string? (x) (is (type x) 'string))
+(defun flonum? (x) (is (type x) 'flonum))
+(defun procedure? (x) ((^(tt)
                          (or (is tt 'closure)
                              (is tt 'subr)
                              (is tt 'continuation)))
-                       (type x))))
+                       (type x)))
 
-(def any?
-  (^(f ls)
-    (if (pair? ls)
-        (if (f (car ls))
-            ls
-          (any? f (cdr ls)))
-      nil)))
+(defun any? (f ls)
+  (if (pair? ls)
+      (if (f (car ls))
+          ls
+        (any? f (cdr ls)))
+    nil))
 
-(def map1-loop
-  (^(f ls acc)
-    (if (pair? ls)
-        (map1-loop f (cdr ls)
-                   (cons (f (car ls)) acc))
-      ((^(result)
-         (if ls
-             (if acc
-                 ((^()
-                    (set-cdr! acc (f ls))
-                    result))
-               (f ls))
-           result))
-       (reverse! acc)))))
+(defun map1-loop (f ls acc)
+  (if (pair? ls)
+      (map1-loop f (cdr ls)
+                 (cons (f (car ls)) acc))
+    ((^(result)
+       (if ls
+           (if acc
+               ((^()
+                  (set-cdr! acc (f ls))
+                  result))
+             (f ls))
+         result))
+     (reverse! acc))))
 
-(def mapn-loop
-  (^(f lss acc)
-    (if (any? no lss)
-        (reverse! acc)
-      (mapn-loop f (map1-loop cdr lss '())
-                 (cons (apply f (map1-loop car lss '()))
-                       acc)))))
+(defun mapn-loop (f lss acc)
+  (if (any? no lss)
+      (reverse! acc)
+    (mapn-loop f (map1-loop cdr lss '())
+               (cons (apply f (map1-loop car lss '()))
+                     acc))))
 
-(def map
-  (^(f ls . rest)
-    (if rest
-        (mapn-loop f (cons ls rest) '())
-      (map1-loop f ls '()))))
+(defun map (f ls . rest)
+  (if rest
+      (mapn-loop f (cons ls rest) '())
+    (map1-loop f ls '())))
 
-(def cadr (^(x) (car (cdr x))))
-(def cddr (^(x) (cdr (cdr x))))
+(defun cadr (x) (car (cdr x)))
+(defun cddr (x) (cdr (cdr x)))
 
 ;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
-(def pair
-  (^(xs)
-    (if (no xs)
-        nil
-      (if (no (cdr xs))
-          (list (list (car xs)))
-        (cons (list (car xs) (cadr xs))
-              (pair (cddr xs)))))))
+(defun pair (xs)
+  (if (no xs)
+      nil
+    (if (no (cdr xs))
+        (list (list (car xs)))
+      (cons (list (car xs) (cadr xs))
+            (pair (cddr xs))))))
 
-(def qq-expand
-  (^(x)
-    (if (pair? x)
-        ((^(m)
-           (if (is m 'unquote)
+(defun qq-expand (x)
+  (if (pair? x)
+      ((^(m)
+         (if (is m 'unquote)
+             (cadr x)
+           (if (is m 'unquote-splicing)
+               (error "Illegal")
+             (if (is m 'quasiquote)
+                 (qq-expand
+                  (qq-expand (cadr x)))
+               (list 'append
+                     (qq-expand-list (car x))
+                     (qq-expand (cdr x)))))))
+       (car x))
+    (list 'quote x)))
+
+(defun qq-expand-list (x)
+  (if (pair? x)
+      ((^(m)
+         (if (is m 'unquote)
+             (list 'list (cadr x))
+           (if (is m 'unquote-splicing)
                (cadr x)
-             (if (is m 'unquote-splicing)
-                 (error "Illegal")
-               (if (is m 'quasiquote)
-                   (qq-expand
-                    (qq-expand (cadr x)))
-                 (list 'append
-                       (qq-expand-list (car x))
-                       (qq-expand (cdr x)))))))
-         (car x))
-      (list 'quote x))))
-
-(def qq-expand-list
-  (^(x)
-    (if (pair? x)
-        ((^(m)
-           (if (is m 'unquote)
-               (list 'list (cadr x))
-             (if (is m 'unquote-splicing)
-                 (cadr x)
-               (if (is m 'quasiquote)
-                   (qq-expand-list
-                    (qq-expand (cadr x)))
-                 (list 'list
-                       (list 'append
-                             (qq-expand-list (car x))
-                             (qq-expand (cdr x))))))))
-         (car x))
-      (list 'quote (list x)))))
+             (if (is m 'quasiquote)
+                 (qq-expand-list
+                  (qq-expand (cadr x)))
+               (list 'list
+                     (list 'append
+                           (qq-expand-list (car x))
+                           (qq-expand (cdr x))))))))
+       (car x))
+    (list 'quote (list x))))
 
 (defmacro quasiquote (x)
   (qq-expand x))
@@ -125,12 +123,6 @@
 
 (defmacro unless (test . body)
   `(if ,test (do) (do ,@body)))
-
-(defmacro def (name . body)
-  (if (pair? name)
-      `(def ,(car name)
-         (^ ,(cdr name) ,@body))
-    `(def ,name ,@body)))
 
 (defmacro set! (var val . rest)
   (if rest
@@ -266,10 +258,10 @@
              ,@body
              (loop (cdr ,p))))))))
 
-(def (isnt x y)
+(defun isnt (x y)
   (no (is x y)))
 
-(def (len x)
+(defun len (x)
   (case (type x)
     string (string-length x)
     pair (alet ((x x)
@@ -280,29 +272,29 @@
     0))
 
 ;; Returns last pair
-(def (last ls)
+(defun last (ls)
   (if (pair? (cdr ls))
       (last (cdr ls))
     ls))
 
-(def (reverse ls)
+(defun reverse (ls)
   (alet ((ls ls)
          (acc '()))
     (if (pair? ls)
         (loop (cdr ls) (cons (car ls) acc))
       acc)))
 
-(def (member-if f ls)
+(defun member-if (f ls)
   (if (pair? ls)
       (if (f (car ls))
           ls
         (member-if f (cdr ls)))
     nil))
 
-(def (member x ls)
+(defun member (x ls)
   (member-if [is x _] ls))
 
-(def (union s1 s2)
+(defun union (s1 s2)
   (if s1
       (union (cdr s1)
              (let1 x (car s1)
@@ -311,26 +303,26 @@
                  (cons x s2))))
     s2))
 
-(def (intersection s1 s2)
+(defun intersection (s1 s2)
   (if s1
       (if (member (car s1) s2)
           (cons (car s1) (intersection (cdr s1) s2))
         (intersection (cdr s1) s2))
     '()))
 
-(def (print x . rest)
+(defun print (x . rest)
   (let1 stream (if rest (car rest) *stdout*)
     (display x stream)
     (display "\n" stream))
   x)
 
 ;; Write shared structure.
-(def (write/ss s . rest)
+(defun write/ss (s . rest)
   (let1 stream (if rest (car rest) *stdout*)
     (write/ss-print s (write/ss-construct s) stream)))
 
 ;; Put cell appear idnex for more than 2 times into table.
-(def (write/ss-construct s)
+(defun write/ss-construct (s)
   (let1 h (table)
     (table-put! h 'index 0)
     (alet ((s s))
@@ -348,7 +340,7 @@
               (loop (cdr s))))))
     h))
 
-(def (write/ss-print s h stream)
+(defun write/ss-print (s h stream)
   (if (pair? s)
       (let1 index (table-get h s)
         (if (and index (< index 0))
@@ -374,7 +366,7 @@
     (write s)))
 
 ;; Take first n elements from the list.
-(def (take n ls)
+(defun take (n ls)
   (alet ((n n)
          (acc '())
          (ls ls))
@@ -383,7 +375,7 @@
       (reverse! acc))))
 
 ;; Drop first n elements from the list (nthcdr).
-(def (drop n ls)
+(defun drop (n ls)
   (if ls
       (if (> n 0)
           (drop (- n 1) (cdr ls))

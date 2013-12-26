@@ -2,7 +2,7 @@
 
 ;(load "code-walker.arc")
 
-(def (optimize! code)
+(defun optimize! (code)
   (vm-walker code
     (^(c recur)
       (record-case c
@@ -18,7 +18,7 @@
                          t)
                    (else t)))))
 
-(def (main args)
+(defun main (args)
   (files-or-stdin args
                   (^(stream)
                     (awhile (read stream)
