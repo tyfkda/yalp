@@ -9,9 +9,9 @@
 (dolist (inst instructions)
   (table-put! *next-table* (car inst) (cadr inst)))
 
-(def (get-next-code code)
-  (awith (p (table-get *next-table* (car code))
-          c (cdr code))
+(defun get-next-code (code)
+  (alet ((p (table-get *next-table* (car code)))
+         (c (cdr code)))
     (if (pair? p)
         (if (is (car p) '$next)
             (car c)
@@ -20,14 +20,14 @@
           c
         nil))))
 
-(def (print-opcode-pairs code)
+(defun print-opcode-pairs (code)
   (vm-walker code
     (^(c recur)
       (aif (get-next-code c)
         (print (list (car c) (car it))))
       t)))
 
-(def (main args)
+(defun main (args)
   (files-or-stdin args
                   (^(stream)
                     (awhile (read stream)
