@@ -12,7 +12,7 @@
       (PUSH $next)
       (TEST ($then . $else))
       (CLOSE (nparam nfree $body . $next))
-      (FRAME ($next . $ret))
+      (FRAME ($cont . $ret))
       (APPLY (n))
       (RET ())
       (SHIFT (n . $next))
