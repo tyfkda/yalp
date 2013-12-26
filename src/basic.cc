@@ -598,7 +598,15 @@ static Value s_runBinary(State* state) {
 }
 
 static Value s_table(State* state) {
-  return state->createHashTable();
+  bool iso = false;
+  if (state->getArgNum() > 0) {
+    Value type = state->getArg(0);
+    if (type.eq(state->intern("iso")))
+      iso = true;
+    else
+      state->runtimeError("Illegal compare type `%@`", &type);
+  }
+  return state->createHashTable(iso);
 }
 
 static Value s_tableGet(State* state) {
@@ -844,7 +852,7 @@ void installBasicFunctions(State* state) {
     { "apply", s_apply, 1, -1 },
     { "run-binary", s_runBinary, 1 },
 
-    { "table", s_table, 0 },
+    { "table", s_table, 0, 1 },
     { "table-get", s_tableGet, 2, 3 },
     { "table-put!", s_tablePut, 3 },
     { "table-exists?", s_tableExists, 2 },

@@ -234,13 +234,13 @@ Vm::Vm(State* state)
   }
 
   {
-    Value ht = state_->createHashTable();
+    Value ht = state_->createHashTable(false);
     assert(ht.getType() == TT_HASH_TABLE);
     globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 
   {
-    Value ht = state_->createHashTable();
+    Value ht = state_->createHashTable(false);
     macroTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 

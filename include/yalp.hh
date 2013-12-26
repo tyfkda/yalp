@@ -142,7 +142,7 @@ public:
   // Floating point number.
   Value flonum(Flonum f);
 
-  Value createHashTable();
+  Value createHashTable(bool iso);
 
   // File stream.
   Value createFileStream(FILE* fp);
@@ -207,6 +207,7 @@ public:
 
 private:
   struct HashPolicyEq;
+  struct HashPolicyEqual;
 
   State(Allocator* allocator);
   ~State();
@@ -224,6 +225,7 @@ private:
   Value constants_[NUMBER_OF_CONSTANTS];
   Value typeSymbols_[NUMBER_OF_TYPES];
   HashPolicyEq* hashPolicyEq_;
+  HashPolicyEqual* hashPolicyEqual_;
   SHashTable* readTable_;
   Vm* vm_;
   jmp_buf* jmp_;

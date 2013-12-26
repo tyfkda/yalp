@@ -203,6 +203,16 @@ private:
   State* state_;
 };
 
+struct State::HashPolicyEqual : public HashPolicy<Value> {
+  HashPolicyEqual(State* state) : state_(state)  {}
+
+  virtual unsigned int hash(Value a) override  { return a.calcHash(state_); }
+  virtual bool equal(Value a, Value b) override  { return a.equal(b); }
+
+private:
+  State* state_;
+};
+
 State* State::create() {
   return create(getDefaultAllocFunc());
 }
@@ -224,6 +234,7 @@ State::State(Allocator* allocator)
   : allocator_(allocator)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(allocator_->alloc(sizeof(*hashPolicyEq_))) HashPolicyEq(this))
+  , hashPolicyEqual_(new(allocator_->alloc(sizeof(*hashPolicyEqual_))) HashPolicyEqual(this))
   , readTable_(NULL)
   , vm_(NULL)
   , jmp_(NULL) {
@@ -249,13 +260,14 @@ State::State(Allocator* allocator)
   installBasicObjects();
 
   {
-    Value ht = createHashTable();
+    Value ht = createHashTable(false);
     assert(ht.getType() == TT_HASH_TABLE);
     readTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 }
 
 State::~State() {
+  allocator_->free(hashPolicyEqual_);
   allocator_->free(hashPolicyEq_);
   vm_->release();
   symbolManager_->release();
@@ -394,9 +406,13 @@ Value State::cdr(Value s) {
     static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
 }
 
-Value State::createHashTable() {
+Value State::createHashTable(bool iso) {
   void* memory = allocator_->objAlloc(sizeof(SHashTable));
-  SHashTable* h = new(memory) SHashTable(allocator_, hashPolicyEq_);
+  SHashTable* h;
+  if (iso)
+    h = new(memory) SHashTable(allocator_, hashPolicyEqual_);
+  else
+    h = new(memory) SHashTable(allocator_, hashPolicyEq_);
   return Value(h);
 }
 
