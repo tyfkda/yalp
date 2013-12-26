@@ -50,7 +50,7 @@ class Sobject : public GcObject {
 public:
   virtual Type getType() const = 0;
   virtual bool equal(const Sobject* target) const;
-  virtual unsigned int calcHash() const;
+  virtual unsigned int calcHash(State* state) const;
 
   virtual void output(State* state, Stream* o, bool inspect) const = 0;
 
@@ -97,7 +97,7 @@ class String : public Sobject {
 public:
   virtual Type getType() const override;
   virtual bool equal(const Sobject* target) const override;
-  virtual unsigned int calcHash() const override;
+  virtual unsigned int calcHash(State* state) const override;
 
   const char* c_str() const  { return string_; }
   int len() const  { return len_; }

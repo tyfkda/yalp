@@ -26,7 +26,7 @@ bool Sobject::equal(const Sobject* o) const {
   return this == o;  // Simple pointer equality.
 }
 
-unsigned int Sobject::calcHash() const {
+unsigned int Sobject::calcHash(State*) const {
   return (reinterpret_cast<long>(this) >> 4) * 23;
 }
 
@@ -127,7 +127,7 @@ bool String::equal(const Sobject* target) const {
     memcmp(string_, p->string_, len_) == 0;
 }
 
-unsigned int String::calcHash() const {
+unsigned int String::calcHash(State*) const {
   return strHash(string_);
 }
 

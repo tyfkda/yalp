@@ -75,7 +75,7 @@ unsigned int Value::calcHash(State* state) const {
 
   switch (v_ & TAG_MASK) {
   case TAG_OBJECT:
-    return toObject()->calcHash();
+    return toObject()->calcHash(state);
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
