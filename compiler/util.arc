@@ -38,25 +38,9 @@
 
 ;;;; set
 
-(def (set-union s1 s2)
-  (if s1
-      (set-union (cdr s1)
-                 (let x (car s1)
-                   (if (member x s2)
-                       s2
-                     (cons x s2))))
-    s2))
-
 (def (set-minus s1 s2)
   (if s1
       (if (member (car s1) s2)
           (set-minus (cdr s1) s2)
         (cons (car s1) (set-minus (cdr s1) s2)))
-    '()))
-
-(def (set-intersect s1 s2)
-  (if s1
-      (if (member (car s1) s2)
-          (cons (car s1) (set-intersect (cdr s1) s2))
-        (set-intersect (cdr s1) s2))
     '()))

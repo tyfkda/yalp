@@ -101,4 +101,10 @@
 (test "member" '(y z) (member 'y '(x y z)))
 (test "member fail" nil (member 'a '(x y z)))
 
+;; union
+(test "union" '(c a b d x) (union '(a b c) '(b d x)))
+
+;; intersection
+(test "intersect" '(b d) (intersection '(a b c d) '(b d x)))
+
 (test-complete)

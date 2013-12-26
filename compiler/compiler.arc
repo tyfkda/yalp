@@ -200,10 +200,10 @@
           (let which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
         (let ext-vars (append proper-vars (car e))
-          (with (free (cdr e)  ;(set-intersect (set-union (car e)
-                               ;                 (cdr e))
-                               ;      (find-frees body '() proper-vars))
-                 sets (set-union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+          (with (free (cdr e)  ;(intersection (union (car e)
+                               ;                     (cdr e))
+                               ;              (find-frees body '() proper-vars))
+                 sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
             (compile-apply-args args e s
                                 (if (is argnum 0)
                                     (compile-body proper-vars ext-vars body free sets s
@@ -216,9 +216,9 @@
 
 (def (compile-lambda vars body e s next)
   (let proper-vars (check-parameters vars)
-    (with (free (set-intersect (set-union (car e)
-                                          (cdr e))
-                               (find-frees body '() proper-vars))
+    (with (free (intersection (union (car e)
+                                     (cdr e))
+                              (find-frees body '() proper-vars))
            sets (find-setses body proper-vars)
            varnum (if (is vars proper-vars)
                       (len vars)
@@ -251,8 +251,8 @@
 (def (compile-body set-vars vars body free sets s next)
   (make-boxes sets set-vars
               (with (ee (cons vars free)
-                     ss (set-union sets
-                                   (set-intersect s free)))
+                     ss (union sets
+                               (intersection s free)))
                 (if body
                     (awith (p body)
                       (if p
@@ -279,10 +279,10 @@
 (def (compile-receive vars vals body e s next)
   (with* (proper-vars (check-parameters vars)
           ext-vars (append proper-vars (car e)))
-    (with (free (cdr e)  ;(set-intersect (set-union (car e)
-                         ;                          (cdr e))
-                         ;               (find-frees body '() proper-vars))
-           sets (set-union s (find-setses body ext-vars)) ;(find-setses body proper-vars))
+    (with (free (cdr e)  ;(intersection (union (car e)
+                         ;                     (cdr e))
+                         ;              (find-frees body '() proper-vars))
+           sets (union s (find-setses body ext-vars)) ;(find-setses body proper-vars))
            varnum (if (is vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
@@ -293,11 +293,11 @@
                                           (list* 'SHRNK (len proper-vars) next)))))))
 
 (def (find-frees xs b vars)
-  (let bb (set-union (dotted->proper vars) b)
+  (let bb (union (dotted->proper vars) b)
     (awith (v '()
             p xs)
       (if p
-          (loop (set-union v (find-free (car p) bb))
+          (loop (union v (find-free (car p) bb))
                 (cdr p))
         v))))
 
@@ -314,17 +314,17 @@
                      (quote (obj) '())
                      (if      all (find-frees all b '()))
                      (set! (var exp)
-                           (set-union (if (member var b) '() (list var))
-                                      (find-free exp b)))
+                           (union (if (member var b) '() (list var))
+                                  (find-free exp b)))
                      (def (var exp)
-                         (set-union (if (member var b) '() (list var))
-                                    (find-free exp b)))
+                         (union (if (member var b) '() (list var))
+                                (find-free exp b)))
                      (call/cc all (find-frees all b '()))
                      (defmacro (name vars . body) (find-frees body b vars))
                      (values  all (find-frees all b '()))
                      (receive (vars vals . body)
-                              (set-union (find-free vals b)
-                                         (find-frees body b vars)))
+                              (union (find-free vals b)
+                                     (find-frees body b vars)))
                      (else        (find-frees x b '())))
     '()))
 
@@ -332,7 +332,7 @@
   (awith (b '()
           p xs)
     (if p
-        (loop (set-union b (find-sets (car p) v))
+        (loop (union b (find-sets (car p) v))
               (cdr p))
       b)))
 
@@ -342,8 +342,8 @@
   (if (pair? x)
       (record-case x
                    (set! (var val)
-                         (set-union (if (member var v) (list var) '())
-                                    (find-sets val v)))
+                         (union (if (member var v) (list var) '())
+                                (find-sets val v)))
                    (def (var val)
                        (find-sets val v))
                    (^ (vars . body)
@@ -354,8 +354,8 @@
                    (defmacro (name vars . body)  (find-setses body (set-minus v (dotted->proper vars))))
                    (values  all (find-setses all v))
                    (receive (vars vals . body)
-                            (set-union (find-sets vals v)
-                                       (find-setses body (set-minus v (dotted->proper vars)))))
+                            (union (find-sets vals v)
+                                   (find-setses body (set-minus v (dotted->proper vars)))))
                    (else        (find-setses x   v)))
     '()))
 
@@ -388,9 +388,9 @@
 
 (def (compile-defmacro name vars body e s next)
   (let proper-vars (check-parameters vars)
-    (with (free (set-intersect (set-union (car e)
-                                          (cdr e))
-                               (find-frees body '() proper-vars))
+    (with (free (intersection (union (car e)
+                                     (cdr e))
+                              (find-frees body '() proper-vars))
            sets (find-setses body proper-vars)
            varnum (if (is vars proper-vars)
                       (len vars)

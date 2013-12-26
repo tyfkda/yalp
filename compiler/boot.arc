@@ -276,6 +276,22 @@
 (def (member x ls)
   (member-if [is x _] ls))
 
+(def (union s1 s2)
+  (if s1
+      (union (cdr s1)
+             (let x (car s1)
+               (if (member x s2)
+                   s2
+                 (cons x s2))))
+    s2))
+
+(def (intersection s1 s2)
+  (if s1
+      (if (member (car s1) s2)
+          (cons (car s1) (intersection (cdr s1) s2))
+        (intersection (cdr s1) s2))
+    '()))
+
 (def (print x . rest)
   (let stream (if rest (car rest)
                   *stdout*)
