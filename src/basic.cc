@@ -769,6 +769,25 @@ static Value s_intern(State* state) {
   return state->intern(string->c_str());
 }
 
+static Value s_stringLength(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  String* str = static_cast<String*>(v.toObject());
+  return Value(str->len());
+}
+
+static Value s_charAt(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  Fixnum index = i.toFixnum();
+  String* str = static_cast<String*>(v.toObject());
+  if (index < 0 || index >= str->len())
+    return Value::NIL;
+  return state->character(str->c_str()[i.toFixnum()]);
+}
+
 static Value s_declaim(State* state) {
   // Completely ignored all arguments.
   // Returns '(values)' to create empty result.
@@ -846,6 +865,9 @@ void installBasicFunctions(State* state) {
     { "flonum", s_flonum, 1 },
     { "string", s_string, 1 },
     { "intern", s_intern, 1 },
+
+    { "string-length", s_stringLength, 1 },
+    { "char-at", s_charAt, 2 },
   };
 
   for (auto it : FuncTable) {

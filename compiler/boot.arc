@@ -235,11 +235,14 @@
   (no (is x y)))
 
 (def (len x)
-  (awith (x x
-          n 0)
-    (if (pair? x)
-        (loop (cdr x) (+ n 1))
-      n)))
+  (case (type x)
+    string (string-length x)
+    pair (awith (x x
+                 n 0)
+           (if (pair? x)
+               (loop (cdr x) (+ n 1))
+               n))
+    0))
 
 ;; Returns last pair
 (def (last ls)
