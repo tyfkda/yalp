@@ -23,10 +23,11 @@
 (def symbol? (^(x) (is (type x) 'symbol)))
 (def string? (^(x) (is (type x) 'string)))
 (def flonum? (^(x) (is (type x) 'flonum)))
-(def procedure? (^(x) (let tt (type x)
-                        (or (is tt 'closure)
-                            (is tt 'subr)
-                            (is tt 'continuation)))))
+(def procedure? (^(x) ((^(tt)
+                         (or (is tt 'closure)
+                             (is tt 'subr)
+                             (is tt 'continuation)))
+                       (type x))))
 
 (def any?
   (^(f ls)
@@ -41,13 +42,15 @@
     (if (pair? ls)
         (map1-loop f (cdr ls)
                    (cons (f (car ls)) acc))
-      (let result (reverse! acc)
-        (if ls
-            (if acc
-                (do (set-cdr! acc (f ls))
-                    result)
-              (f ls))
-          result)))))
+      ((^(result)
+         (if ls
+             (if acc
+                 ((^()
+                    (set-cdr! acc (f ls))
+                    result))
+               (f ls))
+           result))
+       (reverse! acc)))))
 
 (def mapn-loop
   (^(f lss acc)
