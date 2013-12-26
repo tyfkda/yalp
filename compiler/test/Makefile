@@ -1,15 +1,15 @@
 YALP=../../yalp -L ../../boot.bin
-RUNTEST=$(YALP) test.arc
+RUNTEST=$(YALP) test.yl
 
 all:	test
 
 test:	boot-test util-test compiler-test
 
 boot-test:
-	$(RUNTEST) boot-test.arc
+	$(RUNTEST) boot-test.yl
 
 util-test:
-	$(RUNTEST) util-test.arc
+	$(RUNTEST) util-test.yl
 
 compiler-test:
-	$(RUNTEST) compiler-test.arc
+	$(RUNTEST) compiler-test.yl
