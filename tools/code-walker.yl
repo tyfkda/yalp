@@ -30,7 +30,7 @@
 (def *opcode-table* (table))
 (dolist (inst instructions)
   (table-put! *opcode-table* (car inst)
-              (map [is (char-at (string _) 0) #\$]
+              (map [eq? (char-at (string _) 0) #\$]
                    (cadr inst))))
 
 (defun vm-walker (code f)

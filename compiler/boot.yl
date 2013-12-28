@@ -1,5 +1,5 @@
 (proclaim
- (inline no cadr cddr isnt member))
+ (inline no cadr cddr member))
 
 ;;; Basic read macros.
 
@@ -18,7 +18,7 @@
 (set-macro-character #\,
                      (^(stream ch)
                        ((^(c)
-                          (if (is c #\@)
+                          (if (eq? c #\@)
                               (list 'unquote-splicing (read stream))
                             (list 'unquote (read (unread-char c stream)))))
                         (read-char stream))))
@@ -40,15 +40,15 @@
 (defun no (x) (if x nil t))
 (defun cadr (x) (car (cdr x)))
 (defun cddr (x) (cdr (cdr x)))
-(defun fixnum? (x) (is (type x) 'fixnum))
-(defun pair? (x) (is (type x) 'pair))
-(defun symbol? (x) (is (type x) 'symbol))
-(defun string? (x) (is (type x) 'string))
-(defun flonum? (x) (is (type x) 'flonum))
+(defun fixnum? (x) (eq? (type x) 'fixnum))
+(defun pair? (x) (eq? (type x) 'pair))
+(defun symbol? (x) (eq? (type x) 'symbol))
+(defun string? (x) (eq? (type x) 'string))
+(defun flonum? (x) (eq? (type x) 'flonum))
 (defun procedure? (x) ((^(tt)
-                         (or (is tt 'closure)
-                             (is tt 'subr)
-                             (is tt 'continuation)))
+                         (or (eq? tt 'closure)
+                             (eq? tt 'subr)
+                             (eq? tt 'continuation)))
                        (type x)))
 
 (defun any? (f ls)
@@ -96,11 +96,11 @@
 (defun qq-expand (x)
   (if (pair? x)
       ((^(m)
-         (if (is m 'unquote)
+         (if (eq? m 'unquote)
              (cadr x)
-           (if (is m 'unquote-splicing)
+           (if (eq? m 'unquote-splicing)
                (error "Illegal ,@")
-             (if (is m 'quasiquote)
+             (if (eq? m 'quasiquote)
                  (qq-expand
                   (qq-expand (cadr x)))
                (list 'append
@@ -112,11 +112,11 @@
 (defun qq-expand-list (x)
   (if (pair? x)
       ((^(m)
-         (if (is m 'unquote)
+         (if (eq? m 'unquote)
              (list 'list (cadr x))
-           (if (is m 'unquote-splicing)
+           (if (eq? m 'unquote-splicing)
                (cadr x)
-             (if (is m 'quasiquote)
+             (if (eq? m 'quasiquote)
                  (qq-expand-list
                   (qq-expand (cadr x)))
                (list 'list
@@ -179,7 +179,7 @@
 (defmacro cond clauses
   (if clauses
       (let1 clause (car clauses)
-        (if (is (car clause) 'else)
+        (if (eq? (car clause) 'else)
             (if (cdr clauses)
                 (compile-error "else clause must comes at last in cond")
               `(do ,@(cdr clause)))
@@ -202,7 +202,7 @@
       nil
     (let ((cl1 (car clauses))
           (sym (uniq)))
-      (if (is (car cl1) 'else)
+      (if (eq? (car cl1) 'else)
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
             `(do ,@(cdr cl1)))
@@ -251,7 +251,7 @@
         (cond ((no args)  '())
               ((no (cdr args))  (car args))
               (else
-               `(if (is ,var ',(car args))
+               `(if (eq? ,var ',(car args))
                     ,(cadr args)
                   ,(loop (cddr args))))))))
 
@@ -267,9 +267,6 @@
            (let1 ,x (car ,p)
              ,@body
              (loop (cdr ,p))))))))
-
-(defun isnt (x y)
-  (no (is x y)))
 
 (defun len (x)
   (case (type x)
@@ -302,7 +299,7 @@
     nil))
 
 (defun member (x ls)
-  (member-if [is x _] ls))
+  (member-if [eq? x _] ls))
 
 (defun union (s1 s2)
   (if s1

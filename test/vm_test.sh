@@ -140,9 +140,9 @@ run negate '-10' '(- 10)'
 run '*' '120' '(* 1 2 3 4 5)'
 run / '3' '(/ 10 3)'
 
-run is t '(is 123 123)'
-run iso-list t "(iso '(1 2 3) '(1 2 3))"
-run iso-string t '(iso "string" "string")'
+run 'eq?' t '(eq? 123 123)'
+run 'equal?-list' t "(equal? '(1 2 3) '(1 2 3))"
+run 'equal?-string' t '(equal? "string" "string")'
 run '<' t '(< 1 2)'
 run '<' nil '(< 2 2)'
 run '>' t '(> 2 1)'
@@ -150,8 +150,8 @@ run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
 
 # Float
-run float-is nil '(is 1.0 1.0)'
-run float-iso t '(iso 1.0 1.0)'
+run 'float-eq?' nil '(eq? 1.0 1.0)'
+run 'float-equal?' t '(equal? 1.0 1.0)'
 run +float '1.230000' '(+ 1 0.23)'
 run -float '0.770000' '(- 1 0.23)'
 run -negate '-0.230000' '(- 0.23)'
@@ -175,7 +175,7 @@ run eval "x" "(eval (eval '(quote (quote x))))"
 
 # Scheme - yalp value differences
 run '() is false' 3 '(if () 2 3)'
-run '() is nil' t '(is () nil)'
+run '() is nil' t '(eq? () nil)'
 
 # Fail cases
 fail unbound 'abc'

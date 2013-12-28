@@ -303,13 +303,13 @@ static Value s_mod(State* state) {
   return Value::NIL;
 }
 
-static Value s_is(State* state) {
+static Value s_eq(State* state) {
   Value a = state->getArg(0);
   Value b = state->getArg(1);
   return state->boolean(a.eq(b));
 }
 
-static Value s_iso(State* state) {
+static Value s_equal(State* state) {
   Value a = state->getArg(0);
   Value b = state->getArg(1);
   return state->boolean(a.equal(b));
@@ -830,8 +830,8 @@ void installBasicFunctions(State* state) {
     { "/", s_div, 0, -1 },
     { "mod", s_mod, 2 },
 
-    { "is", s_is, 2 },
-    { "iso", s_iso, 2 },
+    { "eq?", s_eq, 2 },
+    { "equal?", s_equal, 2 },
     { "<", s_lessThan, 2, -1 },
     { ">", s_greaterThan, 2, -1 },
     { "<=", s_lessEqual, 2, -1 },

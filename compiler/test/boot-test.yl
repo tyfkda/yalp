@@ -77,10 +77,6 @@
 (test "or" 2 (or nil 2 3))
 (test "or" nil (or nil nil nil))
 
-;; isnt
-(test "isnt" nil (isnt 1 1))
-(test "isnt" t (isnt 1 2))
-
 ;; len
 (test "len" 3 (len '(1 2 3)))
 (test "len dotted" 3 (len '(1 2 3 . 4)))

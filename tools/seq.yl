@@ -13,10 +13,10 @@
   (alet ((p (table-get *next-table* (car code)))
          (c (cdr code)))
     (if (pair? p)
-        (if (is (car p) '$next)
+        (if (eq? (car p) '$next)
             (car c)
           (loop (cdr p) (cdr c)))
-      (if (is p '$next)
+      (if (eq? p '$next)
           c
         nil))))
 

@@ -3,7 +3,7 @@
     `(let1 ,v ,expected
        (format *stdout* "Testing %@ ... " ',name)
        (let1 ,result ,actual
-         (if (iso ,v ,result)
+         (if (equal? ,v ,result)
              (print "ok")
            (do
              (format *stdout* "FAILED: %@ expected, but %@\n" ,v ,result)

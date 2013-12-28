@@ -122,7 +122,7 @@
 
 (defun direct-invoke? (func)
   (and (pair? func)
-       (is '^ (car func))))
+       (eq? '^ (car func))))
 
 (defun compile-apply (func args e s next)
   (let* ((argnum (len args))
@@ -154,7 +154,7 @@
   (let ((proper-vars (check-parameters vars))
         (argnum (len args))
         (varnum (len vars)))
-    (if (isnt vars proper-vars)  ;; Has rest param.
+    (if (no (eq? vars proper-vars))  ;; Has rest param.
         ;; Tweak arguments.
         (cond ((< argnum varnum)  ;; Error handled in the below.
                (compile-apply-direct proper-vars body args e s next))
@@ -168,7 +168,7 @@
               (else (compile-apply-direct proper-vars body (append args '(()))
                                           e s next)))
       (do
-        (unless (is argnum varnum)
+        (unless (eq? argnum varnum)
           (let1 which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
         (let1 ext-vars (append proper-vars (car e))
@@ -177,7 +177,7 @@
                                 ;              (find-frees body '() proper-vars))
                 (sets (union s (find-setses body ext-vars)))) ;(find-setses body proper-vars))
             (compile-apply-args args e s
-                                (if (is argnum 0)
+                                (if (eq? argnum 0)
                                     (compile-body proper-vars ext-vars body free sets s
                                                   next)
                                   (list* 'EXPND argnum
@@ -192,7 +192,7 @@
                                      (cdr e))
                               (find-frees body '() proper-vars)))
           (sets (find-setses body proper-vars))
-          (varnum (if (is vars proper-vars)
+          (varnum (if (eq? vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))))
@@ -244,7 +244,7 @@
 
 (defun compile-values (args e s next)
   (let1 argnum (len args)
-    (if (is argnum 0)
+    (if (eq? argnum 0)
         (compile-void next)
       (compile-apply-args args e s (list* 'VALS argnum next)))))
 
@@ -255,7 +255,7 @@
                           ;                     (cdr e))
                           ;              (find-frees body '() proper-vars))
           (sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
-          (varnum (if (is vars proper-vars)
+          (varnum (if (eq? vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))))
@@ -341,7 +341,7 @@
   (alet ((ls ls)
          (idx 0))
     (if ls
-        (if (is (car ls) x)
+        (if (eq? (car ls) x)
             idx
           (loop (cdr ls) (+ idx 1)))
       nil)))
@@ -354,7 +354,7 @@
            (else (return-global)))))
 
 (defun tail? (next)
-  (is (car next) 'RET))
+  (eq? (car next) 'RET))
 
 ;;; Macro
 
@@ -364,7 +364,7 @@
                                      (cdr e))
                               (find-frees body '() proper-vars)))
           (sets (find-setses body proper-vars))
-          (varnum (if (is vars proper-vars)
+          (varnum (if (eq? vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))))
@@ -379,7 +379,7 @@
       (if (member (car exp) scope-vars)
           (macroexpand-all-sub exp scope-vars)
         (let1 expanded (macroexpand-1 exp)
-          (if (iso expanded exp)
+          (if (equal? expanded exp)
               (macroexpand-all-sub exp scope-vars)
             (macroexpand-all expanded scope-vars))))
     exp))
@@ -414,7 +414,7 @@
 
 (defun macroexpand (exp)
   (let1 expanded (macroexpand-1 exp)
-    (if (iso expanded exp)
+    (if (equal? expanded exp)
         exp
       (macroexpand expanded))))
 
@@ -441,7 +441,7 @@
 
 (defun lambda-expression? (exp)
   (and (pair? exp)
-       (is (car exp) '^)))
+       (eq? (car exp) '^)))
 
 (defun register-inline-function (sym func)
   (table-put! *inline-functions* sym func))

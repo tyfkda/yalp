@@ -15,7 +15,7 @@
                  (let ((key (car e))
                        (vars (cadr e))
                        (exprs (cddr e)))
-                   (if (is key 'else)
+                   (if (eq? key 'else)
                        (cdr e)
                        `(,key
                          (record (cdr ,g1) ,vars ,@exprs)
