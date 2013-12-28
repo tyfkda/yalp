@@ -128,16 +128,18 @@
        (eq? '^ (car func))))
 
 (defun compile-apply (func args e s next)
-  (let1 is-tail (tail? next)
-    (let* ((argnum (len args))
-           (c (compile-recur func e s
-                             (if is-tail
-                                 (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
-                               (list 'APPLY argnum))))
-           (bc (compile-apply-args args e s c)))
+  (let ((is-tail (tail? next))
+        (argnum (len args))
+        (func-slot (cons nil nil)))
+    (let1 code-top (compile-apply-args args e s func-slot)
+      (copy-pair! func-slot
+                  (compile-recur func e s
+                                 (if is-tail
+                                     (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
+                                   (list 'APPLY argnum))))
       (if is-tail
-          bc
-        (list* 'FRAME bc next)))))
+          code-top
+        (list* 'FRAME code-top next)))))
 
 (defun compile-inline-apply (sym args e s next)
   (let1 lambda (get-inline-function-body sym)
