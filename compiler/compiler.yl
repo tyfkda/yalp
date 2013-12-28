@@ -82,13 +82,15 @@
                         (t (compile-apply func args e s next)))))))
 
 (defun compile-if (test then rest e s next)
-  (let ((thenc (compile-recur then e s next))
-        (elsec (if rest
-                   (do (when (cdr rest)
-                         (compile-error "malformed if"))
-                       (compile-recur (car rest) e s next))
-                 (compile-void next))))
-    (compile-recur test e s (list* 'TEST thenc elsec))))
+  (when (and rest (cdr rest))
+    (compile-error "malformed if"))
+  (let ((then-slot (cons nil nil))
+        (else-slot (cons nil nil)))
+    (let1 c (compile-recur test e s (list* 'TEST then-slot else-slot))
+      (copy-pair! then-slot (compile-recur then e s next))
+      (copy-pair! else-slot (if rest (compile-recur (car rest) e s next)
+                              (compile-void next)))
+      c)))
 
 (defun compile-def (var val e s next)
   (unless (symbol? var)
@@ -199,10 +201,12 @@
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))))
-      (collect-free free e
-                    (list* 'CLOSE varnum (len free)
-                           (compile-body proper-vars proper-vars body free sets s '(RET))
-                           next)))))
+      (let1 body-slot (cons nil nil)
+        (copy-pair! body-slot (compile-body proper-vars proper-vars body free sets s '(RET)))
+        (collect-free free e
+                      (list* 'CLOSE varnum (len free)
+                             body-slot
+                             next))))))
 
 (defun collect-free (vars e next)
   (if vars
@@ -233,15 +237,19 @@
 
 (defun compile-body (set-vars vars body free sets s next)
   (if body
-      (make-boxes sets set-vars
-                  (let ((ee (cons vars free))
-                        (ss (union sets
-                                   (intersection s free))))
-                    (alet ((p body))
-                      (if p
-                          (compile-recur (car p) ee ss
-                                         (loop (cdr p)))
-                        next))))
+      (let ((ee (cons vars free))
+            (ss (union sets
+                       (intersection s free)))
+            (top-slot (cons nil nil)))
+        (alet ((p body)
+               (prev-slot top-slot))
+          (let* ((next-slot (if (cdr p) (cons nil nil) next))
+                 (cc (compile-recur (car p) ee ss next-slot)))
+            (copy-pair! prev-slot cc)
+            (when (cdr p)
+              (loop (cdr p) next-slot))))
+        (make-boxes sets set-vars
+                    top-slot))
     (compile-void next)))
 
 (defun make-boxes (sets vars next)
@@ -269,11 +277,14 @@
           (varnum (if (eq? vars proper-vars)
                       (len vars)
                     (list (- (len proper-vars) 1)
-                          -1))))
-      (compile-recur vals e s
-                     (list* 'RECV varnum
-                            (compile-body ext-vars ext-vars body free sets s
-                                          (list* 'SHRNK (len proper-vars) next)))))))
+                          -1)))
+          (body-slot (cons nil nil)))
+      (let1 c (compile-recur vals e s
+                             (list* 'RECV varnum
+                                    body-slot))
+        (copy-pair! body-slot (compile-body ext-vars ext-vars body free sets s
+                                            (list* 'SHRNK (len proper-vars) next)))
+        c))))
 
 (defun find-frees (xs b vars)
   (let1 bb (union (dotted->proper vars) b)

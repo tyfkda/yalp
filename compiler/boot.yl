@@ -408,3 +408,7 @@
   (or (no ls)
       (and (pair? ls)
            (no (cdr (last ls))))))
+
+(defun copy-pair! (dst src)
+  (set-car! dst (car src))
+  (set-cdr! dst (cdr src)))
