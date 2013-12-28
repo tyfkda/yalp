@@ -204,12 +204,10 @@
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1))))
-      (let1 body-slot (cons nil nil)
-        (copy-pair! body-slot (compile-body proper-vars proper-vars body free sets s '(RET)))
-        (collect-free free e
-                      (list* 'CLOSE varnum (len free)
-                             body-slot
-                             next))))))
+      (collect-free free e
+                    (list* 'CLOSE varnum (len free)
+                           (compile-body proper-vars proper-vars body free sets s '(RET))
+                           next)))))
 
 (defun collect-free (vars e next)
   (if vars
