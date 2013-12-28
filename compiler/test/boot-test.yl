@@ -89,9 +89,9 @@
 (test "reverse" '(3 2 1) (reverse '(1 2 3)))
 (test "reverse dotted" '(3 2 1) (reverse '(1 2 3 . 4)))
 
-;; member-if
-(test "member-if" '(x 3) (member-if symbol? '(1 x 3)))
-(test "member-if fail" nil (member-if symbol? '(1 2 3)))
+;; any?
+(test "any?" '(x 3) (any? symbol? '(1 x 3)))
+(test "any? fail" nil (any? symbol? '(1 2 3)))
 
 ;; member
 (test "member" '(y z) (member 'y '(x y z)))

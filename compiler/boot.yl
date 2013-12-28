@@ -290,15 +290,8 @@
         (loop (cdr ls) (cons (car ls) acc))
       acc)))
 
-(defun member-if (f ls)
-  (if (pair? ls)
-      (if (f (car ls))
-          ls
-        (member-if f (cdr ls)))
-    nil))
-
 (defun member (x ls)
-  (member-if [eq? x _] ls))
+  (any? [eq? x _] ls))
 
 (defun union (s1 s2)
   (if s1
