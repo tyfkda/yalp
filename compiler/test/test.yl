@@ -1,5 +1,5 @@
 (defmacro test (name expected actual)
-  (w/uniq (v result)
+  (let-gensym (v result)
     `(let1 ,v ,expected
        (format *stdout* "Testing %@ ... " ',name)
        (let1 ,result ,actual

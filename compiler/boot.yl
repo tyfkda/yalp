@@ -201,7 +201,7 @@
   (if (no clauses)
       nil
     (let ((cl1 (car clauses))
-          (sym (uniq)))
+          (sym (gensym)))
       (if (eq? (car cl1) 'else)
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
@@ -221,14 +221,14 @@
        ,@body
        (loop))))
 
-(defmacro w/uniq (names . body)
+(defmacro let-gensym (names . body)
   (if (pair? names)
-      ;; (w/uniq (a b c) ...) => (let ((a (uniq)) (b (uniq)) (c (uniq)) ...)
-      `(let ,(map [list _ '(uniq)]
+      ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
+      `(let ,(map [list _ '(gensym)]
                   names)
          ,@body)
-    ;; (w/uniq a ...) => (let1 a (uniq) ...)
-    `(let1 ,names (uniq) ,@body)))
+    ;; (let-gensym a ...) => (let1 a (gensym) ...)
+    `(let1 ,names (gensym) ,@body)))
 
 (defmacro and args
   (if args
@@ -241,7 +241,7 @@
 
 (defmacro or args
   (and args
-       (w/uniq g
+       (let-gensym g
          `(let1 ,g ,(car args)
             (if ,g ,g (or ,@(cdr args)))))))
 
@@ -256,12 +256,12 @@
                   ,(loop (cddr args))))))))
 
 (defmacro case (expr . args)
-  `(caselet ,(uniq) ,expr ,@args))
+  `(caselet ,(gensym) ,expr ,@args))
 
 (defmacro dolist (vars . body)
   (let ((x (car vars))
         (ls (cadr vars)))
-    (w/uniq p
+    (let-gensym p
       `(alet ((,p ,ls))
          (when (pair? ,p)
            (let1 ,x (car ,p)

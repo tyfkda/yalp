@@ -553,7 +553,7 @@ static Value s_readLine(State* state) {
   return state->allocatedString(copiedString, len);
 }
 
-static Value s_uniq(State* state) {
+static Value s_gensym(State* state) {
   return state->gensym();
 }
 
@@ -848,7 +848,8 @@ void installBasicFunctions(State* state) {
     { "unread-char", s_unreadChar, 1, 2 },
     { "read-line", s_readLine, 0, 1 },
 
-    { "uniq", s_uniq, 0 },
+    { "gensym", s_gensym, 0 },
+    { "uniq", s_gensym, 0 },
     { "apply", s_apply, 1, -1 },
     { "run-binary", s_runBinary, 1 },
 

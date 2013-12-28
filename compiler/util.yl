@@ -6,7 +6,7 @@
           ,args))
 
 (defmacro record-case (x . args)
-  (w/uniq g1
+  (let-gensym g1
     `(let1 ,g1 ,x
        (case (car ,g1)
          ,@(alet ((p args))
