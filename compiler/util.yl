@@ -10,8 +10,7 @@
        (case (car ,value)
          ,@(map (^(e)
                   (let1 key (car e)
-                    (if (or (eq? key 'else)
-                            (eq? key 't))
+                    (if (eq? key 't)
                         e
                       `(,key
                         (record (cdr ,value) ,@(cdr e))))))

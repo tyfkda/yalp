@@ -177,7 +177,7 @@
 (defmacro cond (&rest clauses)
   (if clauses
       (let1 clause (car clauses)
-        (if (eq? (car clause) 'else)
+        (if (eq? (car clause) 't)
             (if (cdr clauses)
                 (compile-error "else clause must comes at last in cond")
               `(do ,@(cdr clause)))
@@ -195,7 +195,7 @@
       nil
     (let ((cl1 (car clauses))
           (sym (gensym)))
-      (if (eq? (car cl1) 'else)
+      (if (eq? (car cl1) 't)
           (if (cdr clauses)
               (compile-error "else clause must comes at last in cond")
             `(do ,@(cdr cl1)))
@@ -244,13 +244,12 @@
        (cond ,@(map (^(clause)
                       (let ((value (car clause))
                             (body (cdr clause)))
-                        (cond ((or (eq? value 'else)
-                                   (eq? value 't))
+                        (cond ((eq? value 't)
                                clause)
                               ((pair? value)
                                `((member ,var ',value)
                                  ,@body))
-                              (else
+                              (t
                                `((eq? ,var ',value)
                                  ,@body)))))
                     args)))))

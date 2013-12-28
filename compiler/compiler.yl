@@ -49,7 +49,7 @@
                           next)))
         ((pair? x)
          (compile-list x e s next))
-        (else (list* 'CONST x next))))
+        (t (list* 'CONST x next))))
 
 (defun compile-list (x e s next)
   (record-case x
@@ -71,7 +71,7 @@
                        (compile-values args e s next))
                (receive (vars vals &body body)
                         (compile-receive vars vals body e s next))
-               (else
+               (t
                 ;; Normal forms.
                 (let ((func (car x))
                       (args (cdr x)))
@@ -79,7 +79,7 @@
                          (compile-apply-direct (cadr func) (cddr func) args e s next))
                         ((inline-function? func)
                          (compile-inline-apply func args e s next))
-                        (else (compile-apply func args e s next)))))))
+                        (t (compile-apply func args e s next)))))))
 
 (defun compile-if (test then rest e s next)
   (let ((thenc (compile-recur then e s next))
@@ -168,8 +168,8 @@
                                   (list ,@(drop varnum args)))
                                 e s next))
                 ;; ((^(x y &rest z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
-                (else (compile-apply-direct proper-vars body (append args '(()))
-                                            e s next)))
+                (t (compile-apply-direct proper-vars body (append args '(()))
+                                         e s next)))
         (do
             (unless (eq? argnum varnum)
               (let1 which (if (< argnum varnum) "few" "many")
@@ -306,8 +306,8 @@
                       (receive (vars vals &body body)
                                (union (find-free vals b)
                                       (find-frees body b vars)))
-                      (else        (find-frees x b '()))))
-        (else '())))
+                      (t (find-frees x b '()))))
+        (t '())))
 
 (defun find-setses (xs v)
   (alet ((b '())
@@ -337,7 +337,7 @@
                    (receive (vars vals &body body)
                             (union (find-sets vals v)
                                    (find-setses body (set-minus v (dotted->proper vars)))))
-                   (else        (find-setses x   v)))
+                   (t (find-setses x   v)))
     '()))
 
 (defun compile-refer (var e next)
@@ -360,7 +360,7 @@
         (free   (cdr e)))
     (acond ((find-index var locals)  (return-local it))
            ((find-index var free)    (return-free it))
-           (else                     (return-global)))))
+           (t                        (return-global)))))
 
 (defun tail? (next)
   (eq? (car next) 'RET))
@@ -419,7 +419,7 @@
                         (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
                           `(receive ,vars ,(macroexpand-all vals scope-vars)
                              ,@(map-macroexpand-all body new-scope-vars))))
-               (else (map-macroexpand-all exp scope-vars))))
+               (t (map-macroexpand-all exp scope-vars))))
 
 (defun macroexpand (exp)
   (let1 expanded (macroexpand-1 exp)

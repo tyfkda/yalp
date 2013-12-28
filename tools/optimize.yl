@@ -16,7 +16,7 @@
                            (set-car! c 'NIL)
                            (set-cdr! c (cddr c)))
                          t)
-                   (else t)))))
+                   (t t)))))
 
 (defun main (args)
   (files-or-stdin args
