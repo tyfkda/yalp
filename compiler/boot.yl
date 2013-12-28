@@ -238,18 +238,16 @@
          `(let1 ,g ,(car args)
             (if ,g ,g (or ,@(cdr args)))))))
 
-(defmacro caselet (var expr &rest args)
-  `(let1 ,var ,expr
-     ,(alet ((args args))
-        (cond ((no args)  '())
-              ((no (cdr args))  (car args))
-              (else
-               `(if (eq? ,var ',(car args))
-                    ,(cadr args)
-                  ,(loop (cddr args))))))))
-
 (defmacro case (expr &rest args)
-  `(caselet ,(gensym) ,expr ,@args))
+  (let-gensym var
+    `(let1 ,var ,expr
+       ,(alet ((args args))
+          (cond ((no args)  '())
+                ((no (cdr args))  (car args))
+                (else
+                 `(if (eq? ,var ',(car args))
+                      ,(cadr args)
+                    ,(loop (cddr args)))))))))
 
 (defmacro dolist (vars &body body)
   (let ((x (car vars))
