@@ -93,6 +93,13 @@
 (test "any?" '(x 3) (any? symbol? '(1 x 3)))
 (test "any? fail" nil (any? symbol? '(1 2 3)))
 
+;; assoc
+(test "assoc" '(b . 2) (assoc 'b '((a . 1) (b . 2) (c . 3))))
+(test "assoc-fail" nil (assoc 'x '((a . 1) (b . 2) (c . 3))))
+
+;; acons
+(test "acons" '((1 . ONE) (2 . TWO)) (acons 1 'ONE (acons 2 'TWO '())))
+
 ;; member
 (test "member" '(y z) (member 'y '(x y z)))
 (test "member fail" nil (member 'a '(x y z)))

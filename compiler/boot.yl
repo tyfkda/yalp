@@ -1,5 +1,5 @@
 (proclaim
- (inline no cadr cddr member))
+ (inline no caar cdar cadr cddr member))
 
 ;;; Basic read macros.
 
@@ -38,6 +38,8 @@
         (list* '^ vars body)))
 
 (defun no (x) (if x nil t))
+(defun caar (x) (car (car x)))
+(defun cdar (x) (cdr (car x)))
 (defun cadr (x) (car (cdr x)))
 (defun cddr (x) (cdr (cdr x)))
 (defun fixnum? (x) (eq? (type x) 'fixnum))
@@ -292,6 +294,16 @@
 
 (defun member (x ls)
   (any? [eq? x _] ls))
+
+(defun assoc (key alist)
+  (if alist
+      (if (eq? (caar alist) key)
+          (car alist)
+        (assoc key (cdr alist)))
+    nil))
+
+(defun acons (key obj alist)
+  (cons (cons key obj) alist))
 
 (defun union (s1 s2)
   (if s1
