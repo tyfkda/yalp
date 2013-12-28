@@ -1,11 +1,11 @@
 ;;;; Utility functions for compiler
 
-(defmacro record (args parm . exprs)
+(defmacro record (args parm &rest exprs)
   `(apply (^ ,parm
             ,@exprs)
           ,args))
 
-(defmacro record-case (x . args)
+(defmacro record-case (x &rest args)
   (let-gensym g1
     `(let1 ,g1 ,x
        (case (car ,g1)

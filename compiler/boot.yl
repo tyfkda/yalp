@@ -32,7 +32,7 @@
 
 ;;; Basic functions and macros.
 
-(defmacro defun (name vars . body)
+(defmacro defun (name vars &body body)
   ;; `(def ,name (^ ,vars ,@body))
   (list 'def name
         (list* '^ vars body)))
@@ -79,7 +79,7 @@
                (cons (apply f (map1-loop car lss '()))
                      acc))))
 
-(defun map (f ls . rest)
+(defun map (f ls &rest rest)
   (if rest
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
@@ -129,26 +129,26 @@
 (defmacro quasiquote (x)
   (qq-expand x))
 
-(defmacro do body
+(defmacro do (&body body)
   `((^() ,@body)))
 
-(defmacro when (test . body)
+(defmacro when (test &body body)
   `(if ,test (do ,@body)))
 
-(defmacro unless (test . body)
+(defmacro unless (test &body body)
   `(if ,test (do) (do ,@body)))
 
-(defmacro set! (var val . rest)
+(defmacro set! (var val &rest rest)
   (if rest
       `(do ,@(map (^(vv) `(set! ,(car vv) ,(cadr vv)))
                   (cons (list var val)
                         (pair rest))))
     `(set! ,var ,val)))
 
-(defmacro let1 (var val . body)
+(defmacro let1 (var val &body body)
   `((^(,var) ,@body) ,val))
 
-(defmacro let (parms . body)
+(defmacro let (parms &body body)
   (if (symbol? parms)
       ;; Named let.
       (let ((name parms)
@@ -162,7 +162,7 @@
          ,@body)
       ,@(map cadr parms))))
 
-(defmacro let* (parms . body)
+(defmacro let* (parms &body body)
   (if parms
       `(let1 ,@(car parms)
          (let* ,(cdr parms) ,@body))
@@ -171,10 +171,10 @@
 ;; Anapholic-let macro.
 ;; Like let macro, but captures "loop" variable to make loop syntax.
 ;; This is similar to named-let syntax in Scheme.
-(defmacro alet (parms . body)
+(defmacro alet (parms &body body)
   `(let loop ,parms ,@body))
 
-(defmacro cond clauses
+(defmacro cond (&rest clauses)
   (if clauses
       (let1 clause (car clauses)
         (if (eq? (car clause) 'else)
@@ -186,7 +186,7 @@
              (cond ,@(cdr clauses)))))
     nil))
 
-(defmacro aif (expr . body)
+(defmacro aif (expr &rest body)
   (if (no body)
       expr
     `(let1 it ,expr
@@ -195,7 +195,7 @@
                  `(,(car body) (aif ,@(cdr body)))
                body)))))
 
-(defmacro acond clauses
+(defmacro acond (&rest clauses)
   (if (no clauses)
       nil
     (let ((cl1 (car clauses))
@@ -209,17 +209,17 @@
                    (let1 it ,sym ,@(cdr cl1))
                  (acond ,@(cdr clauses))))))))
 
-(defmacro awhen (expr . body)
+(defmacro awhen (expr &body body)
   `(aif ,expr
      (do ,@body)))
 
-(defmacro awhile (expr . body)
+(defmacro awhile (expr &body body)
   `(alet ()
      (awhen ,expr
        ,@body
        (loop))))
 
-(defmacro let-gensym (names . body)
+(defmacro let-gensym (names &body body)
   (if (pair? names)
       ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
       `(let ,(map [list _ '(gensym)]
@@ -228,7 +228,7 @@
     ;; (let-gensym a ...) => (let1 a (gensym) ...)
     `(let1 ,names (gensym) ,@body)))
 
-(defmacro and args
+(defmacro and (&rest args)
   (if args
       (if (cdr args)
           `(if ,(car args)
@@ -237,13 +237,13 @@
         (car args))
     't))  ; (and) = true
 
-(defmacro or args
+(defmacro or (&rest args)
   (and args
        (let-gensym g
          `(let1 ,g ,(car args)
             (if ,g ,g (or ,@(cdr args)))))))
 
-(defmacro caselet (var expr . args)
+(defmacro caselet (var expr &rest args)
   `(let1 ,var ,expr
      ,(alet ((args args))
         (cond ((no args)  '())
@@ -253,10 +253,10 @@
                     ,(cadr args)
                   ,(loop (cddr args))))))))
 
-(defmacro case (expr . args)
+(defmacro case (expr &rest args)
   `(caselet ,(gensym) ,expr ,@args))
 
-(defmacro dolist (vars . body)
+(defmacro dolist (vars &body body)
   (let ((x (car vars))
         (ls (cadr vars)))
     (let-gensym p
@@ -315,14 +315,14 @@
         (intersection (cdr s1) s2))
     '()))
 
-(defun print (x . rest)
+(defun print (x &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
     (display x stream)
     (display "\n" stream))
   x)
 
 ;; Write shared structure.
-(defun write/ss (s . rest)
+(defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
     (write/ss-print s (write/ss-construct s) stream)))
 
@@ -385,3 +385,25 @@
       (if (> n 0)
           (drop (- n 1) (cdr ls))
         ls)))
+
+(defun position-if (f seq)
+  (alet ((i 0)
+         (p seq))
+    (if p
+        (if (f (car p))
+            i
+          (loop (+ i 1) (cdr p)))
+      nil)))
+
+(defun position (item seq)
+  (position-if [eq? _ item] seq))
+
+(defun single? (ls)
+  (and (pair? ls)
+       (no (cdr ls))))
+
+(defun list? (ls)
+  ;; Nil, or not dotted list
+  (or (no ls)
+      (and (pair? ls)
+           (no (cdr (last ls))))))

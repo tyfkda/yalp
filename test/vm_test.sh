@@ -88,10 +88,10 @@ run_raw invoke-call/cc '1234' '(def *cc* ())
                                (*cc* 34)'
 run global-var 111 '(def global 111)
                     global'
-run restargs-direct '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
-run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x . y) (list x y)))'
-run restargs-all-direct '(1 2 3)' '((^ x x) 1 2 3)'
-run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ x x))'
+run restargs-direct '(1 (2 3))' '((^(x &rest y) (list x y)) 1 2 3)'
+run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x &rest y) (list x y)))'
+run restargs-all-direct '(1 2 3)' '((^ (&rest x) x) 1 2 3)'
+run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ (&rest x) x))'
 run empty-body nil '((^ ()))'
 
 # Multiple values
@@ -100,8 +100,8 @@ run values-can-use-in-expression 14 '(+ 1 (values 10 20 30) 3)'
 run receive '(1 2 3)' '(receive (x y z) (values 1 2 3) (list x y z))'
 run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list x y z))'
 run empty-values nil '((^(x) (values)) 123)'
-run receive-rest-params '(1 (2 3))' '(receive (x . y) (values 1 2 3) (list x y))'
-run receive-empty-rest '(1 nil)' '(receive (x . y) (values 1) (list x y))'
+run receive-rest-params '(1 (2 3))' '(receive (x &rest y) (values 1 2 3) (list x y))'
+run receive-empty-rest '(1 nil)' '(receive (x &rest y) (values 1) (list x y))'
 
 # Abbreviated form
 run quote-x "'x" "''x"
