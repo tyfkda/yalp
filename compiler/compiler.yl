@@ -107,15 +107,16 @@
                   (^()  (compile-recur val e s (list* 'GSET var next)))))
 
 (defun compile-call/cc (func e s next)
-  (let1 c (list* 'CONTI (if (tail? next) 't 'nil)
-                 'PUSH
-                 (compile-recur func e s
-                                (if (tail? next)
-                                    '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
-                                  '(APPLY 1))))
-    (if (tail? next)
-        c
-      (list* 'FRAME c next))))
+  (let1 is-tail (tail? next)
+    (let1 c (list* 'CONTI is-tail
+                   'PUSH
+                   (compile-recur func e s
+                                  (if is-tail
+                                      '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                    '(APPLY 1))))
+          (if is-tail
+              c
+            (list* 'FRAME c next)))))
 
 (defun compile-void (next)
   (list* 'VOID next))
@@ -125,15 +126,16 @@
        (eq? '^ (car func))))
 
 (defun compile-apply (func args e s next)
-  (let* ((argnum (len args))
-         (c (compile-recur func e s
-                           (if (tail? next)
-                               (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
-                             (list 'APPLY argnum))))
-         (bc (compile-apply-args args e s c)))
-    (if (tail? next)
-        bc
-      (list* 'FRAME bc next))))
+  (let1 is-tail (tail? next)
+    (let* ((argnum (len args))
+           (c (compile-recur func e s
+                             (if is-tail
+                                 (list 'TAPPLY argnum)  ;(list 'SHIFT argnum 'APPLY argnum)
+                               (list 'APPLY argnum))))
+           (bc (compile-apply-args args e s c)))
+      (if is-tail
+          bc
+        (list* 'FRAME bc next)))))
 
 (defun compile-inline-apply (sym args e s next)
   (let1 lambda (get-inline-function-body sym)
