@@ -102,6 +102,8 @@ run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list 
 run empty-values nil '((^(x) (values)) 123)'
 run receive-rest-params '(1 (2 3))' '(receive (x &rest y) (values 1 2 3) (list x y))'
 run receive-empty-rest '(1 nil)' '(receive (x &rest y) (values 1) (list x y))'
+run receive-normal '((1 2 3))' '(receive (&rest all) (list 1 2 3) all)'
+run receive-empty 'nil' '(receive (&rest all) (values) all)'
 
 # Abbreviated form
 run quote-x "'x" "''x"
