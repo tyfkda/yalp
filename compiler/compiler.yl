@@ -230,17 +230,17 @@
     proper-vars))
 
 (defun compile-body (set-vars vars body free sets s next)
-  (make-boxes sets set-vars
-              (let ((ee (cons vars free))
-                    (ss (union sets
-                               (intersection s free))))
-                (if body
+  (if body
+      (make-boxes sets set-vars
+                  (let ((ee (cons vars free))
+                        (ss (union sets
+                                   (intersection s free))))
                     (alet ((p body))
                       (if p
                           (compile-recur (car p) ee ss
                                          (loop (cdr p)))
-                        next))
-                  (compile-void next)))))
+                        next))))
+    (compile-void next)))
 
 (defun make-boxes (sets vars next)
   (alet ((vars vars)
