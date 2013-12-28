@@ -434,9 +434,9 @@
      ,@(map (^(sentence)
               (when (pair? sentence)
                 (case (car sentence)
-                  inline (do (dolist (sym (cdr sentence))
-                                     (proclaim-inline sym))
-                             '(values))
+                  (inline (do (dolist (sym (cdr sentence))
+                                (proclaim-inline sym))
+                              '(values)))
                   )))
             defs)))
 

@@ -241,13 +241,19 @@
 (defmacro case (expr &rest args)
   (let-gensym var
     `(let1 ,var ,expr
-       ,(alet ((args args))
-          (cond ((no args)  '())
-                ((no (cdr args))  (car args))
-                (else
-                 `(if (eq? ,var ',(car args))
-                      ,(cadr args)
-                    ,(loop (cddr args)))))))))
+       (cond ,@(map (^(clause)
+                      (let ((value (car clause))
+                            (body (cdr clause)))
+                        (cond ((or (eq? value 'else)
+                                   (eq? value 't))
+                               clause)
+                              ((pair? value)
+                               `((member ,var ',value)
+                                 ,@body))
+                              (else
+                               `((eq? ,var ',value)
+                                 ,@body)))))
+                    args)))))
 
 (defmacro dolist (vars &body body)
   (let ((x (car vars))
@@ -261,13 +267,13 @@
 
 (defun len (x)
   (case (type x)
-    string (string-length x)
-    pair (alet ((x x)
-                (n 0))
-           (if (pair? x)
-               (loop (cdr x) (+ n 1))
-             n))
-    0))
+    (string (string-length x))
+    (pair (alet ((x x)
+                 (n 0))
+            (if (pair? x)
+                (loop (cdr x) (+ n 1))
+              n)))
+    (t 0)))
 
 ;; Returns last pair
 (defun last (ls)
