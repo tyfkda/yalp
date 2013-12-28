@@ -24,7 +24,7 @@ namespace yalp {
 class Allocator;
 class Reader;
 class SHashTable;
-class Sobject;
+class Object;
 class State;
 class Stream;
 class Symbol;
@@ -61,7 +61,7 @@ class Value {
 public:
   Value();
   explicit Value(Fixnum i);
-  explicit Value(Sobject* object);
+  explicit Value(Object* object);
   explicit Value(Fixnum i, int tag2);
 
   // Gets value type.
@@ -70,7 +70,7 @@ public:
   Fixnum toFixnum() const;
   Flonum toFlonum(State* state) const;
   bool isObject() const;
-  Sobject* toObject() const;
+  Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
   inline int toCharacter() const;
 
@@ -147,7 +147,7 @@ public:
   // File stream.
   Value createFileStream(FILE* fp);
 
-  Sobject* getFunc() const;
+  Object* getFunc() const;
   // Gets argument number for current native function.
   int getArgNum() const;
   // Gets argument value for the index.

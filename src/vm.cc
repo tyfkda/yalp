@@ -125,10 +125,10 @@ static bool checkArgNum(State* state, Value fn, int argNum, int min, int max) {
 }
 
 // Box class.
-class Box : public Sobject {
+class Box : public Object {
 public:
   Box(Value x)
-    : Sobject()
+    : Object()
     , x_(x) {}
   virtual Type getType() const override  { return TT_BOX; }
 
@@ -497,7 +497,7 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
 
 void Vm::defineMacro(Value name, Value func) {
   state_->checkType(name, TT_SYMBOL);
-  if (!func.isObject() || !static_cast<Sobject*>(func.toObject())->isCallable())
+  if (!func.isObject() || !static_cast<Object*>(func.toObject())->isCallable())
     state_->runtimeError("`%@` is not callable", &func);
   static_cast<Callable*>(func.toObject())->setName(name.toSymbol(state_));
   macroTable_->put(name, func);

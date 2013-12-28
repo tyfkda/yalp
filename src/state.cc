@@ -46,7 +46,7 @@ Value::Value() : v_(TAG_OBJECT) {
 Value::Value(Fixnum i)
   : v_((i << 1) | TAG_FIXNUM) {}
 
-Value::Value(class Sobject* object)
+Value::Value(class Object* object)
   : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
 
 Value::Value(Fixnum i, int tag2)
@@ -142,9 +142,9 @@ bool Value::isObject() const {
   return (v_ & TAG_MASK) == TAG_OBJECT;
 }
 
-Sobject* Value::toObject() const {
+Object* Value::toObject() const {
   assert(isObject());
-  return reinterpret_cast<Sobject*>(v_ & ~TAG_OBJECT);
+  return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
 }
 
 const Symbol* Value::toSymbol(State* state) const {
@@ -462,7 +462,7 @@ Value State::createFileStream(FILE* fp) {
   return Value(new(memory2) SStream(stream));
 }
 
-Sobject* State::getFunc() const {
+Object* State::getFunc() const {
   return vm_->getFunc();
 }
 

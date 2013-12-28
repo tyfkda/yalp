@@ -15,30 +15,30 @@
 namespace yalp {
 
 //=============================================================================
-// Symbol class is not derived from Sobject.
+// Symbol class is not derived from Object.
 // Instances are managed by SymbolManager
 // and not be the target of GC.
 Symbol::Symbol(char* name)
   : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
-bool Sobject::equal(const Sobject* o) const {
+bool Object::equal(const Object* o) const {
   return this == o;  // Simple pointer equality.
 }
 
-unsigned int Sobject::calcHash(State*) const {
+unsigned int Object::calcHash(State*) const {
   return (reinterpret_cast<long>(this) >> 4) * 23;
 }
 
-bool Sobject::isCallable() const  { return false; }
+bool Object::isCallable() const  { return false; }
 
 //=============================================================================
 Cell::Cell(Value a, Value d)
-  : Sobject(), car_(a), cdr_(d) {}
+  : Object(), car_(a), cdr_(d) {}
 
 Type Cell::getType() const  { return TT_CELL; }
 
-bool Cell::equal(const Sobject* target) const {
+bool Cell::equal(const Object* target) const {
   const Cell* p = static_cast<const Cell*>(target);
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
 }
@@ -86,7 +86,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
 void Cell::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   car_.mark();
   cdr_.mark();
 }
@@ -124,18 +124,18 @@ const char* Cell::isAbbrev(State* state) const {
 //=============================================================================
 
 String::String(const char* string, int len)
-  : Sobject()
+  : Object()
   , string_(string), len_(len) {
 }
 
 void String::destruct(Allocator* allocator) {
   allocator->free(const_cast<char*>(string_));
-  Sobject::destruct(allocator);
+  Object::destruct(allocator);
 }
 
 Type String::getType() const  { return TT_STRING; }
 
-bool String::equal(const Sobject* target) const {
+bool String::equal(const Object* target) const {
   const String* p = static_cast<const String*>(target);
   return len_ == p->len_ &&
     memcmp(string_, p->string_, len_) == 0;
@@ -180,13 +180,13 @@ void String::output(State*, Stream* o, bool inspect) const {
 //=============================================================================
 
 SFlonum::SFlonum(Flonum v)
-  : Sobject()
+  : Object()
   , v_(v) {
 }
 
 Type SFlonum::getType() const  { return TT_FLONUM; }
 
-bool SFlonum::equal(const Sobject* target) const {
+bool SFlonum::equal(const Object* target) const {
   const SFlonum* p = static_cast<const SFlonum*>(target);
   return v_ == p->v_;
 }
@@ -200,7 +200,7 @@ void SFlonum::output(State*, Stream* o, bool) const {
 //=============================================================================
 
 Vector::Vector(Allocator* allocator, int size)
-  : Sobject()
+  : Object()
   , size_(size) {
   void* memory = allocator->alloc(sizeof(Value) * size_);
   buffer_ = new(memory) Value[size_];
@@ -208,7 +208,7 @@ Vector::Vector(Allocator* allocator, int size)
 
 void Vector::destruct(Allocator* allocator) {
   allocator->free(buffer_);
-  Sobject::destruct(allocator);
+  Object::destruct(allocator);
 }
 
 Type Vector::getType() const { return TT_VECTOR; }
@@ -227,7 +227,7 @@ void Vector::output(State* state, Stream* o, bool inspect) const {
 void Vector::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   for (int n = size_, i = 0; i < n; ++i)
     buffer_[i].mark();
 }
@@ -245,7 +245,7 @@ void Vector::set(int index, Value x)  {
 //=============================================================================
 
 SHashTable::SHashTable(Allocator* allocator, HashPolicy<Value>* policy)
-  : Sobject() {
+  : Object() {
   void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) TableType(policy, allocator);
 }
@@ -253,7 +253,7 @@ SHashTable::SHashTable(Allocator* allocator, HashPolicy<Value>* policy)
 void SHashTable::destruct(Allocator* allocator) {
   table_->~TableType();
   allocator->free(table_);
-  Sobject::destruct(allocator);
+  Object::destruct(allocator);
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
@@ -267,7 +267,7 @@ void SHashTable::output(State*, Stream* o, bool) const {
 void SHashTable::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   TableType& table = *table_;
   for (auto kv : table)
     const_cast<Value*>(&kv.value)->mark();
@@ -292,7 +292,7 @@ bool SHashTable::remove(Value key) {
 
 //=============================================================================
 Callable::Callable()
-  : Sobject()
+  : Object()
   , name_(NULL)  {}
 
 bool Callable::isCallable() const  { return true; }
@@ -399,7 +399,7 @@ void Continuation::mark() {
 
 //=============================================================================
 SStream::SStream(Stream* stream)
-  : Sobject(), stream_(stream)  {}
+  : Object(), stream_(stream)  {}
 
 void SStream::destruct(Allocator* allocator) {
   allocator->free(stream_);

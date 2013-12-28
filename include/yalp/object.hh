@@ -46,10 +46,10 @@ private:
 };
 
 // Base class.
-class Sobject : public GcObject {
+class Object : public GcObject {
 public:
   virtual Type getType() const = 0;
-  virtual bool equal(const Sobject* target) const;
+  virtual bool equal(const Object* target) const;
   virtual unsigned int calcHash(State* state) const;
 
   virtual void output(State* state, Stream* o, bool inspect) const = 0;
@@ -58,18 +58,18 @@ public:
 
 protected:
   // Prevent to call destructor from outside.
-  Sobject()  {}  // Empty construct needed, otherwise member cleared.
-  ~Sobject()  {}
+  Object()  {}  // Empty construct needed, otherwise member cleared.
+  ~Object()  {}
 
   friend class State;
   friend class Value;
 };
 
 // Cell class.
-class Cell : public Sobject {
+class Cell : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
+  virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
 
   Value car() const  { return car_; }
@@ -94,10 +94,10 @@ private:
 };
 
 // String class.
-class String : public Sobject {
+class String : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
+  virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
 
   const char* c_str() const  { return string_; }
@@ -119,10 +119,10 @@ private:
 };
 
 // Floating point number class.
-class SFlonum : public Sobject {
+class SFlonum : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
+  virtual bool equal(const Object* target) const override;
 
   Flonum toFlonum() const  { return v_; }
 
@@ -138,7 +138,7 @@ protected:
 };
 
 // Vector class.
-class Vector : public Sobject {
+class Vector : public Object {
 public:
   virtual Type getType() const override;
 
@@ -163,7 +163,7 @@ protected:
 };
 
 // HashTable class.
-class SHashTable : public Sobject {
+class SHashTable : public Object {
 public:
   typedef HashTable<Value, Value> TableType;
 
@@ -196,7 +196,7 @@ private:
   friend class Vm;
 };
 
-class Callable : public Sobject {
+class Callable : public Object {
 public:
   Callable();
 
@@ -288,7 +288,7 @@ protected:
   int callStackSize_;
 };
 
-class SStream : public Sobject {
+class SStream : public Object {
 public:
   virtual Type getType() const override;
 
