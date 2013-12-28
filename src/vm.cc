@@ -715,12 +715,14 @@ Value Vm::runLoop() {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       a_ = index(f_, n);
+      valueCount_ = 1;
     } NEXT;
     CASE(FREF) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
       assert(c_.getType() == TT_CLOSURE);
       a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
+      valueCount_ = 1;
     } NEXT;
     CASE(GREF) {
       Value sym = CAR(x_);
@@ -731,6 +733,7 @@ Value Vm::runLoop() {
       if (!exist)
         state_->runtimeError("Unbound `%@`", &sym);
       a_ = aa;
+      valueCount_ = 1;
     } NEXT;
     CASE(LSET) {
       int n = CAR(x_).toFixnum();
