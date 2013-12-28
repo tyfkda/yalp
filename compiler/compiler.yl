@@ -353,7 +353,7 @@
                    (receive (vars vals &body body)
                             (union (find-sets vals v)
                                    (find-setses body (set-minus v (dotted->proper vars)))))
-                   (t (find-setses x   v)))
+                   (t (find-setses x v)))
     '()))
 
 (defun compile-refer (var e next)
