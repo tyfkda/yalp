@@ -174,35 +174,38 @@
 (defmacro alet (parms &body body)
   `(let loop ,parms ,@body))
 
-(defmacro cond (&rest clauses)
+(defun cond-template (clauses f)
   (if clauses
-      (let1 clause (car clauses)
-        (if (eq? (car clause) 't)
-            (if (cdr clauses)
-                (compile-error "else clause must comes at last in cond")
-              `(do ,@(cdr clause)))
-          `(if ,(car clause)
-               (do ,@(cdr clause))
-             (cond ,@(cdr clauses)))))
+      (let ((clause (car clauses))
+            (next (cdr clauses)))
+        (let ((pred (car clause))
+              (body (cdr clause)))
+          (if (eq? pred 't)
+              (if next
+                  (compile-error "else clause must comes at last in cond")
+                `(do ,@body))
+            (f pred body next))))
     nil))
+
+(defmacro cond (&rest clauses)
+  (cond-template clauses
+                 (^(pred body next)
+                   `(if ,pred
+                        (do ,@body)
+                      (cond ,@next)))))
+
+(defmacro acond (&rest clauses)
+  (cond-template clauses
+                 (^(pred body next)
+                   (let-gensym sym
+                     `(let1 ,sym ,pred
+                            (if ,sym
+                                (let1 it ,sym ,@body)
+                              (acond ,@next)))))))
 
 (defmacro aif (expr &rest rest)
   `(let1 it ,expr
      (if it ,@rest)))
-
-(defmacro acond (&rest clauses)
-  (if (no clauses)
-      nil
-    (let ((cl1 (car clauses))
-          (sym (gensym)))
-      (if (eq? (car cl1) 't)
-          (if (cdr clauses)
-              (compile-error "else clause must comes at last in cond")
-            `(do ,@(cdr cl1)))
-        `(let1 ,sym ,(car cl1)
-               (if ,sym
-                   (let1 it ,sym ,@(cdr cl1))
-                 (acond ,@(cdr clauses))))))))
 
 (defmacro awhen (expr &body body)
   `(aif ,expr
