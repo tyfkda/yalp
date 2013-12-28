@@ -176,20 +176,23 @@
             (unless (eq? argnum varnum)
               (let1 which (if (< argnum varnum) "few" "many")
                 (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))
-            (let1 ext-vars (append proper-vars (car e))
+            (let ((ext-vars (append proper-vars (car e)))
+                  (body-slot (cons nil nil)))
               (let ((free (cdr e))  ;(intersection (union (car e)
                                     ;                     (cdr e))
                                     ;              (find-frees body '() proper-vars))
-                    (sets (union s (find-setses body ext-vars)))) ;(find-setses body proper-vars))
-                (compile-apply-args args e s
-                                    (if (eq? argnum 0)
-                                        (compile-body proper-vars ext-vars body free sets s
-                                                      next)
-                                      (list* 'EXPND argnum
-                                             (compile-body proper-vars ext-vars body free sets s
-                                                           (if (tail? next)
-                                                               next
-                                                             (list* 'SHRNK argnum next)))))))))))))
+                    (sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
+                    (code-top (compile-apply-args args e s body-slot)))
+                (copy-pair! body-slot
+                            (if (eq? argnum 0)
+                                (compile-body proper-vars ext-vars body free sets s
+                                              next)
+                              (list* 'EXPND argnum
+                                     (compile-body proper-vars ext-vars body free sets s
+                                                   (if (tail? next)
+                                                       next
+                                                     (list* 'SHRNK argnum next))))))
+                code-top)))))))
 
 (defun compile-lambda (vars body e s next)
   (let1 proper-vars (check-parameters vars)
