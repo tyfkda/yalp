@@ -58,8 +58,8 @@
                     (loop (- i 1) (+ acc i)))))
 
 ;; aif
-(test "aif true" 1 (aif 1 it 2 it))
-(test "aif false" nil (aif nil it nil it))
+(test "aif true" 1 (aif 1 it 2))
+(test "aif false" 2 (aif nil it 2))
 
 ;; awhile
 (test "awhile" 3 (let ((x '(1 2 nil 4 5))

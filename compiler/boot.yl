@@ -186,14 +186,9 @@
              (cond ,@(cdr clauses)))))
     nil))
 
-(defmacro aif (expr &rest body)
-  (if (no body)
-      expr
-    `(let1 it ,expr
-       (if it
-           ,@(if (cdr body)
-                 `(,(car body) (aif ,@(cdr body)))
-               body)))))
+(defmacro aif (expr &rest rest)
+  `(let1 it ,expr
+     (if it ,@rest)))
 
 (defmacro acond (&rest clauses)
   (if (no clauses)
