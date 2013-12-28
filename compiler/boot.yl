@@ -151,23 +151,21 @@
 (defmacro let (parms . body)
   (if (symbol? parms)
       ;; Named let.
-      ((^(name parms body)
-         `((^ (,name)
-              (set! ,name (^ ,(map car parms)
-                             ,@body))
-              (,name ,@(map cadr parms)))
-           nil))
-       parms (car body) (cdr body))
+      (let ((name parms)
+            (parms (car body))
+            (body (cdr body)))
+        `(let1 ,name nil
+           ((set! ,name (^ ,(map car parms)
+                           ,@body))
+            ,@(map cadr parms))))
     `((^ ,(map car parms)
          ,@body)
       ,@(map cadr parms))))
 
 (defmacro let* (parms . body)
   (if parms
-      (let1 par (car parms)
-        `((^ (,(car par))
-             (let* ,(cdr parms) ,@body))
-          ,(cadr par)))
+      `(let1 ,@(car parms)
+         (let* ,(cdr parms) ,@body))
     `(do ,@body)))
 
 ;; Anapholic-let macro.
