@@ -326,12 +326,12 @@
         (t '())))
 
 (defun find-setses (xs v)
-  (alet ((b '())
-         (p xs))
-    (if p
-        (loop (union b (find-sets (car p) v))
-              (cdr p))
-      b)))
+  (alet ((sets '())
+         (xs xs))
+    (if xs
+        (loop (union sets (find-sets (car xs) v))
+              (cdr xs))
+      sets)))
 
 ;; Find assignment expression for local variables to make them boxing.
 ;; Boxing is needed to keep a value for continuation.
