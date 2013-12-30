@@ -66,7 +66,7 @@ struct HashPolicy {
 template <class Key, class Value>
 class HashTable {
 public:
-  static constexpr unsigned int INITIAL_BUFFER_SIZE = 5;
+  static const unsigned int INITIAL_BUFFER_SIZE = 5;
 
   explicit HashTable(HashPolicy<Key>* policy, Allocator* allocator)
     : policy_(policy), allocator_(allocator)

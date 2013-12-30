@@ -2,6 +2,7 @@
 /// YALP - Yet Another List Processor.
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"

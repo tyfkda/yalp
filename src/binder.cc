@@ -2,6 +2,7 @@
 /// Binder
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/binder.hh"
 #include "yalp/object.hh"
 

@@ -2,6 +2,7 @@
 /// Object
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"  // for strHash

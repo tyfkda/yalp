@@ -2,13 +2,13 @@
 /// Read S-Expression
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/read.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 
-#include <alloca.h>
 #include <ctype.h>  // for isdigit
 #include <new>
 #include <stdlib.h>  // for atof

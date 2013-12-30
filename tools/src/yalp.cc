@@ -6,7 +6,14 @@
 #include <assert.h>
 #include <fstream>
 #include <iostream>
+
+#ifdef _MSC_VER
+#include <io.h>
+#define noexcept  // nothing
+#define isatty  _isatty
+#else
 #include <unistd.h>  // for isatty()
+#endif
 
 #ifdef LEAK_CHECK
 #include <map>
