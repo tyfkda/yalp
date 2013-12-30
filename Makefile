@@ -11,7 +11,7 @@ SRCS=$(wildcard $(SRCDIR)/*.cc)
 OBJS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.o))
 DEPS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.d))
 
-CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCDIR)
+CXXFLAGS += -Wall -Wextra -std=c++0x -MMD -I$(INCDIR)  # -Werror
 
 .PHONY: all clean test
 

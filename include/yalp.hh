@@ -13,6 +13,7 @@ Value to SomeType:   Value toSomeType(Value s);
 #ifndef _YALP_HH_
 #define _YALP_HH_
 
+#include "yalp/config.hh"
 #include "yalp/error_code.hh"
 
 #include <setjmp.h>
