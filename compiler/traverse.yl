@@ -99,7 +99,7 @@
   (traverse var scope)
   (let1 val-node (traverse val scope)
     (acond ((find-index var (scope-local scope))
-            (register-set! var val scope)
+            (register-set! var val-node scope)
             (list ':SET 'LSET it val-node))
            ((find-index var (scope-upper-vars scope))
             (register-set! var val scope)
@@ -137,12 +137,21 @@
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
-         (inner-scope (create-scope vars scope))
-         (node `(:LAMBDA ,inner-scope
-                         ,(traverse-body body inner-scope))))
+         (inner-scope (create-scope proper-vars scope))
+         (body-node (traverse-body body inner-scope)))
     ;; Propagate to upper scope
     (propagate-scope inner-scope scope)
-    node))
+    ;; Returns lambda node
+    (list ':LAMBDA
+          inner-scope
+          (cons nil nil)  ; body-slot
+          body-node)))
+
+(defun lambda-node? (node)
+  (eq? (car node) ':LAMBDA))
+
+(defun lambda-body-slot-get (node)
+  (caddr node))
 
 (defun traverse-body (body scope)
   (map [traverse _ scope]
@@ -158,8 +167,6 @@
   (let* ((scope (create-scope '() nil))
          (tree (traverse (macroexpand-all code '())
                          scope)))
-    (display "TRAVERSED: ")
-    (print tree)
     (my-compile-recur tree scope '(HALT))))
 
 (defun my-collect-free (vars scope next)
@@ -186,7 +193,7 @@
                (:DEF (var val)
                      (my-compile-recur val scope
                                        (list* 'DEF var next)))
-               (:LAMBDA (inner-scope body)
+               (:LAMBDA (inner-scope body-slot body)
                         (let ((vars (scope-local inner-scope))
                               (frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets
@@ -195,10 +202,13 @@
                             (scope-sets-set! inner-scope
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets inner-scope)))
+                            ;; Set compiled body code to body-slot
+                            (copy-pair! body-slot
+                                        (my-compile-body body inner-scope (list 'RET)))
                             (my-collect-free frees scope
-                                             `(CLOSE ,(len (car inner-scope))  ;; argnum
-                                                     ,(len (caddr inner-scope)) ;; freenum
-                                                     ,(my-compile-body body inner-scope (list 'RET))
+                                             `(CLOSE ,(len vars)
+                                                     ,(len frees)
+                                                     ,body-slot
                                                      ,@next)))))
                (:IF (test then else)
                     (my-compile-recur test scope
@@ -207,20 +217,37 @@
                                         ,@(my-compile-recur else scope next))))
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
-                             (argnum (len args)))
-                         (let1 code (my-compile-args args scope
-                                                     (my-compile-recur f scope
-                                                                       (if is-tail
-                                                                           (list 'TAPPLY argnum)
-                                                                         (list 'APPLY argnum))))
-                           (if is-tail
-                               code
-                             (list* 'FRAME code next)))))
+                             (argnum (len args))
+                             (goto (can-goto? f scope)))
+                         (if (and is-tail goto)
+                             ;; TODO: Checks argument number.
+                             (my-compile-args args scope
+                                              (list* 'LOOP argnum
+                                                     goto))
+                           (let1 code (my-compile-args args scope
+                                                       (my-compile-recur f scope
+                                                                         (if is-tail
+                                                                             (list 'TAPPLY argnum)
+                                                                           (list 'APPLY argnum))))
+                             (if is-tail
+                                 code
+                               (list* 'FRAME code next))))))
                (:CONST (x)
                        (list* 'CONST x next))
                (:VOID ()
                       (list* 'VOID next))
                (t `(UNKNOWN ,tree ,@next))))
+
+(defun can-goto? (f scope)
+  (and (eq? (car f) ':REF)                      ; Function is simple reference.
+       (no (eq? (cadr f) 'GREF))
+       (let ((sym (cadddr f))                   ; Symbol for the reference.
+             (sets (scope-sets scope)))
+         (awhen (assoc sym sets)
+           (when (single? (cdr it))             ; Just 1 time assignment.
+             (let1 node (cadr it)
+               (when (lambda-node? node)        ; Lambda node.
+                 (lambda-body-slot-get node))))))))
 
 (defun my-compile-body (body scope next)
   (my-make-boxes (cadddr scope) (scope-local scope)
@@ -254,16 +281,16 @@
   (write/ss x)
   (display "\n"))
 
-;(defun main (args)
-;  (awhile (read)
-;    (print/ss (my-compile it))))
+(defun main (args)
+  (awhile (read)
+    (print/ss (my-compile it))))
 
 
-(let1 x '(alet ((i 0))
-           (if (< i 5)
-               (loop (+ i 1))
-             i))
-  (let1 code (my-compile x)
-    (print/ss code)
-    (let1 result (run-binary code)
-      (print (list 'RESULT: result)))))
+;(let1 x '(alet ((i 0))
+;           (if (< i 5)
+;               (loop (+ i 1))
+;             i))
+;  (let1 code (my-compile x)
+;    (print/ss code)
+;    (let1 result (run-binary code)
+;      (print (list 'RESULT: result)))))
