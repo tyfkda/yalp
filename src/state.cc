@@ -510,7 +510,7 @@ void State::runtimeError(const char* msg, ...) {
     const CallStack* callStack = vm_->getCallStack();
     for (int i = n; --i >= 0; ) {
       const Symbol* name = callStack[i].callable->getName();
-      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "_noname_"));
+      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
     }
   }
   longJmp();

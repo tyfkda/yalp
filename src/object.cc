@@ -321,7 +321,7 @@ void Closure::destruct(Allocator* allocator) {
 Type Closure::getType() const  { return TT_CLOSURE; }
 
 void Closure::output(State*, Stream* o, bool) const {
-  const char* name = "_noname_";
+  const char* name = "(noname)";
   if (name_ != NULL)
     name = name_->c_str();
   o->write("#<closure ");
@@ -349,7 +349,7 @@ NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
 Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
 
 void NativeFunc::output(State*, Stream* o, bool) const {
-  const char* name = "_noname_";
+  const char* name = "(noname)";
   if (name_ != NULL)
     name = name_->c_str();
   o->write("#<subr ");
