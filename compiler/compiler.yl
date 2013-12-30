@@ -445,7 +445,7 @@
 
 ;; Proclaim
 
-(defmacro proclaim (&rest defs)
+(defmacro declaim (&rest defs)
   `(do
      ,@(map (^(sentence)
               (when (pair? sentence)

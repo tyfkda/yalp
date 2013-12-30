@@ -1,4 +1,4 @@
-(proclaim
+(declaim
  (inline no caar cdar cadr cddr member))
 
 ;;; Basic read macros.
