@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <fstream>
 #include <iostream>
+#include <string.h>
 
 #ifdef _MSC_VER
 #include <io.h>

@@ -6,7 +6,7 @@ SRCS=$(wildcard *.cc)
 DEPS=$(SRCS:%.cc=%.d)
 EXES=$(SRCS:%.cc=%)
 
-CXXFLAGS += -Wall -Wextra -Werror -std=c++0x -MMD -I$(INCDIR)
+CXXFLAGS += -Wall -Wextra -std=c++0x -MMD -I$(INCDIR)  # -Werror
 
 .PHONY: all clean test
 

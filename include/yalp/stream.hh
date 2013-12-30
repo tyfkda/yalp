@@ -5,6 +5,7 @@
 #ifndef _STREAM_HH_
 #define _STREAM_HH_
 
+#include "yalp/config.hh"
 #include "yalp/object.hh"
 #include <stdio.h>  // for FILE
 
