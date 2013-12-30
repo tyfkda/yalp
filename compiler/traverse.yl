@@ -73,9 +73,9 @@
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
-  (aif (find-index x (car scope))
+  (aif (find-index x (scope-local scope))
       `(:LREF ,it)
-    (aif (find-index x (cadr scope))
+    (aif (find-index x (scope-upper-vars scope))
          (do (register-fref x scope)
              `(:FREF ,x))
       `(:GREF ,x))))
@@ -86,10 +86,12 @@
                (quote (obj) (list* 'CONST obj next))
                (^ (vars &body body)
                   (traverse-lambda vars body scope))
-               (set! (var val)
-                     (traverse-set! var val scope))
                (if (test then &rest rest)
                    (traverse-if test then rest scope))
+               (set! (var val)
+                     (traverse-set! var val scope))
+               (def (var val)
+                    (traverse-def var val scope))
                (t (let ((func (car x))
                         (args (cdr x)))
                     (traverse-apply func args scope)))))
@@ -111,6 +113,10 @@
       (aif (find-index var (caddr scope))
            (list ':FSET it val-node)
         (list ':GSET var val-node)))))
+
+(defun traverse-def (var val scope)
+  (let1 val-node (traverse val scope)
+    (list ':DEF var val-node)))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -140,39 +146,16 @@
 (defun my-collect-free (vars scope next)
   (if vars
       (my-collect-free (cdr vars) scope
-                       `(LREF ,(find-index (car vars) (car scope))
-                              PUSH ,@next))
+                       (let1 x (car vars)
+                         (aif (find-index x (scope-local scope))
+                              `(LREF ,it PUSH ,@next)
+                           (aif (find-index x (scope-upper-vars scope))
+                                `(FREF ,it PUSH ,@next)
+                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
 (defun my-compile-recur (tree scope next)
   (record-case tree
-               (:LAMBDA (inner-scope body)
-                        (let ((vars (car inner-scope))
-                              (free (caddr inner-scope)))
-                          (my-collect-free free scope
-                                           `(CLOSE ,(len (car inner-scope))  ;; argnum
-                                                   ,(len (caddr inner-scope)) ;; freenum
-                                                   ,(my-compile-body body inner-scope (list 'RET))
-                                                   ,@next))))
-               (:LSET (i val)
-                      (my-compile-recur val scope
-                                        (list* 'LSET i next)))
-               (:FSET (i val)
-                      (my-compile-recur val scope
-                                        (list* 'FSET i next)))
-               (:GSET (var val)
-                      (my-compile-recur val scope
-                                        (list* 'GSET var next)))
-               (:IF (test then else)
-                    (my-compile-recur test scope
-                                      `(TEST
-                                        ,(my-compile-recur then scope next)
-                                        ,@(my-compile-recur else scope next))))
-               (:APPLY (f args)
-                       `(FRAME ,(my-compile-args args scope
-                                                 (my-compile-recur f scope
-                                                                   `(APPLY ,(len args))))
-                               ,@next))
                (:LREF (v)
                       (list* 'LREF v next))
                (:FREF (v)
@@ -183,6 +166,36 @@
                                  next))))
                (:GREF (v)
                       (list* 'GREF v next))
+               (:LSET (i val)
+                      (my-compile-recur val scope
+                                        (list* 'LSET i next)))
+               (:FSET (i val)
+                      (my-compile-recur val scope
+                                        (list* 'FSET i next)))
+               (:GSET (var val)
+                      (my-compile-recur val scope
+                                        (list* 'GSET var next)))
+               (:DEF (var val)
+                     (my-compile-recur val scope
+                                       (list* 'DEF var next)))
+               (:LAMBDA (inner-scope body)
+                        (let ((vars (car inner-scope))
+                              (free (caddr inner-scope)))
+                          (my-collect-free free scope
+                                           `(CLOSE ,(len (car inner-scope))  ;; argnum
+                                                   ,(len (caddr inner-scope)) ;; freenum
+                                                   ,(my-compile-body body inner-scope (list 'RET))
+                                                   ,@next))))
+               (:IF (test then else)
+                    (my-compile-recur test scope
+                                      `(TEST
+                                        ,(my-compile-recur then scope next)
+                                        ,@(my-compile-recur else scope next))))
+               (:APPLY (f args)
+                       `(FRAME ,(my-compile-args args scope
+                                                 (my-compile-recur f scope
+                                                                   `(APPLY ,(len args))))
+                               ,@next))
                (:CONST (x)
                        (list* 'CONST x next))
                (:VOID ()
