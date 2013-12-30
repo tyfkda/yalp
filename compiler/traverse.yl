@@ -122,7 +122,7 @@
         ,(traverse then scope)
         ,(if rest
              (traverse (car rest) scope)
-           `(:VOID))))
+           '(:VOID))))
 
 (defun traverse-list (x scope)
   (record-case x
@@ -136,9 +136,20 @@
                      (traverse-set! var val scope))
                (def (var val)
                     (traverse-def var val scope))
+               (call/cc (func)
+                        (traverse-call/cc func scope))
+               (defmacro (name vars &body body)
+                 (traverse-defmacro name vars body scope))
+               (values (&rest args)
+                       (traverse-values args scope))
+               (receive (vars vals &body body)
+                        (traverse-receive vars vals body scope))
                (t (let ((func (car x))
                         (args (cdr x)))
                     (traverse-apply func args scope)))))
+
+(defun traverse-call/cc (func scope)
+  `(:CONTI ,(traverse func scope)))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -165,6 +176,36 @@
 (defun traverse-apply (func args scope)
   `(:APPLY ,(traverse func scope)
            ,(map [traverse _ scope] args)))
+
+(defun traverse-defmacro (name vars body scope)
+  (let* ((proper-vars (check-parameters vars))
+         (inner-scope (create-scope proper-vars scope))
+         (body-node (traverse-body body inner-scope)))
+    ;; Propagate to upper scope
+    (propagate-scope inner-scope scope)
+    ;; Returns lambda node
+    (list ':MACRO
+          inner-scope
+          name
+          body-node)))
+
+(defun traverse-values (args scope)
+  `(:VALS ,(map [traverse _ scope]
+                args)))
+
+(defun traverse-receive (vars vals body scope)
+  (let1 proper-vars (check-parameters vars)
+    (let ((val-node (traverse vals scope))
+          (inner-scope (create-scope proper-vars scope)))
+      (let1 body-node (traverse-body body inner-scope)
+        ;; Propagate to upper scope
+        (propagate-scope inner-scope scope)
+        ;; Returns receive node
+        (list ':RECV
+              inner-scope
+              (len proper-vars)
+              val-node
+              body-node)))))
 
 ;;;;
 
@@ -198,6 +239,21 @@
                (:DEF (var val)
                      (my-compile-recur val scope
                                        (list* 'DEF var next)))
+               (:MACRO (inner-scope name body)
+                        (let ((vars (scope-local inner-scope))
+                              (frees (scope-frees inner-scope)))
+                          ;; Propagate upper-sets to inner-sets
+                          (let ((bleed-sets (remove-if-not [member (car _) frees]
+                                                           (scope-sets scope))))
+                            (scope-sets-set! inner-scope
+                                             (merge-scope-sets bleed-sets
+                                                               (scope-sets inner-scope)))
+                            (my-collect-free frees scope
+                                             `(MACRO ,name
+                                                     ,(len vars)
+                                                     ,(len frees)
+                                                     ,(my-compile-body body inner-scope (list 'RET))
+                                                     ,@next)))))
                (:LAMBDA (inner-scope body-slot body)
                         (let ((vars (scope-local inner-scope))
                               (frees (scope-frees inner-scope)))
@@ -241,6 +297,28 @@
                        (list* 'CONST x next))
                (:VOID ()
                       (list* 'VOID next))
+               (:CONTI (func)
+                       (let* ((is-tail (tail? next))
+                              (c (list* 'CONTI is-tail
+                                        'PUSH
+                                        (my-compile-recur func scope
+                                                          (if is-tail
+                                                              '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                                            '(APPLY 1))))))
+                         (if is-tail
+                             c
+                           (list* 'FRAME c next))))
+               (:VALS (args)
+                      (let1 argnum (len args)
+                        (if (eq? argnum 0)
+                            (list* 'VOID next)
+                          (my-compile-args args scope
+                                           (list* 'VALS argnum next)))))
+               (:RECV (inner-scope varnum vals body)
+                      (my-compile-recur vals scope
+                                        (list* 'RECV varnum
+                                               (my-compile-body body inner-scope
+                                                                (list* 'SHRNK varnum next)))))
                (t `(UNKNOWN ,tree ,@next))))
 
 (defun can-goto? (f scope)
@@ -288,16 +366,14 @@
   (write/ss x)
   (display "\n"))
 
-(defun main (args)
-  (awhile (read)
-    (print/ss (my-compile it))))
+;(defun main (args)
+;  (awhile (read)
+;    (print/ss (my-compile it))))
 
 
-;(let1 x '(alet ((i 0))
-;           (if (< i 5)
-;               (loop (+ i 1))
-;             i))
-;  (let1 code (my-compile x)
-;    (print/ss code)
-;    (let1 result (run-binary code)
-;      (print (list 'RESULT: result)))))
+(let1 x '(receive (x y z) (values 1 2 3)
+                  (list x y z))
+  (let1 code (my-compile x)
+    (print/ss code)
+    (let1 result (run-binary code)
+      (print (list 'RESULT: result)))))
