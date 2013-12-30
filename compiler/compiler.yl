@@ -456,23 +456,24 @@
                   )))
             defs)))
 
-(def *inline-functions* (table))
-(defun proclaim-inline (sym)
-  (table-put! *inline-functions* sym t))
+(let1 *inline-functions* (table)
+  (defun proclaim-inline (sym)
+    (table-put! *inline-functions* sym t))
 
-(defun inline-function? (sym)
-  (and (symbol? sym)
-       (table-exists? *inline-functions* sym)))
+  (defun inline-function? (sym)
+    (and (symbol? sym)
+         (table-exists? *inline-functions* sym)))
+
+  (defun register-inline-function (sym func)
+    (table-put! *inline-functions* sym func))
+
+  (defun get-inline-function-body (sym)
+    (table-get *inline-functions* sym))
+  )
 
 (defun lambda-expression? (exp)
   (and (pair? exp)
        (eq? (car exp) '^)))
-
-(defun register-inline-function (sym func)
-  (table-put! *inline-functions* sym func))
-
-(defun get-inline-function-body (sym)
-  (table-get *inline-functions* sym))
 
 ;;
 
