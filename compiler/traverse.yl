@@ -206,10 +206,16 @@
                                         ,(my-compile-recur then scope next)
                                         ,@(my-compile-recur else scope next))))
                (:APPLY (f args)
-                       `(FRAME ,(my-compile-args args scope
-                                                 (my-compile-recur f scope
-                                                                   `(APPLY ,(len args))))
-                               ,@next))
+                       (let ((is-tail (tail? next))
+                             (argnum (len args)))
+                         (let1 code (my-compile-args args scope
+                                                     (my-compile-recur f scope
+                                                                       (if is-tail
+                                                                           (list 'TAPPLY argnum)
+                                                                         (list 'APPLY argnum))))
+                           (if is-tail
+                               code
+                             (list* 'FRAME code next)))))
                (:CONST (x)
                        (list* 'CONST x next))
                (:VOID ()
