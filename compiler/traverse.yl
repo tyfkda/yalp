@@ -122,7 +122,7 @@
 (defun traverse-list (x scope)
   (record-case x
                ;; Special forms.
-               (quote (obj) (list* 'CONST obj next))
+               (quote (obj) (list ':CONST obj))
                (^ (vars &body body)
                   (traverse-lambda vars body scope))
                (if (test then &rest rest)
