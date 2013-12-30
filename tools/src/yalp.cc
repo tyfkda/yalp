@@ -6,7 +6,15 @@
 #include <assert.h>
 #include <fstream>
 #include <iostream>
+#include <string.h>
+
+#ifdef _MSC_VER
+#include <io.h>
+#define noexcept  // nothing
+#define isatty  _isatty
+#else
 #include <unistd.h>  // for isatty()
+#endif
 
 #ifdef LEAK_CHECK
 #include <map>
@@ -89,11 +97,16 @@ static void dumpLeakedMemory() {
 
 static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
-  Svalue bin;
+  Value bin;
   ErrorCode err;
-  while ((err = reader.read(&bin)) == SUCCESS) {
+  for (;;) {
+    int arena = state->saveArena();
+    err = reader.read(&bin);
+    if (err != SUCCESS)
+      break;
     if (!state->runBinary(bin, NULL))
       return false;
+    state->restoreArena(arena);
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
@@ -102,23 +115,17 @@ static bool runBinary(State* state, Stream* stream) {
   return true;
 }
 
-static bool compileFile(State* state, const char* filename, bool bNoRun) {
-  FileStream stream(filename, "r");
-  if (!stream.isOpened()) {
-    std::cerr << "File not found: " << filename << std::endl;
-    return false;
-  }
-
-  Svalue writess = state->referGlobal(state->intern("write/ss"));
-  Reader reader(state, &stream);
-  Svalue exp;
+static bool compile(State* state, Stream* stream, bool bNoRun) {
+  Reader reader(state, stream);
+  Value exp;
   ErrorCode err;
   while ((err = reader.read(&exp)) == SUCCESS) {
-    Svalue code;
-    if (!state->compile(exp, &code) || state->isFalse(code)) {
+    Value code;
+    if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       return false;
     }
+    Value writess = state->referGlobal(state->intern("write/ss"));
     state->funcall(writess, 1, &code, NULL);
     cout << endl;
 
@@ -132,69 +139,68 @@ static bool compileFile(State* state, const char* filename, bool bNoRun) {
   return true;
 }
 
-static bool repl(State* state, Stream* stream, bool tty, bool bCompile, bool bNoRun) {
+static bool repl(State* state, Stream* stream, bool tty) {
   if (tty)
     cout << "type ':q' to quit" << endl;
-  Svalue q = state->intern(":q");
-  Svalue writess = state->referGlobal(state->intern("write/ss"));
+  Value q = state->intern(":q");
   FileStream out(stdout);
   Reader reader(state, stream);
   for (;;) {
+    int arena = state->saveArena();
     if (tty)
       cout << "> " << std::flush;
-    Svalue s;
+    Value s;
     ErrorCode err = reader.read(&s);
     if (err == END_OF_FILE || s.eq(q))
       break;
 
     if (err != SUCCESS) {
       cerr << "Read error: " << err << endl;
-      if (tty)
-        continue;
-      return false;
-    }
-    Svalue code;
-    if (!state->compile(s, &code) || state->isFalse(code)) {
-      state->resetError();
-      if (tty)
-        continue;
-      else
+      if (!tty)
         return false;
+      continue;
+    }
+    Value code;
+    if (!state->compile(s, &code) || code.isFalse()) {
+      state->resetError();
+      if (!tty)
+        return false;
+      continue;
     }
 
-    if (bCompile) {
-      state->funcall(writess, 1, &code, NULL);
-      cout << endl;
-    }
-
-    Svalue result;
-    if (!bNoRun && !state->runBinary(code, &result)) {
+    Value result;
+    if (!state->runBinary(code, &result)) {
       if (!tty)
         return false;
       state->resetError();
       continue;
     }
-    if (!bCompile && tty) {
+    if (tty) {
       const char* prompt = "=> ";
       for (int n = state->getResultNum(), i = 0; i < n; ++i) {
-        Svalue result = state->getResult(i);
+        Value result = state->getResult(i);
         cout << prompt;
         result.output(state, &out, true);
         cout << endl;
         prompt = "   ";
       }
     }
+    state->restoreArena(arena);
   }
   if (tty)
     cout << "bye" << endl;
   return true;
 }
 
-static bool runMain(State* state) {
-  Svalue main = state->referGlobal(state->intern("main"));
-  if (!state->isTrue(main))
-    return true;
-  return state->funcall(main, 0, NULL, NULL);
+static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
+  Value main = state->referGlobal("main");
+  if (main.isFalse())
+    return true;  // If no `main` function, it is ok.
+
+  Value args = Value::NIL;
+  for (int i = argc; --i >= 0; )
+    args = state->cons(state->string(argv[i]), args);
+  return state->funcall(main, 1, &args, pResult);
 }
 
 static void exitIfError(ErrorCode err) {
@@ -233,6 +239,9 @@ int main(int argc, char* argv[]) {
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
+    case '-':  // "--" is splitter.
+      ++ii;
+      goto L_noScriptFiles;
     case 'd':
       bDebug = true;
       break;
@@ -267,28 +276,37 @@ int main(int argc, char* argv[]) {
   }
 
   if (ii >= argc) {
+  L_noScriptFiles:
     FileStream stream(stdin);
-    if (bBinary) {
-      if (!runBinary(state, &stream))
-        exit(1);
-    } else {
-      if (!repl(state, &stream, isatty(0) != 0, bCompile, bNoRun))
-        exit(1);
-    }
+    bool result;
+    if (bBinary)        result = runBinary(state, &stream);
+    else if (bCompile)  result = compile(state, &stream, bNoRun);
+    else                result = repl(state, &stream, isatty(0) != 0);
+    if (!result)
+      exit(1);
   } else {
-    for (int i = ii; i < argc; ++i) {
+    for (; ii < argc; ++ii) {
+      if (strcmp(argv[ii], "--") == 0) {
+        ++ii;
+        break;
+      }
       if (bCompile) {
-        if (!compileFile(state, argv[i], bNoRun))
+        FileStream stream(argv[ii], "r");
+        if (!stream.isOpened()) {
+          std::cerr << "File not found: " << argv[ii] << std::endl;
+          exit(1);
+        }
+        if (!compile(state, &stream, bNoRun))
           exit(1);
       } else if (bBinary) {
-        exitIfError(state->runBinaryFromFile(argv[i]));
+        exitIfError(state->runBinaryFromFile(argv[ii]));
       } else {
-        exitIfError(state->runFromFile(argv[i]));
+        exitIfError(state->runFromFile(argv[ii]));
       }
     }
   }
   if (!bCompile)
-    if (!runMain(state))
+    if (!runMain(state, argc - ii, &argv[ii], NULL))
       exit(1);
 
   if (bDebug)

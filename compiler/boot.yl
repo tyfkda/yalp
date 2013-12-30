@@ -1,0 +1,419 @@
+(declaim
+ (inline no caar cdar cadr cddr member))
+
+;;; Basic read macros.
+
+;; 'x => (quote x)
+(set-macro-character #\'
+                     (^(stream ch)
+                       (list (quote quote) (read stream))))
+
+;; `x => (quasiquote x)
+(set-macro-character #\`
+                     (^(stream ch)
+                       (list 'quasiquote (read stream))))
+
+;; ,x => (unquote x)
+;; ,@x => (unquote-splicing x)
+(set-macro-character #\,
+                     (^(stream ch)
+                       ((^(c)
+                          (if (eq? c #\@)
+                              (list 'unquote-splicing (read stream))
+                            (list 'unquote (read (unread-char c stream)))))
+                        (read-char stream))))
+
+;; Creates simple 1 parameter function with bracket notation.
+;; [...] => (^(_) ...)
+(set-macro-character #\[
+                     (^(stream ch)
+                       ;;`(^ (_) ,(read-delimited-list #\] stream))))
+                       (list '^ '(_) (read-delimited-list #\] stream))))
+
+;;; Basic functions and macros.
+
+(defmacro defun (name vars &body body)
+  ;; `(def ,name (^ ,vars ,@body))
+  (list 'def name
+        (list* '^ vars body)))
+
+(defun no (x) (if x nil t))
+(defun caar (x) (car (car x)))
+(defun cdar (x) (cdr (car x)))
+(defun cadr (x) (car (cdr x)))
+(defun cddr (x) (cdr (cdr x)))
+(defun fixnum? (x) (eq? (type x) 'fixnum))
+(defun pair? (x) (eq? (type x) 'pair))
+(defun symbol? (x) (eq? (type x) 'symbol))
+(defun string? (x) (eq? (type x) 'string))
+(defun flonum? (x) (eq? (type x) 'flonum))
+(defun procedure? (x) ((^(tt)
+                         (or (eq? tt 'closure)
+                             (eq? tt 'subr)
+                             (eq? tt 'continuation)))
+                       (type x)))
+
+(defun any? (f ls)
+  (if (pair? ls)
+      (if (f (car ls))
+          ls
+        (any? f (cdr ls)))
+    nil))
+
+(defun map1-loop (f ls acc)
+  (if (pair? ls)
+      (map1-loop f (cdr ls)
+                 (cons (f (car ls)) acc))
+    ((^(result)
+       (if ls
+           (if acc
+               ((^()
+                  (set-cdr! acc (f ls))
+                  result))
+             (f ls))
+         result))
+     (reverse! acc))))
+
+(defun mapn-loop (f lss acc)
+  (if (any? no lss)
+      (reverse! acc)
+    (mapn-loop f (map1-loop cdr lss '())
+               (cons (apply f (map1-loop car lss '()))
+                     acc))))
+
+(defun map (f ls &rest rest)
+  (if rest
+      (mapn-loop f (cons ls rest) '())
+    (map1-loop f ls '())))
+
+;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
+(defun pair (xs)
+  (if (no xs)
+      nil
+    (if (no (cdr xs))
+        (list (list (car xs)))
+      (cons (list (car xs) (cadr xs))
+            (pair (cddr xs))))))
+
+(defun qq-expand (x)
+  (if (pair? x)
+      ((^(m)
+         (if (eq? m 'unquote)
+             (cadr x)
+           (if (eq? m 'unquote-splicing)
+               (error "Illegal ,@")
+             (if (eq? m 'quasiquote)
+                 (qq-expand
+                  (qq-expand (cadr x)))
+               (list 'append
+                     (qq-expand-list (car x))
+                     (qq-expand (cdr x)))))))
+       (car x))
+    (list 'quote x)))
+
+(defun qq-expand-list (x)
+  (if (pair? x)
+      ((^(m)
+         (if (eq? m 'unquote)
+             (list 'list (cadr x))
+           (if (eq? m 'unquote-splicing)
+               (cadr x)
+             (if (eq? m 'quasiquote)
+                 (qq-expand-list
+                  (qq-expand (cadr x)))
+               (list 'list
+                     (list 'append
+                           (qq-expand-list (car x))
+                           (qq-expand (cdr x))))))))
+       (car x))
+    (list 'quote (list x))))
+
+(defmacro quasiquote (x)
+  (qq-expand x))
+
+(defmacro do (&body body)
+  `((^() ,@body)))
+
+(defmacro when (test &body body)
+  `(if ,test (do ,@body)))
+
+(defmacro unless (test &body body)
+  `(if ,test (do) (do ,@body)))
+
+(defmacro set! (var val &rest rest)
+  (if rest
+      `(do ,@(map (^(vv) `(set! ,(car vv) ,(cadr vv)))
+                  (cons (list var val)
+                        (pair rest))))
+    `(set! ,var ,val)))
+
+(defmacro let1 (var val &body body)
+  `((^(,var) ,@body) ,val))
+
+(defmacro let (parms &body body)
+  (if (symbol? parms)
+      ;; Named let.
+      (let ((name parms)
+            (parms (car body))
+            (body (cdr body)))
+        `(let1 ,name nil
+           ((set! ,name (^ ,(map car parms)
+                           ,@body))
+            ,@(map cadr parms))))
+    `((^ ,(map car parms)
+         ,@body)
+      ,@(map cadr parms))))
+
+(defmacro let* (parms &body body)
+  (if parms
+      `(let1 ,@(car parms)
+         (let* ,(cdr parms) ,@body))
+    `(do ,@body)))
+
+;; Anapholic-let macro.
+;; Like let macro, but captures "loop" variable to make loop syntax.
+;; This is similar to named-let syntax in Scheme.
+(defmacro alet (parms &body body)
+  `(let loop ,parms ,@body))
+
+(defun cond-template (clauses f)
+  (if clauses
+      (let ((clause (car clauses))
+            (next (cdr clauses)))
+        (let ((pred (car clause))
+              (body (cdr clause)))
+          (if (eq? pred 't)
+              (if next
+                  (compile-error "else clause must comes at last in cond")
+                `(do ,@body))
+            (f pred body next))))
+    nil))
+
+(defmacro cond (&rest clauses)
+  (cond-template clauses
+                 (^(pred body next)
+                   `(if ,pred
+                        (do ,@body)
+                      (cond ,@next)))))
+
+(defmacro acond (&rest clauses)
+  (cond-template clauses
+                 (^(pred body next)
+                   (let-gensym sym
+                     `(let1 ,sym ,pred
+                            (if ,sym
+                                (let1 it ,sym ,@body)
+                              (acond ,@next)))))))
+
+(defmacro aif (expr &rest rest)
+  `(let1 it ,expr
+     (if it ,@rest)))
+
+(defmacro awhen (expr &body body)
+  `(aif ,expr
+     (do ,@body)))
+
+(defmacro awhile (expr &body body)
+  `(alet ()
+     (awhen ,expr
+       ,@body
+       (loop))))
+
+(defmacro let-gensym (names &body body)
+  (if (pair? names)
+      ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
+      `(let ,(map [list _ '(gensym)]
+                  names)
+         ,@body)
+    ;; (let-gensym a ...) => (let1 a (gensym) ...)
+    `(let1 ,names (gensym) ,@body)))
+
+(defmacro and (&rest args)
+  (if args
+      (if (cdr args)
+          `(if ,(car args)
+               (and ,@(cdr args))
+             'nil)
+        (car args))
+    't))  ; (and) = true
+
+(defmacro or (&rest args)
+  (and args
+       (let-gensym g
+         `(let1 ,g ,(car args)
+            (if ,g ,g (or ,@(cdr args)))))))
+
+(defmacro case (expr &rest args)
+  (let-gensym var
+    `(let1 ,var ,expr
+       (cond ,@(map (^(clause)
+                      (let ((value (car clause))
+                            (body (cdr clause)))
+                        (cond ((eq? value 't)
+                               clause)
+                              ((pair? value)
+                               `((member ,var ',value)
+                                 ,@body))
+                              (t
+                               `((eq? ,var ',value)
+                                 ,@body)))))
+                    args)))))
+
+(defmacro dolist (vars &body body)
+  (let ((x (car vars))
+        (ls (cadr vars)))
+    (let-gensym p
+      `(alet ((,p ,ls))
+         (when (pair? ,p)
+           (let1 ,x (car ,p)
+             ,@body
+             (loop (cdr ,p))))))))
+
+(defun len (x)
+  (case (type x)
+    (string (string-length x))
+    (pair (alet ((x x)
+                 (n 0))
+            (if (pair? x)
+                (loop (cdr x) (+ n 1))
+              n)))
+    (t 0)))
+
+;; Returns last pair
+(defun last (ls)
+  (if (pair? (cdr ls))
+      (last (cdr ls))
+    ls))
+
+(defun reverse (ls)
+  (alet ((ls ls)
+         (acc '()))
+    (if (pair? ls)
+        (loop (cdr ls) (cons (car ls) acc))
+      acc)))
+
+(defun member (x ls)
+  (any? [eq? x _] ls))
+
+(defun assoc (key alist)
+  (if alist
+      (if (eq? (caar alist) key)
+          (car alist)
+        (assoc key (cdr alist)))
+    nil))
+
+(defun acons (key obj alist)
+  (cons (cons key obj) alist))
+
+(defun union (s1 s2)
+  (if s1
+      (union (cdr s1)
+             (let1 x (car s1)
+               (if (member x s2)
+                   s2
+                 (cons x s2))))
+    s2))
+
+(defun intersection (s1 s2)
+  (if s1
+      (if (member (car s1) s2)
+          (cons (car s1) (intersection (cdr s1) s2))
+        (intersection (cdr s1) s2))
+    '()))
+
+(defun print (x &rest rest)
+  (let1 stream (if rest (car rest) *stdout*)
+    (display x stream)
+    (display "\n" stream))
+  x)
+
+;; Write shared structure.
+(defun write/ss (s &rest rest)
+  (let1 stream (if rest (car rest) *stdout*)
+    (write/ss-print s (write/ss-construct s) stream)))
+
+;; Put cell appear idnex for more than 2 times into table.
+(defun write/ss-construct (s)
+  (let1 h (table)
+    (table-put! h 'index 0)
+    (alet ((s s))
+      (when (pair? s)
+        (if (table-exists? h s)
+            (unless (table-get h s)
+              ;; Assign index for the object appeared more than 1 time.
+              (let1 i (table-get h 'index)
+                (table-put! h s i)
+                (table-put! h 'index (+ 1 i))))
+          ;; Put nil for the first appeared object.
+          (do (table-put! h s nil)
+              ;; And check children recursively.
+              (loop (car s))
+              (loop (cdr s))))))
+    h))
+
+(defun write/ss-print (s h stream)
+  (if (pair? s)
+      (let1 index (table-get h s)
+        (if (and index (< index 0))
+            ;; Print structure after second time or later.
+            (format stream "#%@#" (- -1 index))
+          ;; Print structure at first time.
+          (do (when index
+                (format stream "#%@=" index)
+                (table-put! h s (- -1 index)))
+              (alet ((c "(")
+                     (s s))
+                (if s
+                    (do (display c stream)
+                        (write/ss-print (car s) h stream)
+                        (if (and (pair? (cdr s))
+                                 (table-get h (cdr s)))
+                            (do (display " . " stream)
+                                (write/ss-print (cdr s) h stream)
+                                (display ")" stream))
+                          (loop " " (cdr s))))
+                  (display ")" stream))
+                s))))
+    (write s)))
+
+;; Take first n elements from the list.
+(defun take (n ls)
+  (alet ((n n)
+         (acc '())
+         (ls ls))
+    (if (and ls (> n 0))
+        (loop (- n 1) (cons (car ls) acc) (cdr ls))
+      (reverse! acc))))
+
+;; Drop first n elements from the list (nthcdr).
+(defun drop (n ls)
+  (if ls
+      (if (> n 0)
+          (drop (- n 1) (cdr ls))
+        ls)))
+
+(defun position-if (f seq)
+  (alet ((i 0)
+         (p seq))
+    (if p
+        (if (f (car p))
+            i
+          (loop (+ i 1) (cdr p)))
+      nil)))
+
+(defun position (item seq)
+  (position-if [eq? _ item] seq))
+
+(defun single? (ls)
+  (and (pair? ls)
+       (no (cdr ls))))
+
+(defun list? (ls)
+  ;; Nil, or not dotted list
+  (or (no ls)
+      (and (pair? ls)
+           (no (cdr (last ls))))))
+
+(defun copy-pair! (dst src)
+  (set-car! dst (car src))
+  (set-cdr! dst (cdr src)))

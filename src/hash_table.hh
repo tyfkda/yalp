@@ -66,7 +66,7 @@ struct HashPolicy {
 template <class Key, class Value>
 class HashTable {
 public:
-  static constexpr unsigned int INITIAL_BUFFER_SIZE = 5;
+  static const unsigned int INITIAL_BUFFER_SIZE = 5;
 
   explicit HashTable(HashPolicy<Key>* policy, Allocator* allocator)
     : policy_(policy), allocator_(allocator)
@@ -84,11 +84,11 @@ public:
       for (unsigned int i = 0; i < arraySize_; ++i) {
         for (Link* link = array_[i]; link != NULL; ) {
           Link* next = link->next;
-          FREE(allocator_, link);
+          allocator_->free(link);
           link = next;
         }
       }
-      FREE(allocator_, array_);
+      allocator_->free(array_);
     }
   }
 
@@ -121,7 +121,7 @@ public:
       array_[index] = link->next;
     else
       prev->next = link->next;
-    FREE(allocator_, link);
+    allocator_->free(link);
     return true;
   }
 
@@ -206,7 +206,7 @@ private:
     if (array_ == NULL || entryCount_ >= arraySize_)
       expand();
     unsigned int hash = policy_->hash(key);
-    Link* link = new(ALLOC(allocator_, sizeof(*link))) Link;
+    Link* link = new(allocator_->alloc(sizeof(*link))) Link;
     unsigned int index = hash % arraySize_;
     link->next = array_[index];
     link->key = key;
@@ -227,13 +227,13 @@ private:
       newSize = newSize + (newSize >> 1);  // x 1.5
     newSize += 1 - (newSize & 1);  // Force odd number.
 
-    Link** newArray = static_cast<Link**>(ALLOC(allocator_, sizeof(Link*) * newSize));
+    Link** newArray = static_cast<Link**>(allocator_->alloc(sizeof(Link*) * newSize));
     for (unsigned int i = 0; i < newSize; ++i)
       newArray[i] = NULL;
     rehash(array_, arraySize_, newArray, newSize, policy_);
 
     if (array_ != NULL)
-      FREE(allocator_, array_);
+      allocator_->free(array_);
     array_ = newArray;
     arraySize_ = newSize;
     conflictCount_ = 0;
@@ -275,9 +275,6 @@ private:
   unsigned int entryCount_;  // Number of entries.
   unsigned int conflictCount_;  // Number of hash index conflicts.
 };
-
-// Hash function
-unsigned int strHash(const char* s);
 
 }  // namespace yalp
 

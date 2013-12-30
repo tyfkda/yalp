@@ -2,7 +2,10 @@
 // Allocator
 //=============================================================================
 
+#include "build_env.hh"
 #include "allocator.hh"
+
+#include <assert.h>
 #include <new>
 #include <stdint.h>  // intptr_t
 #include <stdlib.h>  // for malloc, free
@@ -12,6 +15,10 @@
 #endif
 
 namespace yalp {
+
+#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
+#define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
+#define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
 
 //=============================================================================
 // GcObject
@@ -58,9 +65,14 @@ void* defaultAllocFunc(void* p, size_t size) {
 
 AllocFunc getDefaultAllocFunc()  { return defaultAllocFunc; }
 
-Allocator* Allocator::create(AllocFunc allocFunc, Callback* callback, void* userdata) {
+void Allocator::markArenaObjects() {
+  for (int n = arenaIndex_, i = 0; i < n; ++i)
+    arena_[i]->mark();
+}
+
+Allocator* Allocator::create(AllocFunc allocFunc, Callback* callback) {
   void* memory = RAW_ALLOC(allocFunc, sizeof(Allocator));
-  return new(memory) Allocator(allocFunc, callback, userdata);
+  return new(memory) Allocator(allocFunc, callback);
 }
 
 void Allocator::release() {
@@ -69,16 +81,16 @@ void Allocator::release() {
   RAW_FREE(allocFunc, this);
 }
 
-Allocator::Allocator(AllocFunc allocFunc, Callback* callback, void* userdata)
-  : allocFunc_(allocFunc), callback_(callback), userdata_(userdata)
-  , objectTop_(NULL), objectCount_(0) {}
+Allocator::Allocator(AllocFunc allocFunc, Callback* callback)
+  : allocFunc_(allocFunc), callback_(callback), userdata_(NULL)
+  , objectTop_(NULL), objectCount_(0), arenaIndex_(0)  {}
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
     GcObject* gcobj = objectTop_;
     objectTop_ = gcobj->next_;
     gcobj->destruct(this);
-    FREE(this, gcobj);
+    this->free(gcobj);
   }
 }
 
@@ -109,11 +121,22 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
-  GcObject* gcobj = static_cast<GcObject*>(ALLOC(this, size));
+  GcObject* gcobj = static_cast<GcObject*>(this->alloc(size));
   gcobj->next_ = objectTop_;
   objectTop_ = gcobj;
   ++objectCount_;
+  if (arenaIndex_ >= ARENA_SIZE) {
+    assert(!"Arena overflow");
+  } else {
+    arena_[arenaIndex_++] = gcobj;
+  }
   return gcobj;
+}
+
+void Allocator::restoreArenaWith(int index, GcObject* gcobj) {
+  assert(index < ARENA_SIZE);
+  arena_[index] = gcobj;
+  arenaIndex_ = index + 1;
 }
 
 void Allocator::collectGarbage() {
@@ -121,6 +144,7 @@ void Allocator::collectGarbage() {
   std::cerr << "\n**** Start GC ****\n"
     "  Before #" << objectCount_ << "\n";
 #endif
+  markArenaObjects();
   callback_->markRoot(userdata_);
   sweep();
 #ifndef NDEBUG
@@ -146,7 +170,7 @@ void Allocator::sweep() {
     else
       prev->next_ = next;
     gcobj->destruct(this);
-    FREE(this, gcobj);
+    this->free(gcobj);
     gcobj = next;
   }
   objectCount_ = n;

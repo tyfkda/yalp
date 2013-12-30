@@ -16,7 +16,7 @@ protected:
     state_->release();
   }
 
-  ErrorCode read(const char* str, Svalue* pValue) {
+  ErrorCode read(const char* str, Value* pValue) {
     StrStream stream(str);
     Reader reader(state_, &stream);
     return reader.read(pValue);
@@ -26,27 +26,27 @@ protected:
 };
 
 TEST_F(ReadTest, LineComment) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read(" ; Line comment\n 123", &s));
-  ASSERT_TRUE(state_->fixnumValue(123).eq(s));
+  ASSERT_TRUE(Value(123).eq(s));
 }
 
 TEST_F(ReadTest, Eof) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(END_OF_FILE, read("", &s));
 }
 
 TEST_F(ReadTest, Fixnum) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("123", &s));
-  ASSERT_TRUE(state_->fixnumValue(123).eq(s));
+  ASSERT_TRUE(Value(123).eq(s));
 
   ASSERT_EQ(SUCCESS, read("-123", &s));
-  ASSERT_TRUE(state_->fixnumValue(-123).eq(s));
+  ASSERT_TRUE(Value(-123).eq(s));
 }
 
 TEST_F(ReadTest, Symbol) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("symbol", &s));
   ASSERT_TRUE(state_->intern("symbol").eq(s));
   ASSERT_EQ(SUCCESS, read("+=", &s));
@@ -54,66 +54,37 @@ TEST_F(ReadTest, Symbol) {
 }
 
 TEST_F(ReadTest, List) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("(123)", &s));
-  ASSERT_TRUE(list(state_, state_->fixnumValue(123)).equal(s));
+  ASSERT_TRUE(list(state_, Value(123)).equal(s));
 
-  Svalue s2;
+  Value s2;
   ASSERT_EQ(SUCCESS, read("(1 2 3)", &s2));
   ASSERT_TRUE(list(state_,
-                   state_->fixnumValue(1),
-                   state_->fixnumValue(2),
-                   state_->fixnumValue(3)).equal(s2));
+                   Value(1),
+                   Value(2),
+                   Value(3)).equal(s2));
 
-  Svalue s3;
+  Value s3;
   ASSERT_EQ(SUCCESS, read("(1 (2) 3)", &s3));
   ASSERT_TRUE(list(state_,
-                   state_->fixnumValue(1),
-                   list(state_, state_->fixnumValue(2)),
-                   state_->fixnumValue(3)).equal(s3));
+                   Value(1),
+                   list(state_, Value(2)),
+                   Value(3)).equal(s3));
 }
 
 TEST_F(ReadTest, DottedList) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(DOT_AT_BASE, read(".", &s)) << "Dot is not a symbol";
 
   ASSERT_EQ(SUCCESS, read("(1 2 . 3)", &s));
-  ASSERT_TRUE(state_->cons(state_->fixnumValue(1),
-                           state_->cons(state_->fixnumValue(2),
-                                        state_->fixnumValue(3))).equal(s));
-}
-
-TEST_F(ReadTest, Quote) {
-  Svalue s;
-  ASSERT_EQ(SUCCESS, read("'(x y z)", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("quote"),
-                   list(state_,
-                        state_->intern("x"),
-                        state_->intern("y"),
-                        state_->intern("z"))).equal(s));
-}
-
-TEST_F(ReadTest, quasiquote) {
-  Svalue s;
-  ASSERT_EQ(SUCCESS, read("`x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("quasiquote"),
-                   state_->intern("x")).equal(s));
-
-  ASSERT_EQ(SUCCESS, read(",x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("unquote"),
-                   state_->intern("x")).equal(s));
-
-  ASSERT_EQ(SUCCESS, read(",@x", &s));
-  ASSERT_TRUE(list(state_,
-                   state_->intern("unquote-splicing"),
-                   state_->intern("x")).equal(s));
+  ASSERT_TRUE(state_->cons(Value(1),
+                           state_->cons(Value(2),
+                                        Value(3))).equal(s));
 }
 
 TEST_F(ReadTest, SharedStructure) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));
   ASSERT_EQ(TT_CELL, s.getType());
   Cell* cell = static_cast<Cell*>(s.toObject());
@@ -122,53 +93,53 @@ TEST_F(ReadTest, SharedStructure) {
 }
 
 TEST_F(ReadTest, String) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("\"string\"", &s));
-  ASSERT_FALSE(state_->stringValue("string").eq(s));
-  ASSERT_TRUE(state_->stringValue("string").equal(s));
+  ASSERT_FALSE(state_->string("string").eq(s));
+  ASSERT_TRUE(state_->string("string").equal(s));
 
   ASSERT_EQ(SUCCESS, read("\"a b\\tc\\nd\"", &s));
-  ASSERT_TRUE(state_->stringValue("a b\tc\nd").equal(s));
+  ASSERT_TRUE(state_->string("a b\tc\nd").equal(s));
 
   ASSERT_EQ(SUCCESS, read("\"'\\\"foobar\\\"'\"", &s));
-  ASSERT_TRUE(state_->stringValue("'\"foobar\"'").equal(s));
+  ASSERT_TRUE(state_->string("'\"foobar\"'").equal(s));
 
   ASSERT_EQ(SUCCESS, read("\"null\\0char\"", &s));
-  ASSERT_TRUE(state_->stringValue("null\0char", 9).equal(s));
-  ASSERT_FALSE(state_->stringValue("null").equal(s));
+  ASSERT_TRUE(state_->string("null\0char", 9).equal(s));
+  ASSERT_FALSE(state_->string("null").equal(s));
 }
 
 TEST_F(ReadTest, Float) {
-  Svalue s;
-  Sfloat f = static_cast<Sfloat>(1.23);
+  Value s;
+  Flonum f = static_cast<Flonum>(1.23);
   ASSERT_EQ(SUCCESS, read("1.23", &s));
-  ASSERT_TRUE(s.getType() == TT_FLOAT);
-  ASSERT_EQ(f, s.toFloat(state_));
+  ASSERT_TRUE(s.getType() == TT_FLONUM);
+  ASSERT_EQ(f, s.toFlonum(state_));
 
   ASSERT_EQ(SUCCESS, read("-1.23", &s));
-  ASSERT_TRUE(state_->floatValue(-f).equal(s));
+  ASSERT_TRUE(state_->flonum(-f).equal(s));
 }
 
 TEST_F(ReadTest, Char) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(SUCCESS, read("#\\A", &s));
-  ASSERT_TRUE(state_->fixnumValue(65).eq(s));
+  ASSERT_EQ('A', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\[", &s));
-  ASSERT_TRUE(state_->fixnumValue('[').eq(s));
+  ASSERT_EQ('[', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\space", &s));
-  ASSERT_TRUE(state_->fixnumValue(' ').eq(s));
+  ASSERT_EQ(' ', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\nl", &s));  // #\newline, or #\nl
-  ASSERT_TRUE(state_->fixnumValue('\n').eq(s));
+  ASSERT_EQ('\n', s.toCharacter());
 
   ASSERT_EQ(SUCCESS, read("#\\tab", &s));
-  ASSERT_TRUE(state_->fixnumValue('\t').eq(s));
+  ASSERT_EQ('\t', s.toCharacter());
 }
 
 TEST_F(ReadTest, Error) {
-  Svalue s;
+  Value s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
   ASSERT_EQ(EXTRA_CLOSE_PAREN, read(")", &s));
   ASSERT_EQ(ILLEGAL_CHAR, read("(. 1)", &s));

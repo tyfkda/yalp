@@ -88,10 +88,10 @@ run_raw invoke-call/cc '1234' '(def *cc* ())
                                (*cc* 34)'
 run global-var 111 '(def global 111)
                     global'
-#run restargs-direct '(1 (2 3))' '((^(x . y) (list x y)) 1 2 3)'
-run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x . y) (list x y)))'
-#run restargs-all-direct '(1 2 3)' '((^ x x) 1 2 3)'
-run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ x x))'
+run restargs-direct '(1 (2 3))' '((^(x &rest y) (list x y)) 1 2 3)'
+run restargs '(1 (2 3))' '((^(f) (f 1 2 3)) (^ (x &rest y) (list x y)))'
+run restargs-all-direct '(1 2 3)' '((^ (&rest x) x) 1 2 3)'
+run restargs-all '(1 2 3)' '((^(f) (f 1 2 3)) (^ (&rest x) x))'
 run empty-body nil '((^ ()))'
 
 # Multiple values
@@ -100,6 +100,10 @@ run values-can-use-in-expression 14 '(+ 1 (values 10 20 30) 3)'
 run receive '(1 2 3)' '(receive (x y z) (values 1 2 3) (list x y z))'
 run nested-values '(1 9 3)' '(receive (x y z) (values 1 (values 9 8 7) 3) (list x y z))'
 run empty-values nil '((^(x) (values)) 123)'
+run receive-rest-params '(1 (2 3))' '(receive (x &rest y) (values 1 2 3) (list x y))'
+run receive-empty-rest '(1 nil)' '(receive (x &rest y) (values 1) (list x y))'
+run receive-normal '((1 2 3))' '(receive (&rest all) (list 1 2 3) all)'
+run receive-empty 'nil' '(receive (&rest all) (values) all)'
 
 # Abbreviated form
 run quote-x "'x" "''x"
@@ -114,6 +118,7 @@ run_raw nil! nil "(defmacro nil! (sym)
                   (write xyz)"
 run_raw hide-macro bar "(defmacro foo(x) \`'(foo ,x))
                         ((^(foo) (print (foo))) (^() 'bar))"
+run_raw macro-capture baz "((^(bar) (defmacro foo() (list 'quote bar))) 'baz) (print (foo))"
 
 # Test native functions
 run cons '(1 . 2)' '(cons 1 2)'
@@ -137,9 +142,9 @@ run negate '-10' '(- 10)'
 run '*' '120' '(* 1 2 3 4 5)'
 run / '3' '(/ 10 3)'
 
-run is t '(is 123 123)'
-run iso-list t "(iso '(1 2 3) '(1 2 3))"
-run iso-string t '(iso "string" "string")'
+run 'eq?' t '(eq? 123 123)'
+run 'equal?-list' t "(equal? '(1 2 3) '(1 2 3))"
+run 'equal?-string' t '(equal? "string" "string")'
 run '<' t '(< 1 2)'
 run '<' nil '(< 2 2)'
 run '>' t '(> 2 1)'
@@ -147,8 +152,8 @@ run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
 
 # Float
-run float-is nil '(is 1.0 1.0)'
-run float-iso t '(iso 1.0 1.0)'
+run 'float-eq?' nil '(eq? 1.0 1.0)'
+run 'float-equal?' t '(equal? 1.0 1.0)'
 run +float '1.230000' '(+ 1 0.23)'
 run -float '0.770000' '(- 1 0.23)'
 run -negate '-0.230000' '(- 0.23)'
@@ -162,13 +167,17 @@ run apply-compound 15 "(apply (^(a b c d e) (+ a b c d e)) 1 2 '(3 4 5))"
 
 # Hash table
 run hash-table 123 "((^(h)
-                        (hash-table-put! h 'key 123)
-                        (hash-table-get h 'key))
-                     (make-hash-table))"
+                        (table-put! h 'key 123)
+                        (table-get h 'key))
+                     (table))"
+
+# eval
+run eval "'x" "(eval '(quote (quote x)))"
+run eval "x" "(eval (eval '(quote (quote x))))"
 
 # Scheme - yalp value differences
 run '() is false' 3 '(if () 2 3)'
-run '() is nil' t '(is () nil)'
+run '() is nil' t '(eq? () nil)'
 
 # Fail cases
 fail unbound 'abc'
@@ -176,11 +185,13 @@ fail no-global '((^(x) y) 123)'
 fail invalid-apply '(1 2 3)'
 fail too-few-arg-native '(cons 1)'
 fail too-many-arg-native '(cons 1 2 3)'
-#fail too-few-arg-lambda-direct '((^(x y)) 1)'
+fail too-few-arg-lambda-direct '((^(x y)) 1)'
 fail too-few-arg-lambda '((^(f) (f 1)) (^(x y)))'
-#fail too-many-arg-lambda-direct '((^(x y)) 1 2 3)'
+fail too-many-arg-lambda-direct '((^(x y)) 1 2 3)'
 fail too-many-arg-lambda '((^(f) (f 1 2 3)) (^(x y)))'
-#fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
+fail too-few-arg-receive '(receive (x y) (values 1))'
+fail too-many-arg-receive '(receive (x y) (values 1 2 3))'
+fail empty-param-not-rest-param-direct '((^() nil) 1 2 3)'
 fail empty-param-not-rest-param '((^(f) (f 1 2 3)) (^() nil))'
 fail set-unbound-var '(set! x 123)'
 

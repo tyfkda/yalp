@@ -46,11 +46,11 @@ private:
 };
 
 // Base class.
-class Sobject : public GcObject {
+class Object : public GcObject {
 public:
   virtual Type getType() const = 0;
-  virtual bool equal(const Sobject* target) const;
-  virtual unsigned int calcHash() const;
+  virtual bool equal(const Object* target) const;
+  virtual unsigned int calcHash(State* state) const;
 
   virtual void output(State* state, Stream* o, bool inspect) const = 0;
 
@@ -58,46 +58,47 @@ public:
 
 protected:
   // Prevent to call destructor from outside.
-  Sobject()  {}  // Empty construct needed, otherwise member cleared.
-  ~Sobject()  {}
+  Object()  {}  // Empty construct needed, otherwise member cleared.
+  ~Object()  {}
 
-  friend State;
-  friend Svalue;
+  friend class State;
+  friend class Value;
 };
 
 // Cell class.
-class Cell : public Sobject {
+class Cell : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
+  virtual bool equal(const Object* target) const override;
+  virtual unsigned int calcHash(State* state) const override;
 
-  Svalue car() const  { return car_; }
-  Svalue cdr() const  { return cdr_; }
-  void setCar(Svalue a);
-  void setCdr(Svalue d);
+  Value car() const  { return car_; }
+  Value cdr() const  { return cdr_; }
+  void setCar(Value a);
+  void setCdr(Value d);
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Cell(Svalue a, Svalue d);
+  Cell(Value a, Value d);
   ~Cell()  {}
   virtual void mark();
 
 private:
   const char* isAbbrev(State* state) const;
 
-  Svalue car_;
-  Svalue cdr_;
+  Value car_;
+  Value cdr_;
 
-  friend State;
+  friend class State;
 };
 
 // String class.
-class String : public Sobject {
+class String : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
-  virtual unsigned int calcHash() const override;
+  virtual bool equal(const Object* target) const override;
+  virtual unsigned int calcHash(State* state) const override;
 
   const char* c_str() const  { return string_; }
   int len() const  { return len_; }
@@ -114,37 +115,37 @@ private:
   const char* string_;
   int len_;
 
-  friend State;
+  friend class State;
 };
 
 // Floating point number class.
-class Float : public Sobject {
+class SFlonum : public Object {
 public:
   virtual Type getType() const override;
-  virtual bool equal(const Sobject* target) const override;
+  virtual bool equal(const Object* target) const override;
 
-  Sfloat toFloat() const  { return v_; }
+  Flonum toFlonum() const  { return v_; }
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Float(Sfloat v);
-  ~Float()  {}
+  SFlonum(Flonum v);
+  ~SFlonum()  {}
 
-  Sfloat v_;
+  Flonum v_;
 
-  friend State;
+  friend class State;
 };
 
 // Vector class.
-class Vector : public Sobject {
+class Vector : public Object {
 public:
   virtual Type getType() const override;
 
   int size() const  { return size_; }
 
-  Svalue get(int index);
-  void set(int index, Svalue x);
+  Value get(int index);
+  void set(int index, Value x);
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
@@ -154,25 +155,25 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue* buffer_;
+  Value* buffer_;
   int size_;
 
-  friend State;
-  friend Vm;
+  friend class State;
+  friend class Vm;
 };
 
 // HashTable class.
-class SHashTable : public Sobject {
+class SHashTable : public Object {
 public:
-  typedef HashTable<Svalue, Svalue> TableType;
+  typedef HashTable<Value, Value> TableType;
 
   virtual Type getType() const override;
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
-  void put(Svalue key, Svalue value);
-  const Svalue* get(Svalue key) const;
-  bool remove(Svalue key);
+  void put(Value key, Value value);
+  const Value* get(Value key) const;
+  bool remove(Value key);
 
   int getCapacity() const;
   int getEntryCount() const;
@@ -182,7 +183,7 @@ public:
   const TableType* getHashTable() const  { return table_; }
 
 protected:
-  explicit SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy);
+  explicit SHashTable(Allocator* allocator, HashPolicy<Value>* policy);
   ~SHashTable();
   virtual void mark();
 
@@ -191,11 +192,11 @@ private:
 
   TableType* table_;
 
-  friend State;
-  friend Vm;
+  friend class State;
+  friend class Vm;
 };
 
-class Callable : public Sobject {
+class Callable : public Object {
 public:
   Callable();
 
@@ -211,20 +212,20 @@ protected:
 // Closure class.
 class Closure : public Callable {
 public:
-  Closure(State* state, Svalue body, int freeVarCount,
+  Closure(State* state, Value body, int freeVarCount,
           int minArgNum, int maxArgNum);
   virtual Type getType() const override;
 
-  Svalue getBody() const  { return body_; }
+  Value getBody() const  { return body_; }
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
   bool hasRestParam() const  { return maxArgNum_ < 0; }
 
-  void setFreeVariable(int index, Svalue value) {
+  void setFreeVariable(int index, Value value) {
     freeVariables_[index] = value;
   }
 
-  Svalue getFreeVariable(int index) const {
+  Value getFreeVariable(int index) const {
     return freeVariables_[index];
   }
 
@@ -235,8 +236,8 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue body_;
-  Svalue* freeVariables_;
+  Value body_;
+  Value* freeVariables_;
   int freeVarCount_;
   int minArgNum_;
   int maxArgNum_;
@@ -250,7 +251,7 @@ public:
 
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
-  Svalue call(State* state)  { return func_(state); }
+  Value call(State* state)  { return func_(state); }
 
   virtual void output(State*, Stream* o, bool) const override;
 
@@ -265,12 +266,12 @@ protected:
 // Continuation class.
 class Continuation : public Callable {
 public:
-  Continuation(Allocator* allocator, const Svalue* stack, int size,
+  Continuation(State* state, const Value* stack, int size,
                const CallStack* callStack, int callStackSize);
   virtual Type getType() const override;
 
   int getStackSize() const  { return stackSize_; }
-  const Svalue* getStack() const  { return copiedStack_; }
+  const Value* getStack() const  { return copiedStack_; }
   int getCallStackSize() const  { return callStackSize_; }
   const CallStack* getCallStack() const  { return callStack_; }
 
@@ -281,13 +282,13 @@ protected:
   virtual void destruct(Allocator* allocator) override;
   virtual void mark();
 
-  Svalue* copiedStack_;
+  Value* copiedStack_;
   int stackSize_;
   CallStack* callStack_;
   int callStackSize_;
 };
 
-class SStream : public Sobject {
+class SStream : public Object {
 public:
   virtual Type getType() const override;
 
@@ -302,8 +303,8 @@ protected:
 
   Stream* stream_;
 
-  friend Reader;
-  friend State;
+  friend class Reader;
+  friend class State;
 };
 
 }  // namespace yalp

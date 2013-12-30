@@ -2,13 +2,13 @@
 /// Read S-Expression
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/read.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "hash_table.hh"
 
-#include <alloca.h>
 #include <ctype.h>  // for isdigit
 #include <new>
 #include <stdlib.h>  // for atof
@@ -48,6 +48,16 @@ struct Reader::IntHashPolicy : public HashPolicy<int> {
 
 Reader::IntHashPolicy Reader::s_hashPolicy;
 
+bool Reader::isSpace(int c) {
+  switch (c) {
+  case ' ': case '\t': case '\n': return true;
+  default: return false;
+  }
+}
+
+int Reader::getc()  { return stream_->get(); }
+void Reader::ungetc(int c)  { stream_->ungetc(c); }
+
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
@@ -56,20 +66,20 @@ Reader::Reader(State* state, Stream* stream)
 
 Reader::~Reader() {
   if (buffer_ != NULL)
-    FREE(state_->getAllocator(), buffer_);
+    state_->free(buffer_);
   if (sharedStructures_ != NULL) {
-    sharedStructures_->~HashTable<int, Svalue>();
-    FREE(state_->getAllocator(), sharedStructures_);
+    sharedStructures_->~HashTable<int, Value>();
+    state_->free(sharedStructures_);
   }
 }
 
-ErrorCode Reader::read(Svalue* pValue) {
+ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
   int c = getc();
-  Svalue fn = state_->getMacroCharacter(c);
-  if (state_->isTrue(fn)) {
+  Value fn = state_->getMacroCharacter(c);
+  if (fn.isTrue()) {
     SStream ss(stream_);
-    Svalue args[] = { Svalue(&ss), state_->characterValue(c) };
+    Value args[] = { Value(&ss), state_->character(c) };
     if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
       return SUCCESS;
     return ILLEGAL_CHAR;
@@ -83,18 +93,6 @@ ErrorCode Reader::read(Svalue* pValue) {
   case ';':
     skipUntilNextLine();
     return read(pValue);
-  case '\'':
-    return readQuote(pValue);
-  case '`':
-    return readQuasiQuote(pValue);
-  case ',':
-    {
-      c = getc();
-      if (c == '@')
-        return readUnquoteSplicing(pValue);
-      putback(c);
-      return readUnquote(pValue);
-    }
   case '"':
     return readString(c, pValue);
   case '#':
@@ -102,10 +100,9 @@ ErrorCode Reader::read(Svalue* pValue) {
   case EOF:
     return END_OF_FILE;
   default:
-    putback(c);
+    ungetc(c);
     if (!isDelimiter(c)) {
       return readSymbolOrNumber(pValue);
-      return SUCCESS;
     }
     return ILLEGAL_CHAR;
   }
@@ -117,10 +114,10 @@ int Reader::putBuffer(char** pBuffer, int* pSize, int p, int c) {
     for (newSize = *pSize; (newSize <<= 1) <= p; );
     char* newBuffer;
     if (buffer_ == NULL) {  // Allocates memory from heap at first time.
-      newBuffer = static_cast<char*>(ALLOC(state_->getAllocator(), newSize));
+      newBuffer = static_cast<char*>(state_->alloc(newSize));
       memcpy(newBuffer, *pBuffer, *pSize);
     } else {  // Already allocated memory from heap, and expand it.
-      newBuffer = static_cast<char*>(REALLOC(state_->getAllocator(), *pBuffer, newSize));
+      newBuffer = static_cast<char*>(state_->realloc(*pBuffer, newSize));
     }
     *pBuffer = buffer_ = newBuffer;
     *pSize = size_ = newSize;
@@ -134,12 +131,12 @@ int Reader::readToBufferWhile(char** pBuffer, int* pSize, int (*cond)(int)) {
   int c;
   while (cond(c = getc()))
     p = putBuffer(pBuffer, pSize, p, c);
-  putback(c);
+  ungetc(c);
   putBuffer(pBuffer, pSize, p, '\0');
   return p;
 }
 
-ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
+ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isNotDelimiter);
 
@@ -164,29 +161,31 @@ ErrorCode Reader::readSymbolOrNumber(Svalue* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
-    *pValue = state_->floatValue(static_cast<Sfloat>(atof(buffer)));
+    *pValue = state_->flonum(static_cast<Flonum>(atof(buffer)));
   else
-    *pValue = state_->fixnumValue(atol(buffer));
+    *pValue = Value(atol(buffer));
   return SUCCESS;
 }
 
-ErrorCode Reader::readList(Svalue* pValue) {
+ErrorCode Reader::readList(Value* pValue) {
   return readDelimitedList(')', pValue);
 }
 
-ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
-  Svalue value = Svalue::NIL;
-  Svalue v;
+ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
+  int arena = state_->saveArena();
+  Value value = Value::NIL;
+  Value v;
   ErrorCode err;
   for (;;) {
     skipSpaces();
     int c = getc();
     if (c == terminator) {
       *pValue = nreverse(value);
+      state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;
     }
 
-    putback(c);
+    ungetc(c);
     err = read(&v);
     if (err != SUCCESS)
       break;
@@ -197,13 +196,14 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
   switch (err) {
   case END_OF_FILE:
     *pValue = nreverse(value);
+    state_->restoreArenaWith(arena, *pValue);
     return NO_CLOSE_PAREN;
   case DOT_AT_BASE:
     {
-      if (value.eq(Svalue::NIL))
+      if (value.eq(Value::NIL))
         return ILLEGAL_CHAR;
 
-      Svalue tail;
+      Value tail;
       err = read(&tail);
       if (err != SUCCESS)
         return err;
@@ -211,13 +211,14 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
       skipSpaces();
       int c = getc();
       if (c != terminator) {
-        putback(c);
+        ungetc(c);
         return NO_CLOSE_PAREN;
       }
 
-      Svalue lastPair = value;
+      Value lastPair = value;
       *pValue = nreverse(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
+      state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;
     }
     break;
@@ -226,24 +227,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Svalue* pValue) {
   }
 }
 
-ErrorCode Reader::readQuote(Svalue* pValue) {
-  ErrorCode err = read(pValue);
-  if (err == SUCCESS)
-    *pValue = list(state_, state_->getConstant(State::QUOTE),*pValue);
-  return err;
-}
-
-ErrorCode Reader::readAbbrev(const char* funcname, Svalue* pValue) {
-  ErrorCode err = read(pValue);
-  if (err == SUCCESS) {
-    *pValue = list(state_,
-                   state_->intern(funcname),
-                   *pValue);
-  }
-  return err;
-}
-
-ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
+ErrorCode Reader::readString(char closeChar, Value* pValue) {
   BUFFER(buffer, size);
 
   int p = 0;
@@ -282,26 +266,28 @@ ErrorCode Reader::readString(char closeChar, Svalue* pValue) {
     p = putBuffer(&buffer, &size, p, c);
   }
   putBuffer(&buffer, &size, p, '\0');
-  *pValue = state_->stringValue(buffer, p);
+  *pValue = state_->string(buffer, p);
   return SUCCESS;
 }
 
-ErrorCode Reader::readSpecial(Svalue* pValue) {
+ErrorCode Reader::readSpecial(Value* pValue) {
   int c = getc();
   if (isdigit(c)) {
-    putback(c);
+    ungetc(c);
     return readSharedStructure(pValue);
   }
   switch (c) {
   case '\\':
     return readChar(pValue);
+  case '.':
+    return readTimeEval(pValue);
   default:
-    putback(c);
+    ungetc(c);
     return ILLEGAL_CHAR;
   }
 }
 
-ErrorCode Reader::readSharedStructure(Svalue* pValue) {
+ErrorCode Reader::readSharedStructure(Value* pValue) {
   BUFFER(buffer, size);
   readToBufferWhile(&buffer, &size, isdigit);
 
@@ -318,7 +304,7 @@ ErrorCode Reader::readSharedStructure(Svalue* pValue) {
     }
   case '#':
     if (sharedStructures_ != NULL) {
-      const Svalue* p = sharedStructures_->get(n);
+      const Value* p = sharedStructures_->get(n);
       if (p == NULL)
         return ILLEGAL_CHAR;
       *pValue = *p;
@@ -326,22 +312,22 @@ ErrorCode Reader::readSharedStructure(Svalue* pValue) {
     }
     // Fall
   default:
-    putback(c);
+    ungetc(c);
     return ILLEGAL_CHAR;
   }
 }
 
-ErrorCode Reader::readChar(Svalue* pValue) {
+ErrorCode Reader::readChar(Value* pValue) {
   int c = getc();
   switch (c) {
   case ' ': case '\n': case '\t': case -1:
     return ILLEGAL_CHAR;
   default:
     if (isDelimiter(c)) {
-      *pValue = state_->characterValue(c);
+      *pValue = state_->character(c);
       return SUCCESS;
     }
-    putback(c);
+    ungetc(c);
     break;
   }
 
@@ -349,7 +335,7 @@ ErrorCode Reader::readChar(Svalue* pValue) {
   int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
 
   if (p == 1) {
-    *pValue = state_->characterValue(reinterpret_cast<unsigned char*>(buffer)[0]);
+    *pValue = state_->character(reinterpret_cast<unsigned char*>(buffer)[0]);
     return SUCCESS;
   }
 
@@ -365,18 +351,32 @@ ErrorCode Reader::readChar(Svalue* pValue) {
   };
   for (unsigned int i = 0; i < sizeof(Table) / sizeof(*Table); ++i) {
     if (strcmp(buffer, Table[i].name) == 0) {
-      *pValue = state_->fixnumValue(Table[i].code);
+      *pValue = state_->character(Table[i].code);
       return SUCCESS;
     }
   }
   return ILLEGAL_CHAR;
 }
 
-void Reader::storeShared(int id, Svalue value) {
+ErrorCode Reader::readTimeEval(Value* pValue) {
+  Value exp;
+  ErrorCode err = read(&exp);
+  if (err != SUCCESS)
+    return err;
+
+  Value code;
+  if (!state_->compile(exp, &code))
+    return COMPILE_ERROR;
+  if (!state_->runBinary(code, pValue))
+    return RUNTIME_ERROR;
+  return SUCCESS;
+}
+
+void Reader::storeShared(int id, Value value) {
   if (sharedStructures_ == NULL) {
-    void* memory = ALLOC(state_->getAllocator(), sizeof(*sharedStructures_));
-    sharedStructures_ = new(memory) HashTable<int, Svalue>(&s_hashPolicy,
-                                                           state_->getAllocator());
+    void* memory = state_->alloc(sizeof(*sharedStructures_));
+    sharedStructures_ = new(memory) HashTable<int, Value>(&s_hashPolicy,
+                                                          state_->getAllocator());
   }
   sharedStructures_->put(id, value);
 }
@@ -385,31 +385,14 @@ void Reader::skipSpaces() {
   int c;
   while (isSpace(c = getc()))
     ;
-  putback(c);
+  ungetc(c);
 }
 
 void Reader::skipUntilNextLine() {
   int c;
   while (c = getc(), c != '\n' && c != EOF)
     ;
-  putback(c);
-}
-
-int Reader::getc() {
-  return stream_->get();
-}
-
-void Reader::putback(char c) {
-  stream_->putback(c);
-}
-
-bool Reader::isSpace(int c) {
-  switch (c) {
-  case ' ': case '\t': case '\n':
-    return true;
-  default:
-    return false;
-  }
+  ungetc(c);
 }
 
 bool Reader::isDelimiter(int c) {

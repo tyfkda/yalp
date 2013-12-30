@@ -15,23 +15,33 @@ public:
     virtual void markRoot(void* userdata) = 0;
   };
 
-  static Allocator* create(AllocFunc allocFunc, Callback* callback, void* userdata);
+  static Allocator* create(AllocFunc allocFunc, Callback* callback);
   void release();
 
-  // Non managed memory allocation.
+  void setUserData(void* userdata)  { userdata_ = userdata; }
+
+  // Allocates non managed memory.
   void* alloc(size_t size);
   void* realloc(void* p, size_t size);
   void free(void* p);
 
-  // Managed memory allocation.
+  // Allocates managed memory.
   void* objAlloc(size_t size);
 
+  int saveArena() const  { return arenaIndex_; }
+  void restoreArena(int index)  { arenaIndex_ = index; }
+  void restoreArenaWith(int index, GcObject* gcobj);
+
+  // Runs garbage collection.
   void collectGarbage();
 
 private:
-  Allocator(AllocFunc allocFunc, Callback* callback, void* userdata);
+  static const int ARENA_SIZE = 200;
+
+  Allocator(AllocFunc allocFunc, Callback* callback);
   ~Allocator();
 
+  inline void markArenaObjects();
   void sweep();
 
   AllocFunc allocFunc_;
@@ -40,18 +50,12 @@ private:
 
   GcObject* objectTop_;
   int objectCount_;
+
+  GcObject* arena_[ARENA_SIZE];
+  int arenaIndex_;
 };
 
 AllocFunc getDefaultAllocFunc();
-
-#define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
-#define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
-#define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
-
-#define ALLOC(allocator, size)  ((allocator)->alloc((size)))
-#define REALLOC(allocator, ptr, size)  ((allocator)->realloc((ptr), (size)))
-#define FREE(allocator, ptr)  ((allocator)->free((ptr)))
-#define OBJALLOC(allocator, size)  ((allocator)->objAlloc((size)))
 
 }  // namespace yalp
 

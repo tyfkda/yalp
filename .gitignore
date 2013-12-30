@@ -1,8 +1,8 @@
+*.a
+*.d
+*.o
 /obj/*
 /lib/*
-/test/*.o
-/test/*.d
-/test/*.a
 
 /yalp
 
@@ -10,10 +10,25 @@
 /test/object_test
 /test/read_test
 /test/state_test
+/test/stream_test
 /test/symbol_manager_test
 /test/util_test
 
+/embed_examples/001_run_string
+/embed_examples/002_register_c_func
+/embed_examples/003_call_script_func
+/embed_examples/004_use_binder
+
 /_*
+
+# Windows Visual Studio
+/build/obj/*
+/build/yalp.opensdf
+/build/yalp.sdf
+/build/yalp.sln
+/build/yalp.v11.suo
+/build/yalp.vcxproj.filters
+/build/yalp.vcxproj.user
 
 # GTAGS
 /GPATH

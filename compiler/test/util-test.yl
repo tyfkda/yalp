@@ -7,8 +7,6 @@
 (test "symbol" '(abc)   (dotted->proper 'abc))
 
 (test-section "set")
-(test "union" '(c a b d x) (set-union '(a b c) '(b d x)))
 (test "minus" '(a c) (set-minus '(a b c) '(b d x)))
-(test "intersect" '(b d) (set-intersect '(a b c d) '(b d x)))
 
 (test-complete)

@@ -2,8 +2,10 @@
 /// basic - basic functions
 //=============================================================================
 
+#include "build_env.hh"
 #include "basic.hh"
 #include "yalp.hh"
+#include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "yalp/stream.hh"
@@ -11,9 +13,16 @@
 #include "hash_table.hh"
 #include "vm.hh"
 
-#include <alloca.h>
 #include <assert.h>
+#include <string.h>  // for memcpy
+#include <stdlib.h>  // for exit
+
+#ifdef _MSC_VER
+#include <math.h>
+#else
+#include <alloca.h>
 #include <tgmath.h>
+#endif
 
 namespace yalp {
 
@@ -28,246 +37,303 @@ namespace yalp {
            (macro? (car exp)))
       (with (name (car exp)
              args (cdr exp))
-        (let closure (hash-table-get *macro-table* name)
+        (let closure (table-get *macro-table* name)
           (apply closure args)))
     exp))
 */
-static Svalue s_macroexpand_1(State* state) {
-  Svalue exp = state->getArg(0);
+static Value s_macroexpand_1(State* state) {
+  Value exp = state->getArg(0);
   if (exp.getType() != TT_CELL)
     return exp;
-  Svalue name = state->car(exp);
-  Svalue closure = state->getMacro(name);
-  if (state->isFalse(closure))
+  Value name = state->car(exp);
+  Value closure = state->getMacro(name);
+  if (closure.isFalse())
     return exp;
 
-  Svalue args = state->cdr(exp);
+  Value args = state->cdr(exp);
   int argNum = length(args);
-  Svalue* argsArray = static_cast<Svalue*>(alloca(sizeof(Svalue) * argNum));
+  Value* argsArray = static_cast<Value*>(alloca(sizeof(Value) * argNum));
   for (int i = 0; i < argNum; ++i, args = state->cdr(args))
     argsArray[i] = state->car(args);
   return state->tailcall(closure, argNum, argsArray);
 }
 
-static Svalue s_cons(State* state) {
-  Svalue a = state->getArg(0);
-  Svalue d = state->getArg(1);
+static Value s_type(State* state) {
+  Value v = state->getArg(0);
+  return state->getTypeSymbol(v.getType());
+}
+
+static Value s_cons(State* state) {
+  Value a = state->getArg(0);
+  Value d = state->getArg(1);
   return state->cons(a, d);
 }
 
-static Svalue s_car(State* state) {
-  Svalue cell = state->getArg(0);
+static Value s_car(State* state) {
+  Value cell = state->getArg(0);
   return state->car(cell);
 }
 
-static Svalue s_cdr(State* state) {
-  Svalue cell = state->getArg(0);
+static Value s_cdr(State* state) {
+  Value cell = state->getArg(0);
   return state->cdr(cell);
 }
 
-static Svalue s_set_car(State* state) {
-  Svalue s = state->getArg(0);
-  Svalue value = state->getArg(1);
+static Value s_setCar(State* state) {
+  Value s = state->getArg(0);
+  Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCar(value);
   return value;
 }
 
-static Svalue s_set_cdr(State* state) {
-  Svalue s = state->getArg(0);
-  Svalue value = state->getArg(1);
+static Value s_setCdr(State* state) {
+  Value s = state->getArg(0);
+  Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCdr(value);
   return value;
 }
 
-static Svalue s_list(State* state) {
+static Value s_list(State* state) {
   int n = state->getArgNum();
-  Svalue res = Svalue::NIL;
+  Value res = Value::NIL;
   for (int i = n; --i >= 0; ) {
-    Svalue a = state->getArg(i);
+    Value a = state->getArg(i);
     res = state->cons(a, res);
   }
   return res;
 }
 
-static Svalue s_listStar(State* state) {
+static Value s_listStar(State* state) {
   int n = state->getArgNum();
-  Svalue res;
+  Value res;
   if (n <= 0)
-    res = Svalue::NIL;
+    res = Value::NIL;
   else {
     res = state->getArg(n - 1);
     for (int i = n - 1; --i >= 0; ) {
-      Svalue a = state->getArg(i);
+      Value a = state->getArg(i);
       res = state->cons(a, res);
     }
   }
   return res;
 }
 
-static Svalue s_pairp(State* state) {
-  Svalue a = state->getArg(0);
-  return state->boolValue(a.getType() == TT_CELL);
-}
-
-static Svalue s_symbolp(State* state) {
-  Svalue a = state->getArg(0);
-  return state->boolValue(a.getType() == TT_SYMBOL);
-}
-
-static Svalue s_append(State* state) {
+static Value s_append(State* state) {
   int n = state->getArgNum();
-  Svalue nil = Svalue::NIL;
-  Svalue last = nil;
+  Value last = Value::NIL;
   int lastIndex;
   for (lastIndex = n; --lastIndex >= 0; ) {
     last = state->getArg(lastIndex);
-    if (!last.eq(nil))
+    if (!last.eq(Value::NIL))
       break;
   }
   if (lastIndex < 0)
-    return nil;
+    return Value::NIL;
 
-  Svalue copied = nil;
+  Value copied = Value::NIL;
   for (int i = 0; i < lastIndex; ++i) {
-    Svalue ls = state->getArg(i);
+    Value ls = state->getArg(i);
     for (; ls.getType() == TT_CELL; ls = state->cdr(ls))
       copied = state->cons(state->car(ls), copied);
   }
-  if (copied.eq(nil))
+  if (copied.eq(Value::NIL))
     return last;
 
-  Svalue fin = nreverse(copied);
+  Value fin = nreverse(copied);
   static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
 }
 
-static Svalue s_nreverse(State* state) {
+static Value s_appendBang(State* state) {
+  int n = state->getArgNum();
+  Value last = Value::NIL;
+  int lastIndex;
+  for (lastIndex = n; --lastIndex >= 0; ) {
+    last = state->getArg(lastIndex);
+    if (!last.eq(Value::NIL))
+      break;
+  }
+  if (lastIndex < 0)
+    return Value::NIL;
+
+  for (int i = lastIndex; --i >= 0; ) {
+    Value ls = state->getArg(i);
+    if (ls.eq(Value::NIL))
+      continue;
+    state->checkType(ls, TT_CELL);
+    for (Value p = ls;;) {
+      Value d = state->cdr(p);
+      if (d.getType() != TT_CELL) {
+        static_cast<Cell*>(p.toObject())->setCdr(last);
+        break;
+      }
+      p = d;
+    }
+    last = ls;
+  }
+  return last;
+}
+
+static Value s_reverseBang(State* state) {
   return nreverse(state->getArg(0));
 }
 
 template <class Op>
 struct BinOp {
-  static Svalue calc(State* state) {
+  static Value calc(State* state) {
     int n = state->getArgNum();
     if (n <= 0)
-      return state->fixnumValue(Op::base());
-    Svalue x = state->getArg(0);
-    Sfixnum acc;
+      return Value(Op::base());
+    Value x = state->getArg(0);
+    Fixnum acc;
     switch (x.getType()) {
     case TT_FIXNUM:
       acc = x.toFixnum();
       break;
-    case TT_FLOAT:
-      return calcf(state, 1, x.toFloat(state));
+    case TT_FLONUM:
+      return calcf(state, 1, x.toFlonum(state));
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
       break;
     }
     if (n == 1)
-      return state->fixnumValue(Op::single(acc));
+      return Value(Op::single(acc));
 
     for (int i = 1; i < n; ++i) {
-      Svalue x = state->getArg(i);
+      Value x = state->getArg(i);
       switch (x.getType()) {
       case TT_FIXNUM:
         acc = Op::op(acc, x.toFixnum());
         break;
-      case TT_FLOAT:
-        return calcf(state, i, static_cast<Sfloat>(acc));
+      case TT_FLONUM:
+        return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
-    return state->fixnumValue(acc);
+    return Value(acc);
   }
 
-  static Svalue calcf(State* state, int i, Sfloat acc) {
+  static Value calcf(State* state, int i, Flonum acc) {
     int n = state->getArgNum();
     if (n == 1)
-      return state->floatValue(Op::single(acc));
+      return state->flonum(Op::single(acc));
 
     for (; i < n; ++i) {
-      Svalue x = state->getArg(i);
+      Value x = state->getArg(i);
       switch (x.getType()) {
       case TT_FIXNUM:
         acc = Op::op(acc, x.toFixnum());
         break;
-      case TT_FLOAT:
-        acc = Op::op(acc, x.toFloat(state));
+      case TT_FLONUM:
+        acc = Op::op(acc, x.toFlonum(state));
         break;
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
-    return state->floatValue(acc);
+    return state->flonum(acc);
   }
 };
 
 struct Add {
-  static Sfixnum base()  { return 0; }
+  static Fixnum base()  { return 0; }
   template <class X> static X single(X x)  { return x; }
   template <class X, class Y> static X op(X x, Y y)  { return x + y; }
 };
 struct Sub {
-  static Sfixnum base()  { return 0; }
+  static Fixnum base()  { return 0; }
   template <class X> static X single(X x)  { return -x; }
   template <class X, class Y> static X op(X x, Y y)  { return x - y; }
 };
 struct Mul {
-  static Sfixnum base()  { return 1; }
+  static Fixnum base()  { return 1; }
   template <class X> static X single(X x)  { return x; }
   template <class X, class Y> static X op(X x, Y y)  { return x * y; }
 };
 struct Div {
-  static Sfixnum base()  { return 1; }
+  static Fixnum base()  { return 1; }
   template <class X> static X single(X x)  { return 1 / x; }
   template <class X, class Y> static X op(X x, Y y)  { return x / y; }
 };
 
-static Svalue s_add(State* state) {
+static Value s_add(State* state) {
   return BinOp<Add>::calc(state);
 }
 
-static Svalue s_sub(State* state) {
+static Value s_sub(State* state) {
   return BinOp<Sub>::calc(state);
 }
 
-static Svalue s_mul(State* state) {
+static Value s_mul(State* state) {
   return BinOp<Mul>::calc(state);
 }
 
-static Svalue s_div(State* state) {
+static Value s_div(State* state) {
   return BinOp<Div>::calc(state);
 }
 
-static Svalue s_is(State* state) {
-  Svalue a = state->getArg(0);
-  Svalue b = state->getArg(1);
-  return state->boolValue(a.eq(b));
+static Value s_mod(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  switch (a.getType()) {
+  case TT_FIXNUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return Value(a.toFixnum() % b.toFixnum());
+    case TT_FLONUM:
+      return state->flonum(fmod(a.toFixnum(), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  case TT_FLONUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(fmod(a.toFlonum(state), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(fmod(a.toFlonum(state), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  default:
+    state->runtimeError("Number expected, but `%@`", &a);
+    break;
+  }
+  return Value::NIL;
 }
 
-static Svalue s_iso(State* state) {
-  Svalue a = state->getArg(0);
-  Svalue b = state->getArg(1);
-  return state->boolValue(a.equal(b));
+static Value s_eq(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  return state->boolean(a.eq(b));
+}
+
+static Value s_equal(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  return state->boolean(a.equal(b));
 }
 
 template <class Op>
 struct CompareOp {
-  static Svalue calc(State* state) {
+  static Value calc(State* state) {
     int n = state->getArgNum();
     assert(n >= 1);
-    Svalue x = state->getArg(0);
-    Sfixnum acc;
+    Value x = state->getArg(0);
+    Fixnum acc;
     switch (x.getType()) {
     case TT_FIXNUM:
       acc = x.toFixnum();
       break;
-    case TT_FLOAT:
-      return calcf(state, 1, x.toFloat(state));
+    case TT_FLONUM:
+      return calcf(state, 1, x.toFlonum(state));
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
@@ -275,44 +341,44 @@ struct CompareOp {
     }
 
     for (int i = 1; i < n; ++i) {
-      Svalue x = state->getArg(i);
+      Value x = state->getArg(i);
       switch (x.getType()) {
       case TT_FIXNUM:
         {
-          Sfixnum xx = x.toFixnum();
+          Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
-      case TT_FLOAT:
-        return calcf(state, i, static_cast<Sfloat>(acc));
+      case TT_FLONUM:
+        return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
         break;
       }
     }
-    return state->boolValue(true);
+    return state->boolean(true);
   }
 
-  static Svalue calcf(State* state, int i, Sfloat acc) {
+  static Value calcf(State* state, int i, Flonum acc) {
     int n = state->getArgNum();
     for (; i < n; ++i) {
-      Svalue x = state->getArg(i);
+      Value x = state->getArg(i);
       switch (x.getType()) {
       case TT_FIXNUM:
         {
-          Sfixnum xx = x.toFixnum();
+          Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
-      case TT_FLOAT:
+      case TT_FLONUM:
         {
-          Sfloat xx = x.toFloat(state);
+          Flonum xx = x.toFlonum(state);
           if (!Op::satisfy(acc, xx))
-            return state->boolValue(false);
+            return state->boolean(false);
           acc = xx;
         }
         break;
@@ -321,7 +387,7 @@ struct CompareOp {
         break;
       }
     }
-    return state->boolValue(true);
+    return state->boolean(true);
   }
 };
 
@@ -338,72 +404,63 @@ struct GreaterEqual {
   template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
 };
 
-static Svalue s_lessThan(State* state) {
+static Value s_lessThan(State* state) {
   return CompareOp<LessThan>::calc(state);
 }
 
-static Svalue s_greaterThan(State* state) {
+static Value s_greaterThan(State* state) {
   return CompareOp<GreaterThan>::calc(state);
 }
 
-static Svalue s_lessEqual(State* state) {
+static Value s_lessEqual(State* state) {
   return CompareOp<LessEqual>::calc(state);
 }
 
-static Svalue s_greaterEqual(State* state) {
+static Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
-template <typename Func>
-Svalue FloatFunc1(State* state, Func f) {
-  return state->floatValue(f(state->getArg(0).toFloat(state)));
-}
-
-template <typename Func>
-Svalue FloatFunc2(State* state, Func f) {
-  Sfloat x = state->getArg(0).toFloat(state);
-  Sfloat y = state->getArg(1).toFloat(state);
-  return state->floatValue(f(x, y));
-}
-
-static Svalue s_sin(State* state) { return FloatFunc1(state, sin); }
-static Svalue s_cos(State* state) { return FloatFunc1(state, cos); }
-static Svalue s_tan(State* state) { return FloatFunc1(state, tan); }
-static Svalue s_sqrt(State* state) { return FloatFunc1(state, sqrt); }
-static Svalue s_log(State* state) { return FloatFunc1(state, log); }
-static Svalue s_floor(State* state) { return FloatFunc1(state, floor); }
-static Svalue s_ceil(State* state) { return FloatFunc1(state, ceil); }
-static Svalue s_atan2(State* state) { return FloatFunc2(state, atan2); }
-static Svalue s_expt(State* state) { return FloatFunc2(state, pow); }
-
-static Stream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
-  Svalue ss = state->getArgNum() > argIndex ?
+static SStream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+  Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(state->intern(defaultStreamName));
+    state->referGlobal(defaultStreamName);
   state->checkType(ss, TT_STREAM);
-  return static_cast<SStream*>(ss.toObject())->getStream();
+  return static_cast<SStream*>(ss.toObject());
 }
 
-static Svalue output(State* state, bool inspect) {
-  Svalue x = state->getArg(0);
-  Stream* stream = chooseStream(state, 1, "*stdout*");
+static Value output(State* state, bool inspect) {
+  Value x = state->getArg(0);
+  Stream* stream = chooseStream(state, 1, "*stdout*")->getStream();
   x.output(state, stream, inspect);
   return x;
 }
 
-static Svalue s_write(State* state) {
+static Value s_write(State* state) {
   return output(state, true);
 }
 
-static Svalue s_display(State* state) {
+static Value s_display(State* state) {
   return output(state, false);
 }
 
-static Svalue s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*");
-  Svalue eof = state->getArgNum() > 1 ? state->getArg(1) : Svalue::NIL;
+static Value s_format(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdout*")->getStream();
+  Value fmt = state->getArg(1);
+  state->checkType(fmt, TT_STRING);
+
+  int argNum = state->getArgNum() - 2;
+  Value* values = static_cast<Value*>(alloca(sizeof(Value) * argNum));
+  for (int i = 0; i < argNum; ++i)
+    values[i] = state->getArg(i + 2);
+  format(state, stream, static_cast<String*>(fmt.toObject())->c_str(), values);
+  return Value::NIL;
+}
+
+static Value s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
   Reader reader(state, stream);
-  Svalue exp;
+  Value exp;
   ErrorCode err = reader.read(&exp);
   switch (err) {
   case SUCCESS:
@@ -412,46 +469,67 @@ static Svalue s_read(State* state) {
     return eof;
   default:
     state->runtimeError("Read error %d", err);
-    return Svalue::NIL;
+    return Value::NIL;
   }
 }
 
-static Svalue s_read_delimited_list(State* state) {
-  Svalue delimiter = state->getArg(0);
+static Value s_readFromString(State* state) {
+  Value s = state->getArg(0);
+  state->checkType(s, TT_STRING);
+
+  StrStream stream(static_cast<String*>(s.toObject())->c_str());
+  Reader reader(state, &stream);
+  Value exp;
+  ErrorCode err = reader.read(&exp);
+  if (err != SUCCESS)
+    state->runtimeError("Read error %d", err);
+  return exp;
+}
+
+static Value s_readDelimitedList(State* state) {
+  Value delimiter = state->getArg(0);
   state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
-  Stream* stream = chooseStream(state, 1, "*stdin*");
+  Stream* stream = chooseStream(state, 1, "*stdin*")->getStream();
   Reader reader(state, stream);
-  Svalue result;
+  Value result;
   ErrorCode err = reader.readDelimitedList(delimiter.toCharacter(), &result);
   if (err != SUCCESS)
     state->runtimeError("Read error %d", err);
   return result;
 }
 
-static Svalue s_read_char(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*");
+static Value s_readChar(State* state) {
+  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
   int c = stream->get();
-  return c == EOF ? Svalue::NIL : state->characterValue(c);
+  return c == EOF ? Value::NIL : state->character(c);
 }
 
-static char* reallocateString(Allocator* allocator, char* heap, int heapSize,
+static Value s_unreadChar(State* state) {
+  Value ch = state->getArg(0);
+  state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
+  SStream* sstream = chooseStream(state, 1, "*stdin*");
+  sstream->getStream()->ungetc(ch.toCharacter());
+  return Value(sstream);
+}
+
+static char* reallocateString(State* state, char* heap, int heapSize,
                               const char* local, int len) {
   // Copy local to heap.
   int newSize = heapSize + len;
-  char* newHeap = static_cast<char*>(REALLOC(allocator, heap, sizeof(*heap) * newSize));
+  char* newHeap = static_cast<char*>(state->realloc(heap, sizeof(*heap) * newSize));
   // TODO: Handle memory over.
   memcpy(&newHeap[heapSize], local, sizeof(*heap) * len);
   return newHeap;
 }
 
-static Svalue s_read_line(State* state) {
+static Value s_readLine(State* state) {
   const int SIZE = 8;
   char local[SIZE];
   int len = 0;
   char* heap = NULL;
   int heapSize = 0;
 
-  Stream* stream = chooseStream(state, 0, "*stdin*");
+  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
   int c;
   for (;;) {
     c = stream->get();
@@ -459,7 +537,7 @@ static Svalue s_read_line(State* state) {
       break;
     if (len >= SIZE) {
       // Copy local to heap.
-      heap = reallocateString(state->getAllocator(), heap, heapSize,
+      heap = reallocateString(state, heap, heapSize,
                               local, len);
       heapSize += len;
       len = 0;
@@ -469,31 +547,31 @@ static Svalue s_read_line(State* state) {
 
   if (heapSize == 0 && len < SIZE) {
     if (len == 0 && c == EOF)
-      return Svalue::NIL;
+      return Value::NIL;
     local[len] = '\0';
-    return state->stringValue(local);
+    return state->string(local);
   }
 
-  char* copiedString = reallocateString(state->getAllocator(), heap, heapSize,
+  char* copiedString = reallocateString(state, heap, heapSize,
                                         local, len + 1);
   len = heapSize + len;
   copiedString[len] = '\0';
-  return state->allocatedStringValue(copiedString, len);
+  return state->allocatedString(copiedString, len);
 }
 
-static Svalue s_uniq(State* state) {
+static Value s_gensym(State* state) {
   return state->gensym();
 }
 
-static Svalue s_apply(State* state) {
+static Value s_apply(State* state) {
   int n = state->getArgNum();
   // Counts argument number for the given function.
   int argNum = n - 1;
-  Svalue last = Svalue::NIL;
+  Value last = Value::NIL;
   if (n > 1) {
     // Last argument should be a list and its elements are function arguments.
     last = state->getArg(n - 1);
-    if (last.eq(Svalue::NIL))
+    if (last.eq(Value::NIL))
       argNum -= 1;
     else {
       state->checkType(last, TT_CELL);
@@ -501,9 +579,9 @@ static Svalue s_apply(State* state) {
     }
   }
 
-  Svalue* args = NULL;
+  Value* args = NULL;
   if (argNum > 0)
-    args = static_cast<Svalue*>(alloca(sizeof(Svalue*) * argNum));
+    args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
   for (int i = 0; i < argNum; ++i) {
     if (i < n - 2)
       args[i] = state->getArg(i + 1);
@@ -513,188 +591,319 @@ static Svalue s_apply(State* state) {
     }
   }
 
-  Svalue f = state->getArg(0);
+  Value f = state->getArg(0);
   return state->tailcall(f, argNum, args);
 }
 
-static Svalue s_run_binary(State* state) {
-  Svalue bin = state->getArg(0);
-  Svalue result;
+static Value s_runBinary(State* state) {
+  Value bin = state->getArg(0);
+  Value result;
   if (!state->runBinary(bin, &result))
-    return Svalue::NIL;
+    return Value::NIL;
   return result;
 }
 
-static Svalue s_make_hash_table(State* state) {
-  return state->createHashTable();
+static Value s_table(State* state) {
+  bool iso = false;
+  if (state->getArgNum() > 0) {
+    Value type = state->getArg(0);
+    if (type.eq(state->intern("iso")))
+      iso = true;
+    else
+      state->runtimeError("Illegal compare type `%@`", &type);
+  }
+  return state->createHashTable(iso);
 }
 
-static Svalue s_hash_table_get(State* state) {
-  Svalue h = state->getArg(0);
-  Svalue key = state->getArg(1);
+static Value s_tableGet(State* state) {
+  Value h = state->getArg(0);
+  Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
-  const Svalue* result = static_cast<SHashTable*>(h.toObject())->get(key);
-  if (result == NULL)
-    return Svalue::NIL;
-  return *result;
+  const Value* result = static_cast<SHashTable*>(h.toObject())->get(key);
+  if (result == NULL) {
+    Value v = state->getArgNum() > 2 ? state->getArg(2) : Value::NIL;
+    return state->multiValues(v, Value::NIL);
+  }
+  return state->multiValues(*result, state->getConstant(State::T));
 }
 
-static Svalue s_hash_table_put(State* state) {
-  Svalue h = state->getArg(0);
-  Svalue key = state->getArg(1);
-  Svalue value = state->getArg(2);
+static Value s_tablePut(State* state) {
+  Value h = state->getArg(0);
+  Value key = state->getArg(1);
+  Value value = state->getArg(2);
   state->checkType(h, TT_HASH_TABLE);
   static_cast<SHashTable*>(h.toObject())->put(key, value);
   return value;
 }
 
-static Svalue s_hash_table_exists(State* state) {
-  Svalue h = state->getArg(0);
-  Svalue key = state->getArg(1);
+static Value s_tableExists(State* state) {
+  Value h = state->getArg(0);
+  Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
-  Svalue result;
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
+  Value result;
+  return state->boolean(static_cast<SHashTable*>(h.toObject())->get(key) != NULL);
 }
 
-static Svalue s_hash_table_delete(State* state) {
-  Svalue h = state->getArg(0);
-  Svalue key = state->getArg(1);
+static Value s_tableDelete(State* state) {
+  Value h = state->getArg(0);
+  Value key = state->getArg(1);
   state->checkType(h, TT_HASH_TABLE);
-  return state->boolValue(static_cast<SHashTable*>(h.toObject())->remove(key));
+  return state->boolean(static_cast<SHashTable*>(h.toObject())->remove(key));
 }
 
-static Svalue s_hash_table_keys(State* state) {
-  Svalue h = state->getArg(0);
+static Value s_tableKeys(State* state) {
+  Value h = state->getArg(0);
   state->checkType(h, TT_HASH_TABLE);
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
-  Svalue result = Svalue::NIL;
+  Value result = Value::NIL;
   for (auto kv : *ht)
     result = state->cons(kv.key, result);
   return result;
 }
 
-static Svalue s_set_macro_character(State* state) {
-  Svalue chr = state->getArg(0);
-  Svalue fn = state->getArg(1);
+static Value s_setMacroCharacter(State* state) {
+  Value chr = state->getArg(0);
+  Value fn = state->getArg(1);
   state->setMacroCharacter(chr.toCharacter(), fn);
   return fn;
 }
 
-static Svalue s_get_macro_character(State* state) {
-  Svalue chr = state->getArg(0);
+static Value s_getMacroCharacter(State* state) {
+  Value chr = state->getArg(0);
   return state->getMacroCharacter(chr.toCharacter());
 }
 
-static Svalue s_collect_garbage(State* state) {
+static Value s_collectGarbage(State* state) {
   state->collectGarbage();
   return state->getConstant(State::T);
 }
 
-static Svalue s_exit(State* state) {
-  Svalue v = state->getArg(0);
+static Value s_exit(State* state) {
+  Value v = state->getArg(0);
   state->checkType(v, TT_FIXNUM);
   int code = v.toFixnum();
   exit(code);
-  return Svalue::NIL;
+  return state->multiValues();
 }
 
-static Svalue s_vmtrace(State* state) {
-  Svalue v = state->getArg(0);
-  bool b = state->isTrue(v);
+static Value s_vmtrace(State* state) {
+  Value v = state->getArg(0);
+  bool b = v.isTrue();
   state->setVmTrace(b);
   return state->getConstant(State::T);
 }
 
-static Svalue s_open(State* state) {
-  Svalue filespec = state->getArg(0);
+static Value s_open(State* state) {
+  Value filespec = state->getArg(0);
   state->checkType(filespec, TT_STRING);
   const char* mode = "rb";
-  if (state->getArgNum() > 1 && state->isTrue(state->getArg(1)))
+  if (state->getArgNum() > 1 && state->getArg(1).isTrue())
     mode = "wb";
 
   const char* path = static_cast<String*>(filespec.toObject())->c_str();
   FILE* fp = fopen(path, mode);
   if (fp == NULL)
-    return Svalue::NIL;
+    return Value::NIL;
   return state->createFileStream(fp);
 }
 
-static Svalue s_close(State* state) {
-  Svalue v = state->getArg(0);
+static Value s_close(State* state) {
+  Value v = state->getArg(0);
   state->checkType(v, TT_STREAM);
 
-  SStream* ss = static_cast<SStream*>(v.toObject());
-  Stream* stream = ss->getStream();
-  return state->boolValue(stream->close());
+  Stream* stream = static_cast<SStream*>(v.toObject())->getStream();
+  return state->boolean(stream->close());
+}
+
+static Value s_int(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FIXNUM:
+    return v;
+  case TT_FLONUM:
+    {
+      Flonum f = v.toFlonum(state);
+      return Value(static_cast<Fixnum>(f));
+    }
+  case TT_STRING:
+    {
+      String* string = static_cast<String*>(v.toObject());
+      long l = atol(string->c_str());
+      return Value(l);
+    }
+  default:
+    break;
+  }
+  state->runtimeError("Cannot convert `%@` to int", &v);
+  return v;
+}
+
+static Value s_flonum(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FLONUM:
+    return v;
+  case TT_FIXNUM:
+    {
+      Fixnum i = v.toFixnum();
+      return state->flonum(static_cast<Flonum>(i));
+    }
+  case TT_STRING:
+    {
+      String* string = static_cast<String*>(v.toObject());
+      double d = atof(string->c_str());
+      return state->flonum(static_cast<Flonum>(d));
+    }
+  default:
+    break;
+  }
+  state->runtimeError("Cannot convert `%@` to flonum", &v);
+  return v;
+}
+
+static Value s_string(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_STRING:
+    return v;
+  default:
+    {
+      StrOStream stream(state->getAllocator());
+      v.output(state, &stream, false);
+      return state->string(stream.getString(), stream.getLength());
+    }
+  }
+}
+
+static Value s_intern(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  String* string = static_cast<String*>(v.toObject());
+  return state->intern(string->c_str());
+}
+
+static Value s_stringLength(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  String* str = static_cast<String*>(v.toObject());
+  return Value(str->len());
+}
+
+static Value s_charAt(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_STRING);
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  Fixnum index = i.toFixnum();
+  String* str = static_cast<String*>(v.toObject());
+  if (index < 0 || index >= str->len())
+    return Value::NIL;
+  return state->character(str->c_str()[i.toFixnum()]);
+}
+
+static Value s_declaim(State* state) {
+  // Completely ignored all arguments.
+  // Returns '(values)' to create empty result.
+  return list(state, state->intern("values"));
 }
 
 void installBasicFunctions(State* state) {
-  state->defineGlobal(Svalue::NIL, Svalue::NIL);
+  state->defineGlobal(Value::NIL, Value::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
 
-  state->defineNative("macroexpand-1", s_macroexpand_1, 1);
-  state->defineNative("cons", s_cons, 2);
-  state->defineNative("car", s_car, 1);
-  state->defineNative("cdr", s_cdr, 1);
-  state->defineNative("set-car!", s_set_car, 2);
-  state->defineNative("set-cdr!", s_set_cdr, 2);
-  state->defineNative("list", s_list, 0, -1);
-  state->defineNative("list*", s_listStar, 0, -1);
-  state->defineNative("pair?", s_pairp, 1);
-  state->defineNative("symbol?", s_symbolp, 1);
-  state->defineNative("append", s_append, 0, -1);
-  state->defineNative("reverse!", s_nreverse, 1);
-  state->defineNative("+", s_add, 0, -1);
-  state->defineNative("-", s_sub, 0, -1);
-  state->defineNative("*", s_mul, 0, -1);
-  state->defineNative("/", s_div, 0, -1);
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+  struct {
+    const char* name;
+    NativeFuncType func;
+    int minArgNum, maxArgNum;
+  } static const FuncTable[] = {
+    { "macroexpand-1", s_macroexpand_1, 1 },
+    { "type", s_type, 1 },
+    { "cons", s_cons, 2 },
+    { "car", s_car, 1 },
+    { "cdr", s_cdr, 1 },
+    { "set-car!", s_setCar, 2 },
+    { "set-cdr!", s_setCdr, 2 },
+    { "list", s_list, 0, -1 },
+    { "list*", s_listStar, 0, -1 },
+    { "append", s_append, 0, -1 },
+    { "append!", s_appendBang, 0, -1 },
+    { "reverse!", s_reverseBang, 1 },
+    { "+", s_add, 0, -1 },
+    { "-", s_sub, 0, -1 },
+    { "*", s_mul, 0, -1 },
+    { "/", s_div, 0, -1 },
+    { "mod", s_mod, 2 },
 
-  state->defineNative("is", s_is, 2);
-  state->defineNative("iso", s_iso, 2);
-  state->defineNative("<", s_lessThan, 2, -1);
-  state->defineNative(">", s_greaterThan, 2, -1);
-  state->defineNative("<=", s_lessEqual, 2, -1);
-  state->defineNative(">=", s_greaterEqual, 2, -1);
+    { "eq?", s_eq, 2 },
+    { "equal?", s_equal, 2 },
+    { "<", s_lessThan, 2, -1 },
+    { ">", s_greaterThan, 2, -1 },
+    { "<=", s_lessEqual, 2, -1 },
+    { ">=", s_greaterEqual, 2, -1 },
 
-  state->defineNative("sin", s_sin, 1);
-  state->defineNative("cos", s_cos, 1);
-  state->defineNative("tan", s_tan, 1);
-  state->defineNative("sqrt", s_sqrt, 1);
-  state->defineNative("log", s_log, 1);
-  state->defineNative("floor", s_floor, 1);
-  state->defineNative("ceil", s_ceil, 1);
-  state->defineNative("atan2", s_atan2, 2);
-  state->defineNative("expt", s_expt, 2);
+    { "display", s_display, 1, 2 },
+    { "write", s_write, 1, 2 },
+    { "format", s_format, 2, -1 },
 
-  state->defineNative("display", s_display, 1, 2);
-  state->defineNative("write", s_write, 1, 2);
+    { "read", s_read, 0, 2 },
+    { "read-from-string", s_readFromString, 1 },
+    { "read-delimited-list", s_readDelimitedList, 2 },
+    { "read-char", s_readChar, 0, 1 },
+    { "unread-char", s_unreadChar, 1, 2 },
+    { "read-line", s_readLine, 0, 1 },
 
-  state->defineNative("read", s_read, 0, 2);
-  state->defineNative("read-delimited-list", s_read_delimited_list, 2);
-  state->defineNative("read-char", s_read_char, 0, 1);
-  state->defineNative("read-line", s_read_line, 0, 1);
+    { "gensym", s_gensym, 0 },
+    { "uniq", s_gensym, 0 },
+    { "apply", s_apply, 1, -1 },
+    { "run-binary", s_runBinary, 1 },
 
-  state->defineNative("uniq", s_uniq, 0);
-  state->defineNative("apply", s_apply, 1, -1);
-  state->defineNative("run-binary", s_run_binary, 1);
+    { "table", s_table, 0, 1 },
+    { "table-get", s_tableGet, 2, 3 },
+    { "table-put!", s_tablePut, 3 },
+    { "table-exists?", s_tableExists, 2 },
+    { "table-delete!", s_tableDelete, 2 },
+    { "table-keys", s_tableKeys, 1 },
 
-  state->defineNative("make-hash-table", s_make_hash_table, 0);
-  state->defineNative("hash-table-get", s_hash_table_get, 2);
-  state->defineNative("hash-table-put!", s_hash_table_put, 3);
-  state->defineNative("hash-table-exists?", s_hash_table_exists, 2);
-  state->defineNative("hash-table-delete!", s_hash_table_delete, 2);
-  state->defineNative("hash-table-keys", s_hash_table_keys, 1);
+    { "set-macro-character", s_setMacroCharacter, 2 },
+    { "get-macro-character", s_getMacroCharacter, 1 },
 
-  state->defineNative("set-macro-character", s_set_macro_character, 2);
-  state->defineNative("get-macro-character", s_get_macro_character, 1);
+    { "collect-garbage", s_collectGarbage, 0 },
+    { "exit", s_exit, 1 },
+    { "vmtrace", s_vmtrace, 1 },
 
-  state->defineNative("collect-garbage", s_collect_garbage, 0);
-  state->defineNative("exit", s_exit, 1);
-  state->defineNative("vmtrace", s_vmtrace, 1);
+    { "open", s_open, 1, 2 },
+    { "close", s_close, 1 },
 
-  state->defineNative("open", s_open, 1, 2);
-  state->defineNative("close", s_close, 1);
+    { "int", s_int, 1 },
+    { "flonum", s_flonum, 1 },
+    { "string", s_string, 1 },
+    { "intern", s_intern, 1 },
+
+    { "string-length", s_stringLength, 1 },
+    { "char-at", s_charAt, 2 },
+  };
+
+  for (auto it : FuncTable) {
+    int maxArgNum = it.maxArgNum == 0 ? it.minArgNum : it.maxArgNum;
+    state->defineNative(it.name, it.func, it.minArgNum, maxArgNum);
+  }
+
+  state->defineNativeMacro("declaim", s_declaim, 0, -1);
+
+  {
+    bind::Binder b(state);
+    b.bind("sin", (double (*)(double)) sin);
+    b.bind("cos", (double (*)(double)) cos);
+    b.bind("tan", (double (*)(double)) tan);
+    b.bind("sqrt", (double (*)(double)) sqrt);
+    b.bind("log", (double (*)(double)) log);
+    b.bind("floor", (double (*)(double)) floor);
+    b.bind("ceil", (double (*)(double)) ceil);
+    b.bind("atan2", (double (*)(double, double)) atan2);
+    b.bind("expt", (double (*)(double, double)) pow);
+  }
 }
 
 }  // namespace yalp

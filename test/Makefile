@@ -27,7 +27,7 @@ OBJ_DIR = ../obj
 CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -Werror -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
+CXXFLAGS += -g -Wall -Wextra -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD  # -Werror
 
 SRCS=$(wildcard $(SRCPATH)/*.cc)
 
@@ -35,7 +35,7 @@ DEPS:=$(SRCS:%.cc=%.d)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = hash_table_test symbol_manager_test object_test read_test state_test util_test
+TESTS = hash_table_test symbol_manager_test stream_test object_test read_test state_test util_test
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -100,27 +100,32 @@ hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
 run-hash_table_test:	hash_table_test
 	./hash_table_test
 
-symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-symbol_manager_test:	symbol_manager_test
 	./symbol_manager_test
 
-object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+stream_test:	stream_test.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/allocator.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
+run-stream_test:	stream_test
+	./stream_test
+
+object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-object_test:	object_test
 	./object_test
 
-read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-read_test:	read_test
 	./read_test
 
-state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-state_test:	state_test
 	./state_test
 
-util_test:	util_test.o $(OBJ_DIR)/util.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/hash_table.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o gtest_main.a
+util_test:	util_test.o $(OBJ_DIR)/util.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-util_test:	util_test
 	./util_test

@@ -6,6 +6,10 @@ using namespace yalp;
 typedef const char* Key;
 typedef const char* Value;
 
+#ifdef DISABLE_OVERRIDE
+#define override  // Disable C++11 `override` keyword
+#endif
+
 struct TestHashPolicy : public HashPolicy<Key> {
   virtual unsigned int hash(const Key a) override {
     return strlen(a);
@@ -18,7 +22,7 @@ struct TestHashPolicy : public HashPolicy<Key> {
 class HashTableTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
-    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL, NULL);
+    allocator_ = Allocator::create(getDefaultAllocFunc(), NULL);
   }
 
   virtual void TearDown() override {

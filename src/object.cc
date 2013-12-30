@@ -2,8 +2,10 @@
 /// Object
 //=============================================================================
 
+#include "build_env.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "yalp/util.hh"  // for strHash
 #include "hash_table.hh"
 #include "vm.hh"  // for CallStack
 
@@ -14,32 +16,46 @@
 namespace yalp {
 
 //=============================================================================
-// Symbol class is not derived from Sobject.
+// Symbol class is not derived from Object.
 // Instances are managed by SymbolManager
 // and not be the target of GC.
 Symbol::Symbol(char* name)
   : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
-bool Sobject::equal(const Sobject* o) const {
+bool Object::equal(const Object* o) const {
   return this == o;  // Simple pointer equality.
 }
 
-unsigned int Sobject::calcHash() const {
+unsigned int Object::calcHash(State*) const {
   return (reinterpret_cast<long>(this) >> 4) * 23;
 }
 
-bool Sobject::isCallable() const  { return false; }
+bool Object::isCallable() const  { return false; }
 
 //=============================================================================
-Cell::Cell(Svalue a, Svalue d)
-  : Sobject(), car_(a), cdr_(d) {}
+Cell::Cell(Value a, Value d)
+  : Object(), car_(a), cdr_(d) {}
 
 Type Cell::getType() const  { return TT_CELL; }
 
-bool Cell::equal(const Sobject* target) const {
+bool Cell::equal(const Object* target) const {
   const Cell* p = static_cast<const Cell*>(target);
   return car_.equal(p->car_) && cdr_.equal(p->cdr_);
+}
+
+unsigned int Cell::calcHash(State* state) const {
+  const int MUL = 37, ADD = 1;
+  unsigned int hash = 0;
+  const Cell* p = this;
+  for (;;) {
+    hash = hash * MUL + p->car().calcHash(state) + ADD;
+    Value d = p->cdr();
+    if (d.getType() != TT_CELL)
+      break;
+    p = static_cast<Cell*>(d.toObject());
+  }
+  return hash * MUL + p->cdr().calcHash(state);
 }
 
 void Cell::output(State* state, Stream* o, bool inspect) const {
@@ -61,7 +77,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
       break;
     c = ' ';
   }
-  if (!p->cdr_.eq(Svalue::NIL)) {
+  if (!p->cdr_.eq(Value::NIL)) {
     o->write(" . ");
     p->cdr_.output(state, o, inspect);
   }
@@ -71,23 +87,23 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
 void Cell::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   car_.mark();
   cdr_.mark();
 }
 
-void Cell::setCar(Svalue a) {
+void Cell::setCar(Value a) {
   car_ = a;
 }
 
-void Cell::setCdr(Svalue d) {
+void Cell::setCdr(Value d) {
   cdr_ = d;
 }
 
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(Svalue::NIL))
+      !state->cdr(cdr()).eq(Value::NIL))
     return NULL;
 
   struct {
@@ -99,7 +115,7 @@ const char* Cell::isAbbrev(State* state) const {
     { State::UNQUOTE, "," },
     { State::UNQUOTE_SPLICING, ",@" },
   };
-  Svalue a = car();
+  Value a = car();
   for (auto t : Table)
     if (a.eq(state->getConstant(t.c)))
       return t.abbrev;
@@ -109,24 +125,24 @@ const char* Cell::isAbbrev(State* state) const {
 //=============================================================================
 
 String::String(const char* string, int len)
-  : Sobject()
+  : Object()
   , string_(string), len_(len) {
 }
 
 void String::destruct(Allocator* allocator) {
-  FREE(allocator, const_cast<char*>(string_));
-  Sobject::destruct(allocator);
+  allocator->free(const_cast<char*>(string_));
+  Object::destruct(allocator);
 }
 
 Type String::getType() const  { return TT_STRING; }
 
-bool String::equal(const Sobject* target) const {
+bool String::equal(const Object* target) const {
   const String* p = static_cast<const String*>(target);
   return len_ == p->len_ &&
     memcmp(string_, p->string_, len_) == 0;
 }
 
-unsigned int String::calcHash() const {
+unsigned int String::calcHash(State*) const {
   return strHash(string_);
 }
 
@@ -164,19 +180,19 @@ void String::output(State*, Stream* o, bool inspect) const {
 
 //=============================================================================
 
-Float::Float(Sfloat v)
-  : Sobject()
+SFlonum::SFlonum(Flonum v)
+  : Object()
   , v_(v) {
 }
 
-Type Float::getType() const  { return TT_FLOAT; }
+Type SFlonum::getType() const  { return TT_FLONUM; }
 
-bool Float::equal(const Sobject* target) const {
-  const Float* p = static_cast<const Float*>(target);
+bool SFlonum::equal(const Object* target) const {
+  const SFlonum* p = static_cast<const SFlonum*>(target);
   return v_ == p->v_;
 }
 
-void Float::output(State*, Stream* o, bool) const {
+void SFlonum::output(State*, Stream* o, bool) const {
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "%f", v_);
   o->write(buffer);
@@ -185,15 +201,15 @@ void Float::output(State*, Stream* o, bool) const {
 //=============================================================================
 
 Vector::Vector(Allocator* allocator, int size)
-  : Sobject()
+  : Object()
   , size_(size) {
-  void* memory = ALLOC(allocator, sizeof(Svalue) * size_);
-  buffer_ = new(memory) Svalue[size_];
+  void* memory = allocator->alloc(sizeof(Value) * size_);
+  buffer_ = new(memory) Value[size_];
 }
 
 void Vector::destruct(Allocator* allocator) {
-  FREE(allocator, buffer_);
-  Sobject::destruct(allocator);
+  allocator->free(buffer_);
+  Object::destruct(allocator);
 }
 
 Type Vector::getType() const { return TT_VECTOR; }
@@ -212,50 +228,50 @@ void Vector::output(State* state, Stream* o, bool inspect) const {
 void Vector::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   for (int n = size_, i = 0; i < n; ++i)
     buffer_[i].mark();
 }
 
-Svalue Vector::get(int index)  {
+Value Vector::get(int index)  {
   assert(0 <= index && index < size_);
   return buffer_[index];
 }
 
-void Vector::set(int index, Svalue x)  {
+void Vector::set(int index, Value x)  {
   assert(0 <= index && index < size_);
   buffer_[index] = x;
 }
 
 //=============================================================================
 
-SHashTable::SHashTable(Allocator* allocator, HashPolicy<Svalue>* policy)
-  : Sobject() {
-  void* memory = ALLOC(allocator, sizeof(*table_));
+SHashTable::SHashTable(Allocator* allocator, HashPolicy<Value>* policy)
+  : Object() {
+  void* memory = allocator->alloc(sizeof(*table_));
   table_ = new(memory) TableType(policy, allocator);
 }
 
 void SHashTable::destruct(Allocator* allocator) {
   table_->~TableType();
-  FREE(allocator, table_);
-  Sobject::destruct(allocator);
+  allocator->free(table_);
+  Object::destruct(allocator);
 }
 
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
 void SHashTable::output(State*, Stream* o, bool) const {
   char buffer[64];
-  snprintf(buffer, sizeof(buffer), "#<hash-table:%p>", this);
+  snprintf(buffer, sizeof(buffer), "#<table:%p>", this);
   o->write(buffer);
 }
 
 void SHashTable::mark() {
   if (isMarked())
     return;
-  Sobject::mark();
+  Object::mark();
   TableType& table = *table_;
   for (auto kv : table)
-    const_cast<Svalue*>(&kv.value)->mark();
+    const_cast<Value*>(&kv.value)->mark();
 }
 
 int SHashTable::getCapacity() const  { return table_->getCapacity(); }
@@ -263,21 +279,21 @@ int SHashTable::getEntryCount() const  { return table_->getEntryCount(); }
 int SHashTable::getConflictCount() const  { return table_->getConflictCount(); }
 int SHashTable::getMaxDepth() const  { return table_->getMaxDepth(); }
 
-void SHashTable::put(Svalue key, Svalue value) {
+void SHashTable::put(Value key, Value value) {
   table_->put(key, value);
 }
 
-const Svalue* SHashTable::get(Svalue key) const {
+const Value* SHashTable::get(Value key) const {
   return table_->get(key);
 }
 
-bool SHashTable::remove(Svalue key) {
+bool SHashTable::remove(Value key) {
   return table_->remove(key);
 }
 
 //=============================================================================
 Callable::Callable()
-  : Sobject()
+  : Object()
   , name_(NULL)  {}
 
 bool Callable::isCallable() const  { return true; }
@@ -286,19 +302,19 @@ void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
-Closure::Closure(State* state, Svalue body, int freeVarCount, int minArgNum, int maxArgNum)
+Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int maxArgNum)
   : Callable()
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
-    void* memory = ALLOC(state->getAllocator(), sizeof(Svalue) * freeVarCount);
-    freeVariables_ = new(memory) Svalue[freeVarCount];
+    void* memory = state->alloc(sizeof(Value) * freeVarCount);
+    freeVariables_ = new(memory) Value[freeVarCount];
   }
 }
 
 void Closure::destruct(Allocator* allocator) {
   if (freeVariables_ != NULL)
-    FREE(allocator, freeVariables_);
+    allocator->free(freeVariables_);
   Callable::destruct(allocator);
 }
 
@@ -342,19 +358,19 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 }
 
 //=============================================================================
-Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size,
+Continuation::Continuation(State* state, const Value* stack, int size,
                            const CallStack* callStack, int callStackSize)
   : Callable(), copiedStack_(NULL), stackSize_(0)
   , callStack_(NULL), callStackSize_(0) {
   if (size > 0) {
-    copiedStack_ = static_cast<Svalue*>(ALLOC(allocator, sizeof(Svalue) * size));
+    copiedStack_ = static_cast<Value*>(state->alloc(sizeof(Value) * size));
     stackSize_ = size;
-    memcpy(copiedStack_, stack, sizeof(Svalue) * size);
+    memcpy(copiedStack_, stack, sizeof(Value) * size);
   }
 
   if (--callStackSize > 0) {
     int nbytes = sizeof(CallStack) * callStackSize;
-    callStack_ = static_cast<CallStack*>(ALLOC(allocator, nbytes));
+    callStack_ = static_cast<CallStack*>(state->alloc(nbytes));
     callStackSize_ = callStackSize;
     memcpy(callStack_, callStack, nbytes);
   }
@@ -362,9 +378,9 @@ Continuation::Continuation(Allocator* allocator, const Svalue* stack, int size,
 
 void Continuation::destruct(Allocator* allocator) {
   if (callStack_ != NULL)
-    FREE(allocator, callStack_);
+    allocator->free(callStack_);
   if (copiedStack_ != NULL)
-    FREE(allocator, copiedStack_);
+    allocator->free(copiedStack_);
   Callable::destruct(allocator);
 }
 
@@ -384,10 +400,10 @@ void Continuation::mark() {
 
 //=============================================================================
 SStream::SStream(Stream* stream)
-  : Sobject(), stream_(stream)  {}
+  : Object(), stream_(stream)  {}
 
 void SStream::destruct(Allocator* allocator) {
-  FREE(allocator, stream_);
+  allocator->free(stream_);
 }
 
 Type SStream::getType() const  { return TT_STREAM; }

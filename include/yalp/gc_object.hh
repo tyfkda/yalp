@@ -27,7 +27,7 @@ private:
 
   GcObject* next_;
 
-  friend Allocator;
+  friend class Allocator;
 };
 
 }  // namespace yalp

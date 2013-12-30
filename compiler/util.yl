@@ -1,0 +1,41 @@
+;;;; Utility functions for compiler
+
+(defmacro record (args parm &body body)
+  `(apply (^ ,parm ,@body)
+          ,args))
+
+(defmacro record-case (x &rest args)
+  (let-gensym value
+    `(let1 ,value ,x
+       (case (car ,value)
+         ,@(map (^(e)
+                  (let1 key (car e)
+                    (if (eq? key 't)
+                        e
+                      `(,key
+                        (record (cdr ,value) ,@(cdr e))))))
+                args)))))
+
+;;; dotted pair -> proper list
+(defun dotted->proper (ls)
+  (if (and ls
+           (or (no (pair? ls))
+               (cdr (last ls))))
+      ;; Symbol or dotted list: convert it to proper list.
+      (alet ((p ls)
+             (acc '()))
+        (if (pair? p)
+            (loop (cdr p)
+                  (cons (car p) acc))
+          (reverse! (cons p acc))))
+    ;; nil or proper list: return as is.
+    ls))
+
+;;;; set
+
+(defun set-minus (s1 s2)
+  (if s1
+      (if (member (car s1) s2)
+          (set-minus (cdr s1) s2)
+        (cons (car s1) (set-minus (cdr s1) s2)))
+    '()))
