@@ -89,6 +89,7 @@ ErrorCode Reader::read(Value* pValue) {
   case '(':
     return readList(pValue);
   case ')': case ']': case '}':
+    ungetc(c);
     return EXTRA_CLOSE_PAREN;
   case ';':
     skipUntilNextLine();
@@ -178,6 +179,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   ErrorCode err;
   for (;;) {
     skipSpaces();
+#if 0
     int c = getc();
     if (c == terminator) {
       *pValue = nreverse(value);
@@ -186,6 +188,8 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
     }
 
     ungetc(c);
+#endif
+
     err = read(&v);
     if (err != SUCCESS)
       break;
@@ -198,6 +202,17 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
     *pValue = nreverse(value);
     state_->restoreArenaWith(arena, *pValue);
     return NO_CLOSE_PAREN;
+  case EXTRA_CLOSE_PAREN: case ILLEGAL_CHAR:
+    {
+      int c = getc();
+      if (c != terminator) {
+        ungetc(c);
+        return err;
+      }
+      *pValue = nreverse(value);
+      state_->restoreArenaWith(arena, *pValue);
+      return SUCCESS;
+    }
   case DOT_AT_BASE:
     {
       if (value.eq(Value::NIL))

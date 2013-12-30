@@ -29,6 +29,9 @@ TEST_F(ReadTest, LineComment) {
   Value s;
   ASSERT_EQ(SUCCESS, read(" ; Line comment\n 123", &s));
   ASSERT_TRUE(Value(123).eq(s));
+
+  ASSERT_EQ(SUCCESS, read("(1 ; 2\n #| 3 |#)", &s));
+  ASSERT_TRUE(list(state_, Value(1)).equal(s));
 }
 
 TEST_F(ReadTest, BlockComment) {
