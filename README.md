@@ -36,6 +36,11 @@ Under construction.
 * Can be used for shell scripting language
 
 ## Release
+### v005
+* Add function binder
+* Chaned to Common Lisp like syntax
+* Support inline function
+
 ### v004
 * Add multiple values
 * Add stream
