@@ -814,7 +814,6 @@ Value Vm::runLoop() {
     CASE(TAPPLY) {
       // SHIFT
       int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
