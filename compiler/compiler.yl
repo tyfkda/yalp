@@ -208,7 +208,8 @@
                           -1))))
       (collect-free free e
                     (list* 'CLOSE varnum (len free)
-                           (compile-body proper-vars proper-vars body free sets s '(RET))
+                           (compile-body proper-vars proper-vars body free sets s
+                                         (list 'RET))
                            next)))))
 
 (defun collect-free (vars e next)
