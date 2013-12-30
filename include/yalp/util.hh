@@ -5,6 +5,7 @@
 #ifndef _YALP_UTIL_HH_
 #define _YALP_UTIL_HH_
 
+#include "yalp/config.hh"
 #include <stdarg.h>
 
 namespace yalp {

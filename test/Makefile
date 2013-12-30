@@ -27,7 +27,7 @@ OBJ_DIR = ../obj
 CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -Werror -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD
+CXXFLAGS += -g -Wall -Wextra -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD  # -Werror
 
 SRCS=$(wildcard $(SRCPATH)/*.cc)
 
