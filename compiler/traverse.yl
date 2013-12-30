@@ -28,11 +28,17 @@
 (defun scope-frees-set! (scope v)  (set-car! (cddr scope) v))
 (defun scope-sets-set! (scope v)  (set-car! (cdddr scope) v))
 
+;; Registers free variable into scope and returns its index number.
 (defun register-fref (x scope)
-  (let1 p (cddr scope)
-    (unless (member x (car p))
-      (set-car! p
-                (cons x (car p))))))
+  (let1 frees (scope-frees scope)
+    (if frees
+        (aif (find-index x frees)
+             it
+          (let1 index (len frees)
+            (set-cdr! (last frees) (cons x nil))
+            index))
+      (do (scope-frees-set! scope (cons x nil))
+          0))))
 
 (defun register-set! (x v scope)
   (aif (assoc x (scope-sets scope))
@@ -87,24 +93,23 @@
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
-  (acond ((find-index x (scope-local scope))       ; Bounded variable
-          (list ':REF 'LREF it x))
-         ((find-index x (scope-upper-vars scope))  ; Free variable
-          (register-fref x scope)
-          (list ':REF 'FREF it x))
-         (t (list ':REF 'GREF x x))))              ; Global variable
+  (aif (find-index x (scope-local scope))        ; Bounded variable
+       (list ':REF 'LREF it x)
+    (if (find-index x (scope-upper-vars scope))  ; Free variable
+        (list ':REF 'FREF (register-fref x scope) x)
+      (list ':REF 'GREF x x))))                  ; Global variable
 
 (defun traverse-set! (var val scope)
   ;; TODO: Confirm var is symbol.
   (traverse var scope)
   (let1 val-node (traverse val scope)
-    (acond ((find-index var (scope-local scope))
-            (register-set! var val-node scope)
-            (list ':SET 'LSET it val-node))
-           ((find-index var (scope-upper-vars scope))
-            (register-set! var val scope)
-            (list ':SET 'FSET it val-node))
-           (t (list ':SET 'GSET var val-node)))))
+    (aif (find-index var (scope-local scope))
+         (do (register-set! var val-node scope)
+             (list ':SET 'LSET it val-node))
+      (if (find-index var (scope-upper-vars scope))
+          (do (register-set! var val scope)
+              (list ':SET 'FSET (register-fref var scope) val-node))
+        (list ':SET 'GSET var val-node)))))
 
 (defun traverse-def (var val scope)
   (let1 val-node (traverse val scope)
@@ -250,18 +255,20 @@
                  (lambda-body-slot-get node))))))))
 
 (defun my-compile-body (body scope next)
-  (my-make-boxes (cadddr scope) (scope-local scope)
-              (alet ((body body))
-                (if body
-                    (my-compile-recur (car body) scope
-                                      (loop (cdr body)))
-                  next))))
+  (if body
+      (my-make-boxes (cadddr scope) (scope-local scope)
+                     (alet ((body body))
+                       (if body
+                           (my-compile-recur (car body) scope
+                                             (loop (cdr body)))
+                         next)))
+    (list* 'VOID next)))
 
 (defun my-make-boxes (sets locals next)
-  (alet ((vars sets)
+  (alet ((vars locals)
          (n 0))
     (if vars
-        (if (member (caar vars) locals)
+        (if (assoc (car vars) sets)
             (list* 'BOX n
                    (loop (cdr vars) (+ n 1)))
           (loop (cdr vars) (+ n 1)))
