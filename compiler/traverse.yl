@@ -39,7 +39,7 @@
        (set-cdr! it
                  (cons v (cdr it)))
     (scope-sets-set! scope
-                     (acons x v (scope-sets scope)))))
+                     (acons x (list v) (scope-sets scope)))))
 
 (defun remove-if (test seq)
   (alet ((p seq)
@@ -73,12 +73,35 @@
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
-  (aif (find-index x (scope-local scope))
-      `(:LREF ,it)
-    (aif (find-index x (scope-upper-vars scope))
-         (do (register-fref x scope)
-             `(:FREF ,x))
-      `(:GREF ,x))))
+  (acond ((find-index x (scope-local scope))       ; Bounded variable
+          (list ':REF 'LREF it x))
+         ((find-index x (scope-upper-vars scope))  ; Free variable
+          (register-fref x scope)
+          (list ':REF 'FREF it x))
+         (t (list ':REF 'GREF x x))))              ; Global variable
+
+(defun traverse-set! (var val scope)
+  (let1 val-node (traverse val scope)
+    (acond ((find-index var (car scope))
+            (register-set! var val scope)
+            (list ':SET 'LSET it val-node))
+           ((find-index var (caddr scope))
+            (register-set! var val scope)
+            (list ':SET 'FSET it val-node))
+           (t (list ':SET 'GSET var val-node)))))
+
+(defun traverse-def (var val scope)
+  (let1 val-node (traverse val scope)
+    (list ':DEF var val-node)))
+
+(defun traverse-if (test then rest scope)
+  (when (and rest (cdr rest))
+    (compile-error "malformed if"))
+  `(:IF ,(traverse test scope)
+        ,(traverse then scope)
+        ,(if rest
+             (traverse (car rest) scope)
+           `(:VOID))))
 
 (defun traverse-list (x scope)
   (record-case x
@@ -95,28 +118,6 @@
                (t (let ((func (car x))
                         (args (cdr x)))
                     (traverse-apply func args scope)))))
-
-(defun traverse-if (test then rest scope)
-  (when (and rest (cdr rest))
-    (compile-error "malformed if"))
-  `(:IF ,(traverse test scope)
-        ,(traverse then scope)
-        ,(if rest
-             (traverse (car rest) scope)
-           `(:VOID))))
-
-(defun traverse-set! (var val scope)
-  (register-set! var val scope)
-  (let1 val-node (traverse val scope)
-    (aif (find-index var (car scope))
-         (list ':LSET it val-node)
-      (aif (find-index var (caddr scope))
-           (list ':FSET it val-node)
-        (list ':GSET var val-node)))))
-
-(defun traverse-def (var val scope)
-  (let1 val-node (traverse val scope)
-    (list ':DEF var val-node)))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -141,6 +142,8 @@
   (let* ((scope (create-scope '() nil))
          (tree (traverse (macroexpand-all code '())
                          scope)))
+    (display "TRAVERSED: ")
+    (print tree)
     (my-compile-recur tree scope '(HALT))))
 
 (defun my-collect-free (vars scope next)
@@ -156,25 +159,14 @@
 
 (defun my-compile-recur (tree scope next)
   (record-case tree
-               (:LREF (v)
-                      (list* 'LREF v next))
-               (:FREF (v)
-                      (let1 i (find-index v (caddr scope))
-                        (list* 'FREF i
-                               (if (member v (cadddr scope))
-                                   (list* 'UNBOX next)
-                                 next))))
-               (:GREF (v)
-                      (list* 'GREF v next))
-               (:LSET (i val)
-                      (my-compile-recur val scope
-                                        (list* 'LSET i next)))
-               (:FSET (i val)
-                      (my-compile-recur val scope
-                                        (list* 'FSET i next)))
-               (:GSET (var val)
-                      (my-compile-recur val scope
-                                        (list* 'GSET var next)))
+               (:REF (op i sym)
+                     (list* op i
+                            (if (assoc sym (scope-sets scope))
+                                (list* 'UNBOX next)
+                              next)))
+               (:SET (op i val)
+                     (my-compile-recur val scope
+                                       (list* op i next)))
                (:DEF (var val)
                      (my-compile-recur val scope
                                        (list* 'DEF var next)))
@@ -234,13 +226,16 @@
   (write/ss x)
   (display "\n"))
 
-(defun main (args)
-  (awhile (read)
-    (print/ss (my-compile it))))
+;(defun main (args)
+;  (awhile (read)
+;    (print/ss (my-compile it))))
 
 
-;(let1 x '(alet ((i 0))
-;           (if (< i 10)
-;             (loop (+ i 1))))
-;      (print/ss (my-compile x))
-;      (print/ss (compile x)))
+(let1 x '((^(x)
+            (set! x 123)
+            x)
+          nil)
+  (let1 code (my-compile x)
+    (print/ss code)
+    (let1 result (run-binary code)
+      (print (list 'RESULT: result)))))
