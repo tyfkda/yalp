@@ -47,21 +47,35 @@
     (if p
         (loop (cdr p)
               (if (test (car p))
-                  (cons (car p) acc)
-                acc))
+                  acc
+                (cons (car p) acc)))
       (reverse! acc))))
+
+(defun remove-if-not (test seq)
+  (remove-if [no _] seq))
+
+(defun merge-scope-sets (sets1 sets2)
+  ;; Elements of sets2 may be modified.
+  (if sets1
+      (let1 s (car sets1)
+        (merge-scope-sets (cdr sets1)
+                          (aif (assoc (car s) sets2)
+                               (do (set-cdr! it (append (cdr s) (cdr it)))
+                                   sets2)
+                            (cons s sets2))))
+    sets2))
 
 (defun propagate-scope (inner-scope scope)
   (when scope
     (scope-frees-set! scope
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))
-    ;(scope-sets-set! scope
-    ;                 (let ((local (scope-local scope)))
-    ;                   (set-union (scope-sets inner-scope)
-    ;                              (remove-if [member (car _) local]
-    ;                                         (scope-local inner-scope)))))))
-    ))
+    (let* ((inner-local (scope-local inner-scope))
+           (bleed-sets (remove-if [member (car _) inner-local]
+                                  (scope-sets inner-scope))))
+      (scope-sets-set! scope
+                       (merge-scope-sets bleed-sets
+                                         (scope-sets scope))))))
 
 ;;;;
 
@@ -81,11 +95,13 @@
          (t (list ':REF 'GREF x x))))              ; Global variable
 
 (defun traverse-set! (var val scope)
+  ;; TODO: Confirm var is symbol.
+  (traverse var scope)
   (let1 val-node (traverse val scope)
-    (acond ((find-index var (car scope))
+    (acond ((find-index var (scope-local scope))
             (register-set! var val scope)
             (list ':SET 'LSET it val-node))
-           ((find-index var (caddr scope))
+           ((find-index var (scope-upper-vars scope))
             (register-set! var val scope)
             (list ':SET 'FSET it val-node))
            (t (list ':SET 'GSET var val-node)))))
@@ -171,13 +187,19 @@
                      (my-compile-recur val scope
                                        (list* 'DEF var next)))
                (:LAMBDA (inner-scope body)
-                        (let ((vars (car inner-scope))
-                              (free (caddr inner-scope)))
-                          (my-collect-free free scope
-                                           `(CLOSE ,(len (car inner-scope))  ;; argnum
-                                                   ,(len (caddr inner-scope)) ;; freenum
-                                                   ,(my-compile-body body inner-scope (list 'RET))
-                                                   ,@next))))
+                        (let ((vars (scope-local inner-scope))
+                              (frees (scope-frees inner-scope)))
+                          ;; Propagate upper-sets to inner-sets
+                          (let ((bleed-sets (remove-if-not [member (car _) frees]
+                                                           (scope-sets scope))))
+                            (scope-sets-set! inner-scope
+                                             (merge-scope-sets bleed-sets
+                                                               (scope-sets inner-scope)))
+                            (my-collect-free frees scope
+                                             `(CLOSE ,(len (car inner-scope))  ;; argnum
+                                                     ,(len (caddr inner-scope)) ;; freenum
+                                                     ,(my-compile-body body inner-scope (list 'RET))
+                                                     ,@next)))))
                (:IF (test then else)
                     (my-compile-recur test scope
                                       `(TEST
@@ -231,10 +253,10 @@
 ;    (print/ss (my-compile it))))
 
 
-(let1 x '((^(x)
-            (set! x 123)
-            x)
-          nil)
+(let1 x '(alet ((i 0))
+           (if (< i 5)
+               (loop (+ i 1))
+             i))
   (let1 code (my-compile x)
     (print/ss code)
     (let1 result (run-binary code)
