@@ -47,15 +47,24 @@ bool Cell::equal(const Object* target) const {
 unsigned int Cell::calcHash(State* state) const {
   const int MUL = 37, ADD = 1;
   unsigned int hash = 0;
-  const Cell* p = this;
-  for (;;) {
-    hash = hash * MUL + p->car().calcHash(state) + ADD;
-    Value d = p->cdr();
-    if (d.getType() != TT_CELL)
-      break;
-    p = static_cast<Cell*>(d.toObject());
+  // Need to avoid infinite loop.
+  const int N = 8;
+  const Cell* queue[N];
+  int w = 0, r = 0;
+  queue[w++] = this;
+  while (r < w) {
+    const Cell* p = queue[r++];
+    for (auto v : { p->car(), p->cdr() }) {
+      if (v.getType() == TT_CELL) {
+        if (w < N)
+          queue[w++] = static_cast<Cell*>(v.toObject());
+        continue;
+      }
+      // TODO: Handle mutual recursive with other container type (i.e. vector).
+      hash = hash * MUL + p->car().calcHash(state) + ADD;
+    }
   }
-  return hash * MUL + p->cdr().calcHash(state);
+  return hash;
 }
 
 void Cell::output(State* state, Stream* o, bool inspect) const {
