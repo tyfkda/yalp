@@ -4,10 +4,6 @@
 (defun cdddr (x) (cdr (cddr x)))
 (defun cadddr (x) (car (cdddr x)))
 (defun cddddr (x) (cdr (cdddr x)))
-(defun caddddr (x) (car (cddddr x)))
-(defun cdddddr (x) (cdr (cddddr x)))
-
-(defun append1 (ls x) (append ls (list x)))
 
 ;;;;
 
@@ -47,43 +43,11 @@
 (defun tail? (next)
   (eq? (car next) 'RET))
 
-(defun macroexpand-all (exp scope-vars)
-  (if (pair? exp)
-      (if (member (car exp) scope-vars)
-          (macroexpand-all-sub exp scope-vars)
-        (let1 expanded (macroexpand-1 exp)
-          (if (equal? expanded exp)
-              (macroexpand-all-sub exp scope-vars)
-            (macroexpand-all expanded scope-vars))))
-    exp))
-
-(defun map-macroexpand-all (ls svars)
-  (map [macroexpand-all _ svars] ls))
-
-(defun macroexpand-all-sub (exp scope-vars)
-  (record-case exp
-               (quote (obj) `(quote ,obj))
-               (^ (vars &body body)
-                  (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
-                    `(^ ,vars ,@(map-macroexpand-all body new-scope-vars))))
-               (if (&rest all)
-                   `(if ,@(map-macroexpand-all all scope-vars)))
-               (set! (var x)
-                     `(set! ,var ,(macroexpand-all x scope-vars)))
-               (def (var x)
-                    `(def ,var ,(macroexpand-all x scope-vars)))
-               (call/cc (x)
-                        `(call/cc ,(macroexpand-all x scope-vars)))
-               (defmacro (name vars &body body)
-                 (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
-                   `(defmacro ,name ,vars ,@(map-macroexpand-all body new-scope-vars))))
-               (values (&rest all)
-                       `(values ,@(map-macroexpand-all all scope-vars)))
-               (receive (vars vals &body body)
-                        (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
-                          `(receive ,vars ,(macroexpand-all vals scope-vars)
-                             ,@(map-macroexpand-all body new-scope-vars))))
-               (t (map-macroexpand-all exp scope-vars))))
+(defun macroexpand (exp)
+  (let1 expanded (macroexpand-1 exp)
+    (if (equal? expanded exp)
+        exp
+      (macroexpand expanded))))
 
 ;;;;
 
@@ -171,7 +135,7 @@
   (cond ((symbol? x)
          (traverse-refer x scope))
         ((pair? x)
-         (traverse-list x scope))
+         (traverse-list (expand-macro x scope) scope))
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
@@ -206,6 +170,13 @@
         ,(if rest
              (traverse (car rest) scope)
            '(:VOID))))
+
+(defun expand-macro (x scope)
+  (let1 f (car x)
+    (if (or (member f (scope-local scope))
+            (member f (scope-upper-vars scope)))
+        x
+      (macroexpand x))))
 
 (defun traverse-list (x scope)
   (record-case x
@@ -528,8 +499,7 @@
      (^(cc)
        (set! *exit-compile* cc)
        (let* ((scope (create-scope '() nil))
-              (tree (traverse (macroexpand-all x '())
-                              scope)))
+              (tree (traverse x scope)))
          ;(print/ss tree)
          (my-compile-recur tree scope '(HALT)))))))
 
