@@ -41,13 +41,12 @@
 #define END_DISPATCH }}
 #endif
 
-#define VMTRACE                                  \
-  if (trace_) {                                  \
-    FileStream out(stdout);                      \
-    std::cout << "run: stack=" << s_ << ", x=";  \
-    state_->car(x_).output(state_, &out, true);  \
-    std::cout << std::endl;                      \
-  }                                              \
+#define VMTRACE                                                         \
+  if (trace_) {                                                         \
+    FileStream out(stdout);                                             \
+    Value op = state_->car(x_), d = state_->car(state_->cdr(x_));       \
+    format(state_, &out, "run: s%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+  }                                                                     \
 
 namespace yalp {
 
