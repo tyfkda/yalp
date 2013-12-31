@@ -18,6 +18,13 @@
                      '())
     (list local upper-vars '() '())))
 
+(defun expand-scope (local oscope)
+  (let1 expanded-vars (append local (scope-local oscope))
+    (list expanded-vars
+          (scope-upper-vars oscope)
+          (scope-frees oscope)
+          (scope-sets oscope))))
+
 (defun scope-local (scope)  (car scope))
 (defun scope-upper-vars (scope)  (cadr scope))
 (defun scope-frees (scope)  (caddr scope))
@@ -71,14 +78,13 @@
                             (cons s sets2))))
     sets2))
 
-(defun propagate-scope (inner-scope scope)
+(defun propagate-scope (inner-scope vars scope)
   (when scope
     (scope-frees-set! scope
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (let* ((inner-local (scope-local inner-scope))
-           (bleed-sets (remove-if [member (car _) inner-local]
-                                  (scope-sets inner-scope))))
+    (let ((bleed-sets (remove-if [member (car _) vars]
+                                 (scope-sets inner-scope))))
       (scope-sets-set! scope
                        (merge-scope-sets bleed-sets
                                          (scope-sets scope))))))
@@ -147,7 +153,9 @@
                         (traverse-receive vars vals body scope))
                (t (let ((func (car x))
                         (args (cdr x)))
-                    (traverse-apply func args scope)))))
+                    (if (direct-invoke? func)
+                        (traverse-apply-direct (cadr func) (cddr func) args scope)
+                      (traverse-apply func args scope))))))
 
 (defun traverse-call/cc (func scope)
   `(:CONTI ,(traverse func scope)))
@@ -157,7 +165,8 @@
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
     ;; Propagate to upper scope
-    (propagate-scope inner-scope scope)
+    (propagate-scope inner-scope (scope-local inner-scope)
+                     scope)
     ;; Returns lambda node
     (list ':LAMBDA
           inner-scope
@@ -181,12 +190,29 @@
   `(:APPLY ,(traverse func scope)
            ,(map [traverse _ scope] args)))
 
+(defun traverse-apply-direct (vars body args scope)
+  (let ((proper-vars (check-parameters vars))
+        (args-node (map [traverse _ scope]
+                        args)))
+    (let* ((expanded-scope (expand-scope proper-vars scope))
+           (body-node (traverse-body body expanded-scope)))
+      ;; Propagate to upper scope
+      (propagate-scope expanded-scope proper-vars
+                       scope)
+      ;; Returns lambda node
+      (list ':INVOKE
+            expanded-scope
+            (len proper-vars)
+            args-node
+            body-node))))
+
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
     ;; Propagate to upper scope
-    (propagate-scope inner-scope scope)
+    (propagate-scope inner-scope (scope-local inner-scope)
+                     scope)
     ;; Returns lambda node
     (list ':MACRO
           inner-scope
@@ -203,7 +229,8 @@
           (inner-scope (create-scope proper-vars scope)))
       (let1 body-node (traverse-body body inner-scope)
         ;; Propagate to upper scope
-        (propagate-scope inner-scope scope)
+        (propagate-scope inner-scope (scope-local inner-scope)
+                         scope)
         ;; Returns receive node
         (list ':RECV
               inner-scope
@@ -277,6 +304,23 @@
                                                      ,(len frees)
                                                      ,body-slot
                                                      ,@next)))))
+               (:INVOKE (expanded-scope varnum args-node body)
+                        (let ((vars (scope-local expanded-scope))
+                              (frees (scope-frees expanded-scope)))
+                          ;; Propagate upper-sets to expanded-sets
+                          (let ((bleed-sets (remove-if-not [member (car _) frees]
+                                                           (scope-sets scope))))
+                            (scope-sets-set! expanded-scope
+                                             (merge-scope-sets bleed-sets
+                                                               (scope-sets expanded-scope)))
+                            (my-compile-args args-node scope
+                                             (if (eq? varnum 0)
+                                                 (my-compile-body body expanded-scope next)
+                                               (list* 'EXPND varnum
+                                                      (my-compile-body body expanded-scope
+                                                                       (if (tail? next)
+                                                                           next
+                                                                         (list* 'SHRNK varnum next)))))))))
                (:IF (test then else)
                     (my-compile-recur test scope
                                       `(TEST
@@ -377,13 +421,15 @@
 ;(defun main (args)
 ;  (awhile (read)
 ;    (print/ss (my-compile it))))
+;
+;(def compile my-compile)
 
-
-(let1 x '(alet ((i 0))
-           (when (< i 10)
-             (print i)
-             (loop (+ i 1))))
+(let1 x '((^(x)
+            (do (set! x 3))
+            (list x))
+          1)
   (let1 code (my-compile x)
     (print/ss code)
+    ;(print/ss (compile x))
     (let1 result (run-binary code)
       (print (list 'RESULT: result)))))
