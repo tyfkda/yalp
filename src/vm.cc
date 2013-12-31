@@ -45,7 +45,7 @@
   if (trace_) {                                  \
     FileStream out(stdout);                      \
     std::cout << "run: stack=" << s_ << ", x=";  \
-    x_.output(state_, &out, true);               \
+    state_->car(x_).output(state_, &out, true);  \
     std::cout << std::endl;                      \
   }                                              \
 
@@ -71,6 +71,7 @@ namespace yalp {
   OP(APPLY) \
   OP(RET) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
+  OP(LOOP) \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
@@ -647,8 +648,8 @@ void Vm::replaceOpcodes(Value x) {
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case EXPND: case SHRNK:
-    case VALS: case RECV:
+    case GSET: case DEF: case LOOP: case BOX: case CONTI: case EXPND:
+    case SHRNK: case VALS: case RECV:
       x = CDR(x);
       break;
     case TEST: case FRAME:
@@ -810,6 +811,14 @@ Value Vm::runLoop() {
       int argNum = index(s_, 0).toFixnum();
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
+    } NEXT;
+    CASE(LOOP) {
+      // Tail self recursive call (goto): Like SHIFT.
+      Value ns = CAR(x_);
+      x_ = CDR(x_);
+      int n = ns.toFixnum();
+      int calleeArgNum = index(f_, -1).toFixnum();
+      s_ = push(ns, shiftArgs(n, calleeArgNum, s_));
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
