@@ -10,20 +10,20 @@
 ;; Check function parameters are valid and returns proper vars.
 (defun check-parameters (vars)
   (unless (list? vars)
-    (compile-error "parameters must be list, but %@" vars))
+    (my-compile-error "parameters must be list, but %@" vars))
   (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
                          (let ((required (take it vars))
                                (rest (drop (+ it 1) vars)))
                            (unless (single? rest)
-                             (compile-error "&rest requires only 1 name, but %@" rest))
+                             (my-compile-error "&rest requires only 1 name, but %@" rest))
                            (append! required rest))
                       vars)
     (aif (any? [no (symbol? _)] vars)
-      (compile-error "parameter must be symbol, but `%@`" (car it)))
+      (my-compile-error "parameter must be symbol, but `%@`" (car it)))
     (alet ((p proper-vars))
       (when p
         (when (member (car p) (cdr p))
-          (compile-error "Duplicated parameter `%@`" (car p)))
+          (my-compile-error "Duplicated parameter `%@`" (car p)))
         (loop (cdr p))))
     proper-vars))
 
@@ -167,7 +167,7 @@
 
 (defun traverse-if (test then rest scope)
   (when (and rest (cdr rest))
-    (compile-error "malformed if"))
+    (my-compile-error "malformed if"))
   `(:IF ,(traverse test scope)
         ,(traverse then scope)
         ,(if rest
@@ -282,7 +282,7 @@
                       args-node
                       body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
-            (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
+            (my-compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
 
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -335,7 +335,7 @@
                               `(LREF ,it PUSH ,@next)
                            (aif (find-index x (scope-upper-vars scope))
                                 `(FREF ,it PUSH ,@next)
-                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+                             (my-compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
 (defun my-compile-recur (tree scope next)
@@ -418,7 +418,7 @@
                                (if (pair? varnum)
                                    (error "Not implemented: rest param for loop")
                                  (unless (eq? argnum varnum)
-                                   (compile-error "Illegal argnum, %@ for %@" argnum varnum)))
+                                   (my-compile-error "Illegal argnum, %@ for %@" argnum varnum)))
                                (my-compile-args args scope
                                                 (list* 'LOOP argnum
                                                        (lambda-body-slot-get lambda-node))))
@@ -457,7 +457,7 @@
                                                (my-compile-body (scope-local inner-scope) body inner-scope
                                                                 (list* 'SHRNK (len (scope-local inner-scope))
                                                                        next)))))
-               (t `(UNKNOWN ,tree ,@next))))
+               (t (my-compile-error "Unknown [%@]" ,tree ,@next))))
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
@@ -523,20 +523,21 @@
 ;  (awhile (read)
 ;    (print/ss (my-compile it))))
 
-;(def compile my-compile)
-;(def compile-error my-compile-error)
+(defun eval (x)
+  (run-binary (my-compile x)))
 
-;(defun eval (x)
-;  (run-binary (compile x)))
+(def compile my-compile)
+(def compile-error my-compile-error)
 
-(let1 x '(alet ((ls '(1 2 3 4 5))
-                (acc '()))
-           (if ls
-               (loop (cdr ls)
-                     (cons (car ls) acc))
-             acc))
-  (let1 code (my-compile x)
-    (print/ss code)
-    ;(print/ss (compile x))
-    (let1 result (run-binary code)
-      (print (list 'RESULT: result)))))
+
+;(let1 x '(alet ((ls '(1 2 3 4 5))
+;                (acc '()))
+;           (if ls
+;               (loop (cdr ls)
+;                     (cons (car ls) acc))
+;             acc))
+;  (let1 code (my-compile x)
+;    (print/ss code)
+;    ;(print/ss (compile x))
+;    (let1 result (run-binary code)
+;      (print (list 'RESULT: result)))))
