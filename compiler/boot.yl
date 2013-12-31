@@ -374,7 +374,7 @@
                           (loop " " (cdr s))))
                   (display ")" stream))
                 s))))
-    (write s)))
+    (write s stream)))
 
 ;; Take first n elements from the list.
 (defun take (n ls)
