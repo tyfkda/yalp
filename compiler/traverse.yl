@@ -11,6 +11,82 @@
 
 ;;;;
 
+;; Check function parameters are valid and returns proper vars.
+(defun check-parameters (vars)
+  (unless (list? vars)
+    (compile-error "parameters must be list, but %@" vars))
+  (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
+                         (let ((required (take it vars))
+                               (rest (drop (+ it 1) vars)))
+                           (unless (single? rest)
+                             (compile-error "&rest requires only 1 name, but %@" rest))
+                           (append! required rest))
+                      vars)
+    (aif (any? [no (symbol? _)] vars)
+      (compile-error "parameter must be symbol, but `%@`" (car it)))
+    (alet ((p proper-vars))
+      (when p
+        (when (member (car p) (cdr p))
+          (compile-error "Duplicated parameter `%@`" (car p)))
+        (loop (cdr p))))
+    proper-vars))
+
+(defun direct-invoke? (func)
+  (and (pair? func)
+       (eq? '^ (car func))))
+
+(defun find-index (x ls)
+  (alet ((ls ls)
+         (idx 0))
+    (if ls
+        (if (eq? (car ls) x)
+            idx
+          (loop (cdr ls) (+ idx 1)))
+      nil)))
+
+(defun tail? (next)
+  (eq? (car next) 'RET))
+
+(defun macroexpand-all (exp scope-vars)
+  (if (pair? exp)
+      (if (member (car exp) scope-vars)
+          (macroexpand-all-sub exp scope-vars)
+        (let1 expanded (macroexpand-1 exp)
+          (if (equal? expanded exp)
+              (macroexpand-all-sub exp scope-vars)
+            (macroexpand-all expanded scope-vars))))
+    exp))
+
+(defun map-macroexpand-all (ls svars)
+  (map [macroexpand-all _ svars] ls))
+
+(defun macroexpand-all-sub (exp scope-vars)
+  (record-case exp
+               (quote (obj) `(quote ,obj))
+               (^ (vars &body body)
+                  (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
+                    `(^ ,vars ,@(map-macroexpand-all body new-scope-vars))))
+               (if (&rest all)
+                   `(if ,@(map-macroexpand-all all scope-vars)))
+               (set! (var x)
+                     `(set! ,var ,(macroexpand-all x scope-vars)))
+               (def (var x)
+                    `(def ,var ,(macroexpand-all x scope-vars)))
+               (call/cc (x)
+                        `(call/cc ,(macroexpand-all x scope-vars)))
+               (defmacro (name vars &body body)
+                 (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
+                   `(defmacro ,name ,vars ,@(map-macroexpand-all body new-scope-vars))))
+               (values (&rest all)
+                       `(values ,@(map-macroexpand-all all scope-vars)))
+               (receive (vars vals &body body)
+                        (let1 new-scope-vars (append (dotted->proper vars) scope-vars)
+                          `(receive ,vars ,(macroexpand-all vals scope-vars)
+                             ,@(map-macroexpand-all body new-scope-vars))))
+               (t (map-macroexpand-all exp scope-vars))))
+
+;;;;
+
 (defun create-scope (local oscope)
   (let1 upper-vars (if oscope
                        (append (scope-local oscope)
@@ -164,14 +240,19 @@
   (let* ((proper-vars (check-parameters vars))
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
-    ;; Propagate to upper scope
-    (propagate-scope inner-scope (scope-local inner-scope)
-                     scope)
-    ;; Returns lambda node
-    (list ':LAMBDA
-          inner-scope
-          (cons nil nil)  ; body-slot
-          body-node)))
+    (let1 varnum (if (eq? vars proper-vars)
+                     (len vars)
+                   (list (- (len proper-vars) 1)
+                         -1))
+      ;; Propagate to upper scope
+      (propagate-scope inner-scope (scope-local inner-scope)
+                       scope)
+      ;; Returns lambda node
+      (list ':LAMBDA
+            inner-scope
+            (cons nil nil)  ; body-slot
+            varnum
+            body-node))))
 
 (defun lambda-node? (node)
   (eq? (car node) ':LAMBDA))
@@ -191,20 +272,39 @@
            ,(map [traverse _ scope] args)))
 
 (defun traverse-apply-direct (vars body args scope)
-  (let ((proper-vars (check-parameters vars))
-        (args-node (map [traverse _ scope]
-                        args)))
-    (let* ((expanded-scope (expand-scope proper-vars scope))
-           (body-node (traverse-body body expanded-scope)))
-      ;; Propagate to upper scope
-      (propagate-scope expanded-scope proper-vars
-                       scope)
-      ;; Returns lambda node
-      (list ':INVOKE
-            expanded-scope
-            (len proper-vars)
-            args-node
-            body-node))))
+  (let1 proper-vars (check-parameters vars)
+    (let ((argnum (len args))
+          (varnum (- (len proper-vars)
+                     (if (eq? proper-vars vars) 0 1))))
+      (if (no (eq? vars proper-vars))  ;; Has rest param.
+          ;; Tweak arguments.
+          (cond ((< argnum varnum)  ;; Error handled in the below.
+                 (traverse-apply-direct proper-vars body args scope))
+                ;; ((^(x y &rest z) ...) 1 2 3 4) => ((^(x y z) ...) 1 2 (list 3 4))
+                ((> argnum varnum)
+                 (traverse `((^ ,proper-vars ,@body)
+                             ,@(take varnum args)
+                             (list ,@(drop varnum args)))
+                           scope))
+                ;; ((^(x y &rest z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
+                (t (traverse-apply-direct proper-vars body (append args '(()))
+                                          scope)))
+        (if (eq? argnum varnum)
+            (let1 args-node (map [traverse _ scope]
+                                 args)
+              (let* ((expanded-scope (expand-scope proper-vars scope))
+                     (body-node (traverse-body body expanded-scope)))
+                ;; Propagate to upper scope
+                (propagate-scope expanded-scope proper-vars
+                                 scope)
+                ;; Returns lambda node
+                (list ':INVOKE
+                      expanded-scope
+                      proper-vars
+                      args-node
+                      body-node)))
+          (let1 which (if (< argnum varnum) "few" "many")
+            (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
 
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -225,7 +325,11 @@
 
 (defun traverse-receive (vars vals body scope)
   (let1 proper-vars (check-parameters vars)
-    (let ((val-node (traverse vals scope))
+    (let ((varnum (if (eq? vars proper-vars)
+                      (len vars)
+                    (list (- (len proper-vars) 1)
+                          -1)))
+          (val-node (traverse vals scope))
           (inner-scope (create-scope proper-vars scope)))
       (let1 body-node (traverse-body body inner-scope)
         ;; Propagate to upper scope
@@ -234,18 +338,11 @@
         ;; Returns receive node
         (list ':RECV
               inner-scope
-              (len proper-vars)
+              varnum
               val-node
               body-node)))))
 
 ;;;;
-
-(defun my-compile (code)
-  (let* ((scope (create-scope '() nil))
-         (tree (traverse (macroexpand-all code '())
-                         scope)))
-    ;(print/ss tree)
-    (my-compile-recur tree scope '(HALT))))
 
 (defun my-collect-free (vars scope next)
   (if vars
@@ -285,26 +382,25 @@
                                            `(MACRO ,name
                                                    ,(len vars)
                                                    ,(len frees)
-                                                   ,(my-compile-body body inner-scope (list 'RET))
+                                                   ,(my-compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                                    ,@next))))
-               (:LAMBDA (inner-scope body-slot body)
-                        (let ((vars (scope-local inner-scope))
-                              (frees (scope-frees inner-scope)))
-                          ;; Propagate upper-sets to inner-sets
+               (:LAMBDA (inner-scope body-slot varnum body)
+                        (let ((frees (scope-frees inner-scope)))
+                          ;; Propagate upper-sets to inner-sets.
                           (let1 bleed-sets (remove-if-not [member (car _) frees]
                                                           (scope-sets scope))
                             (scope-sets-set! inner-scope
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets inner-scope))))
-                          ;; Set compiled body code to body-slot
+                          ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
-                                      (my-compile-body body inner-scope (list 'RET)))
+                                      (my-compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
                           (my-collect-free frees scope
-                                           `(CLOSE ,(len vars)
+                                           `(CLOSE ,varnum
                                                    ,(len frees)
                                                    ,body-slot
                                                    ,@next))))
-               (:INVOKE (expanded-scope varnum args-node body)
+               (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           ;; Propagate upper-sets to expanded-sets
@@ -314,13 +410,14 @@
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets expanded-scope))))
                           (my-compile-args args-node scope
-                                           (if (eq? varnum 0)
-                                               (my-compile-body body expanded-scope next)
-                                             (list* 'EXPND varnum
-                                                    (my-compile-body body expanded-scope
-                                                                     (if (tail? next)
-                                                                         next
-                                                                       (list* 'SHRNK varnum next))))))))
+                                           (if proper-vars
+                                               (let1 varnum (len proper-vars)
+                                                 (list* 'EXPND varnum
+                                                        (my-compile-body proper-vars body expanded-scope
+                                                                         (if (tail? next)
+                                                                             next
+                                                                           (list* 'SHRNK varnum next)))))
+                                             (my-compile-body '() body expanded-scope next)))))
                (:IF (test then else)
                     (my-compile-recur test scope
                                       `(TEST
@@ -370,8 +467,9 @@
                (:RECV (inner-scope varnum vals body)
                       (my-compile-recur vals scope
                                         (list* 'RECV varnum
-                                               (my-compile-body body inner-scope
-                                                                (list* 'SHRNK varnum next)))))
+                                               (my-compile-body (scope-local inner-scope) body inner-scope
+                                                                (list* 'SHRNK (len (scope-local inner-scope))
+                                                                       next)))))
                (t `(UNKNOWN ,tree ,@next))))
 
 (defun can-goto? (f scope)
@@ -384,9 +482,9 @@
                (when (lambda-node? node)        ; Lambda node.
                  node)))))))
 
-(defun my-compile-body (body scope next)
+(defun my-compile-body (vars body scope next)
   (if body
-      (my-make-boxes (cadddr scope) (scope-local scope)
+      (my-make-boxes (scope-sets scope) vars
                      (alet ((body body))
                        (if body
                            (my-compile-recur (car body) scope
@@ -418,18 +516,41 @@
   (write/ss x)
   (display "\n"))
 
-;(defun main (args)
-;  (awhile (read)
-;    (print/ss (my-compile it))))
-;
-;(def compile my-compile)
 
-(let1 x '((^(x)
-            (do (set! x 3))
-            (list x))
-          1)
-  (let1 code (my-compile x)
-    (print/ss code)
-    ;(print/ss (compile x))
-    (let1 result (run-binary code)
-      (print (list 'RESULT: result)))))
+(let1 *exit-compile* nil
+  (defun my-compile-error (&rest args)
+    (apply format *stderr* args)
+    (display "\n")
+    (*exit-compile* nil))
+
+  (defun my-compile (x)
+    (call/cc
+     (^(cc)
+       (set! *exit-compile* cc)
+       (let* ((scope (create-scope '() nil))
+              (tree (traverse (macroexpand-all x '())
+                              scope)))
+         ;(print/ss tree)
+         (my-compile-recur tree scope '(HALT)))))))
+
+(defun main (args)
+  (awhile (read)
+    (print/ss (my-compile it))))
+
+;(def compile my-compile)
+;(def compile-error my-compile-error)
+
+;(defun eval (x)
+;  (run-binary (compile x)))
+
+;(let1 x '(let ((x '(1 2 nil 4 5))
+;               (acc 0))
+;           (awhile (car x)
+;                   (set! acc (+ acc it))
+;                   (set! x (cdr x)))
+;           acc)
+;  (let1 code (my-compile x)
+;    (print/ss code)
+;    (print/ss (compile x))
+;    (let1 result (run-binary code)
+;      (print (list 'RESULT: result)))))
