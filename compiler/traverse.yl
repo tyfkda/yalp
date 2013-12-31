@@ -410,9 +410,10 @@
                        (let ((is-tail (tail? next))
                              (argnum (len args))
                              (lambda-node (can-goto? f scope)))
-                         (if (and lambda-node
+                         (if (and nil  ; TODO: Enable using jump.
+                                  lambda-node
                                   (eq? (lambda-scope-get lambda-node)
-                                       scope)  ;; is in the same scope with target jump point.
+                                       scope)  ; is in the same scope with target jump point.
                                   is-tail)
                              (let1 varnum (lambda-varnum-get lambda-node)
                                (if (pair? varnum)
