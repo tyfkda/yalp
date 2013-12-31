@@ -173,7 +173,8 @@
 
 (defun expand-macro (x scope)
   (let1 f (car x)
-    (if (or (member f (scope-local scope))
+    (if (or (no (symbol? f))
+            (member f (scope-local scope))
             (member f (scope-upper-vars scope)))
         x
       (macroexpand x))))
