@@ -238,6 +238,9 @@
 (defun lambda-body-slot-get (node)
   (caddr node))
 
+(defun lambda-varnum-get (node)
+  (cadddr node))
+
 (defun traverse-body (body scope)
   (map [traverse _ scope]
        body))
@@ -411,10 +414,14 @@
                                   (eq? (lambda-scope-get lambda-node)
                                        scope)  ;; is in the same scope with target jump point.
                                   is-tail)
-                             ;; TODO: Checks argument number.
-                             (my-compile-args args scope
-                                              (list* 'LOOP argnum
-                                                     (lambda-body-slot-get lambda-node)))
+                             (let1 varnum (lambda-varnum-get lambda-node)
+                               (if (pair? varnum)
+                                   (error "Not implemented: rest param for loop")
+                                 (unless (eq? argnum varnum)
+                                   (compile-error "Illegal argnum, %@ for %@" argnum varnum)))
+                               (my-compile-args args scope
+                                                (list* 'LOOP argnum
+                                                       (lambda-body-slot-get lambda-node))))
                            (let1 code (my-compile-args args scope
                                                        (my-compile-recur f scope
                                                                          (if is-tail
@@ -522,10 +529,14 @@
 ;(defun eval (x)
 ;  (run-binary (compile x)))
 
-;(let1 x '(let1 f (^(x) (or (eq? x 1) (eq? x 2)))
-;           (f 123))
-;  (let1 code (my-compile x)
-;    (print/ss code)
-;    ;(print/ss (compile x))
-;    (let1 result (run-binary code)
-;      (print (list 'RESULT: result)))))
+(let1 x '(alet ((ls '(1 2 3 4 5))
+                (acc '()))
+           (if ls
+               (loop (cdr ls)
+                     (cons (car ls) acc))
+             acc))
+  (let1 code (my-compile x)
+    (print/ss code)
+    ;(print/ss (compile x))
+    (let1 result (run-binary code)
+      (print (list 'RESULT: result)))))
