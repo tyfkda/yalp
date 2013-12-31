@@ -47,11 +47,6 @@
 (defun symbol? (x) (eq? (type x) 'symbol))
 (defun string? (x) (eq? (type x) 'string))
 (defun flonum? (x) (eq? (type x) 'flonum))
-(defun procedure? (x) ((^(tt)
-                         (or (eq? tt 'closure)
-                             (eq? tt 'subr)
-                             (eq? tt 'continuation)))
-                       (type x)))
 
 (defun any? (f ls)
   (if (pair? ls)
