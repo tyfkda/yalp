@@ -66,7 +66,7 @@
       (let1 s (car sets1)
         (merge-scope-sets (cdr sets1)
                           (aif (assoc (car s) sets2)
-                               (do (set-cdr! it (append (cdr s) (cdr it)))
+                               (do (set-cdr! it (union (cdr s) (cdr it)))
                                    sets2)
                             (cons s sets2))))
     sets2))
@@ -113,6 +113,7 @@
 
 (defun traverse-def (var val scope)
   (let1 val-node (traverse val scope)
+    (register-set! var val-node scope)
     (list ':DEF var val-node)))
 
 (defun traverse-if (test then rest scope)
@@ -166,6 +167,9 @@
 (defun lambda-node? (node)
   (eq? (car node) ':LAMBDA))
 
+(defun lambda-scope-get (node)
+  (cadr node))
+
 (defun lambda-body-slot-get (node)
   (caddr node))
 
@@ -213,6 +217,7 @@
   (let* ((scope (create-scope '() nil))
          (tree (traverse (macroexpand-all code '())
                          scope)))
+    ;(print/ss tree)
     (my-compile-recur tree scope '(HALT))))
 
 (defun my-collect-free (vars scope next)
@@ -230,7 +235,8 @@
   (record-case tree
                (:REF (op i sym)
                      (list* op i
-                            (if (assoc sym (scope-sets scope))
+                            (if (and (no (eq? op 'GREF))
+                                     (assoc sym (scope-sets scope)))
                                 (list* 'UNBOX next)
                               next)))
                (:SET (op i val)
@@ -279,12 +285,15 @@
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
                              (argnum (len args))
-                             (goto (can-goto? f scope)))
-                         (if (and is-tail goto)
+                             (lambda-node (can-goto? f scope)))
+                         (if (and lambda-node
+                                  (eq? (lambda-scope-get lambda-node)
+                                       scope)  ;; is in the same scope with target jump point.
+                                  is-tail)
                              ;; TODO: Checks argument number.
                              (my-compile-args args scope
                                               (list* 'LOOP argnum
-                                                     goto))
+                                                     (lambda-body-slot-get lambda-node)))
                            (let1 code (my-compile-args args scope
                                                        (my-compile-recur f scope
                                                                          (if is-tail
@@ -323,14 +332,13 @@
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (no (eq? (cadr f) 'GREF))
        (let ((sym (cadddr f))                   ; Symbol for the reference.
              (sets (scope-sets scope)))
          (awhen (assoc sym sets)
            (when (single? (cdr it))             ; Just 1 time assignment.
              (let1 node (cadr it)
                (when (lambda-node? node)        ; Lambda node.
-                 (lambda-body-slot-get node))))))))
+                 node)))))))
 
 (defun my-compile-body (body scope next)
   (if body
@@ -371,8 +379,10 @@
 ;    (print/ss (my-compile it))))
 
 
-(let1 x '(receive (x y z) (values 1 2 3)
-                  (list x y z))
+(let1 x '(alet ((i 0))
+           (when (< i 10)
+             (print i)
+             (loop (+ i 1))))
   (let1 code (my-compile x)
     (print/ss code)
     (let1 result (run-binary code)
