@@ -83,8 +83,8 @@
     (scope-frees-set! scope
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (let ((bleed-sets (remove-if [member (car _) vars]
-                                 (scope-sets inner-scope))))
+    (let1 bleed-sets (remove-if [member (car _) vars]
+                                (scope-sets inner-scope))
       (scope-sets-set! scope
                        (merge-scope-sets bleed-sets
                                          (scope-sets scope))))))
@@ -276,51 +276,51 @@
                         (let ((vars (scope-local inner-scope))
                               (frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets
-                          (let ((bleed-sets (remove-if-not [member (car _) frees]
-                                                           (scope-sets scope))))
+                          (let1 bleed-sets (remove-if-not [member (car _) frees]
+                                                          (scope-sets scope))
                             (scope-sets-set! inner-scope
                                              (merge-scope-sets bleed-sets
-                                                               (scope-sets inner-scope)))
-                            (my-collect-free frees scope
-                                             `(MACRO ,name
-                                                     ,(len vars)
-                                                     ,(len frees)
-                                                     ,(my-compile-body body inner-scope (list 'RET))
-                                                     ,@next)))))
+                                                               (scope-sets inner-scope))))
+                          (my-collect-free frees scope
+                                           `(MACRO ,name
+                                                   ,(len vars)
+                                                   ,(len frees)
+                                                   ,(my-compile-body body inner-scope (list 'RET))
+                                                   ,@next))))
                (:LAMBDA (inner-scope body-slot body)
                         (let ((vars (scope-local inner-scope))
                               (frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets
-                          (let ((bleed-sets (remove-if-not [member (car _) frees]
-                                                           (scope-sets scope))))
+                          (let1 bleed-sets (remove-if-not [member (car _) frees]
+                                                          (scope-sets scope))
                             (scope-sets-set! inner-scope
                                              (merge-scope-sets bleed-sets
-                                                               (scope-sets inner-scope)))
-                            ;; Set compiled body code to body-slot
-                            (copy-pair! body-slot
-                                        (my-compile-body body inner-scope (list 'RET)))
-                            (my-collect-free frees scope
-                                             `(CLOSE ,(len vars)
-                                                     ,(len frees)
-                                                     ,body-slot
-                                                     ,@next)))))
+                                                               (scope-sets inner-scope))))
+                          ;; Set compiled body code to body-slot
+                          (copy-pair! body-slot
+                                      (my-compile-body body inner-scope (list 'RET)))
+                          (my-collect-free frees scope
+                                           `(CLOSE ,(len vars)
+                                                   ,(len frees)
+                                                   ,body-slot
+                                                   ,@next))))
                (:INVOKE (expanded-scope varnum args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           ;; Propagate upper-sets to expanded-sets
-                          (let ((bleed-sets (remove-if-not [member (car _) frees]
-                                                           (scope-sets scope))))
+                          (let1 bleed-sets (remove-if-not [member (car _) frees]
+                                                          (scope-sets scope))
                             (scope-sets-set! expanded-scope
                                              (merge-scope-sets bleed-sets
-                                                               (scope-sets expanded-scope)))
-                            (my-compile-args args-node scope
-                                             (if (eq? varnum 0)
-                                                 (my-compile-body body expanded-scope next)
-                                               (list* 'EXPND varnum
-                                                      (my-compile-body body expanded-scope
-                                                                       (if (tail? next)
-                                                                           next
-                                                                         (list* 'SHRNK varnum next)))))))))
+                                                               (scope-sets expanded-scope))))
+                          (my-compile-args args-node scope
+                                           (if (eq? varnum 0)
+                                               (my-compile-body body expanded-scope next)
+                                             (list* 'EXPND varnum
+                                                    (my-compile-body body expanded-scope
+                                                                     (if (tail? next)
+                                                                         next
+                                                                       (list* 'SHRNK varnum next))))))))
                (:IF (test then else)
                     (my-compile-recur test scope
                                       `(TEST
