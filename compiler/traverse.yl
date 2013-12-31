@@ -135,7 +135,10 @@
   (cond ((symbol? x)
          (traverse-refer x scope))
         ((pair? x)
-         (traverse-list (expand-macro x scope) scope))
+         (let1 expanded (expand-macro x scope)
+           (if (pair? expanded)
+               (traverse-list expanded scope)
+             (traverse expanded scope))))
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
@@ -282,14 +285,19 @@
   (let* ((proper-vars (check-parameters vars))
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
-    ;; Propagate to upper scope
-    (propagate-scope inner-scope (scope-local inner-scope)
-                     scope)
-    ;; Returns lambda node
-    (list ':MACRO
-          inner-scope
-          name
-          body-node)))
+    (let1 varnum (if (eq? vars proper-vars)
+                     (len vars)
+                   (list (- (len proper-vars) 1)
+                         -1))
+      ;; Propagate to upper scope
+      (propagate-scope inner-scope (scope-local inner-scope)
+                       scope)
+      ;; Returns lambda node
+      (list ':MACRO
+            inner-scope
+            name
+            varnum
+            body-node))))
 
 (defun traverse-values (args scope)
   `(:VALS ,(map [traverse _ scope]
@@ -341,7 +349,7 @@
                (:DEF (var val)
                      (my-compile-recur val scope
                                        (list* 'DEF var next)))
-               (:MACRO (inner-scope name body)
+               (:MACRO (inner-scope name varnum body)
                         (let ((vars (scope-local inner-scope))
                               (frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets
@@ -352,7 +360,7 @@
                                                                (scope-sets inner-scope))))
                           (my-collect-free frees scope
                                            `(MACRO ,name
-                                                   ,(len vars)
+                                                   ,varnum
                                                    ,(len frees)
                                                    ,(my-compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                                    ,@next))))
@@ -392,9 +400,9 @@
                                              (my-compile-body '() body expanded-scope next)))))
                (:IF (test then else)
                     (my-compile-recur test scope
-                                      `(TEST
-                                        ,(my-compile-recur then scope next)
-                                        ,@(my-compile-recur else scope next))))
+                                      (list* 'TEST
+                                             (my-compile-recur then scope next)
+                                             (my-compile-recur else scope next))))
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
                              (argnum (len args))
@@ -504,9 +512,9 @@
          ;(print/ss tree)
          (my-compile-recur tree scope '(HALT)))))))
 
-(defun main (args)
-  (awhile (read)
-    (print/ss (my-compile it))))
+;(defun main (args)
+;  (awhile (read)
+;    (print/ss (my-compile it))))
 
 ;(def compile my-compile)
 ;(def compile-error my-compile-error)
@@ -514,14 +522,10 @@
 ;(defun eval (x)
 ;  (run-binary (compile x)))
 
-;(let1 x '(let ((x '(1 2 nil 4 5))
-;               (acc 0))
-;           (awhile (car x)
-;                   (set! acc (+ acc it))
-;                   (set! x (cdr x)))
-;           acc)
+;(let1 x '(let1 f (^(x) (or (eq? x 1) (eq? x 2)))
+;           (f 123))
 ;  (let1 code (my-compile x)
 ;    (print/ss code)
-;    (print/ss (compile x))
+;    ;(print/ss (compile x))
 ;    (let1 result (run-binary code)
 ;      (print (list 'RESULT: result)))))
