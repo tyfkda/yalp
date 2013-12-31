@@ -86,15 +86,6 @@
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
 
-;; Make pair from a list. (a b c d e) -> ((a b) (c d) (e))
-(defun pair (xs)
-  (if (no xs)
-      nil
-    (if (no (cdr xs))
-        (list (list (car xs)))
-      (cons (list (car xs) (cadr xs))
-            (pair (cddr xs))))))
-
 (defun qq-expand (x)
   (if (pair? x)
       ((^(m)
@@ -142,9 +133,8 @@
 
 (defmacro set! (var val &rest rest)
   (if rest
-      `(do ,@(map (^(vv) `(set! ,(car vv) ,(cadr vv)))
-                  (cons (list var val)
-                        (pair rest))))
+      `(do (set! ,var ,val)
+           (set! ,@rest))
     `(set! ,var ,val)))
 
 (defmacro let1 (var val &body body)

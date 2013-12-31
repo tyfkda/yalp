@@ -10,10 +10,6 @@
 (test "map 1" '(1 4 9) (map (^(x) (* x x)) '(1 2 3)))
 (test "map 3" '(111 222 333) (map + '(1 2 3) '(10 20 30) '(100 200 300)))
 
-;; pair
-(test "pair even" '((1 2) (3 4) (5 6)) (pair '(1 2 3 4 5 6)))
-(test "pair odd" '((1 2) (3 4) (5)) (pair '(1 2 3 4 5)))
-
 ;; cxxr
 (test "cadr" 2 (cadr '(1 2 3 4)))
 (test "cddr" '(3 4) (cddr '(1 2 3 4)))
