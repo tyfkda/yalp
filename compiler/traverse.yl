@@ -49,6 +49,38 @@
         exp
       (macroexpand expanded))))
 
+;; Declaim
+
+(defmacro declaim (&rest defs)
+  `(do
+     ,@(map (^(sentence)
+              (when (pair? sentence)
+                (case (car sentence)
+                  (inline (do (dolist (sym (cdr sentence))
+                                (declaim-inline sym))
+                              '(values)))
+                  )))
+            defs)))
+
+(let1 *inline-functions* (table)
+  (defun declaim-inline (sym)
+    (table-put! *inline-functions* sym t))
+
+  (defun inline-function? (sym)
+    (and (symbol? sym)
+         (table-exists? *inline-functions* sym)))
+
+  (defun register-inline-function (sym func)
+    (table-put! *inline-functions* sym func))
+
+  (defun get-inline-function-body (sym)
+    (table-get *inline-functions* sym))
+  )
+
+(defun lambda-expression? (exp)
+  (and (pair? exp)
+       (eq? (car exp) '^)))
+
 ;;;;
 
 (defun create-scope (local oscope)
@@ -162,6 +194,9 @@
         (list ':SET 'GSET var val-node)))))
 
 (defun traverse-def (var val scope)
+  (when (and (inline-function? var)
+             (lambda-expression? val))
+    (register-inline-function var val))
   (let1 val-node (traverse val scope)
     (register-set! var val-node scope)
     (list ':DEF var val-node)))
@@ -205,9 +240,11 @@
                         (traverse-receive vars vals body scope))
                (t (let ((func (car x))
                         (args (cdr x)))
-                    (if (direct-invoke? func)
-                        (traverse-apply-direct (cadr func) (cddr func) args scope)
-                      (traverse-apply func args scope))))))
+                    (cond ((direct-invoke? func)
+                           (traverse-apply-direct (cadr func) (cddr func) args scope))
+                          ((inline-function? func)
+                           (traverse-inline-apply func args scope))
+                          (t (traverse-apply func args scope)))))))
 
 (defun traverse-call/cc (func scope)
   `(:CONTI ,(traverse func scope)))
@@ -249,6 +286,11 @@
 (defun traverse-apply (func args scope)
   `(:APPLY ,(traverse func scope)
            ,(map [traverse _ scope] args)))
+
+(defun traverse-inline-apply (sym args scope)
+  (let1 lambda (get-inline-function-body sym)
+    (traverse `(,lambda ,@args)
+              scope)))
 
 (defun traverse-apply-direct (vars body args scope)
   (let1 proper-vars (check-parameters vars)

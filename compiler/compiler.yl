@@ -444,7 +444,7 @@
         exp
       (macroexpand expanded))))
 
-;; Proclaim
+;; Declaim
 
 (defmacro declaim (&rest defs)
   `(do
@@ -452,13 +452,13 @@
               (when (pair? sentence)
                 (case (car sentence)
                   (inline (do (dolist (sym (cdr sentence))
-                                (proclaim-inline sym))
+                                (declaim-inline sym))
                               '(values)))
                   )))
             defs)))
 
 (let1 *inline-functions* (table)
-  (defun proclaim-inline (sym)
+  (defun declaim-inline (sym)
     (table-put! *inline-functions* sym t))
 
   (defun inline-function? (sym)
