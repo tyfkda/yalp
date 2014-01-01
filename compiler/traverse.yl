@@ -539,10 +539,6 @@
 
 ;;;;
 
-(defun print/ss (x)
-  (write/ss x)
-  (display "\n"))
-
 (let1 *exit-compile* nil
   (defun compile-error (&rest args)
     (apply format *stderr* args)
@@ -555,7 +551,6 @@
        (set! *exit-compile* cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope)))
-         ;(print/ss tree)
          (compile-recur tree scope '(HALT)))))))
 
 (defun eval (x)
