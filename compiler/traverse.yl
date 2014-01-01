@@ -334,7 +334,7 @@
                        (let1 x (car vars)
                          (aif (find-index x (scope-local scope))
                               `(LREF ,it PUSH ,@next)
-                           (aif (find-index x (scope-upper-vars scope))
+                           (aif (find-index x (scope-frees scope))
                                 `(FREF ,it PUSH ,@next)
                              (my-compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
@@ -536,12 +536,12 @@
 (def compile-error my-compile-error)
 
 
-;(let1 x '(alet ((ls '(1 2 3 4 5))
-;                (acc '()))
-;           (if ls
-;               (loop (cdr ls)
-;                     (cons (car ls) acc))
-;             acc))
+;(let1 x '(let1 h 1
+;           (let foo ((i t))
+;             (when i
+;               h
+;               (let bar ()
+;                 (foo nil)))))
 ;  (let1 code (my-compile x)
 ;    (print/ss code)
 ;    ;(print/ss (compile x))
