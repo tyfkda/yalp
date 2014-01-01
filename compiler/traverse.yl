@@ -457,8 +457,7 @@
                        (let ((is-tail (tail? next))
                              (argnum (len args))
                              (lambda-node (can-goto? f scope)))
-                         (if (and nil  ; TODO: Enable using jump.
-                                  lambda-node
+                         (if (and lambda-node
                                   (eq? (lambda-scope-get lambda-node)
                                        scope)  ; is in the same scope with target jump point.
                                   is-tail)
