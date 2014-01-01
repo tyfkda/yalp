@@ -571,7 +571,7 @@
        (set! *exit-compile* cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope)))
-         (compile-recur tree scope '(HALT)))))))
+         (compile-recur tree scope (list 'HALT)))))))
 
 (defun eval (x)
   (run-binary (compile x)))
