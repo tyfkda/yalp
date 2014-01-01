@@ -817,7 +817,8 @@ Value Vm::runLoop() {
       x_ = CDR(x_);
       int n = ns.toFixnum();
       int calleeArgNum = index(f_, -1).toFixnum();
-      s_ = push(ns, shiftArgs(n, calleeArgNum, s_));
+      f_ = shiftArgs(n, calleeArgNum, s_);
+      s_ = push(ns, f_);
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT

@@ -4,6 +4,8 @@
 (defun cdddr (x) (cdr (cddr x)))
 (defun cadddr (x) (car (cdddr x)))
 (defun cddddr (x) (cdr (cdddr x)))
+(defun caddddr (x) (car (cddddr x)))
+(defun cdddddr (x) (cdr (cddddr x)))
 
 ;;;;
 
@@ -84,23 +86,26 @@
 ;;;;
 
 (defun create-scope (local oscope)
-  (let1 upper-vars (if oscope
-                       (append (scope-local oscope)
-                               (scope-upper-vars oscope))
-                     '())
-    (list local upper-vars '() '())))
+  (let ((upper-vars (if oscope
+                        (append (scope-local oscope)
+                                (scope-upper-vars oscope))
+                      '()))
+        (scope-id (gensym)))
+    (list local upper-vars '() '() scope-id)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
     (list expanded-vars
           (scope-upper-vars oscope)
           (scope-frees oscope)
-          (scope-sets oscope))))
+          (scope-sets oscope)
+          (scope-id oscope))))
 
 (defun scope-local (scope)  (car scope))
 (defun scope-upper-vars (scope)  (cadr scope))
 (defun scope-frees (scope)  (caddr scope))
 (defun scope-sets (scope)  (cadddr scope))
+(defun scope-id (scope)  (caddddr scope))
 
 (defun scope-local-set! (scope v)  (set-car! scope v))
 (defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
@@ -458,8 +463,8 @@
                              (argnum (len args))
                              (lambda-node (can-goto? f scope)))
                          (if (and lambda-node
-                                  (eq? (lambda-scope-get lambda-node)
-                                       scope)  ; is in the same scope with target jump point.
+                                  (eq? (scope-id (lambda-scope-get lambda-node))
+                                       (scope-id scope))  ; is in the same scope with target jump point.
                                   is-tail)
                              (let1 varnum (lambda-varnum-get lambda-node)
                                (if (pair? varnum)
