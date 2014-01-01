@@ -92,10 +92,10 @@
   ;; TODO: Confirm var is symbol.
   (traverse var scope)
   (let1 val-node (traverse val scope)
-    (aif (find-index var (scope-local scope))
+    (aif (position var (scope-local scope))
          (do (register-set! var val-node scope)
              (list ':SET 'LSET it val-node))
-      (if (find-index var (scope-upper-vars scope))
+      (if (position var (scope-upper-vars scope))
           (do (register-set! var val scope)
               (list ':SET 'FSET (register-fref var scope) val-node))
         (list ':SET 'GSET var val-node)))))
@@ -317,7 +317,7 @@
 (defun register-fref (x scope)
   (let1 frees (scope-frees scope)
     (if frees
-        (aif (find-index x frees)
+        (aif (position x frees)
              it
           (let1 index (len frees)
             (set-cdr! (last frees) (cons x nil))
@@ -355,8 +355,8 @@
   (record-case tree
                (:REF (op sym)
                      (list* op (case op
-                                 (LREF (find-index sym (scope-local scope)))
-                                 (FREF (find-index sym (scope-frees scope)))
+                                 (LREF (position sym (scope-local scope)))
+                                 (FREF (position sym (scope-frees scope)))
                                  (GREF sym)
                                  (t (compile-error "Compile error for :REF %@" tree)))
                             (if (and (no (eq? op 'GREF))
@@ -504,9 +504,9 @@
   (if vars
       (collect-free (cdr vars) scope
                        (let1 x (car vars)
-                         (aif (find-index x (scope-local scope))
+                         (aif (position x (scope-local scope))
                               (list* 'LREF it 'PUSH next)
-                           (aif (find-index x (scope-frees scope))
+                           (aif (position x (scope-frees scope))
                                 (list* 'FREF it 'PUSH next)
                              (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
@@ -520,15 +520,6 @@
              (let1 node (cadr it)
                (when (lambda-node? node)        ; Lambda node.
                  node)))))))
-
-(defun find-index (x ls)
-  (alet ((ls ls)
-         (idx 0))
-    (if ls
-        (if (eq? (car ls) x)
-            idx
-          (loop (cdr ls) (+ idx 1)))
-      nil)))
 
 (defun tail? (next)
   (eq? (car next) 'RET))

@@ -381,12 +381,12 @@
         ls)))
 
 (defun position-if (f seq)
-  (alet ((i 0)
-         (p seq))
+  (alet ((p seq)
+         (i 0))
     (if p
         (if (f (car p))
             i
-          (loop (+ i 1) (cdr p)))
+          (loop (cdr p) (+ i 1)))
       nil)))
 
 (defun position (item seq)
