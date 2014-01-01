@@ -142,11 +142,12 @@
         (t `(:CONST ,x))))
 
 (defun traverse-refer (x scope)
-  (aif (find-index x (scope-local scope))        ; Bounded variable
-       (list ':REF 'LREF it x)
-    (if (find-index x (scope-upper-vars scope))  ; Free variable
-        (list ':REF 'FREF (register-fref x scope) x)
-      (list ':REF 'GREF x x))))                  ; Global variable
+  (cond ((member x (scope-local scope))       ; Bounded variable
+         (list ':REF 'LREF x))
+        ((member x (scope-upper-vars scope))  ; Free variable
+         (register-fref x scope)
+         (list ':REF 'FREF x))
+        (t (list ':REF 'GREF x))))            ; Global variable
 
 (defun traverse-set! (var val scope)
   ;; TODO: Confirm var is symbol.
@@ -340,8 +341,12 @@
 
 (defun my-compile-recur (tree scope next)
   (record-case tree
-               (:REF (op i sym)
-                     (list* op i
+               (:REF (op sym)
+                     (list* op (case op
+                                 (LREF (find-index sym (scope-local scope)))
+                                 (FREF (find-index sym (scope-frees scope)))
+                                 (GREF sym)
+                                 (t (compile-error "Compile error for :REF %@" tree)))
                             (if (and (no (eq? op 'GREF))
                                      (assoc sym (scope-sets scope)))
                                 (list* 'UNBOX next)
@@ -462,7 +467,7 @@
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (let ((sym (cadddr f))                   ; Symbol for the reference.
+       (let ((sym (caddr f))                    ; Symbol for the reference.
              (sets (scope-sets scope)))
          (awhen (assoc sym sets)
            (when (single? (cdr it))             ; Just 1 time assignment.
