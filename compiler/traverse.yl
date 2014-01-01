@@ -89,7 +89,8 @@
         (t (list ':REF 'GREF x))))            ; Global variable
 
 (defun traverse-set! (var val scope)
-  ;; TODO: Confirm var is symbol.
+  (unless (symbol? var)
+    (compile-error "`set!` requires symbol, but `%@`" var))
   (traverse var scope)
   (let1 val-node (traverse val scope)
     (aif (position var (scope-local scope))
@@ -101,6 +102,8 @@
         (list ':SET 'GSET var val-node)))))
 
 (defun traverse-def (var val scope)
+  (unless (symbol? var)
+    (compile-error "`def` requires symbol, but `%@`" var))
   (when (and (inline-function? var)
              (lambda-expression? val))
     (register-inline-function var val))
@@ -193,7 +196,7 @@
       ;; Propagate to upper scope
       (propagate-scope inner-scope (scope-local inner-scope)
                        scope)
-      ;; Returns lambda node
+      ;; Returns macro node
       (list ':MACRO
             inner-scope
             name
@@ -353,6 +356,10 @@
 
 (defun compile-recur (tree scope next)
   (record-case tree
+               (:CONST (x)
+                       (list* 'CONST x next))
+               (:VOID ()
+                      (list* 'VOID next))
                (:REF (op sym)
                      (list* op (case op
                                  (LREF (position sym (scope-local scope)))
@@ -365,23 +372,15 @@
                               next)))
                (:SET (op i val)
                      (compile-recur val scope
-                                       (list* op i next)))
+                                    (list* op i next)))
                (:DEF (var val)
                      (compile-recur val scope
-                                       (list* 'DEF var next)))
-               (:MACRO (inner-scope name varnum body)
-                        (let ((vars (scope-local inner-scope))
-                              (frees (scope-frees inner-scope)))
-                          ;; Propagate upper-sets to inner-sets
-                          (let1 bleed-sets (remove-if-not [member (car _) frees]
-                                                          (scope-sets scope))
-                            (scope-sets-set! inner-scope
-                                             (merge-scope-sets bleed-sets
-                                                               (scope-sets inner-scope))))
-                          (collect-free frees scope
-                                           (list* 'MACRO name varnum (len frees)
-                                                  (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
-                                                  next))))
+                                    (list* 'DEF var next)))
+               (:IF (test then else)
+                    (compile-recur test scope
+                                   (list* 'TEST
+                                          (compile-recur then scope next)
+                                          (compile-recur else scope next))))
                (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets.
@@ -411,15 +410,23 @@
                                                (let1 varnum (len proper-vars)
                                                  (list* 'EXPND varnum
                                                         (compile-body proper-vars body expanded-scope
-                                                                         (if (tail? next)
-                                                                             next
-                                                                           (list* 'SHRNK varnum next)))))
+                                                                      (if (tail? next)
+                                                                          next
+                                                                        (list* 'SHRNK varnum next)))))
                                              (compile-body '() body expanded-scope next)))))
-               (:IF (test then else)
-                    (compile-recur test scope
-                                      (list* 'TEST
-                                             (compile-recur then scope next)
-                                             (compile-recur else scope next))))
+               (:MACRO (inner-scope name varnum body)
+                       (let ((vars (scope-local inner-scope))
+                             (frees (scope-frees inner-scope)))
+                         ;; Propagate upper-sets to inner-sets
+                         (let1 bleed-sets (remove-if-not [member (car _) frees]
+                                                         (scope-sets scope))
+                           (scope-sets-set! inner-scope
+                                            (merge-scope-sets bleed-sets
+                                                              (scope-sets inner-scope))))
+                         (collect-free frees scope
+                                       (list* 'MACRO name varnum (len frees)
+                                              (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
+                                              next))))
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
                              (argnum (len args))
@@ -434,28 +441,24 @@
                                  (unless (eq? argnum varnum)
                                    (compile-error "Illegal argnum, %@ for %@" argnum varnum)))
                                (compile-args args scope
-                                                (list* 'LOOP argnum
-                                                       (lambda-body-slot-get lambda-node))))
+                                             (list* 'LOOP argnum
+                                                    (lambda-body-slot-get lambda-node))))
                            (let1 code (compile-args args scope
-                                                       (compile-recur f scope
-                                                                         (if is-tail
-                                                                             (list 'TAPPLY argnum)
-                                                                           (list 'APPLY argnum))))
+                                                    (compile-recur f scope
+                                                                   (if is-tail
+                                                                       (list 'TAPPLY argnum)
+                                                                     (list 'APPLY argnum))))
                              (if is-tail
                                  code
                                (list* 'FRAME code next))))))
-               (:CONST (x)
-                       (list* 'CONST x next))
-               (:VOID ()
-                      (list* 'VOID next))
                (:CONTI (func)
                        (let* ((is-tail (tail? next))
                               (c (list* 'CONTI is-tail
                                         'PUSH
                                         (compile-recur func scope
-                                                          (if is-tail
-                                                              '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
-                                                            '(APPLY 1))))))
+                                                       (if is-tail
+                                                           '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                                         '(APPLY 1))))))
                          (if is-tail
                              c
                            (list* 'FRAME c next))))
@@ -464,23 +467,23 @@
                         (if (eq? argnum 0)
                             (list* 'VOID next)
                           (compile-args args scope
-                                           (list* 'VALS argnum next)))))
+                                        (list* 'VALS argnum next)))))
                (:RECV (inner-scope varnum vals body)
                       (compile-recur vals scope
-                                        (list* 'RECV varnum
-                                               (compile-body (scope-local inner-scope) body inner-scope
-                                                                (list* 'SHRNK (len (scope-local inner-scope))
-                                                                       next)))))
-               (t (compile-error "Unknown [%@]" ,tree ,@next))))
+                                     (list* 'RECV varnum
+                                            (compile-body (scope-local inner-scope) body inner-scope
+                                                          (list* 'SHRNK (len (scope-local inner-scope))
+                                                                 next)))))
+               (t (compile-error "Unknown [%@]" tree))))
 
 (defun compile-body (vars body scope next)
   (if body
       (make-boxes (scope-sets scope) vars
-                     (alet ((body body))
-                       (if body
-                           (compile-recur (car body) scope
-                                             (loop (cdr body)))
-                         next)))
+                  (alet ((body body))
+                    (if body
+                        (compile-recur (car body) scope
+                                       (loop (cdr body)))
+                      next)))
     (list* 'VOID next)))
 
 (defun make-boxes (sets locals next)
@@ -503,12 +506,12 @@
 (defun collect-free (vars scope next)
   (if vars
       (collect-free (cdr vars) scope
-                       (let1 x (car vars)
-                         (aif (position x (scope-local scope))
-                              (list* 'LREF it 'PUSH next)
-                           (aif (position x (scope-frees scope))
-                                (list* 'FREF it 'PUSH next)
-                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+                    (let1 x (car vars)
+                      (aif (position x (scope-local scope))
+                           (list* 'LREF it 'PUSH next)
+                        (aif (position x (scope-frees scope))
+                             (list* 'FREF it 'PUSH next)
+                          (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
 (defun can-goto? (f scope)
@@ -516,10 +519,10 @@
        (let ((sym (caddr f))                    ; Symbol for the reference.
              (sets (scope-sets scope)))
          (awhen (assoc sym sets)
-           (when (single? (cdr it))             ; Just 1 time assignment.
-             (let1 node (cadr it)
-               (when (lambda-node? node)        ; Lambda node.
-                 node)))))))
+           (and (single? (cdr it))              ; Just 1 time assignment.
+                (let1 node (cadr it)
+                  (and (lambda-node? node)      ; Lambda node.
+                       node)))))))
 
 (defun tail? (next)
   (eq? (car next) 'RET))
@@ -528,15 +531,14 @@
 ;; Declaim
 
 (defmacro declaim (&rest defs)
-  `(do
-     ,@(map (^(sentence)
-              (when (pair? sentence)
-                (case (car sentence)
-                  (inline (do (dolist (sym (cdr sentence))
-                                (declaim-inline sym))
-                              '(values)))
-                  )))
-            defs)))
+  `(do ,@(map (^(sentence)
+                (when (pair? sentence)
+                  (case (car sentence)
+                    (inline (do (dolist (sym (cdr sentence))
+                                  (declaim-inline sym))
+                                '(values)))
+                    )))
+              defs)))
 
 (let1 *inline-functions* (table)
   (defun declaim-inline (sym)
@@ -562,7 +564,7 @@
 (let1 *exit-compile* nil
   (defun compile-error (&rest args)
     (apply format *stderr* args)
-    (display "\n")
+    (display "\n" *stderr*)
     (*exit-compile* nil))
 
   (defun compile (x)
