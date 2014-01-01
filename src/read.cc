@@ -324,10 +324,10 @@ ErrorCode Reader::readSharedStructure(Value* pValue) {
   case '#':
     if (sharedStructures_ != NULL) {
       const Value* p = sharedStructures_->get(n);
-      if (p == NULL)
-        return ILLEGAL_CHAR;
-      *pValue = *p;
-      return SUCCESS;
+      if (p != NULL) {
+        *pValue = *p;
+        return SUCCESS;
+      }
     }
     // Fall
   default:
