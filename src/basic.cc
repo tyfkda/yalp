@@ -452,7 +452,16 @@ static Value s_print(State* state) {
 }
 
 static Value s_format(State* state) {
-  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
+  Value ss = state->getArg(0);
+  Stream* stream;
+  StrOStream* ostream = NULL;
+  if (ss.eq(Value::NIL)) {
+    void* memory = alloca(sizeof(StrOStream));
+    stream = ostream = new(memory) StrOStream(state->getAllocator());
+  } else {
+    state->checkType(ss, TT_STREAM);
+    stream = static_cast<SStream*>(ss.toObject())->getStream();
+  }
   Value fmt = state->getArg(1);
   state->checkType(fmt, TT_STRING);
 
@@ -461,7 +470,13 @@ static Value s_format(State* state) {
   for (int i = 0; i < argNum; ++i)
     values[i] = state->getArg(i + 2);
   format(state, stream, static_cast<String*>(fmt.toObject())->c_str(), values);
-  return Value::NIL;
+  if (ostream != NULL) {
+    ostream->close();
+    Value s = state->string(ostream->getString(), ostream->getLength());
+    ostream->~StrOStream();
+    return s;
+  }
+  return state->multiValues();
 }
 
 static Value s_read(State* state) {
