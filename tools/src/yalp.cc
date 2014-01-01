@@ -4,6 +4,7 @@
 #include "yalp/stream.hh"
 
 #include <assert.h>
+#include <fcntl.h>  // O_RDONLY, O_WRONLY
 #include <fstream>
 #include <iostream>
 #include <string.h>
@@ -115,7 +116,24 @@ static bool runBinary(State* state, Stream* stream) {
   return true;
 }
 
-static bool compile(State* state, Stream* stream, bool bNoRun) {
+static void replaceFile(FILE* fp, int fd) {
+  fflush(fp);
+  dup2(fd, fileno(fp));
+}
+
+static FILE* duplicateFile(FILE* fp, const char* mode) {
+  return fdopen(dup(fileno(fp)), mode);
+}
+
+static int reopenFile(FILE* fp, const char* fileName, const char* mode) {
+  int flags = mode[0] == 'w' ? O_WRONLY : O_RDONLY;
+  int fd = open(fileName, flags);
+  dup2(fd, fileno(fp));
+  return fd;
+}
+
+static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
+  Value outStream = state->createFileStream(outFp);
   Reader reader(state, stream);
   Value exp;
   ErrorCode err;
@@ -125,9 +143,11 @@ static bool compile(State* state, Stream* stream, bool bNoRun) {
       state->resetError();
       return false;
     }
+
     Value writess = state->referGlobal(state->intern("write/ss"));
-    state->funcall(writess, 1, &code, NULL);
-    cout << endl;
+    Value args[] = { code, outStream };
+    state->funcall(writess, 2, args, NULL);
+    fputs("\n", outFp);
 
     if (!bNoRun && !state->runBinary(code, NULL))
       return false;
@@ -229,6 +249,9 @@ static void exitIfError(ErrorCode err) {
 int main(int argc, char* argv[]) {
   State* state = State::create(&myAllocFunc);
 
+  FILE* outFp = duplicateFile(stdout, "w");
+  int tmpFd = -1;
+
   bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
@@ -275,12 +298,15 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  if (bCompile)
+    tmpFd = reopenFile(stdout, "/dev/null", "w");
+
   if (ii >= argc) {
   L_noScriptFiles:
     FileStream stream(stdin);
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
-    else if (bCompile)  result = compile(state, &stream, bNoRun);
+    else if (bCompile)  result = compile(state, &stream, bNoRun, outFp);
     else                result = repl(state, &stream, isatty(0) != 0);
     if (!result)
       exit(1);
@@ -296,7 +322,7 @@ int main(int argc, char* argv[]) {
           std::cerr << "File not found: " << argv[ii] << std::endl;
           exit(1);
         }
-        if (!compile(state, &stream, bNoRun))
+        if (!compile(state, &stream, bNoRun, outFp))
           exit(1);
       } else if (bBinary) {
         exitIfError(state->runBinaryFromFile(argv[ii]));
@@ -308,6 +334,10 @@ int main(int argc, char* argv[]) {
   if (!bCompile)
     if (!runMain(state, argc - ii, &argv[ii], NULL))
       exit(1);
+
+  fclose(outFp);
+  if (tmpFd >= 0)
+    replaceFile(stdout, tmpFd);
 
   if (bDebug)
     state->reportDebugInfo();
