@@ -101,11 +101,11 @@
           (scope-sets oscope)
           (scope-id oscope))))
 
-(defun scope-local (scope)  (car scope))
-(defun scope-upper-vars (scope)  (cadr scope))
-(defun scope-frees (scope)  (caddr scope))
-(defun scope-sets (scope)  (cadddr scope))
-(defun scope-id (scope)  (caddddr scope))
+(def scope-local       car)
+(def scope-upper-vars  cadr)
+(def scope-frees       caddr)
+(def scope-sets        cadddr)
+(def scope-id          caddddr)
 
 (defun scope-local-set! (scope v)  (set-car! scope v))
 (defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
@@ -275,14 +275,9 @@
 (defun lambda-node? (node)
   (eq? (car node) ':LAMBDA))
 
-(defun lambda-scope-get (node)
-  (cadr node))
-
-(defun lambda-body-slot-get (node)
-  (caddr node))
-
-(defun lambda-varnum-get (node)
-  (cadddr node))
+(def lambda-scope-get      cadr)
+(def lambda-body-slot-get  caddr)
+(def lambda-varnum-get     cadddr)
 
 (defun traverse-body (body scope)
   (map [traverse _ scope]
