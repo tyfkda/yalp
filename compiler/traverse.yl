@@ -310,11 +310,15 @@
     (scope-frees-set! scope
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (let1 bleed-sets (remove-if [member (car _) vars]
-                                (scope-sets inner-scope))
-      (scope-sets-set! scope
-                       (merge-scope-sets bleed-sets
-                                         (scope-sets scope))))))
+    (propagate-scope-sets scope inner-scope vars nil)))
+
+(defun propagate-scope-sets (dst-scope src-scope vars to-inner)
+  (let1 bleed-sets (let1 remove (if to-inner remove-if-not remove-if)
+                     (remove [member (car _) vars]
+                             (scope-sets src-scope)))
+    (scope-sets-set! dst-scope
+                     (merge-scope-sets bleed-sets
+                                       (scope-sets dst-scope)))))
 
 ;; Registers free variable into scope and returns its index number.
 (defun register-fref (x scope)
@@ -383,12 +387,7 @@
                                           (compile-recur else scope next))))
                (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
-                          ;; Propagate upper-sets to inner-sets.
-                          (let1 bleed-sets (remove-if-not [member (car _) frees]
-                                                          (scope-sets scope))
-                            (scope-sets-set! inner-scope
-                                             (merge-scope-sets bleed-sets
-                                                               (scope-sets inner-scope))))
+                          (propagate-scope-sets inner-scope scope frees t)
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
@@ -399,12 +398,7 @@
                (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
-                          ;; Propagate upper-sets to expanded-sets
-                          (let1 bleed-sets (remove-if-not [member (car _) frees]
-                                                          (scope-sets scope))
-                            (scope-sets-set! expanded-scope
-                                             (merge-scope-sets bleed-sets
-                                                               (scope-sets expanded-scope))))
+                          (propagate-scope-sets expanded-scope scope frees t)
                           (compile-args args-node scope
                                            (if proper-vars
                                                (let1 varnum (len proper-vars)
@@ -417,12 +411,7 @@
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local inner-scope))
                              (frees (scope-frees inner-scope)))
-                         ;; Propagate upper-sets to inner-sets
-                         (let1 bleed-sets (remove-if-not [member (car _) frees]
-                                                         (scope-sets scope))
-                           (scope-sets-set! inner-scope
-                                            (merge-scope-sets bleed-sets
-                                                              (scope-sets inner-scope))))
+                         (propagate-scope-sets inner-scope scope frees t)
                          (collect-free frees scope
                                        (list* 'MACRO name varnum (len frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
