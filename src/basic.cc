@@ -443,6 +443,14 @@ static Value s_display(State* state) {
   return output(state, false);
 }
 
+static Value s_print(State* state) {
+  Value x = state->getArg(0);
+  Stream* stream = chooseStream(state, 1, "*stdout*")->getStream();
+  x.output(state, stream, false);
+  stream->write("\n");
+  return x;
+}
+
 static Value s_format(State* state) {
   Stream* stream = chooseStream(state, 0, "*stdout*")->getStream();
   Value fmt = state->getArg(1);
@@ -865,8 +873,9 @@ void installBasicFunctions(State* state) {
     { "<=", s_lessEqual, 2, -1 },
     { ">=", s_greaterEqual, 2, -1 },
 
-    { "display", s_display, 1, 2 },
     { "write", s_write, 1, 2 },
+    { "display", s_display, 1, 2 },
+    { "print", s_print, 1, 2 },
     { "format", s_format, 2, -1 },
 
     { "read", s_read, 0, 2 },

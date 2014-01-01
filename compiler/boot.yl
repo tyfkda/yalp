@@ -315,12 +315,6 @@
         (intersection (cdr s1) s2))
     '()))
 
-(defun print (x &rest rest)
-  (let1 stream (if rest (car rest) *stdout*)
-    (display x stream)
-    (display "\n" stream))
-  x)
-
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
