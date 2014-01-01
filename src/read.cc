@@ -315,10 +315,24 @@ ErrorCode Reader::readSharedStructure(Value* pValue) {
   switch (c) {
   case '=':
     {
-      ErrorCode err = read(pValue);
+      // Store temporary object before reading labeled object
+      // for self referential.
+
+      // Assumes that labeled ss is a pair.
+      Value tmp = state_->cons(Value::NIL, Value::NIL);  // Temporary object.
+      storeShared(n, tmp);
+
+      Value object;
+      ErrorCode err = read(&object);
       if (err != SUCCESS)
         return err;
-      storeShared(n, *pValue);
+
+      // Copy pair.
+      state_->checkType(object, TT_CELL);
+      Cell* p = static_cast<Cell*>(tmp.toObject());
+      p->setCar(state_->car(object));
+      p->setCdr(state_->cdr(object));
+      *pValue = tmp;
       return SUCCESS;
     }
   case '#':

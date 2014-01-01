@@ -95,12 +95,22 @@ TEST_F(ReadTest, DottedList) {
 }
 
 TEST_F(ReadTest, SharedStructure) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));
-  ASSERT_EQ(TT_CELL, s.getType());
-  Cell* cell = static_cast<Cell*>(s.toObject());
-  ASSERT_EQ(TT_CELL, cell->cdr().getType());
-  ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car()));
+  {
+    Value s;
+    ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));
+    ASSERT_EQ(TT_CELL, s.getType());
+    Cell* cell = static_cast<Cell*>(s.toObject());
+    ASSERT_EQ(TT_CELL, cell->cdr().getType());
+    ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car()));
+  }
+
+  {
+    Value s;
+    ASSERT_EQ(SUCCESS, read("#0=(a . #0#)", &s));
+    ASSERT_EQ(TT_CELL, s.getType());
+    Cell* cell = static_cast<Cell*>(s.toObject());
+    ASSERT_TRUE(s.eq(cell->cdr()));
+  }
 }
 
 TEST_F(ReadTest, String) {
