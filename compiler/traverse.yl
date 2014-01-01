@@ -1,166 +1,46 @@
-;; Traversal compiler
+;; Yalp traversal compiler
+
+; Stack usage:
+;    c   ... closure
+;    s   ... stack pointer
+;    f   ... frame pointer (stack index)
+;    ret ... next code
+;
+; * Initial
+;   f = s = 0
+;
+; * Function call
+;   1. Use FRAME opcode to create new frame on stack:
+;     f[c][f][ret]s
+;   2. Push function arguments to stack on reverse order:
+;     f[c][f][ret][a3][a2][a1]s
+;   3. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][a3][a2][a1]f[argnum]s
+;
+; * Return
+;   1. Get called argument number from stack:
+;     [c][f][ret][a3][a2][a1]f
+;   2. Put back previous frame:
+;     f = s = 0
+; * Shift
+;   1. Put next function arguments:
+;     [c][f][ret][a3][a2][a1]f[argnum][b1]s
+;   2. Use SHIFT opcode to remove previous function arguments:
+;     [c][f][ret][b1]s
+;   4. Use APPLY opcode to apply function,
+;      then argument number is pushed to stack:
+;     [c][f][ret][b1]f[argnum]s
+
+;(load "./boot.yl")
+;(load "./util.yl")
 
 ;;;;
 
-;; Check function parameters are valid and returns proper vars.
-(defun check-parameters (vars)
-  (unless (list? vars)
-    (compile-error "parameters must be list, but %@" vars))
-  (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
-                         (let ((required (take it vars))
-                               (rest (drop (+ it 1) vars)))
-                           (unless (single? rest)
-                             (compile-error "&rest requires only 1 name, but %@" rest))
-                           (append! required rest))
-                      vars)
-    (aif (any? [no (symbol? _)] vars)
-      (compile-error "parameter must be symbol, but `%@`" (car it)))
-    (alet ((p proper-vars))
-      (when p
-        (when (member (car p) (cdr p))
-          (compile-error "Duplicated parameter `%@`" (car p)))
-        (loop (cdr p))))
-    proper-vars))
-
-(defun direct-invoke? (func)
-  (and (pair? func)
-       (eq? '^ (car func))))
-
-(defun find-index (x ls)
-  (alet ((ls ls)
-         (idx 0))
-    (if ls
-        (if (eq? (car ls) x)
-            idx
-          (loop (cdr ls) (+ idx 1)))
-      nil)))
-
-(defun tail? (next)
-  (eq? (car next) 'RET))
-
-(defun macroexpand (exp)
-  (let1 expanded (macroexpand-1 exp)
-    (if (equal? expanded exp)
-        exp
-      (macroexpand expanded))))
-
-;; Declaim
-
-(defmacro declaim (&rest defs)
-  `(do
-     ,@(map (^(sentence)
-              (when (pair? sentence)
-                (case (car sentence)
-                  (inline (do (dolist (sym (cdr sentence))
-                                (declaim-inline sym))
-                              '(values)))
-                  )))
-            defs)))
-
-(let1 *inline-functions* (table)
-  (defun declaim-inline (sym)
-    (table-put! *inline-functions* sym t))
-
-  (defun inline-function? (sym)
-    (and (symbol? sym)
-         (table-exists? *inline-functions* sym)))
-
-  (defun register-inline-function (sym func)
-    (table-put! *inline-functions* sym func))
-
-  (defun get-inline-function-body (sym)
-    (table-get *inline-functions* sym))
-  )
-
-(defun lambda-expression? (exp)
-  (and (pair? exp)
-       (eq? (car exp) '^)))
-
-;;;;
-
-(defun create-scope (local oscope)
-  (let ((upper-vars (if oscope
-                        (append (scope-local oscope)
-                                (scope-upper-vars oscope))
-                      '()))
-        (scope-id (gensym)))
-    (list local upper-vars '() '() scope-id)))
-
-(defun expand-scope (local oscope)
-  (let1 expanded-vars (append local (scope-local oscope))
-    (list expanded-vars
-          (scope-upper-vars oscope)
-          (scope-frees oscope)
-          (scope-sets oscope)
-          (scope-id oscope))))
-
-(def scope-local       car)
-(def scope-upper-vars  cadr)
-(def scope-frees       caddr)
-(def scope-sets        cadddr)
-(def scope-id          caddddr)
-
-(defun scope-local-set! (scope v)  (set-car! scope v))
-(defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
-(defun scope-frees-set! (scope v)  (set-car! (cddr scope) v))
-(defun scope-sets-set! (scope v)  (set-car! (cdddr scope) v))
-
-;; Registers free variable into scope and returns its index number.
-(defun register-fref (x scope)
-  (let1 frees (scope-frees scope)
-    (if frees
-        (aif (find-index x frees)
-             it
-          (let1 index (len frees)
-            (set-cdr! (last frees) (cons x nil))
-            index))
-      (do (scope-frees-set! scope (cons x nil))
-          0))))
-
-(defun register-set! (x v scope)
-  (aif (assoc x (scope-sets scope))
-       (set-cdr! it
-                 (cons v (cdr it)))
-    (scope-sets-set! scope
-                     (acons x (list v) (scope-sets scope)))))
-
-(defun remove-if (test seq)
-  (alet ((p seq)
-         (acc '()))
-    (if p
-        (loop (cdr p)
-              (if (test (car p))
-                  acc
-                (cons (car p) acc)))
-      (reverse! acc))))
-
-(defun remove-if-not (test seq)
-  (remove-if [no _] seq))
-
-(defun merge-scope-sets (sets1 sets2)
-  ;; Elements of sets2 may be modified.
-  (if sets1
-      (let1 s (car sets1)
-        (merge-scope-sets (cdr sets1)
-                          (aif (assoc (car s) sets2)
-                               (do (set-cdr! it (union (cdr s) (cdr it)))
-                                   sets2)
-                            (cons s sets2))))
-    sets2))
-
-(defun propagate-scope (inner-scope vars scope)
-  (when scope
-    (scope-frees-set! scope
-                      (union (scope-frees scope)
-                             (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (let1 bleed-sets (remove-if [member (car _) vars]
-                                (scope-sets inner-scope))
-      (scope-sets-set! scope
-                       (merge-scope-sets bleed-sets
-                                         (scope-sets scope))))))
-
-;;;;
-
+;; Traverses lisp code and generate intermediate AST.
+;;   x : code to be compiled.
+;;   scope : code scope.
+;;   @result : AST.
 (defun traverse (x scope)
   (cond ((symbol? x)
          (traverse-refer x scope))
@@ -169,7 +49,36 @@
            (if (pair? expanded)
                (traverse-list expanded scope)
              (traverse expanded scope))))
-        (t `(:CONST ,x))))
+        (t (list ':CONST x))))
+
+(defun traverse-list (x scope)
+  (record-case x
+               ;; Special forms.
+               (quote (obj) (list ':CONST obj))
+               (^ (vars &body body)
+                  (traverse-lambda vars body scope))
+               (if (test then &rest rest)
+                   (traverse-if test then rest scope))
+               (set! (var val)
+                     (traverse-set! var val scope))
+               (def (var val)
+                    (traverse-def var val scope))
+               (call/cc (func)
+                        (traverse-call/cc func scope))
+               (defmacro (name vars &body body)
+                 (traverse-defmacro name vars body scope))
+               (values (&rest args)
+                       (traverse-values args scope))
+               (receive (vars vals &body body)
+                        (traverse-receive vars vals body scope))
+                ;; Other: normal forms.
+               (t (let ((func (car x))
+                        (args (cdr x)))
+                    (cond ((direct-invoke? func)
+                           (traverse-apply-direct (cadr func) (cddr func) args scope))
+                          ((inline-function? func)
+                           (traverse-inline-apply func args scope))
+                          (t (traverse-apply func args scope)))))))
 
 (defun traverse-refer (x scope)
   (cond ((member x (scope-local scope))       ; Bounded variable
@@ -202,50 +111,14 @@
 (defun traverse-if (test then rest scope)
   (when (and rest (cdr rest))
     (compile-error "malformed if"))
-  `(:IF ,(traverse test scope)
-        ,(traverse then scope)
-        ,(if rest
-             (traverse (car rest) scope)
-           '(:VOID))))
-
-(defun expand-macro (x scope)
-  (let1 f (car x)
-    (if (or (no (symbol? f))
-            (member f (scope-local scope))
-            (member f (scope-upper-vars scope)))
-        x
-      (macroexpand x))))
-
-(defun traverse-list (x scope)
-  (record-case x
-               ;; Special forms.
-               (quote (obj) (list ':CONST obj))
-               (^ (vars &body body)
-                  (traverse-lambda vars body scope))
-               (if (test then &rest rest)
-                   (traverse-if test then rest scope))
-               (set! (var val)
-                     (traverse-set! var val scope))
-               (def (var val)
-                    (traverse-def var val scope))
-               (call/cc (func)
-                        (traverse-call/cc func scope))
-               (defmacro (name vars &body body)
-                 (traverse-defmacro name vars body scope))
-               (values (&rest args)
-                       (traverse-values args scope))
-               (receive (vars vals &body body)
-                        (traverse-receive vars vals body scope))
-               (t (let ((func (car x))
-                        (args (cdr x)))
-                    (cond ((direct-invoke? func)
-                           (traverse-apply-direct (cadr func) (cddr func) args scope))
-                          ((inline-function? func)
-                           (traverse-inline-apply func args scope))
-                          (t (traverse-apply func args scope)))))))
+  (list ':IF (traverse test scope)
+        (traverse then scope)
+        (if rest
+            (traverse (car rest) scope)
+          '(:VOID))))
 
 (defun traverse-call/cc (func scope)
-  `(:CONTI ,(traverse func scope)))
+  (list ':CONTI (traverse func scope)))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -259,26 +132,15 @@
       (propagate-scope inner-scope (scope-local inner-scope)
                        scope)
       ;; Returns lambda node
-      (list ':LAMBDA
-            inner-scope
-            (cons nil nil)  ; body-slot
-            varnum
-            body-node))))
-
-(defun lambda-node? (node)
-  (eq? (car node) ':LAMBDA))
-
-(def lambda-scope-get      cadr)
-(def lambda-body-slot-get  caddr)
-(def lambda-varnum-get     cadddr)
+      (create-lambda-node inner-scope varnum body-node))))
 
 (defun traverse-body (body scope)
   (map [traverse _ scope]
        body))
 
 (defun traverse-apply (func args scope)
-  `(:APPLY ,(traverse func scope)
-           ,(map [traverse _ scope] args)))
+  (list ':APPLY (traverse func scope)
+        (map [traverse _ scope] args)))
 
 (defun traverse-inline-apply (sym args scope)
   (let1 lambda (get-inline-function-body sym)
@@ -339,8 +201,8 @@
             body-node))))
 
 (defun traverse-values (args scope)
-  `(:VALS ,(map [traverse _ scope]
-                args)))
+  (list ':VALS (map [traverse _ scope]
+                    args)))
 
 (defun traverse-receive (vars vals body scope)
   (let1 proper-vars (check-parameters vars)
@@ -361,18 +223,133 @@
               val-node
               body-node)))))
 
-;;;;
+;; Check function parameters are valid and returns proper vars.
+(defun check-parameters (vars)
+  (unless (list? vars)
+    (compile-error "parameters must be list, but %@" vars))
+  (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
+                         (let ((required (take it vars))
+                               (rest (drop (+ it 1) vars)))
+                           (unless (single? rest)
+                             (compile-error "&rest requires only 1 name, but %@" rest))
+                           (append! required rest))
+                      vars)
+    (aif (any? [no (symbol? _)] vars)
+      (compile-error "parameter must be symbol, but `%@`" (car it)))
+    (alet ((p proper-vars))
+      (when p
+        (when (member (car p) (cdr p))
+          (compile-error "Duplicated parameter `%@`" (car p)))
+        (loop (cdr p))))
+    proper-vars))
 
-(defun collect-free (vars scope next)
-  (if vars
-      (collect-free (cdr vars) scope
-                       (let1 x (car vars)
-                         (aif (find-index x (scope-local scope))
-                              `(LREF ,it PUSH ,@next)
-                           (aif (find-index x (scope-frees scope))
-                                `(FREF ,it PUSH ,@next)
-                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
-    next))
+(defun direct-invoke? (func)
+  (and (pair? func)
+       (eq? '^ (car func))))
+
+(defun expand-macro (x scope)
+  (let1 f (car x)
+    (if (or (no (symbol? f))
+            (member f (scope-local scope))
+            (member f (scope-upper-vars scope)))
+        x
+      (macroexpand x))))
+
+(defun macroexpand (exp)
+  (let1 expanded (macroexpand-1 exp)
+    (if (equal? expanded exp)
+        exp
+      (macroexpand expanded))))
+
+;;;;
+;; Scope
+
+(defun create-scope (local oscope)
+  (let ((upper-vars (if oscope
+                        (append (scope-local oscope)
+                                (scope-upper-vars oscope))
+                      '()))
+        (scope-id (gensym)))
+    (list local upper-vars '() '() scope-id)))
+
+(defun expand-scope (local oscope)
+  (let1 expanded-vars (append local (scope-local oscope))
+    (list expanded-vars
+          (scope-upper-vars oscope)
+          (scope-frees oscope)
+          (scope-sets oscope)
+          (scope-id oscope))))
+
+(def scope-local       car)
+(def scope-upper-vars  cadr)
+(def scope-frees       caddr)
+(def scope-sets        cadddr)
+(def scope-id          caddddr)
+
+(defun scope-local-set! (scope v)  (set-car! scope v))
+(defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
+(defun scope-frees-set! (scope v)  (set-car! (cddr scope) v))
+(defun scope-sets-set! (scope v)  (set-car! (cdddr scope) v))
+
+(defun merge-scope-sets (sets1 sets2)
+  ;; Elements of sets2 may be modified.
+  (if sets1
+      (let1 s (car sets1)
+        (merge-scope-sets (cdr sets1)
+                          (aif (assoc (car s) sets2)
+                               (do (set-cdr! it (union (cdr s) (cdr it)))
+                                   sets2)
+                            (cons s sets2))))
+    sets2))
+
+(defun propagate-scope (inner-scope vars scope)
+  (when scope
+    (scope-frees-set! scope
+                      (union (scope-frees scope)
+                             (set-minus (scope-frees inner-scope) (scope-local scope))))
+    (let1 bleed-sets (remove-if [member (car _) vars]
+                                (scope-sets inner-scope))
+      (scope-sets-set! scope
+                       (merge-scope-sets bleed-sets
+                                         (scope-sets scope))))))
+
+;; Registers free variable into scope and returns its index number.
+(defun register-fref (x scope)
+  (let1 frees (scope-frees scope)
+    (if frees
+        (aif (find-index x frees)
+             it
+          (let1 index (len frees)
+            (set-cdr! (last frees) (cons x nil))
+            index))
+      (do (scope-frees-set! scope (cons x nil))
+          0))))
+
+(defun register-set! (x v scope)
+  (aif (assoc x (scope-sets scope))
+       (set-cdr! it
+                 (cons v (cdr it)))
+    (scope-sets-set! scope
+                     (acons x (list v) (scope-sets scope)))))
+
+;;;;
+;; Lambda node
+
+(defun create-lambda-node (scope varnum body-node)
+  (list ':LAMBDA
+        scope
+        (cons nil nil)  ; body-slot
+        varnum
+        body-node))
+
+(defun lambda-node? (node)
+  (eq? (car node) ':LAMBDA))
+
+(def lambda-scope-get      cadr)
+(def lambda-body-slot-get  caddr)
+(def lambda-varnum-get     cadddr)
+
+;;;;
 
 (defun compile-recur (tree scope next)
   (record-case tree
@@ -402,11 +379,9 @@
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets inner-scope))))
                           (collect-free frees scope
-                                           `(MACRO ,name
-                                                   ,varnum
-                                                   ,(len frees)
-                                                   ,(compile-body (scope-local inner-scope) body inner-scope (list 'RET))
-                                                   ,@next))))
+                                           (list* 'MACRO name varnum (len frees)
+                                                  (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
+                                                  next))))
                (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
                           ;; Propagate upper-sets to inner-sets.
@@ -419,10 +394,9 @@
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
                           (collect-free frees scope
-                                           `(CLOSE ,varnum
-                                                   ,(len frees)
-                                                   ,body-slot
-                                                   ,@next))))
+                                           (list* 'CLOSE varnum (len frees)
+                                                  body-slot
+                                                  next))))
                (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
@@ -499,16 +473,6 @@
                                                                        next)))))
                (t (compile-error "Unknown [%@]" ,tree ,@next))))
 
-(defun can-goto? (f scope)
-  (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (let ((sym (caddr f))                    ; Symbol for the reference.
-             (sets (scope-sets scope)))
-         (awhen (assoc sym sets)
-           (when (single? (cdr it))             ; Just 1 time assignment.
-             (let1 node (cadr it)
-               (when (lambda-node? node)        ; Lambda node.
-                 node)))))))
-
 (defun compile-body (vars body scope next)
   (if body
       (make-boxes (scope-sets scope) vars
@@ -532,10 +496,75 @@
 (defun compile-args (args scope next)
   (if args
       (compile-args (cdr args) scope
-                       (compile-recur (car args) scope
-                                         `(PUSH
-                                           ,@next)))
+                    (compile-recur (car args) scope
+                                   (list* 'PUSH next)))
     next))
+
+(defun collect-free (vars scope next)
+  (if vars
+      (collect-free (cdr vars) scope
+                       (let1 x (car vars)
+                         (aif (find-index x (scope-local scope))
+                              (list* 'LREF it 'PUSH next)
+                           (aif (find-index x (scope-frees scope))
+                                (list* 'FREF it 'PUSH next)
+                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+    next))
+
+(defun can-goto? (f scope)
+  (and (eq? (car f) ':REF)                      ; Function is simple reference.
+       (let ((sym (caddr f))                    ; Symbol for the reference.
+             (sets (scope-sets scope)))
+         (awhen (assoc sym sets)
+           (when (single? (cdr it))             ; Just 1 time assignment.
+             (let1 node (cadr it)
+               (when (lambda-node? node)        ; Lambda node.
+                 node)))))))
+
+(defun find-index (x ls)
+  (alet ((ls ls)
+         (idx 0))
+    (if ls
+        (if (eq? (car ls) x)
+            idx
+          (loop (cdr ls) (+ idx 1)))
+      nil)))
+
+(defun tail? (next)
+  (eq? (car next) 'RET))
+
+;;;;
+;; Declaim
+
+(defmacro declaim (&rest defs)
+  `(do
+     ,@(map (^(sentence)
+              (when (pair? sentence)
+                (case (car sentence)
+                  (inline (do (dolist (sym (cdr sentence))
+                                (declaim-inline sym))
+                              '(values)))
+                  )))
+            defs)))
+
+(let1 *inline-functions* (table)
+  (defun declaim-inline (sym)
+    (table-put! *inline-functions* sym t))
+
+  (defun inline-function? (sym)
+    (and (symbol? sym)
+         (table-exists? *inline-functions* sym)))
+
+  (defun register-inline-function (sym func)
+    (table-put! *inline-functions* sym func))
+
+  (defun get-inline-function-body (sym)
+    (table-get *inline-functions* sym))
+  )
+
+(defun lambda-expression? (exp)
+  (and (pair? exp)
+       (eq? (car exp) '^)))
 
 ;;;;
 

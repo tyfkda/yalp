@@ -405,3 +405,16 @@
 (defun copy-pair! (dst src)
   (set-car! dst (car src))
   (set-cdr! dst (cdr src)))
+
+(defun remove-if (test seq)
+  (alet ((p seq)
+         (acc '()))
+    (if p
+        (loop (cdr p)
+              (if (test (car p))
+                  acc
+                (cons (car p) acc)))
+      (reverse! acc))))
+
+(defun remove-if-not (test seq)
+  (remove-if [no _] seq))
