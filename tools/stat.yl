@@ -6,7 +6,8 @@
   (vm-walker code
     (^(c recur)
       (let1 operands (table-get *opcode-table* (car c))
-        (write (take (+ 1 (len operands)) c)) (display "\n")))))
+        (write/ss (take (+ 1 (len operands)) c))
+        (display "\n")))))
 
 (defun main (args)
   (files-or-stdin args
