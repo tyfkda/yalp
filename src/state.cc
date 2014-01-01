@@ -245,7 +245,8 @@ State::State(Allocator* allocator)
 
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
-    "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile"
+    "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile",
+    "*stdin*", "*stdout*",
   };
   for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
     constants_[i] = intern(constSymbols[i]);

@@ -180,6 +180,8 @@ public:
     UNQUOTE,
     UNQUOTE_SPLICING,
     COMPILE,
+    STDIN,
+    STDOUT,
     NUMBER_OF_CONSTANTS
   };
   inline Value getConstant(Constant c) const;

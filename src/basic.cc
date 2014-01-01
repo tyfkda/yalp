@@ -420,17 +420,17 @@ static Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
-static SStream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+static SStream* chooseStream(State* state, int argIndex, State::Constant defaultStream) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(defaultStreamName);
+    state->referGlobal(state->getConstant(defaultStream));
   state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject());
 }
 
 static Value output(State* state, bool inspect) {
   Value x = state->getArg(0);
-  Stream* stream = chooseStream(state, 1, "*stdout*")->getStream();
+  Stream* stream = chooseStream(state, 1, State::STDOUT)->getStream();
   x.output(state, stream, inspect);
   return x;
 }
@@ -445,14 +445,14 @@ static Value s_display(State* state) {
 
 static Value s_print(State* state) {
   Value x = state->getArg(0);
-  Stream* stream = chooseStream(state, 1, "*stdout*")->getStream();
+  Stream* stream = chooseStream(state, 1, State::STDOUT)->getStream();
   x.output(state, stream, false);
   stream->write("\n");
   return x;
 }
 
 static Value s_format(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdout*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   Value fmt = state->getArg(1);
   state->checkType(fmt, TT_STRING);
 
@@ -465,7 +465,7 @@ static Value s_format(State* state) {
 }
 
 static Value s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
   Reader reader(state, stream);
   Value exp;
@@ -497,7 +497,7 @@ static Value s_readFromString(State* state) {
 static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
   state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
-  Stream* stream = chooseStream(state, 1, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 1, State::STDIN)->getStream();
   Reader reader(state, stream);
   Value result;
   ErrorCode err = reader.readDelimitedList(delimiter.toCharacter(), &result);
@@ -507,7 +507,7 @@ static Value s_readDelimitedList(State* state) {
 }
 
 static Value s_readChar(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   int c = stream->get();
   return c == EOF ? Value::NIL : state->character(c);
 }
@@ -515,7 +515,7 @@ static Value s_readChar(State* state) {
 static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
   state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
-  SStream* sstream = chooseStream(state, 1, "*stdin*");
+  SStream* sstream = chooseStream(state, 1, State::STDIN);
   sstream->getStream()->ungetc(ch.toCharacter());
   return Value(sstream);
 }
@@ -537,7 +537,7 @@ static Value s_readLine(State* state) {
   char* heap = NULL;
   int heapSize = 0;
 
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   int c;
   for (;;) {
     c = stream->get();
