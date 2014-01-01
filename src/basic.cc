@@ -603,6 +603,28 @@ static Value s_runBinary(State* state) {
   return result;
 }
 
+static Value s_load(State* state) {
+  Value fn = state->getArg(0);
+  state->checkType(fn, TT_STRING);
+  String* fileName = static_cast<String*>(fn.toObject());
+  Value result;
+  ErrorCode err = state->runFromFile(fileName->c_str(), &result);
+  if (err != SUCCESS)
+    state->runtimeError("Cannot load \"%s\"", fileName->c_str());
+  return result;
+}
+
+static Value s_loadBinary(State* state) {
+  Value fn = state->getArg(0);
+  state->checkType(fn, TT_STRING);
+  String* fileName = static_cast<String*>(fn.toObject());
+  Value result;
+  ErrorCode err = state->runBinaryFromFile(fileName->c_str(), &result);
+  if (err != SUCCESS)
+    state->runtimeError("Cannot load binary \"%s\"", fileName->c_str());
+  return result;
+}
+
 static Value s_table(State* state) {
   bool iso = false;
   if (state->getArgNum() > 0) {
@@ -858,6 +880,8 @@ void installBasicFunctions(State* state) {
     { "uniq", s_gensym, 0 },
     { "apply", s_apply, 1, -1 },
     { "run-binary", s_runBinary, 1 },
+    { "load", s_load, 1 },
+    { "load-binary", s_loadBinary, 1 },
 
     { "table", s_table, 0, 1 },
     { "table-get", s_tableGet, 2, 3 },
