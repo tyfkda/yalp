@@ -1,12 +1,5 @@
 ;; Traversal compiler
 
-(defun caddr (x) (car (cddr x)))
-(defun cdddr (x) (cdr (cddr x)))
-(defun cadddr (x) (car (cdddr x)))
-(defun cddddr (x) (cdr (cdddr x)))
-(defun caddddr (x) (car (cddddr x)))
-(defun cdddddr (x) (cdr (cddddr x)))
-
 ;;;;
 
 ;; Check function parameters are valid and returns proper vars.

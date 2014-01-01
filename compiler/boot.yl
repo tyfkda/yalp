@@ -38,10 +38,18 @@
         (list* '^ vars body)))
 
 (defun no (x) (if x nil t))
+
 (defun caar (x) (car (car x)))
 (defun cdar (x) (cdr (car x)))
 (defun cadr (x) (car (cdr x)))
 (defun cddr (x) (cdr (cdr x)))
+(defun caddr (x) (car (cddr x)))
+(defun cdddr (x) (cdr (cddr x)))
+(defun cadddr (x) (car (cdddr x)))
+(defun cddddr (x) (cdr (cdddr x)))
+(defun caddddr (x) (car (cddddr x)))
+(defun cdddddr (x) (cdr (cddddr x)))
+
 (defun fixnum? (x) (eq? (type x) 'fixnum))
 (defun pair? (x) (eq? (type x) 'pair))
 (defun symbol? (x) (eq? (type x) 'symbol))
