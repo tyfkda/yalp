@@ -43,6 +43,14 @@
 ;; let*
 (test "let*" 12321 (let* ((x 111) (x (* x x))) x))
 
+;; named let
+(test "named let" 15 (let loop ((x 5) (acc 0))
+                       (if (> x 0)
+                           (loop (- x 1) (+ acc x))
+                         acc)))
+;; let without parameter
+(test "let empty" 123 (let () 123))
+
 ;; bracket
 (test "[...]" '(1 4 9) (map [* _ _] '(1 2 3)))
 

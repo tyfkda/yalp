@@ -132,11 +132,21 @@
            (set! ,@rest))
     `(set! ,var ,val)))
 
+(defmacro and (&rest args)
+  (if args
+      (if (cdr args)
+          `(if ,(car args)
+               (and ,@(cdr args))
+             'nil)
+        (car args))
+    't))  ; (and) = true
+
 (defmacro let1 (var val &body body)
   `((^(,var) ,@body) ,val))
 
 (defmacro let (parms &body body)
-  (if (symbol? parms)
+  (if (and (symbol? parms)
+           parms)
       ;; Named let.
       (let ((name parms)
             (parms (car body))
@@ -212,15 +222,6 @@
          ,@body)
     ;; (let-gensym a ...) => (let1 a (gensym) ...)
     `(let1 ,names (gensym) ,@body)))
-
-(defmacro and (&rest args)
-  (if args
-      (if (cdr args)
-          `(if ,(car args)
-               (and ,@(cdr args))
-             'nil)
-        (car args))
-    't))  ; (and) = true
 
 (defmacro or (&rest args)
   (and args
