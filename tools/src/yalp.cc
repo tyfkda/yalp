@@ -133,11 +133,17 @@ static int reopenFile(FILE* fp, const char* fileName, const char* mode) {
 }
 
 static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
+  int topArena = state->saveArena();
   Value outStream = state->createFileStream(outFp);
   Reader reader(state, stream);
   Value exp;
   ErrorCode err;
-  while ((err = reader.read(&exp)) == SUCCESS) {
+  for (;;) {
+    int arena = state->saveArena();
+    err = reader.read(&exp);
+    if (err != SUCCESS)
+      break;
+
     Value code;
     if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
@@ -151,11 +157,13 @@ static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
 
     if (!bNoRun && !state->runBinary(code, NULL))
       return false;
+    state->restoreArena(arena);
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
     return false;
   }
+  state->restoreArena(topArena);
   return true;
 }
 
