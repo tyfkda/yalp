@@ -10,20 +10,20 @@
 ;; Check function parameters are valid and returns proper vars.
 (defun check-parameters (vars)
   (unless (list? vars)
-    (my-compile-error "parameters must be list, but %@" vars))
+    (compile-error "parameters must be list, but %@" vars))
   (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
                          (let ((required (take it vars))
                                (rest (drop (+ it 1) vars)))
                            (unless (single? rest)
-                             (my-compile-error "&rest requires only 1 name, but %@" rest))
+                             (compile-error "&rest requires only 1 name, but %@" rest))
                            (append! required rest))
                       vars)
     (aif (any? [no (symbol? _)] vars)
-      (my-compile-error "parameter must be symbol, but `%@`" (car it)))
+      (compile-error "parameter must be symbol, but `%@`" (car it)))
     (alet ((p proper-vars))
       (when p
         (when (member (car p) (cdr p))
-          (my-compile-error "Duplicated parameter `%@`" (car p)))
+          (compile-error "Duplicated parameter `%@`" (car p)))
         (loop (cdr p))))
     proper-vars))
 
@@ -168,7 +168,7 @@
 
 (defun traverse-if (test then rest scope)
   (when (and rest (cdr rest))
-    (my-compile-error "malformed if"))
+    (compile-error "malformed if"))
   `(:IF ,(traverse test scope)
         ,(traverse then scope)
         ,(if rest
@@ -283,7 +283,7 @@
                       args-node
                       body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
-            (my-compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
+            (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
 
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -328,18 +328,18 @@
 
 ;;;;
 
-(defun my-collect-free (vars scope next)
+(defun collect-free (vars scope next)
   (if vars
-      (my-collect-free (cdr vars) scope
+      (collect-free (cdr vars) scope
                        (let1 x (car vars)
                          (aif (find-index x (scope-local scope))
                               `(LREF ,it PUSH ,@next)
                            (aif (find-index x (scope-frees scope))
                                 `(FREF ,it PUSH ,@next)
-                             (my-compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+                             (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
-(defun my-compile-recur (tree scope next)
+(defun compile-recur (tree scope next)
   (record-case tree
                (:REF (op sym)
                      (list* op (case op
@@ -352,10 +352,10 @@
                                 (list* 'UNBOX next)
                               next)))
                (:SET (op i val)
-                     (my-compile-recur val scope
+                     (compile-recur val scope
                                        (list* op i next)))
                (:DEF (var val)
-                     (my-compile-recur val scope
+                     (compile-recur val scope
                                        (list* 'DEF var next)))
                (:MACRO (inner-scope name varnum body)
                         (let ((vars (scope-local inner-scope))
@@ -366,11 +366,11 @@
                             (scope-sets-set! inner-scope
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets inner-scope))))
-                          (my-collect-free frees scope
+                          (collect-free frees scope
                                            `(MACRO ,name
                                                    ,varnum
                                                    ,(len frees)
-                                                   ,(my-compile-body (scope-local inner-scope) body inner-scope (list 'RET))
+                                                   ,(compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                                    ,@next))))
                (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
@@ -382,8 +382,8 @@
                                                                (scope-sets inner-scope))))
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
-                                      (my-compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
-                          (my-collect-free frees scope
+                                      (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
+                          (collect-free frees scope
                                            `(CLOSE ,varnum
                                                    ,(len frees)
                                                    ,body-slot
@@ -397,20 +397,20 @@
                             (scope-sets-set! expanded-scope
                                              (merge-scope-sets bleed-sets
                                                                (scope-sets expanded-scope))))
-                          (my-compile-args args-node scope
+                          (compile-args args-node scope
                                            (if proper-vars
                                                (let1 varnum (len proper-vars)
                                                  (list* 'EXPND varnum
-                                                        (my-compile-body proper-vars body expanded-scope
+                                                        (compile-body proper-vars body expanded-scope
                                                                          (if (tail? next)
                                                                              next
                                                                            (list* 'SHRNK varnum next)))))
-                                             (my-compile-body '() body expanded-scope next)))))
+                                             (compile-body '() body expanded-scope next)))))
                (:IF (test then else)
-                    (my-compile-recur test scope
+                    (compile-recur test scope
                                       (list* 'TEST
-                                             (my-compile-recur then scope next)
-                                             (my-compile-recur else scope next))))
+                                             (compile-recur then scope next)
+                                             (compile-recur else scope next))))
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
                              (argnum (len args))
@@ -424,12 +424,12 @@
                                (if (pair? varnum)
                                    (error "Not implemented: rest param for loop")
                                  (unless (eq? argnum varnum)
-                                   (my-compile-error "Illegal argnum, %@ for %@" argnum varnum)))
-                               (my-compile-args args scope
+                                   (compile-error "Illegal argnum, %@ for %@" argnum varnum)))
+                               (compile-args args scope
                                                 (list* 'LOOP argnum
                                                        (lambda-body-slot-get lambda-node))))
-                           (let1 code (my-compile-args args scope
-                                                       (my-compile-recur f scope
+                           (let1 code (compile-args args scope
+                                                       (compile-recur f scope
                                                                          (if is-tail
                                                                              (list 'TAPPLY argnum)
                                                                            (list 'APPLY argnum))))
@@ -444,7 +444,7 @@
                        (let* ((is-tail (tail? next))
                               (c (list* 'CONTI is-tail
                                         'PUSH
-                                        (my-compile-recur func scope
+                                        (compile-recur func scope
                                                           (if is-tail
                                                               '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
                                                             '(APPLY 1))))))
@@ -455,15 +455,15 @@
                       (let1 argnum (len args)
                         (if (eq? argnum 0)
                             (list* 'VOID next)
-                          (my-compile-args args scope
+                          (compile-args args scope
                                            (list* 'VALS argnum next)))))
                (:RECV (inner-scope varnum vals body)
-                      (my-compile-recur vals scope
+                      (compile-recur vals scope
                                         (list* 'RECV varnum
-                                               (my-compile-body (scope-local inner-scope) body inner-scope
+                                               (compile-body (scope-local inner-scope) body inner-scope
                                                                 (list* 'SHRNK (len (scope-local inner-scope))
                                                                        next)))))
-               (t (my-compile-error "Unknown [%@]" ,tree ,@next))))
+               (t (compile-error "Unknown [%@]" ,tree ,@next))))
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
@@ -475,17 +475,17 @@
                (when (lambda-node? node)        ; Lambda node.
                  node)))))))
 
-(defun my-compile-body (vars body scope next)
+(defun compile-body (vars body scope next)
   (if body
-      (my-make-boxes (scope-sets scope) vars
+      (make-boxes (scope-sets scope) vars
                      (alet ((body body))
                        (if body
-                           (my-compile-recur (car body) scope
+                           (compile-recur (car body) scope
                                              (loop (cdr body)))
                          next)))
     (list* 'VOID next)))
 
-(defun my-make-boxes (sets locals next)
+(defun make-boxes (sets locals next)
   (alet ((vars locals)
          (n 0))
     (if vars
@@ -495,10 +495,10 @@
           (loop (cdr vars) (+ n 1)))
       next)))
 
-(defun my-compile-args (args scope next)
+(defun compile-args (args scope next)
   (if args
-      (my-compile-args (cdr args) scope
-                       (my-compile-recur (car args) scope
+      (compile-args (cdr args) scope
+                       (compile-recur (car args) scope
                                          `(PUSH
                                            ,@next)))
     next))
@@ -509,41 +509,20 @@
   (write/ss x)
   (display "\n"))
 
-
 (let1 *exit-compile* nil
-  (defun my-compile-error (&rest args)
+  (defun compile-error (&rest args)
     (apply format *stderr* args)
     (display "\n")
     (*exit-compile* nil))
 
-  (defun my-compile (x)
+  (defun compile (x)
     (call/cc
      (^(cc)
        (set! *exit-compile* cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope)))
          ;(print/ss tree)
-         (my-compile-recur tree scope '(HALT)))))))
-
-;(defun main (args)
-;  (awhile (read)
-;    (print/ss (my-compile it))))
+         (compile-recur tree scope '(HALT)))))))
 
 (defun eval (x)
-  (run-binary (my-compile x)))
-
-(def compile my-compile)
-(def compile-error my-compile-error)
-
-
-;(let1 x '(let1 h 1
-;           (let foo ((i t))
-;             (when i
-;               h
-;               (let bar ()
-;                 (foo nil)))))
-;  (let1 code (my-compile x)
-;    (print/ss code)
-;    ;(print/ss (compile x))
-;    (let1 result (run-binary code)
-;      (print (list 'RESULT: result)))))
+  (run-binary (compile x)))
