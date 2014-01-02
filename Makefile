@@ -46,6 +46,7 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cc
 test:	$(PROJECT)
 	make -C compiler test
 	make -C test test
+	cd examples && ./test.sh
 
 check-length:
 	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr
