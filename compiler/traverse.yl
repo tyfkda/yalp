@@ -369,7 +369,7 @@
                                  (LREF (position sym (scope-local scope)))
                                  (FREF (position sym (scope-frees scope)))
                                  (GREF sym)
-                                 (t (compile-error "Compile error for :REF %@" tree)))
+                                 (t (error "Compile error for :REF %@" tree)))
                             (if (and (no (eq? op 'GREF))
                                      (assoc sym (scope-sets scope)))
                                 (list* 'UNBOX next)
@@ -427,11 +427,11 @@
                              (let1 varnum (lambda-varnum-get lambda-node)
                                (if (pair? varnum)
                                    (error "Not implemented: rest param for loop")
-                                 (unless (eq? argnum varnum)
-                                   (compile-error "Illegal argnum, %@ for %@" argnum varnum)))
-                               (compile-args args scope
-                                             (list* 'LOOP argnum
-                                                    (lambda-body-slot-get lambda-node))))
+                                 (do (unless (eq? argnum varnum)
+                                       (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
+                                     (compile-args args scope
+                                                   (list* 'LOOP argnum
+                                                          (lambda-body-slot-get lambda-node))))))
                            (let1 code (compile-args args scope
                                                     (compile-recur f scope
                                                                    (if is-tail
@@ -463,7 +463,7 @@
                                             (compile-body (scope-local inner-scope) body inner-scope
                                                           (list* 'SHRNK (len (scope-local inner-scope))
                                                                  next)))))
-               (t (compile-error "Unknown [%@]" tree))))
+               (t (error "Unknown [%@]" tree))))
 
 (defun compile-body (vars body scope next)
   (if body
@@ -500,7 +500,7 @@
                            (list* 'LREF it 'PUSH next)
                         (aif (position x (scope-frees scope))
                              (list* 'FREF it 'PUSH next)
-                          (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+                          (error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
 (defun can-goto? (f scope)
