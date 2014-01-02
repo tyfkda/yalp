@@ -869,6 +869,7 @@ Value Vm::runLoop() {
       defineMacro(name, createClosure(body, nfree, s_, min, max));
       s_ -= nfree;
       state_->restoreArena(arena);
+      valueCount_ = 0;
     } NEXT;
     CASE(EXPND) {
       int n = CAR(x_).toFixnum();
