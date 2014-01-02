@@ -463,10 +463,12 @@
                         (compile-recur vals scope
                                        (list* 'RECV varnum
                                               (compile-body (scope-local expanded-scope) body expanded-scope
-                                                            (list* 'SHRNK (if (pair? varnum)
-                                                                              (+ (car varnum) 1)
-                                                                            varnum)
-                                                                   next))))))
+                                                            (if (tail? next)
+                                                                next
+                                                              (list* 'SHRNK (if (pair? varnum)
+                                                                                (+ (car varnum) 1)
+                                                                              varnum)
+                                                                     next)))))))
                (t (error "Unknown [%@]" tree))))
 
 (defun compile-body (vars body scope next)
