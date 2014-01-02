@@ -213,15 +213,15 @@
                       (len vars)
                     (list (- (len proper-vars) 1)
                           -1)))
-          (val-node (traverse vals scope))
-          (inner-scope (expand-scope proper-vars scope)))
-      (let1 body-node (traverse-body body inner-scope)
+          (val-node (traverse vals scope)))
+      (let* ((expanded-scope (expand-scope proper-vars scope))
+             (body-node (traverse-body body expanded-scope)))
         ;; Propagate to upper scope
-        (propagate-scope inner-scope (scope-local inner-scope)
+        (propagate-scope expanded-scope proper-vars
                          scope)
         ;; Returns receive node
         (list ':RECV
-              inner-scope
+              expanded-scope
               varnum
               val-node
               body-node)))))
@@ -457,12 +457,16 @@
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (inner-scope varnum vals body)
-                      (compile-recur vals scope
-                                     (list* 'RECV varnum
-                                            (compile-body (scope-local inner-scope) body inner-scope
-                                                          (list* 'SHRNK (len (scope-local inner-scope))
-                                                                 next)))))
+               (:RECV (expanded-scope varnum vals body)
+                      (let ((frees (scope-frees expanded-scope)))
+                        (propagate-scope-sets expanded-scope scope frees t)
+                        (compile-recur vals scope
+                                       (list* 'RECV varnum
+                                              (compile-body (scope-local expanded-scope) body expanded-scope
+                                                            (list* 'SHRNK (if (pair? varnum)
+                                                                              (+ (car varnum) 1)
+                                                                            varnum)
+                                                                   next))))))
                (t (error "Unknown [%@]" tree))))
 
 (defun compile-body (vars body scope next)
