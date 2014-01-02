@@ -216,9 +216,21 @@
   `(aif ,expr
      (do ,@body)))
 
-(defmacro awhile (expr &body body)
+(defmacro while (test &body body)
   `(alet ()
-     (awhen ,expr
+     (when ,test
+       ,@body
+       (loop))))
+
+(defmacro awhile (test &body body)
+  `(alet ()
+     (awhen ,test
+       ,@body
+       (loop))))
+
+(defmacro until (test &body body)
+  `(alet ()
+     (unless ,test
        ,@body
        (loop))))
 
