@@ -171,7 +171,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Value q = state->intern(":q");
-  FileStream out(stdout);
+  Value outStream = state->createFileStream(stdout);
   Reader reader(state, stream);
   for (;;) {
     int arena = state->saveArena();
@@ -204,11 +204,13 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
     if (tty) {
+      Value writess = state->referGlobal(state->intern("write/ss"));
       const char* prompt = "=> ";
       for (int n = state->getResultNum(), i = 0; i < n; ++i) {
         Value result = state->getResult(i);
         cout << prompt;
-        result.output(state, &out, true);
+        Value args[] = { result, outStream };
+        state->funcall(writess, 2, args, NULL);
         cout << endl;
         prompt = "   ";
       }
