@@ -160,9 +160,9 @@
             (parms (car body))
             (body (cdr body)))
         `(let1 ,name nil
-           ((set! ,name (^ ,(map car parms)
-                           ,@body))
-            ,@(map cadr parms))))
+           (set! ,name (^ ,(map car parms)
+                          ,@body))
+           (,name ,@(map cadr parms))))
     `((^ ,(map car parms)
          ,@body)
       ,@(map cadr parms))))
