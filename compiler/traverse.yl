@@ -81,26 +81,23 @@
                           (t (traverse-apply func args scope)))))))
 
 (defun traverse-refer (x scope)
-  (cond ((member x (scope-local scope))       ; Bounded variable
-         (list ':REF 'LREF x))
-        ((member x (scope-upper-vars scope))  ; Free variable
-         (register-fref x scope)
-         (list ':REF 'FREF x))
-        (t (list ':REF 'GREF x))))            ; Global variable
+  (when (and (no (member x (scope-local scope)))
+             (member x (scope-upper-vars scope)))  ; Free variable
+    (register-fref x scope))
+  (list ':REF x))
 
 (defun traverse-set! (var val scope)
   (unless (symbol? var)
     (compile-error "`set!` requires symbol, but `%@`" var))
   (traverse var scope)
-  (let* ((val-node (traverse val scope))
-         (op (cond ((position var (scope-local scope)) 'LSET)
-                   ((position var (scope-upper-vars scope))
-                    (register-fref var scope)
-                    'FSET)
-                   (t 'GSET))))
-    (unless (eq? op 'GSET)
+  (let ((is-local (member var (scope-local scope)))
+        (is-free (member var (scope-upper-vars scope)))
+        (val-node (traverse val scope)))
+    (when (and (no is-local) is-free)
+      (register-fref var scope))
+    (when (or is-local is-free)
       (register-set! var val-node scope))
-    (list ':SET op var val-node)))
+    (list ':SET var val-node)))
 
 (defun traverse-def (var val scope)
   (unless (symbol? var)
@@ -365,24 +362,28 @@
                        (list* 'CONST x next))
                (:VOID ()
                       (list* 'VOID next))
-               (:REF (op sym)
-                     (list* op (case op
-                                 (LREF (position sym (scope-local scope)))
-                                 (FREF (position sym (scope-frees scope)))
-                                 (GREF sym)
-                                 (t (error "Compile error for :REF %@:%@" op sym)))
-                            (if (and (no (eq? op 'GREF))
-                                     (assoc sym (scope-sets scope)))
-                                (list* 'UNBOX next)
-                              next)))
-               (:SET (op var val)
-                     (compile-recur val scope
-                                    (list* op (case op
-                                                (LSET (position var (scope-local scope)))
-                                                (FSET (position var (scope-frees scope)))
-                                                (GSET var)
-                                                (t (error "Compile error for :SET %@:%@" op var)))
-                                           next)))
+               (:REF (sym)
+                     (receive (op i)
+                              (acond ((position sym (scope-local scope))
+                                      (values 'LREF it))
+                                     ((position sym (scope-frees scope))
+                                      (values 'FREF it))
+                                     (t (values 'GREF sym)))
+                       (list* op i
+                              (if (and (no (eq? op 'GREF))
+                                       (assoc sym (scope-sets scope)))
+                                  (list* 'UNBOX next)
+                                next))))
+               (:SET (var val)
+                     (receive (op i)
+                              (acond ((position var (scope-local scope))
+                                      (values 'LSET it))
+                                     ((position var (scope-frees scope))
+                                      (values 'FSET it))
+                                     (t (values 'GSET var)))
+                       (compile-recur val scope
+                                      (list* op i
+                                             next))))
                (:DEF (var val)
                      (compile-recur val scope
                                     (list* 'DEF var next)))
@@ -517,7 +518,7 @@
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (let ((sym (caddr f))                    ; Symbol for the reference.
+       (let ((sym (cadr f))                     ; Symbol for the reference.
              (sets (scope-sets scope)))
          (awhen (assoc sym sets)
            (and (single? (cdr it))              ; Just 1 time assignment.
