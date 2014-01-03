@@ -132,6 +132,18 @@ static int reopenFile(FILE* fp, const char* fileName, const char* mode) {
   return fd;
 }
 
+static void writess(State* state, Value value, Value outStream) {
+  Stream* stream = static_cast<SStream*>(outStream.toObject())->getStream();
+  Value fn = state->referGlobal(state->intern("write/ss"));
+  if (!fn.eq(Value::NIL)) {
+    Value args[] = { value, outStream };
+    state->funcall(fn, 2, args, NULL);
+  } else {
+    value.output(state, stream, true);
+  }
+  stream->write("\n");
+}
+
 static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
   int topArena = state->saveArena();
   Value outStream = state->createFileStream(outFp);
@@ -150,11 +162,7 @@ static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
       return false;
     }
 
-    Value writess = state->referGlobal(state->intern("write/ss"));
-    Value args[] = { code, outStream };
-    state->funcall(writess, 2, args, NULL);
-    fputs("\n", outFp);
-
+    writess(state, code, outStream);
     if (!bNoRun && !state->runBinary(code, NULL))
       return false;
     state->restoreArena(arena);
@@ -204,14 +212,11 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
     if (tty) {
-      Value writess = state->referGlobal(state->intern("write/ss"));
       const char* prompt = "=> ";
       for (int n = state->getResultNum(), i = 0; i < n; ++i) {
         Value result = state->getResult(i);
         cout << prompt;
-        Value args[] = { result, outStream };
-        state->funcall(writess, 2, args, NULL);
-        cout << endl;
+        writess(state, result, outStream);
         prompt = "   ";
       }
     }
