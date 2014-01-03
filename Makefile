@@ -56,8 +56,9 @@ boot.bin:	self.bin
 
 self.bin:	compiler/boot.yl compiler/util.yl compiler/traverse.yl
 	./yalp -L boot.bin -C compiler/boot.yl compiler/util.yl compiler/traverse.yl > _self.bin
-	./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
-	rm _self.bin
+	#./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
+	#rm _self.bin
+	mv _self.bin self.bin
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK
