@@ -392,6 +392,9 @@
           (drop (- n 1) (cdr ls))
         ls)))
 
+(defun elt (ls n)
+  (car (drop n ls)))
+
 (defun position-if (f seq)
   (alet ((p seq)
          (i 0))

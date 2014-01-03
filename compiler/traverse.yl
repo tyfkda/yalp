@@ -271,7 +271,7 @@
                                 (scope-upper-vars oscope))
                       '()))
         (scope-id (gensym)))
-    (list local upper-vars '() '() scope-id)))
+    (list local upper-vars '() '() scope-id oscope)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
@@ -279,13 +279,15 @@
           (scope-upper-vars oscope)
           (scope-frees oscope)
           (scope-sets oscope)
-          (scope-id oscope))))
+          (scope-id oscope)
+          (scope-outer-scope oscope))))
 
 (def scope-local       car)
 (def scope-upper-vars  cadr)
 (def scope-frees       caddr)
 (def scope-sets        cadddr)
 (def scope-id          caddddr)
+(defun scope-outer-scope (scope)  (elt scope 5))
 
 (defun scope-local-set! (scope v)  (set-car! scope v))
 (defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
