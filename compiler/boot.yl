@@ -275,7 +275,7 @@
              ,@body
              (loop (cdr ,p))))))))
 
-(defun len (x)
+(defun length (x)
   (case (type x)
     (string (string-length x))
     (pair (alet ((x x)

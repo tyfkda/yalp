@@ -81,9 +81,9 @@
 (test "or" 2 (or nil 2 3))
 (test "or" nil (or nil nil nil))
 
-;; len
-(test "len" 3 (len '(1 2 3)))
-(test "len dotted" 3 (len '(1 2 3 . 4)))
+;; length
+(test "length" 3 (length '(1 2 3)))
+(test "length dotted" 3 (length '(1 2 3 . 4)))
 
 ;; last
 (test "last" '(3) (last '(1 2 3)))

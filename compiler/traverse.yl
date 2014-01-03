@@ -126,8 +126,8 @@
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
     (let1 varnum (if (eq? vars proper-vars)
-                     (len vars)
-                   (list (- (len proper-vars) 1)
+                     (length vars)
+                   (list (- (length proper-vars) 1)
                          -1))
       ;; Propagate to upper scope
       (propagate-scope inner-scope (scope-local inner-scope)
@@ -150,8 +150,8 @@
 
 (defun traverse-apply-direct (vars body args scope)
   (let1 proper-vars (check-parameters vars)
-    (let ((argnum (len args))
-          (varnum (- (len proper-vars)
+    (let ((argnum (length args))
+          (varnum (- (length proper-vars)
                      (if (eq? proper-vars vars) 0 1))))
       (if (no (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
@@ -188,8 +188,8 @@
          (inner-scope (create-scope proper-vars scope))
          (body-node (traverse-body body inner-scope)))
     (let1 varnum (if (eq? vars proper-vars)
-                     (len vars)
-                   (list (- (len proper-vars) 1)
+                     (length vars)
+                   (list (- (length proper-vars) 1)
                          -1))
       ;; Propagate to upper scope
       (propagate-scope inner-scope (scope-local inner-scope)
@@ -208,8 +208,8 @@
 (defun traverse-receive (vars vals body scope)
   (let1 proper-vars (check-parameters vars)
     (let ((varnum (if (eq? vars proper-vars)
-                      (len vars)
-                    (list (- (len proper-vars) 1)
+                      (length vars)
+                    (list (- (length proper-vars) 1)
                           -1)))
           (val-node (traverse vals scope)))
       (let* ((expanded-scope (expand-scope proper-vars scope))
@@ -326,7 +326,7 @@
     (if frees
         (aif (position x frees)
              it
-          (let1 index (len frees)
+          (let1 index (length frees)
             (set-cdr! (last frees) (cons x nil))
             index))
       (do (scope-frees-set! scope (cons x nil))
@@ -401,7 +401,7 @@
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
                           (collect-free frees scope
-                                           (list* 'CLOSE varnum (len frees)
+                                           (list* 'CLOSE varnum (length frees)
                                                   body-slot
                                                   next))))
                (:INVOKE (expanded-scope proper-vars args-node body)
@@ -410,7 +410,7 @@
                           (propagate-scope-sets expanded-scope scope frees t)
                           (compile-args args-node scope
                                            (if proper-vars
-                                               (let1 varnum (len proper-vars)
+                                               (let1 varnum (length proper-vars)
                                                  (list* 'EXPND varnum
                                                         (compile-body proper-vars body expanded-scope
                                                                       (if (tail? next)
@@ -422,12 +422,12 @@
                              (frees (scope-frees inner-scope)))
                          (propagate-scope-sets inner-scope scope frees t)
                          (collect-free frees scope
-                                       (list* 'MACRO name varnum (len frees)
+                                       (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                               next))))
                (:APPLY (f args)
                        (let ((is-tail (tail? next))
-                             (argnum (len args))
+                             (argnum (length args))
                              (lambda-node (can-goto? f scope)))
                          (if (and lambda-node
                                   (eq? (scope-id (lambda-scope-get lambda-node))
@@ -461,7 +461,7 @@
                              c
                            (list* 'FRAME c next))))
                (:VALS (args)
-                      (let1 argnum (len args)
+                      (let1 argnum (length args)
                         (if (eq? argnum 0)
                             (list* 'VOID next)
                           (compile-args args scope

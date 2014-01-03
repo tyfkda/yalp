@@ -129,7 +129,7 @@
 
 (defun compile-apply (func args e s next)
   (let ((is-tail (tail? next))
-        (argnum (len args))
+        (argnum (length args))
         (func-slot (cons nil nil)))
     (let1 code-top (compile-apply-args args e s func-slot)
       (copy-pair! func-slot
@@ -158,8 +158,8 @@
 ;; Compiles ((^(vars) body) args) form
 (defun compile-apply-direct (vars body args e s next)
   (let1 proper-vars (check-parameters vars)
-    (let ((argnum (len args))
-          (varnum (- (len proper-vars)
+    (let ((argnum (length args))
+          (varnum (- (length proper-vars)
                      (if (eq? proper-vars vars) 0 1))))
       (if (no (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
@@ -203,11 +203,11 @@
                               (find-frees body '() proper-vars)))
           (sets (find-setses body proper-vars))
           (varnum (if (eq? vars proper-vars)
-                      (len vars)
-                    (list (- (len proper-vars) 1)
+                      (length vars)
+                    (list (- (length proper-vars) 1)
                           -1))))
       (collect-free free e
-                    (list* 'CLOSE varnum (len free)
+                    (list* 'CLOSE varnum (length free)
                            (compile-body proper-vars proper-vars body free sets s
                                          (list 'RET))
                            next)))))
@@ -266,7 +266,7 @@
       next)))
 
 (defun compile-values (args e s next)
-  (let1 argnum (len args)
+  (let1 argnum (length args)
     (if (eq? argnum 0)
         (compile-void next)
       (compile-apply-args args e s (list* 'VALS argnum next)))))
@@ -279,15 +279,15 @@
                           ;              (find-frees body '() proper-vars))
           (sets (union s (find-setses body ext-vars))) ;(find-setses body proper-vars))
           (varnum (if (eq? vars proper-vars)
-                      (len vars)
-                    (list (- (len proper-vars) 1)
+                      (length vars)
+                    (list (- (length proper-vars) 1)
                           -1)))
           (body-slot (cons nil nil)))
       (let1 c (compile-recur vals e s
                              (list* 'RECV varnum
                                     body-slot))
         (copy-pair! body-slot (compile-body ext-vars ext-vars body free sets s
-                                            (list* 'SHRNK (len proper-vars) next)))
+                                            (list* 'SHRNK (length proper-vars) next)))
         c))))
 
 (defun find-frees (xs b vars)
@@ -391,12 +391,12 @@
                               (find-frees body '() proper-vars)))
           (sets (find-setses body proper-vars))
           (varnum (if (eq? vars proper-vars)
-                      (len vars)
-                    (list (- (len proper-vars) 1)
+                      (length vars)
+                    (list (- (length proper-vars) 1)
                           -1))))
       ;; Macro registeration will be done in other place.
       (collect-free free e
-                    (list* 'MACRO name varnum (len free)
+                    (list* 'MACRO name varnum (length free)
                            (compile-body proper-vars proper-vars body free sets s '(RET))
                            next)))))
 
