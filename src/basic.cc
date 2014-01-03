@@ -420,6 +420,58 @@ static Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
+// Logical operator: Handles fixnum value only.
+template <class Op>
+struct LogiOp {
+  static Value calc(State* state) {
+    Fixnum value = Op::base();
+    for (int n = state->getArgNum(), i = 0; i < n; ++i) {
+      Value v = state->getArg(i);
+      state->checkType(v, TT_FIXNUM);
+      value = Op::calc(value, v.toFixnum());
+    }
+    return Value(value);
+  }
+};
+
+struct LogicalAnd {
+  static Fixnum base()  { return -1; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a & b; }
+};
+struct LogicalOr {
+  static Fixnum base()  { return 0; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a | b; }
+};
+struct LogicalXor {
+  static Fixnum base()  { return 0; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a ^ b; }
+};
+
+static Value s_logand(State* state) {
+  return LogiOp<LogicalAnd>::calc(state);
+}
+
+static Value s_logior(State* state) {
+  return LogiOp<LogicalOr>::calc(state);
+}
+
+static Value s_logxor(State* state) {
+  return LogiOp<LogicalXor>::calc(state);
+}
+
+// Arithmetic shift.
+static Value s_ash(State* state) {
+  Value x = state->getArg(0);
+  Value shift = state->getArg(1);
+  state->checkType(x, TT_FIXNUM);
+  state->checkType(shift, TT_FIXNUM);
+  int s = shift.toFixnum();
+  if (s >= 0)
+    return Value(x.toFixnum() << s);
+  else
+    return Value(x.toFixnum() >> -s);
+}
+
 static SStream* chooseStream(State* state, int argIndex, State::Constant defaultStream) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
@@ -887,6 +939,11 @@ void installBasicFunctions(State* state) {
     { ">", s_greaterThan, 2, -1 },
     { "<=", s_lessEqual, 2, -1 },
     { ">=", s_greaterEqual, 2, -1 },
+
+    { "ash", s_ash, 2 },
+    { "logand", s_logand, 0, -1 },
+    { "logior", s_logior, 0, -1 },
+    { "logxor", s_logxor, 0, -1 },
 
     { "write", s_write, 1, 2 },
     { "display", s_display, 1, 2 },
