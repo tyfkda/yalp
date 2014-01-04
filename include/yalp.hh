@@ -117,7 +117,6 @@ public:
   Value referGlobal(Value sym, bool* pExist = NULL);
   void defineGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
-  void defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
 
   // Converts C++ bool value to lisp bool value.
   inline Value boolean(bool b) const;

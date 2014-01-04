@@ -533,14 +533,6 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   restoreArena(arena);
 }
 
-void State::defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  int arena = saveArena();
-  void* memory = objAlloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
-  vm_->defineMacro(intern(name), Value(nativeFunc));
-  restoreArena(arena);
-}
-
 void State::setMacroCharacter(int c, Value func) {
   readTable_->put(character(c), func);
 }
