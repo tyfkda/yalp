@@ -1,5 +1,5 @@
 YALP=../../yalp -L ../../boot.bin
-RUNTEST=$(YALP) test.yl
+RUNTEST=$(YALP)
 
 all:	test
 

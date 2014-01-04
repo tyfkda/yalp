@@ -1,5 +1,5 @@
 ;(load-binary "../../boot.bin")
-;(load "./test.arc")
+(load "./test.yl")
 
 (test-section "functions")
 ;; no
