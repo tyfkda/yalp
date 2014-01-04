@@ -313,8 +313,8 @@
     (propagate-scope-sets scope inner-scope vars nil)))
 
 (defun propagate-scope-sets (dst-scope src-scope vars to-inner)
-  (let1 bleed-sets (let1 remove (if to-inner remove-if-not remove-if)
-                     (remove [member (car _) vars]
+  (let1 bleed-sets (let1 filter (if to-inner remove-if-not remove-if)
+                     (filter [member (car _) vars]
                              (scope-sets src-scope)))
     (scope-sets-set! dst-scope
                      (merge-scope-sets bleed-sets
