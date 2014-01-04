@@ -860,17 +860,18 @@ static Value s_flonum(State* state) {
 }
 
 static Value s_string(State* state) {
-  Value v = state->getArg(0);
-  switch (v.getType()) {
-  case TT_STRING:
-    return v;
-  default:
-    {
-      StrOStream stream(state->getAllocator());
-      v.output(state, &stream, false);
-      return state->string(stream.getString(), stream.getLength());
-    }
+  int n = state->getArgNum();
+  if (n == 1) {
+    Value v = state->getArg(0);
+    if (v.getType() == TT_STRING)
+      return v;
   }
+
+  StrOStream stream(state->getAllocator());
+  for (int i = 0; i < n; ++i) {
+    state->getArg(i).output(state, &stream, false);
+  }
+  return state->string(stream.getString(), stream.getLength());
 }
 
 static Value s_intern(State* state) {
@@ -983,7 +984,7 @@ void installBasicFunctions(State* state) {
 
     { "int", s_int, 1 },
     { "flonum", s_flonum, 1 },
-    { "string", s_string, 1 },
+    { "string", s_string, 1, -1 },
     { "intern", s_intern, 1 },
 
     { "string-length", s_stringLength, 1 },
