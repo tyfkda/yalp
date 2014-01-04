@@ -253,7 +253,7 @@ State::State(Allocator* allocator)
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
     "unknown", "int", "symbol", "pair", "string", "flonum", "closure",
-    "subr", "continuation", "vector", "table", "stream", "box",
+    "subr", "continuation", "vector", "table", "stream", "macro", "box",
   };
   for (int i = 0; i < NUMBER_OF_TYPES; ++i)
     typeSymbols_[i] = intern(TypeSymbolStrings[i]);

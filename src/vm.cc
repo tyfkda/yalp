@@ -146,6 +146,29 @@ protected:
   Value x_;
 };
 
+// Macro class.
+class Macro : public Closure {
+public:
+  Macro(State* state, Value name, Value body, int freeVarCount,
+        int minArgNum, int maxArgNum)
+    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
+    setName(name.toSymbol(state));
+  }
+  virtual Type getType() const override  { return TT_MACRO; }
+
+  virtual void output(State*, Stream* o, bool) const override {
+    const char* name = "(noname)";
+    if (name_ != NULL)
+      name = name_->c_str();
+    o->write("#<macro ");
+    o->write(name);
+    o->write('>');
+  }
+
+protected:
+  ~Macro()  {}
+};
+
 //=============================================================================
 // Inline methods
 
@@ -240,11 +263,6 @@ Vm::Vm(State* state)
     globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
   }
 
-  {
-    Value ht = state_->createHashTable(false);
-    macroTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
-
   endOfCode_ = list(state_, OPCVAL(HALT));
   return_ = list(state_, OPCVAL(RET));
 
@@ -269,7 +287,6 @@ void Vm::resetError() {
 
 void Vm::markRoot() {
   globalVariableTable_->mark();
-  macroTable_->mark();
   // Mark stack.
   for (int n = s_, i = 0; i < n; ++i)
     stack_[i].mark();
@@ -319,8 +336,10 @@ bool Vm::assignGlobal(Value sym, Value value) {
 }
 
 Value Vm::getMacro(Value name) {
-  const Value* result = macroTable_->get(name);
-  return result != NULL ? *result : Value::NIL;
+  Value v = referGlobal(name, NULL);
+  if (v.getType() != TT_MACRO)
+    return Value::NIL;
+  return v;
 }
 
 int Vm::pushArgs(int argNum, const Value* args, int s) {
@@ -360,6 +379,7 @@ Value Vm::funcall(Value fn, int argNum, const Value* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
   case TT_CONTINUATION:
+  case TT_MACRO:
     {
       Value oldX = x_;
       x_ = endOfCode_;
@@ -376,6 +396,7 @@ Value Vm::funcall(Value fn, int argNum, const Value* args) {
 Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
   switch (fn.getType()) {
   case TT_CLOSURE:
+  case TT_MACRO:
     if (isTailCall(x_)) {
       // Shifts arguments.
       int calleeArgNum = index(f_, -1).toFixnum();
@@ -426,6 +447,7 @@ void Vm::apply(Value fn, int argNum) {
   valueCount_ = 1;
   switch (fn.getType()) {
   case TT_CLOSURE:
+  case TT_MACRO:
     {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
@@ -495,13 +517,15 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
   return Value(closure);
 }
 
-void Vm::defineMacro(Value name, Value func) {
+void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
-  if (!func.isObject() || !static_cast<Object*>(func.toObject())->isCallable())
-    state_->runtimeError("`%@` is not callable", &func);
-  static_cast<Callable*>(func.toObject())->setName(name.toSymbol(state_));
-  macroTable_->put(name, func);
-  defineGlobal(name, state_->intern("*macro*"));
+
+  void* memory = state_->objAlloc(sizeof(Macro));
+  Macro* macro = new(memory) Macro(state_, name, body, nfree, minArgNum, maxArgNum);
+  for (int i = 0; i < nfree; ++i)
+    macro->setFreeVariable(i, index(s, i));
+
+  defineGlobal(name, Value(macro));
 }
 
 Value Vm::createContinuation(int s) {
@@ -720,7 +744,7 @@ Value Vm::runLoop() {
     CASE(FREF) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      assert(c_.getType() == TT_CLOSURE);
+      assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
       a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       valueCount_ = 1;
     } NEXT;
@@ -745,7 +769,7 @@ Value Vm::runLoop() {
     CASE(FSET) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      assert(c_.getType() == TT_CLOSURE);
+      assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
       Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
@@ -866,7 +890,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      defineMacro(name, createClosure(body, nfree, s_, min, max));
+      defineMacro(name, body, nfree, s_, min, max);
       s_ -= nfree;
       state_->restoreArena(arena);
       valueCount_ = 0;

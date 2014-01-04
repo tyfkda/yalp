@@ -53,6 +53,7 @@ enum Type {
   TT_VECTOR,
   TT_HASH_TABLE,
   TT_STREAM,
+  TT_MACRO,
   TT_BOX,  // TODO: This label should not be public, so hide this.
   NUMBER_OF_TYPES,
 };

@@ -48,7 +48,6 @@ public:
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
   Value getMacro(Value name);
-  void defineMacro(Value name, Value func);
 
   // Calls function.
   Value funcall(Value fn, int argNum, const Value* args);
@@ -75,6 +74,8 @@ private:
   Value createContinuation(int s);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
+
+  void defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
   int modifyRestParams(int argNum, int minArgNum);
@@ -116,9 +117,6 @@ private:
 
   // Global variables
   SHashTable* globalVariableTable_;
-
-  // Macro table: symbol => closure
-  SHashTable* macroTable_;
 
   Value endOfCode_;
   Value return_;
