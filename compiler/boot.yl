@@ -432,4 +432,4 @@
       (reverse! acc))))
 
 (defun remove-if-not (test seq)
-  (remove-if [no _] seq))
+  (remove-if [no (test _)] seq))
