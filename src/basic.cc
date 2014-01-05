@@ -900,6 +900,80 @@ static Value s_charAt(State* state) {
   return state->character(str->c_str()[i.toFixnum()]);
 }
 
+static Value s_substr(State* state) {
+  Value sstr = state->getArg(0);
+  state->checkType(sstr, TT_STRING);
+  String* str = static_cast<String*>(sstr.toObject());
+  int len = str->len();
+  Value ss = state->getArg(1);
+  state->checkType(ss, TT_FIXNUM);
+  int s = ss.toFixnum();
+  int n = len;
+  if (state->getArgNum() > 2) {
+    Value nn = state->getArg(2);
+    state->checkType(nn, TT_FIXNUM);
+    n = nn.toFixnum();
+  }
+
+  if (s > len)
+    s = len;
+  if (n < 0)
+    n = 0;
+  if (s + n > len)
+    n = len - s;
+  return state->string(str->c_str() + s, n);
+}
+
+static Value s_split(State* state) {
+  Value sstr = state->getArg(0);
+  state->checkType(sstr, TT_STRING);
+  String* str = static_cast<String*>(sstr.toObject());
+  Value sd = state->getArg(1);
+  state->checkType(sd, TT_STRING);
+  String* splitter = static_cast<String*>(sd.toObject());
+  int count = 1 << (sizeof(int) * 8 - 2);
+  if (state->getArgNum() > 2) {
+    Value c = state->getArg(2);
+    state->checkType(c, TT_FIXNUM);
+    count = c.toFixnum();
+  }
+
+  Value result = Value::NIL;
+  const char* p = str->c_str();
+  const char* d = splitter->c_str();
+  int len = splitter->len();
+  for (int i = 1; i < count; ++i) {
+    const char* q = strstr(p, d);
+    if (q == NULL)
+      break;
+    Value s = state->string(p, q - p);
+    result = state->cons(s, result);
+    p = q + len;
+  }
+  if (*p != '\0') {
+    if (result.eq(Value::NIL))
+      return list(state, sstr);
+    Value s = state->string(p);
+    result = state->cons(s, result);
+  }
+  return nreverse(result);
+}
+
+static Value s_join(State* state) {
+  Value ls = state->getArg(0);
+  Value c = state->getArg(1);
+
+  StrOStream stream(state->getAllocator());
+  bool first = true;
+  for (; !ls.eq(Value::NIL); ls = state->cdr(ls)) {
+    if (!first)
+      c.output(state, &stream, false);
+    first = false;
+    state->car(ls).output(state, &stream, false);
+  }
+  return state->string(stream.getString(), stream.getLength());
+}
+
 void installBasicFunctions(State* state) {
   state->defineGlobal(Value::NIL, Value::NIL);
   state->defineGlobal(state->getConstant(State::T), state->getConstant(State::T));
@@ -978,11 +1052,14 @@ void installBasicFunctions(State* state) {
 
     { "int", s_int, 1 },
     { "flonum", s_flonum, 1 },
-    { "string", s_string, 1, -1 },
     { "intern", s_intern, 1 },
 
+    { "string", s_string, 1, -1 },
     { "string-length", s_stringLength, 1 },
     { "char-at", s_charAt, 2 },
+    { "substr", s_substr, 2, 3 },
+    { "split", s_split, 2, 3 },
+    { "join", s_join, 2 },
   };
 
   for (auto it : FuncTable) {
