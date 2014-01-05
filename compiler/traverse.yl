@@ -283,6 +283,13 @@
           (scope-id oscope)
           (scope-outer-scope oscope))))
 
+(defun get-expanded-scope-outer-local-count (scope)
+  (let1 outer (scope-outer-scope scope)
+    (if (eq? (scope-id outer)
+             (scope-id scope))
+        (length (scope-local outer))
+      0)))
+
 (def scope-local       car)
 (def scope-upper-vars  cadr)
 (def scope-frees       caddr)
@@ -433,13 +440,14 @@
                                   (eq? (scope-id (lambda-scope-get lambda-node))
                                        (scope-id scope))  ; is in the same scope with target jump point.
                                   is-tail)
-                             (let1 varnum (lambda-varnum-get lambda-node)
+                             (let ((varnum (lambda-varnum-get lambda-node))
+                                   (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
                                (if (pair? varnum)
                                    (error "Not implemented: rest param for loop")
                                  (do (unless (eq? argnum varnum)
                                        (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
                                      (compile-args args scope
-                                                   (list* 'LOOP argnum
+                                                   (list* 'LOOP argnum outer-varnum
                                                           (lambda-body-slot-get lambda-node))))))
                            (let1 code (compile-args args scope
                                                     (compile-recur f scope

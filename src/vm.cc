@@ -671,9 +671,12 @@ void Vm::replaceOpcodes(Value x) {
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case LOOP: case BOX: case CONTI: case EXPND:
+    case GSET: case DEF: case BOX: case CONTI: case EXPND:
     case SHRNK: case VALS: case RECV:
       x = CDR(x);
+      break;
+    case LOOP:
+      x = CDDR(x);
       break;
     case TEST: case FRAME:
       replaceOpcodes(CAR(x));
@@ -837,12 +840,13 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
-      Value ns = CAR(x_);
-      x_ = CDR(x_);
-      int n = ns.toFixnum();
+      int n = CAR(x_).toFixnum();
+      int keep = CADR(x_).toFixnum();
+      x_ = CDDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
-      f_ = shiftArgs(n, calleeArgNum, s_);
-      s_ = push(ns, f_);
+      assert(calleeArgNum >= keep);
+      f_ = shiftArgs(n, calleeArgNum - keep, s_);
+      s_ = push(Value(n + keep), f_);
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
