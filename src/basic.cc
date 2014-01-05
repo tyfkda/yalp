@@ -701,15 +701,15 @@ static Value s_loadBinary(State* state) {
 }
 
 static Value s_table(State* state) {
-  bool iso = false;
+  bool equal = false;
   if (state->getArgNum() > 0) {
     Value type = state->getArg(0);
-    if (type.eq(state->intern("iso")))
-      iso = true;
+    if (type.eq(state->intern("equal")))
+      equal = true;
     else
       state->runtimeError("Illegal compare type `%@`", &type);
   }
-  return state->createHashTable(iso);
+  return state->createHashTable(equal);
 }
 
 static Value s_tableGet(State* state) {

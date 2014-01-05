@@ -143,7 +143,7 @@ public:
   // Floating point number.
   Value flonum(Flonum f);
 
-  Value createHashTable(bool iso);
+  Value createHashTable(bool equal);
 
   // File stream.
   Value createFileStream(FILE* fp);

@@ -422,10 +422,10 @@ Value State::cdr(Value s) {
     static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
 }
 
-Value State::createHashTable(bool iso) {
+Value State::createHashTable(bool equal) {
   void* memory = allocator_->objAlloc(sizeof(SHashTable));
   SHashTable* h;
-  if (iso)
+  if (equal)
     h = new(memory) SHashTable(allocator_, hashPolicyEqual_);
   else
     h = new(memory) SHashTable(allocator_, hashPolicyEq_);
