@@ -436,27 +436,27 @@
                        (let ((is-tail (tail? next))
                              (argnum (length args))
                              (lambda-node (can-goto? f scope)))
-                         (if (and lambda-node
-                                  (eq? (scope-id (lambda-scope-get lambda-node))
-                                       (scope-id scope))  ; is in the same scope with target jump point.
-                                  is-tail)
-                             (let ((varnum (lambda-varnum-get lambda-node))
-                                   (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
-                               (if (pair? varnum)
-                                   (error "Not implemented: rest param for loop")
-                                 (do (unless (eq? argnum varnum)
-                                       (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
-                                     (compile-args args scope
-                                                   (list* 'LOOP argnum outer-varnum
-                                                          (lambda-body-slot-get lambda-node))))))
-                           (let1 code (compile-args args scope
-                                                    (compile-recur f scope
-                                                                   (if is-tail
-                                                                       (list 'TAPPLY argnum)
-                                                                     (list 'APPLY argnum))))
-                             (if is-tail
-                                 code
-                               (list* 'FRAME code next))))))
+                         (cond ((and lambda-node
+                                     (eq? (scope-id (lambda-scope-get lambda-node))
+                                          (scope-id scope))  ; is in the same scope with target jump point.
+                                     is-tail)
+                                (let ((varnum (lambda-varnum-get lambda-node))
+                                      (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
+                                  (when (pair? varnum)
+                                    (error "Not implemented: rest param for loop"))
+                                  (unless (eq? argnum varnum)
+                                    (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
+                                  (compile-args args scope
+                                                (list* 'LOOP argnum outer-varnum
+                                                       (lambda-body-slot-get lambda-node)))))
+                               (t (let1 code (compile-args args scope
+                                                           (compile-recur f scope
+                                                                          (if is-tail
+                                                                              (list 'TAPPLY argnum)
+                                                                            (list 'APPLY argnum))))
+                                    (if is-tail
+                                        code
+                                      (list* 'FRAME code next)))))))
                (:CONTI (func)
                        (let* ((is-tail (tail? next))
                               (c (list* 'CONTI is-tail
