@@ -1,4 +1,4 @@
 #!/bin/sh
 
-../yalp -L ../boot.bin code-walker.yl seq.yl -- ../boot.bin \
+./yalp -L ./boot.bin tools/seq.yl ./boot.bin \
     | sort | uniq -c | sort -nr

@@ -38,7 +38,7 @@
   (let1 h (write/ss-construct code)
     (let recur ((code code))
       (let1 index (table-get h code)
-        (when (or (no index) (>= index 0))
+        (when (or (not index) (>= index 0))
           (table-put! h code -1)
           (let1 operands (table-get *opcode-table* (car code))
             (if (f code recur)

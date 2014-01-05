@@ -1,9 +1,9 @@
 ;; Show opcode sequence, 2 gram
 
 ;; Usage:
-;;   $ cat ../boot.bin | ../yalp -L ../boot.bin code-walker.arc seq.arc | sort | uniq -c | sort -nr
+;;   $ cat ../boot.bin | ../yalp -L ../boot.bin seq.yl | sort | uniq -c | sort -nr
 
-;(load "code-walker.arc")
+(load "tools/code-walker.yl")
 
 (def *next-table* (table))
 (dolist (inst instructions)

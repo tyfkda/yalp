@@ -1,6 +1,6 @@
 ;; Optimize VM code
 
-;(load "code-walker.arc")
+(load "tools/code-walker.yl")
 
 (defun optimize! (code)
   (vm-walker code
