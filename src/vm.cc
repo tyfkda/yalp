@@ -33,19 +33,22 @@
 #define CASE(opcode)  L_ ## opcode:
 #define NEXT  goto *JumpTable[FETCH_OP];
 #define END_DISPATCH
+#define OTHERWISE  L_otherwise:
 
 #else
 #define INIT_DISPATCH  for (;;) { VMTRACE; switch (FETCH_OP) {
 #define CASE(opcode) case opcode:
 #define NEXT break
 #define END_DISPATCH }}
+#define OTHERWISE default:
 #endif
 
 #define VMTRACE                                                         \
   if (trace_) {                                                         \
     FileStream out(stdout);                                             \
     Value op = state_->car(x_), d = state_->car(state_->cdr(x_));       \
-    format(state_, &out, "run: s%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+    if (d.getType() == TT_CELL) d = Value::NIL; \
+    format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
   }                                                                     \
 
 namespace yalp {
@@ -208,7 +211,7 @@ int Vm::findOpcode(Value op) {
   for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
     if (op.eq(opcodes_[i]))
       return i;
-  return -1;
+  return NUMBER_OF_OPCODE;
 }
 
 Value Vm::box(Value x) {
@@ -718,6 +721,7 @@ Value Vm::runLoop() {
 #define OP(name)  &&L_ ## name ,
     OPS
 #undef OP
+    &&L_otherwise
   };
 #endif
 
@@ -927,6 +931,10 @@ Value Vm::runLoop() {
       }
       restoreValues(min, max);
       valueCount_ = 1;
+    } NEXT;
+    OTHERWISE {
+      Value op = state_->car(prex);
+      state_->runtimeError("Unknown op `%@`", &op);
     } NEXT;
   } END_DISPATCH;
 }
