@@ -58,6 +58,10 @@ static Value s_macroexpand_1(State* state) {
   return state->tailcall(closure, argNum, argsArray);
 }
 
+static Value s_globalVariableTable(State* state) {
+  return Value(state->getGlobalVariableTable());
+}
+
 static Value s_type(State* state) {
   Value v = state->getArg(0);
   return state->getTypeSymbol(v.getType());
@@ -754,8 +758,11 @@ static Value s_tableKeys(State* state) {
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
   Value result = Value::NIL;
-  for (auto kv : *ht)
+  int arena = state->saveArena();
+  for (auto kv : *ht) {
     result = state->cons(kv.key, result);
+    state->restoreArenaWith(arena, result);
+  }
   return result;
 }
 
@@ -985,6 +992,7 @@ void installBasicFunctions(State* state) {
     int minArgNum, maxArgNum;
   } static const FuncTable[] = {
     { "macroexpand-1", s_macroexpand_1, 1 },
+    { "global-variable-table", s_globalVariableTable, 0 },
     { "type", s_type, 1 },
     { "cons", s_cons, 2 },
     { "car", s_car, 1 },

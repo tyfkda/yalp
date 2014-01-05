@@ -533,6 +533,10 @@ void State::defineNative(const char* name, NativeFuncType func, int minArgNum, i
   restoreArena(arena);
 }
 
+SHashTable* State::getGlobalVariableTable() const {
+  return vm_->getGlobalVariableTable();
+}
+
 void State::setMacroCharacter(int c, Value func) {
   readTable_->put(character(c), func);
 }

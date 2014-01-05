@@ -48,6 +48,7 @@ public:
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
   Value getMacro(Value name);
+  SHashTable* getGlobalVariableTable() const  { return globalVariableTable_; }
 
   // Calls function.
   Value funcall(Value fn, int argNum, const Value* args);
