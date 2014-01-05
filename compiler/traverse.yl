@@ -220,6 +220,7 @@
         ;; Returns receive node
         (list ':RECV
               expanded-scope
+              proper-vars
               varnum
               val-node
               body-node)))))
@@ -310,12 +311,11 @@
     (scope-frees-set! scope
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (propagate-scope-sets scope inner-scope vars nil)))
+    (propagate-scope-sets scope inner-scope vars)))
 
-(defun propagate-scope-sets (dst-scope src-scope vars to-inner)
-  (let1 bleed-sets (let1 filter (if to-inner remove-if-not remove-if)
-                     (filter [member (car _) vars]
-                             (scope-sets src-scope)))
+(defun propagate-scope-sets (dst-scope src-scope vars)
+  (let1 bleed-sets (remove-if [member (car _) vars]
+                              (scope-sets src-scope))
     (scope-sets-set! dst-scope
                      (merge-scope-sets bleed-sets
                                        (scope-sets dst-scope)))))
@@ -396,7 +396,7 @@
                                           (compile-recur else scope next))))
                (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
-                          (propagate-scope-sets inner-scope scope frees t)
+                          (propagate-scope-sets inner-scope scope (scope-local inner-scope))
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
@@ -407,7 +407,7 @@
                (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
-                          (propagate-scope-sets expanded-scope scope frees t)
+                          (propagate-scope-sets expanded-scope scope proper-vars)
                           (compile-args args-node scope
                                            (if proper-vars
                                                (let1 varnum (length proper-vars)
@@ -420,7 +420,7 @@
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local inner-scope))
                              (frees (scope-frees inner-scope)))
-                         (propagate-scope-sets inner-scope scope frees t)
+                         (propagate-scope-sets inner-scope scope (scope-local inner-scope))
                          (collect-free frees scope
                                        (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
@@ -466,9 +466,9 @@
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (expanded-scope varnum vals body)
+               (:RECV (expanded-scope proper-vars varnum vals body)
                       (let ((frees (scope-frees expanded-scope)))
-                        (propagate-scope-sets expanded-scope scope frees t)
+                        (propagate-scope-sets expanded-scope scope proper-vars)
                         (compile-recur vals scope
                                        (list* 'RECV varnum
                                               (compile-body (scope-local expanded-scope) body expanded-scope
