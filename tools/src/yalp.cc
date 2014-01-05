@@ -325,26 +325,22 @@ int main(int argc, char* argv[]) {
     else                result = repl(state, &stream, isatty(0) != 0);
     if (!result)
       exit(1);
-  } else {
+  } else if (bCompile) {
     for (; ii < argc; ++ii) {
       if (strcmp(argv[ii], "--") == 0) {
         ++ii;
         break;
       }
-      if (bCompile) {
-        FileStream stream(argv[ii], "r");
-        if (!stream.isOpened()) {
-          std::cerr << "File not found: " << argv[ii] << std::endl;
-          exit(1);
-        }
-        if (!compile(state, &stream, bNoRun, outFp))
-          exit(1);
-      } else if (bBinary) {
-        exitIfError(state->runBinaryFromFile(argv[ii]));
-      } else {
-        exitIfError(state->runFromFile(argv[ii]));
+      FileStream stream(argv[ii], "r");
+      if (!stream.isOpened()) {
+        std::cerr << "File not found: " << argv[ii] << std::endl;
+        exit(1);
       }
+      if (!compile(state, &stream, bNoRun, outFp))
+        exit(1);
     }
+  } else {
+    exitIfError(state->runFromFile(argv[ii++]));
   }
   if (!bCompile)
     if (!runMain(state, argc - ii, &argv[ii], NULL))
