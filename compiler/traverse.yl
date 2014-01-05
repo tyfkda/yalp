@@ -133,7 +133,7 @@
       (propagate-scope inner-scope (scope-local inner-scope)
                        scope)
       ;; Returns lambda node
-      (create-lambda-node inner-scope varnum body-node))))
+      (create-lambda-node inner-scope proper-vars varnum body-node))))
 
 (defun traverse-body (body scope)
   (map [traverse _ scope]
@@ -349,10 +349,11 @@
 ;;;;
 ;; Lambda node
 
-(defun create-lambda-node (scope varnum body-node)
+(defun create-lambda-node (scope proper-vars varnum body-node)
   (list ':LAMBDA
         scope
         (cons nil nil)  ; body-slot
+        proper-vars
         varnum
         body-node))
 
@@ -361,7 +362,7 @@
 
 (def lambda-scope-get      cadr)
 (def lambda-body-slot-get  caddr)
-(def lambda-varnum-get     cadddr)
+(def lambda-varnum-get     caddddr)
 
 ;;;;
 
@@ -401,7 +402,7 @@
                                    (list* 'TEST
                                           (compile-recur then scope next)
                                           (compile-recur else scope next))))
-               (:LAMBDA (inner-scope body-slot varnum body)
+               (:LAMBDA (inner-scope body-slot proper-vars varnum body)
                         (let ((frees (scope-frees inner-scope)))
                           (propagate-scope-sets inner-scope scope (scope-local inner-scope))
                           ;; Set compiled body code to body-slot.
