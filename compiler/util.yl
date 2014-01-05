@@ -19,7 +19,7 @@
 ;;; dotted pair -> proper list
 (defun dotted->proper (ls)
   (if (and ls
-           (or (no (pair? ls))
+           (or (not (pair? ls))
                (cdr (last ls))))
       ;; Symbol or dotted list: convert it to proper list.
       (alet ((p ls)

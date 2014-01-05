@@ -81,7 +81,7 @@
                           (t (traverse-apply func args scope)))))))
 
 (defun traverse-refer (x scope)
-  (when (and (no (member x (scope-local scope)))
+  (when (and (not (member x (scope-local scope)))
              (member x (scope-upper-vars scope)))  ; Free variable
     (register-fref x scope))
   (list ':REF x))
@@ -93,7 +93,7 @@
   (let ((is-local (member var (scope-local scope)))
         (is-free (member var (scope-upper-vars scope)))
         (val-node (traverse val scope)))
-    (when (and (no is-local) is-free)
+    (when (and (not is-local) is-free)
       (register-fref var scope))
     (when (or is-local is-free)
       (register-set! var val-node scope))
@@ -153,7 +153,7 @@
     (let ((argnum (length args))
           (varnum (- (length proper-vars)
                      (if (eq? proper-vars vars) 0 1))))
-      (if (no (eq? vars proper-vars))  ;; Has rest param.
+      (if (not (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
           (cond ((< argnum varnum)  ;; Error handled in the below.
                  (traverse-apply-direct proper-vars body args scope))
@@ -236,7 +236,7 @@
                              (compile-error "&rest requires only 1 name, but %@" rest))
                            (append! required rest))
                       vars)
-    (aif (any? [no (symbol? _)] vars)
+    (aif (any? [not (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
     (alet ((p proper-vars))
       (when p
@@ -251,7 +251,7 @@
 
 (defun expand-macro (x scope)
   (let1 f (car x)
-    (if (or (no (symbol? f))
+    (if (or (not (symbol? f))
             (member f (scope-local scope))
             (member f (scope-upper-vars scope)))
         x
@@ -380,7 +380,7 @@
                                       (values 'FREF it))
                                      (t (values 'GREF sym)))
                        (list* op i
-                              (if (and (no (eq? op 'GREF))
+                              (if (and (not (eq? op 'GREF))
                                        (assoc sym (scope-sets scope)))
                                   (list* 'UNBOX next)
                                 next))))

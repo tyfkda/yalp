@@ -2,9 +2,9 @@
 (load "./test.yl")
 
 (test-section "functions")
-;; no
-(test "no-nil" t (no nil))
-(test "no-t" nil (no t))
+;; not
+(test "not-nil" t (not nil))
+(test "not-t" nil (not t))
 
 ;; map
 (test "map 1" '(1 4 9) (map (^(x) (* x x)) '(1 2 3)))

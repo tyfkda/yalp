@@ -37,7 +37,7 @@
   (list 'def name
         (list* '^ vars body)))
 
-(defun no (x) (if x nil t))
+(defun not (x) (if x nil t))
 
 (defun caar (x) (car (car x)))
 (defun cdar (x) (cdr (car x)))
@@ -78,7 +78,7 @@
      (reverse! acc))))
 
 (defun mapn-loop (f lss acc)
-  (if (any? no lss)
+  (if (any? not lss)
       (reverse! acc)
     (mapn-loop f (map1-loop cdr lss '())
                (cons (apply f (map1-loop car lss '()))
@@ -409,13 +409,13 @@
 
 (defun single? (ls)
   (and (pair? ls)
-       (no (cdr ls))))
+       (not (cdr ls))))
 
 (defun list? (ls)
   ;; Nil, or not dotted list
-  (or (no ls)
+  (or (not ls)
       (and (pair? ls)
-           (no (cdr (last ls))))))
+           (not (cdr (last ls))))))
 
 (defun copy-pair! (dst src)
   (set-car! dst (car src))
@@ -432,4 +432,4 @@
       (reverse! acc))))
 
 (defun remove-if-not (test seq)
-  (remove-if [no (test _)] seq))
+  (remove-if [not (test _)] seq))
