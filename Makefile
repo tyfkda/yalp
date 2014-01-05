@@ -21,6 +21,7 @@ clean:
 	rm -rf $(OBJDIR) $(LIBDIR)
 	rm -f $(PROJECT)
 	make -C test clean
+	make -C embed_examples clean
 
 -include $(DEPS)
 -include $(OBJDIR)/yalp.d
@@ -47,6 +48,7 @@ test:	$(PROJECT)
 	make -C compiler test
 	make -C test test
 	cd examples && ./test.sh
+	make -C embed_examples test
 
 check-length:
 	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr

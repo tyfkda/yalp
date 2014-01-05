@@ -20,6 +20,9 @@ clean:
 %.o:	%.cc
 	g++ $(CXXFLAGS) -o $@ -c $<
 
+test:	$(EXES)
+	./test.sh
+
 001_run_string:	001_run_string.o
 	g++ -o $@ 001_run_string.o $(LIBNAME)
 
