@@ -304,6 +304,8 @@ ErrorCode Reader::readSpecial(Value* pValue) {
     return readNumLiteral(pValue, 16);
   case 'b':
     return readNumLiteral(pValue, 2);
+  case '(':
+    return readVector(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -414,6 +416,15 @@ ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
     }
     x = (x * base) + h;
   }
+}
+
+ErrorCode Reader::readVector(Value* pValue) {
+  Value ls;
+  ErrorCode err = readDelimitedList(')', &ls);
+  if (err != SUCCESS)
+    return err;
+  *pValue = listToVector(state_, ls);
+  return SUCCESS;
 }
 
 ErrorCode Reader::readTimeEval(Value* pValue) {

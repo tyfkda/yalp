@@ -30,6 +30,7 @@ class State;
 class Stream;
 class Symbol;
 class SymbolManager;
+class Vector;
 class Vm;
 
 typedef long Fixnum;
@@ -145,6 +146,7 @@ public:
   Value flonum(Flonum f);
 
   Value createHashTable(bool equal);
+  Vector* createVector(int size);
 
   // File stream.
   Value createFileStream(FILE* fp);

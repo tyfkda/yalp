@@ -53,6 +53,18 @@ int length(Value v) {
   return len;
 }
 
+Value listToVector(State* state, Value ls) {
+  int len = length(ls);
+  Vector* vector = state->createVector(len);
+  Value p = ls;
+  for (int i = 0; i < len; ++i) {
+    Cell* q = static_cast<Cell*>(p.toObject());
+    vector->set(i, q->car());
+    p = q->cdr();
+  }
+  return Value(vector);
+}
+
 struct FormatParams {
   virtual bool valueOnly()  { return true; }
   virtual const Value* getValue() = 0;

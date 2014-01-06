@@ -766,6 +766,58 @@ static Value s_tableKeys(State* state) {
   return result;
 }
 
+static Value s_makeVector(State* state) {
+  Value ssize = state->getArg(0);
+  state->checkType(ssize, TT_FIXNUM);
+  int size = ssize.toFixnum();
+  Value fillValue = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
+  Vector* vector = state->createVector(size);
+  for (int i = 0; i < size; ++i)
+    vector->set(i, fillValue);
+  return Value(vector);
+}
+
+static Value s_vector(State* state) {
+  int n = state->getArgNum();
+  Vector* vector = state->createVector(n);
+  for (int i = 0; i < n; ++i)
+    vector->set(i, state->getArg(i));
+  return Value(vector);
+}
+
+static Value s_vectorLength(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  return Value(vector->size());
+}
+
+static Value s_vectorGet(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  int index = i.toFixnum();
+  if (index < 0 || index >= vector->size())
+    state->runtimeError("Out of vector size, %d/%d", vector->size(), index);
+  return vector->get(index);
+}
+
+static Value s_vectorSet(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  int index = i.toFixnum();
+  if (index < 0 || index >= vector->size())
+    state->runtimeError("Out of vector size, %d/%d", vector->size(), index);
+  Value value = state->getArg(2);
+  vector->set(index, value);
+  return value;
+}
+
 static Value s_setMacroCharacter(State* state) {
   Value chr = state->getArg(0);
   Value fn = state->getArg(1);
@@ -1047,6 +1099,12 @@ void installBasicFunctions(State* state) {
     { "table-exists?", s_tableExists, 2 },
     { "table-delete!", s_tableDelete, 2 },
     { "table-keys", s_tableKeys, 1 },
+
+    { "make-vector", s_makeVector, 1, 2 },
+    { "vector", s_vector, 0, -1 },
+    { "vector-length", s_vectorLength, 1 },
+    { "vector-get", s_vectorGet, 2 },
+    { "vector-set!", s_vectorSet, 3 },
 
     { "set-macro-character", s_setMacroCharacter, 2 },
     { "get-macro-character", s_getMacroCharacter, 1 },

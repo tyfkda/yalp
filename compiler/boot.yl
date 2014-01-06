@@ -277,12 +277,13 @@
 
 (defun length (x)
   (case (type x)
-    (string (string-length x))
     (pair (alet ((x x)
                  (n 0))
             (if (pair? x)
                 (loop (cdr x) (+ n 1))
               n)))
+    (string (string-length x))
+    (vector (vector-length x))
     (t 0)))
 
 ;; Returns last pair

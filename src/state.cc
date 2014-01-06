@@ -432,6 +432,12 @@ Value State::createHashTable(bool equal) {
   return Value(h);
 }
 
+Vector* State::createVector(int size) {
+  void* memory = allocator_->objAlloc(sizeof(Vector));
+  Vector* vector = new(memory) Vector(allocator_, size);
+  return vector;
+}
+
 Value State::string(const char* str) {
   return string(str, strlen(str));
 }
