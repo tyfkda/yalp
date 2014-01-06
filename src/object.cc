@@ -223,6 +223,18 @@ void Vector::destruct(Allocator* allocator) {
 
 Type Vector::getType() const { return TT_VECTOR; }
 
+bool Vector::equal(const Object* target) const {
+  const Vector* p = static_cast<const Vector*>(target);
+  int n = size();
+  if (n != p->size())
+    return false;
+  for (int i = 0; i < n; ++i) {
+    if (!buffer_[i].equal(p->buffer_[i]))
+      return false;
+  }
+  return true;
+}
+
 void Vector::output(State* state, Stream* o, bool inspect) const {
   o->write('#');
   char c = '(';

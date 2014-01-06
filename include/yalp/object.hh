@@ -141,6 +141,7 @@ protected:
 class Vector : public Object {
 public:
   virtual Type getType() const override;
+  virtual bool equal(const Object* target) const override;
 
   int size() const  { return size_; }
 
