@@ -272,16 +272,16 @@
                                 (scope-upper-vars oscope))
                       '()))
         (scope-id (gensym)))
-    (list local upper-vars '() '() scope-id oscope)))
+    (vector local upper-vars '() '() scope-id oscope)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
-    (list expanded-vars
-          (scope-upper-vars oscope)
-          (scope-frees oscope)
-          (scope-sets oscope)
-          (scope-id oscope)
-          (scope-outer-scope oscope))))
+    (vector expanded-vars
+            (scope-upper-vars oscope)
+            (scope-frees oscope)
+            (scope-sets oscope)
+            (scope-id oscope)
+            (scope-outer-scope oscope))))
 
 (defun get-expanded-scope-outer-local-count (scope)
   (let1 outer (scope-outer-scope scope)
@@ -290,17 +290,17 @@
         (length (scope-local outer))
       0)))
 
-(def scope-local       car)
-(def scope-upper-vars  cadr)
-(def scope-frees       caddr)
-(def scope-sets        cadddr)
-(def scope-id          caddddr)
-(defun scope-outer-scope (scope)  (elt scope 5))
+(defun scope-local (scope)        (vector-get scope 0))
+(defun scope-upper-vars (scope)   (vector-get scope 1))
+(defun scope-frees (scope)        (vector-get scope 2))
+(defun scope-sets (scope)         (vector-get scope 3))
+(defun scope-id (scope)           (vector-get scope 4))
+(defun scope-outer-scope (scope)  (vector-get scope 5))
 
-(defun scope-local-set! (scope v)  (set-car! scope v))
-(defun scope-upper-vars-set! (scope v)  (set-car! (cdr scope) v))
-(defun scope-frees-set! (scope v)  (set-car! (cddr scope) v))
-(defun scope-sets-set! (scope v)  (set-car! (cdddr scope) v))
+(defun scope-local-set! (scope v)       (vector-set! scope 0 v))
+(defun scope-upper-vars-set! (scope v)  (vector-set! scope 1 v))
+(defun scope-frees-set! (scope v)       (vector-set! scope 2 v))
+(defun scope-sets-set! (scope v)        (vector-set! scope 3 v))
 
 (defun merge-scope-sets (sets1 sets2)
   ;; Elements of sets2 may be modified.
