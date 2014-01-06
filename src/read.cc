@@ -34,9 +34,9 @@ const int DEFAULT_SIZE = 24;
 static int hexChar(int c) {
   if (isdigit(c))
     return c - '0';
-  if ('A' <= c && c <= 'F')
+  if ('A' <= c && c <= 'Z')
     return c - ('A' - 10);
-  if ('a' <= c && c <= 'f')
+  if ('a' <= c && c <= 'z')
     return c - ('a' - 10);
   return -1;
 }
@@ -268,7 +268,7 @@ ErrorCode Reader::readString(char closeChar, Value* pValue) {
           {
             int c1 = hexChar(getc());
             int c2 = hexChar(getc());
-            if (c1 < 0 || c2 < 0)
+            if (c1 < 0 || c1 >= 16 || c2 < 0 || c2 >= 16)
               return ILLEGAL_CHAR;
             c = (c1 << 4) | c2;
           }
@@ -300,6 +300,10 @@ ErrorCode Reader::readSpecial(Value* pValue) {
     if (!skipBlockComment())
       return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
     return read(pValue);
+  case 'x':
+    return readNumLiteral(pValue, 16);
+  case 'b':
+    return readNumLiteral(pValue, 2);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -389,6 +393,27 @@ ErrorCode Reader::readChar(Value* pValue) {
     }
   }
   return ILLEGAL_CHAR;
+}
+
+ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
+  Fixnum x = 0;
+  for (;;) {
+    int c = getc();
+    if (isDelimiter(c)) {
+      ungetc(c);
+      *pValue = Value(x);
+      return SUCCESS;
+    }
+
+    if (c == '_')
+      continue;
+    int h = hexChar(c);
+    if (h < 0 || h >= base) {
+      ungetc(c);
+      return ILLEGAL_CHAR;
+    }
+    x = (x * base) + h;
+  }
 }
 
 ErrorCode Reader::readTimeEval(Value* pValue) {
