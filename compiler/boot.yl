@@ -327,6 +327,10 @@
         (intersection (cdr s1) s2))
     '()))
 
+(defun single? (ls)
+  (and (pair? ls)
+       (not (cdr ls))))
+
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
@@ -357,25 +361,33 @@
         (if (and index (< index 0))
             ;; Print structure after second time or later.
             (format stream "#%@#" (- -1 index))
-          ;; Print structure at first time.
           (do (when index
+                ;; Print structure at first time.
                 (format stream "#%@=" index)
                 (table-put! h s (- -1 index)))
-              (alet ((c "(")
-                     (s s))
-                (if s
-                    (do (display c stream)
+              (aif (and (single? (cdr s))
+                        (not (table-get h (cdr s)))
+                        (assoc (car s) '((quote . "'")
+                                         (quasiquote . "`")
+                                         (unquote . ",")
+                                         (unquote-splicing . ",@"))))
+                   ;; Write abbreviated form.
+                   (do (display (cdr it) stream)
+                       (write (cadr s) stream))
+                (do (alet ((c "(")
+                           (s s))
+                      (when s
+                        (display c stream)
                         (write/ss-print (car s) h stream)
                         (let1 ds (cdr s)
                           (if (or (and ds
                                        (not (pair? ds)))
                                   (table-get h ds))
                               (do (display " . " stream)
-                                  (write/ss-print ds h stream)
-                                  (display ")" stream))
-                            (loop " " ds))))
-                  (display ")" stream))
-                s))))
+                                  (write/ss-print ds h stream))
+                            (loop " " ds)))))
+                    (display ")" stream)))
+              s)))
     (write s stream)))
 
 ;; Take first n elements from the list.
@@ -408,10 +420,6 @@
 
 (defun position (item seq)
   (position-if [eq? _ item] seq))
-
-(defun single? (ls)
-  (and (pair? ls)
-       (not (cdr ls))))
 
 (defun list? (ls)
   ;; Nil, or not dotted list
