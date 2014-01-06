@@ -373,8 +373,10 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
 }
 
 void State::checkType(Value x, Type expected) {
-  if (x.getType() != expected)
-    runtimeError("Type error, %d expected, but `%@`", expected, &x);
+  if (x.getType() != expected) {
+    Value expectedType = getTypeSymbol(expected);
+    runtimeError("Type error, %@ expected, but `%@`", &expectedType, &x);
+  }
 }
 
 void* State::alloc(size_t size) const {
