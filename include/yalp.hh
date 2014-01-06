@@ -145,7 +145,7 @@ public:
   // Floating point number.
   Value flonum(Flonum f);
 
-  Value createHashTable(bool equal);
+  SHashTable* createHashTable(bool equal);
   Vector* createVector(int size);
 
   // File stream.

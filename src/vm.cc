@@ -260,11 +260,7 @@ Vm::Vm(State* state)
       opcodes_[i] = state_->intern(NameTable[i]);
   }
 
-  {
-    Value ht = state_->createHashTable(false);
-    assert(ht.getType() == TT_HASH_TABLE);
-    globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
+  globalVariableTable_ = state_->createHashTable(false);
 
   endOfCode_ = list(state_, OPCVAL(HALT));
   return_ = list(state_, OPCVAL(RET));

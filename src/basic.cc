@@ -713,7 +713,7 @@ static Value s_table(State* state) {
     else
       state->runtimeError("Illegal compare type `%@`", &type);
   }
-  return state->createHashTable(equal);
+  return Value(state->createHashTable(equal));
 }
 
 static Value s_tableGet(State* state) {

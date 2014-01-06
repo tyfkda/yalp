@@ -262,11 +262,8 @@ State::State(Allocator* allocator)
   installBasicFunctions(this);
   installBasicObjects();
 
-  {
-    Value ht = createHashTable(false);
-    assert(ht.getType() == TT_HASH_TABLE);
-    readTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
+  readTable_ = createHashTable(false);
+
   restoreArena(arena);
 }
 
@@ -424,14 +421,14 @@ Value State::cdr(Value s) {
     static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
 }
 
-Value State::createHashTable(bool equal) {
+SHashTable* State::createHashTable(bool equal) {
   void* memory = allocator_->objAlloc(sizeof(SHashTable));
-  SHashTable* h;
+  SHashTable* ht;
   if (equal)
-    h = new(memory) SHashTable(allocator_, hashPolicyEqual_);
+    ht = new(memory) SHashTable(allocator_, hashPolicyEqual_);
   else
-    h = new(memory) SHashTable(allocator_, hashPolicyEq_);
-  return Value(h);
+    ht = new(memory) SHashTable(allocator_, hashPolicyEq_);
+  return ht;
 }
 
 Vector* State::createVector(int size) {
