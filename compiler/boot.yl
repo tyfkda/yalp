@@ -335,7 +335,8 @@
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
-    (write/ss-print s (write/ss-construct s) stream)))
+    (write/ss-print s (write/ss-construct s) stream)
+    s))
 
 ;; Put cell appear idnex for more than 2 times into table.
 (defun write/ss-construct (s)
@@ -387,8 +388,7 @@
                               (do (display " . " stream)
                                   (write/ss-print ds h stream))
                             (loop " " ds)))))
-                    (display ")" stream)))
-              s)))
+                    (display ")" stream))))))
     (write s stream)))
 
 ;; Take first n elements from the list.
