@@ -375,6 +375,10 @@
 (def lambda-scope-get      cadr)
 (def lambda-body-slot-get  caddr)
 (def lambda-varnum-get     caddddr)
+(defun lambda-body-node-get (node)  (elt node 5))
+
+(defun lambda-scope-set! (node scope)
+  (set-car! (cdr node) scope))
 
 ;;;;
 
@@ -397,15 +401,7 @@
                                   (list* 'UNBOX next)
                                 next))))
                (:SET (var val)
-                     (receive (op i)
-                              (acond ((scope-local-has? scope var)
-                                      (values 'LSET it))
-                                     ((position var (scope-frees scope))
-                                      (values 'FSET it))
-                                     (t (values 'GSET var)))
-                       (compile-recur val scope
-                                      (list* op i
-                                             next))))
+                     (compile-set! var val scope next))
                (:DEF (var val)
                      (compile-recur val scope
                                     (list* 'DEF var next)))
@@ -446,30 +442,7 @@
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                               next))))
                (:APPLY (f args tail)
-                       (let ((argnum (length args))
-                             (lambda-node (can-goto? f scope)))
-                         (cond ((and lambda-node
-                                     (eq? (scope-id (lambda-scope-get lambda-node))
-                                          (scope-id scope))  ; is in the same scope with target jump point.
-                                     tail)
-                                (let ((varnum (lambda-varnum-get lambda-node))
-                                      (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
-                                  (when (pair? varnum)
-                                    (error "Not implemented: rest param for loop"))
-                                  (unless (eq? argnum varnum)
-                                    (let1 funcname (cadr f)
-                                      (compile-error "Illegal argnum, `%@` requires %@, but %@" funcname varnum argnum)))
-                                  (compile-args args scope
-                                                (list* 'LOOP argnum outer-varnum
-                                                       (lambda-body-slot-get lambda-node)))))
-                               (t (let1 code (compile-args args scope
-                                                           (compile-recur f scope
-                                                                          (if tail
-                                                                              (list 'TAPPLY argnum)
-                                                                            (list 'APPLY argnum))))
-                                    (if tail
-                                        code
-                                      (list* 'FRAME code next)))))))
+                       (compile-apply f args tail scope next))
                (:CONTI (func tail)
                        (let* ((c (list* 'CONTI tail
                                         'PUSH
@@ -499,6 +472,88 @@
                                                                               varnum)
                                                                      next)))))))
                (t (error "Unknown [%@]" tree))))
+
+(defun compile-apply (f args tail scope next)
+  (let ((argnum (length args))
+        (lambda-node (can-goto? f scope)))
+    (cond ((and lambda-node
+                (eq? (scope-outer-scope (lambda-scope-get lambda-node))
+                     scope))
+           ;; Beginning of loop using self-recursion function.
+           (let ((lambda-scope (lambda-scope-get lambda-node))
+                 (body-slot (lambda-body-slot-get lambda-node)))
+             (let ((expanded-scope (expand-scope (scope-local lambda-scope) scope)))
+               ;(copy-pair! body-slot
+               ;            (compile-body (scope-local lambda-scope) (lambda-body-node-get lambda-node) expanded-scope
+               ;                          next))
+               (let1 c (compile-args args scope
+                                     (compile-recur f scope
+                                                    (if tail
+                                                        (list* 'SHIFT argnum
+                                                               (list* 'DIRECTCALL argnum
+                                                                      body-slot))
+                                                      (list* 'DIRECTCALL argnum
+                                                             body-slot))))
+                 (if tail
+                     c
+                   (list* 'FRAME c next))))))
+          ;; Continue loop using self-recursion in tail position.
+          ((and lambda-node
+                (or (eq? (scope-id (lambda-scope-get lambda-node))
+                         (scope-id scope))
+                    (eq? (scope-id (scope-outer-scope (lambda-scope-get lambda-node)))
+                         (scope-id scope)))
+                tail)
+           (let ((varnum (lambda-varnum-get lambda-node))
+                 (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
+             (when (pair? varnum)
+               (error "Not implemented: rest param for loop"))
+             (unless (eq? argnum varnum)
+               (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
+             (compile-args args scope
+                           (list* 'LOOP argnum outer-varnum
+                                  (lambda-body-slot-get lambda-node)))))
+          ;; Normal function call.
+          (t (let1 code (compile-args args scope
+                                      (compile-recur f scope
+                                                     (if tail
+                                                         (list 'TAPPLY argnum)
+                                                       (list 'APPLY argnum))))
+               (if tail
+                   code
+                 (list* 'FRAME code next)))))))
+
+(defun compile-set! (var val scope next)
+  ;; Check whether the set! value is lambda and it is used for
+  ;; local loop.
+  (if (and nil  ; TODO: Enable this.
+           (lambda-node? val)
+           (let1 ss (scope-sets-has? scope var)
+             (and ss
+                  (single? ss)
+                  (car ss))))
+       ;; This function is used for loop.
+       (let* ((lambda-node val)
+              (body-slot (lambda-body-slot-get lambda-node))
+              (lambda-scope (lambda-scope-get lambda-node))
+              (expanded-scope (expand-scope (scope-local lambda-scope) scope)))
+         (lambda-scope-set! lambda-node expanded-scope)
+         (copy-pair! body-slot
+                     (compile-body (scope-local lambda-scope) (lambda-body-node-get lambda-node)
+                                   expanded-scope
+                                   (list 'RET)))
+         (list* 'CONST body-slot
+                next))
+    ;; Normal set!
+    (receive (op i)
+             (acond ((scope-local-has? scope var)
+                     (values 'LSET it))
+                    ((position var (scope-frees scope))
+                     (values 'FSET it))
+                    (t (values 'GSET var)))
+      (compile-recur val scope
+                     (list* op i
+                            next)))))
 
 (defun compile-body (vars body scope next)
   (if body

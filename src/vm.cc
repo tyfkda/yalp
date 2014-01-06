@@ -72,8 +72,10 @@ namespace yalp {
   OP(FRAME) \
   OP(APPLY) \
   OP(RET) \
+  OP(SHIFT) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(LOOP) \
+  OP(DIRECTCALL) \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
@@ -671,7 +673,7 @@ void Vm::replaceOpcodes(Value x) {
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case BOX: case CONTI: case EXPND:
-    case SHRNK: case VALS: case RECV:
+    case SHRNK: case VALS: case RECV: case SHIFT: case DIRECTCALL:
       x = CDR(x);
       break;
     case LOOP:
@@ -838,6 +840,15 @@ Value Vm::runLoop() {
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
     } NEXT;
+    CASE(DIRECTCALL) {
+      int argNum = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      Closure* closure = static_cast<Closure*>(a_.toObject());
+      pushCallStack(closure);
+      f_ = s_;
+      c_ = a_;
+      s_ = push(Value(argNum), s_);
+    } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
       int n = CAR(x_).toFixnum();
@@ -856,6 +867,13 @@ Value Vm::runLoop() {
       shiftCallStack();
       // APPLY
       apply(a_, n);
+    } NEXT;
+    CASE(SHIFT) {
+      int n = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      int calleeArgNum = index(f_, -1).toFixnum();
+      s_ = shiftArgs(n, calleeArgNum, s_);
+      shiftCallStack();
     } NEXT;
     CASE(BOX) {
       int arena = state_->saveArena();
