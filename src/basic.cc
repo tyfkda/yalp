@@ -705,10 +705,12 @@ static Value s_loadBinary(State* state) {
 }
 
 static Value s_table(State* state) {
-  bool equal = false;
+  bool equal = true;
   if (state->getArgNum() > 0) {
     Value type = state->getArg(0);
-    if (type.eq(state->intern("equal")))
+    if (type.eq(state->intern("eq")))
+      equal = false;
+    else if (type.eq(state->intern("equal")))
       equal = true;
     else
       state->runtimeError("Illegal compare type `%@`", &type);

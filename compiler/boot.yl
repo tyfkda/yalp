@@ -340,7 +340,7 @@
 
 ;; Put cell appear idnex for more than 2 times into table.
 (defun write/ss-construct (s)
-  (let1 h (table)
+  (let1 h (table 'eq)
     (table-put! h 'index 0)
     (alet ((s s))
       (when (pair? s)
