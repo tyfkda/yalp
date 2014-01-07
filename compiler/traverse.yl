@@ -272,7 +272,7 @@
                                 (scope-upper-vars oscope))
                       '()))
         (scope-id (gensym)))
-    (vector local upper-vars '() '() scope-id oscope)))
+    (vector local upper-vars '() (table) scope-id oscope)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
@@ -300,18 +300,12 @@
 (defun scope-local-set! (scope v)       (vector-set! scope 0 v))
 (defun scope-upper-vars-set! (scope v)  (vector-set! scope 1 v))
 (defun scope-frees-set! (scope v)       (vector-set! scope 2 v))
-(defun scope-sets-set! (scope v)        (vector-set! scope 3 v))
 
-(defun merge-scope-sets (sets1 sets2)
-  ;; Elements of sets2 may be modified.
-  (if sets1
-      (let1 s (car sets1)
-        (merge-scope-sets (cdr sets1)
-                          (aif (assoc (car s) sets2)
-                               (do (set-cdr! it (union (cdr s) (cdr it)))
-                                   sets2)
-                            (cons s sets2))))
-    sets2))
+(defun merge-scope-sets (sets key vals)
+  (if (table-exists? sets key)
+      (table-put! sets key (union vals
+                                  (table-get sets key)))
+    (table-put! sets key vals)))
 
 (defun propagate-scope (inner-scope vars scope)
   (when scope
@@ -321,11 +315,11 @@
     (propagate-scope-sets scope inner-scope vars)))
 
 (defun propagate-scope-sets (dst-scope src-scope vars)
-  (let1 bleed-sets (remove-if [member (car _) vars]
-                              (scope-sets src-scope))
-    (scope-sets-set! dst-scope
-                     (merge-scope-sets bleed-sets
-                                       (scope-sets dst-scope)))))
+  (let ((dst-sets (scope-sets dst-scope))
+        (src-sets (scope-sets src-scope)))
+    (dolist (key (table-keys (scope-sets src-scope)))
+      (unless (member key vars)
+        (merge-scope-sets dst-sets key (table-get src-sets key))))))
 
 ;; Registers free variable into scope and returns its index number.
 (defun register-fref (x scope)
@@ -340,11 +334,12 @@
           0))))
 
 (defun register-set! (x v scope)
-  (aif (assoc x (scope-sets scope))
-       (set-cdr! it
-                 (cons v (cdr it)))
-    (scope-sets-set! scope
-                     (acons x (list v) (scope-sets scope)))))
+  (let1 sets (scope-sets scope)
+    (if (table-exists? sets x)
+        (table-put! sets x
+                    (cons v (table-get sets x)))
+      (table-put! sets x
+                  (list v)))))
 
 ;;;;
 ;; Lambda node
@@ -381,7 +376,7 @@
                                      (t (values 'GREF sym)))
                        (list* op i
                               (if (and (not (eq? op 'GREF))
-                                       (assoc sym (scope-sets scope)))
+                                       (table-exists? (scope-sets scope) sym))
                                   (list* 'UNBOX next)
                                 next))))
                (:SET (var val)
@@ -503,7 +498,7 @@
   (alet ((vars locals)
          (n 0))
     (if vars
-        (if (assoc (car vars) sets)
+        (if (table-exists? sets (car vars))
             (list* 'BOX n
                    (loop (cdr vars) (+ n 1)))
           (loop (cdr vars) (+ n 1)))
@@ -531,9 +526,9 @@
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
        (let ((sym (cadr f))                     ; Symbol for the reference.
              (sets (scope-sets scope)))
-         (awhen (assoc sym sets)
-           (and (single? (cdr it))              ; Just 1 time assignment.
-                (let1 node (cadr it)
+         (awhen (table-get sets sym)
+           (and (single? it)                    ; Just 1 time assignment.
+                (let1 node (car it)
                   (and (lambda-node? node)      ; Lambda node.
                        node)))))))
 
