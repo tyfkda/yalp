@@ -82,7 +82,7 @@ public:
 protected:
   Cell(Value a, Value d);
   ~Cell()  {}
-  virtual void mark();
+  virtual void mark() override;
 
 private:
   const char* isAbbrev(State* state) const;
@@ -154,7 +154,7 @@ protected:
   Vector(Allocator* allocator, int size);
   ~Vector()  {}
   virtual void destruct(Allocator* allocator) override;
-  virtual void mark();
+  virtual void mark() override;
 
   Value* buffer_;
   int size_;
@@ -186,7 +186,7 @@ public:
 protected:
   explicit SHashTable(Allocator* allocator, HashPolicy<Value>* policy);
   ~SHashTable();
-  virtual void mark();
+  virtual void mark() override;
 
 private:
   virtual void destruct(Allocator* allocator) override;
@@ -235,7 +235,7 @@ public:
 protected:
   ~Closure()  {}
   virtual void destruct(Allocator* allocator) override;
-  virtual void mark();
+  virtual void mark() override;
 
   Value body_;
   Value* freeVariables_;
@@ -281,7 +281,7 @@ public:
 protected:
   ~Continuation()  {}
   virtual void destruct(Allocator* allocator) override;
-  virtual void mark();
+  virtual void mark() override;
 
   Value* copiedStack_;
   int stackSize_;
