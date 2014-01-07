@@ -310,10 +310,12 @@
 (defun scope-frees-set! (scope v)       (vector-set! scope 1 v))
 
 (defun merge-scope-sets (sets key vals)
-  (if (table-exists? sets key)
-      (table-put! sets key (union vals
-                                  (table-get sets key)))
-    (table-put! sets key vals)))
+  (receive (orig-value exists)
+           (table-get sets key)
+    (table-put! sets key
+                (if exists
+                    (union vals orig-value)
+                  vals))))
 
 (defun propagate-scope (inner-scope vars scope)
   (when scope
@@ -343,11 +345,12 @@
 
 (defun register-set! (x v scope)
   (let1 sets (scope-sets scope)
-    (if (table-exists? sets x)
-        (table-put! sets x
-                    (cons v (table-get sets x)))
+    (receive (orig-value exists)
+             (table-get sets x)
       (table-put! sets x
-                  (list v)))))
+                  (if exists
+                      (cons v orig-value)
+                    (list v))))))
 
 ;;;;
 ;; Lambda node
