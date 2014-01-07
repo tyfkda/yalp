@@ -204,9 +204,9 @@
                  (^(pred body next)
                    (let-gensym sym
                      `(let1 ,sym ,pred
-                            (if ,sym
-                                (let1 it ,sym ,@body)
-                              (acond ,@next)))))))
+                        (if ,sym
+                            (let1 it ,sym ,@body)
+                          (acond ,@next)))))))
 
 (defmacro aif (expr &rest rest)
   `(let1 it ,expr
@@ -403,12 +403,12 @@
                             (display c stream)
                             (write/ss-print (car s) h stream)
                             (let1 ds (cdr s)
-                                  (if (or (and ds
-                                               (not (pair? ds)))
-                                          (table-get h ds))
-                                      (do (display " . " stream)
-                                          (write/ss-print ds h stream))
-                                    (loop " " ds)))))
+                              (if (or (and ds
+                                           (not (pair? ds)))
+                                      (table-get h ds))
+                                  (do (display " . " stream)
+                                      (write/ss-print ds h stream))
+                                (loop " " ds)))))
                         (display ")" stream))))
             (vector (let1 n (vector-length s)
                       (alet ((c "#(")

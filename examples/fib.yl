@@ -1,4 +1,4 @@
-; Fibonacci number
+;; Fibonacci number
 (defun fib (n)
   (if (< n 2)
       n

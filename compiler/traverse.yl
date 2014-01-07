@@ -71,7 +71,7 @@
                        (traverse-values args scope))
                (receive (vars vals &body body)
                         (traverse-receive vars vals body scope))
-                ;; Other: normal forms.
+               ;; Other: normal forms.
                (t (let ((func (car x))
                         (args (cdr x)))
                     (cond ((direct-invoke? func)
@@ -236,7 +236,7 @@
                              (compile-error "&rest requires only 1 name, but %@" rest))
                            (append! required rest))
                       vars)
-    (aif (any? [not (symbol? _)] vars)
+    (awhen (any? [not (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
     (alet ((p proper-vars))
       (when p
@@ -404,22 +404,22 @@
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
                           (collect-free frees scope
-                                           (list* 'CLOSE varnum (length frees)
-                                                  body-slot
-                                                  next))))
+                                        (list* 'CLOSE varnum (length frees)
+                                               body-slot
+                                               next))))
                (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (propagate-scope-sets expanded-scope scope proper-vars)
                           (compile-args args-node scope
-                                           (if proper-vars
-                                               (let1 varnum (length proper-vars)
-                                                 (list* 'EXPND varnum
-                                                        (compile-body proper-vars body expanded-scope
-                                                                      (if (tail? next)
-                                                                          next
-                                                                        (list* 'SHRNK varnum next)))))
-                                             (compile-body '() body expanded-scope next)))))
+                                        (if proper-vars
+                                            (let1 varnum (length proper-vars)
+                                              (list* 'EXPND varnum
+                                                     (compile-body proper-vars body expanded-scope
+                                                                   (if (tail? next)
+                                                                       next
+                                                                     (list* 'SHRNK varnum next)))))
+                                          (compile-body '() body expanded-scope next)))))
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local inner-scope))
                              (frees (scope-frees inner-scope)))

@@ -1,4 +1,4 @@
-;(load-binary "../../boot.bin")
+;;(load-binary "../../boot.bin")
 (load "./test.yl")
 
 (test-section "functions")
