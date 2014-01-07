@@ -478,16 +478,16 @@
 
 ;;
 
-(let1 *exit-compile* nil
+(let1 exit-compile nil
   (defun compile-error (&rest args)
     (apply format *stderr* args)
     (display "\n")
-    (*exit-compile* nil))
+    (exit-compile nil))
 
   (defun compile (x)
     (call/cc
      (^(cc)
-       (set! *exit-compile* cc)
+       (set! exit-compile cc)
        (compile-recur (macroexpand-all x '())
                       '(()) '() '(HALT))))))
 

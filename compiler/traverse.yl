@@ -569,16 +569,16 @@
 
 ;;;;
 
-(let1 *exit-compile* nil
+(let1 exit-compile nil
   (defun compile-error (&rest args)
     (apply format *stderr* args)
     (display "\n" *stderr*)
-    (*exit-compile* nil))
+    (exit-compile nil))
 
   (defun compile (x)
     (call/cc
      (^(cc)
-       (set! *exit-compile* cc)
+       (set! exit-compile cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope)))
          (compile-recur tree scope (list 'HALT)))))))
