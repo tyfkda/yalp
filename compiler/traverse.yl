@@ -40,45 +40,46 @@
 ;; Traverses lisp code and generate intermediate AST.
 ;;   x : code to be compiled.
 ;;   scope : code scope.
+;;   tail : whether this node is at tail position.
 ;;   @result : AST.
-(defun traverse (x scope)
+(defun traverse (x scope tail)
   (cond ((symbol? x)
          (traverse-refer x scope))
         ((pair? x)
          (let1 expanded (expand-macro x scope)
            (if (pair? expanded)
-               (traverse-list expanded scope)
-             (traverse expanded scope))))
+               (traverse-list expanded scope tail)
+             (traverse expanded scope tail))))
         (t (list ':CONST x))))
 
-(defun traverse-list (x scope)
+(defun traverse-list (x scope tail)
   (record-case x
                ;; Special forms.
                (quote (obj) (list ':CONST obj))
                (^ (vars &body body)
                   (traverse-lambda vars body scope))
                (if (test then &rest rest)
-                   (traverse-if test then rest scope))
+                   (traverse-if test then rest scope tail))
                (set! (var val)
                      (traverse-set! var val scope))
                (def (var val)
                     (traverse-def var val scope))
                (call/cc (func)
-                        (traverse-call/cc func scope))
+                        (traverse-call/cc func scope tail))
                (defmacro (name vars &body body)
                  (traverse-defmacro name vars body scope))
                (values (&rest args)
-                       (traverse-values args scope))
+                       (traverse-values args scope tail))
                (receive (vars vals &body body)
-                        (traverse-receive vars vals body scope))
+                        (traverse-receive vars vals body scope tail))
                ;; Other: normal forms.
                (t (let ((func (car x))
                         (args (cdr x)))
                     (cond ((direct-invoke? func)
-                           (traverse-apply-direct (cadr func) (cddr func) args scope))
+                           (traverse-apply-direct (cadr func) (cddr func) args scope tail))
                           ((inline-function? func)
                            (traverse-inline-apply func args scope))
-                          (t (traverse-apply func args scope)))))))
+                          (t (traverse-apply func args scope tail)))))))
 
 (defun traverse-refer (x scope)
   (when (and (not (scope-local-has? scope x))
@@ -91,7 +92,7 @@
     (compile-error "`set!` requires symbol, but `%@`" var))
   (let ((is-local (scope-local-has? scope var))
         (is-free (scope-upper-vars-has? scope var))
-        (val-node (traverse val scope)))
+        (val-node (traverse val scope nil)))
     (when (and (not is-local) is-free)
       (register-fref var scope))
     (when (or is-local is-free)
@@ -104,26 +105,26 @@
   (when (and (inline-function? var)
              (lambda-expression? val))
     (register-inline-function var val))
-  (let1 val-node (traverse val scope)
+  (let1 val-node (traverse val scope nil)
     (register-set! var val-node scope)
     (list ':DEF var val-node)))
 
-(defun traverse-if (test then rest scope)
+(defun traverse-if (test then rest scope tail)
   (when (and rest (cdr rest))
     (compile-error "malformed if"))
-  (list ':IF (traverse test scope)
-        (traverse then scope)
+  (list ':IF (traverse test scope nil)
+        (traverse then scope tail)
         (if rest
-            (traverse (car rest) scope)
+            (traverse (car rest) scope tail)
           '(:VOID))))
 
-(defun traverse-call/cc (func scope)
-  (list ':CONTI (traverse func scope)))
+(defun traverse-call/cc (func scope tail)
+  (list ':CONTI (traverse func scope nil) tail))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
          (inner-scope (create-scope proper-vars scope))
-         (body-node (traverse-body body inner-scope)))
+         (body-node (traverse-body body inner-scope t)))
     (let1 varnum (if (eq? vars proper-vars)
                      (length vars)
                    (list (- (length proper-vars) 1)
@@ -134,20 +135,23 @@
       ;; Returns lambda node
       (create-lambda-node inner-scope proper-vars varnum body-node))))
 
-(defun traverse-body (body scope)
-  (map [traverse _ scope]
-       body))
+(defun traverse-body (body scope tail)
+  (maplist [traverse (car _) scope (and (not (cdr _))
+                                        tail)]
+           body))
 
-(defun traverse-apply (func args scope)
-  (list ':APPLY (traverse func scope)
-        (map [traverse _ scope] args)))
+(defun traverse-apply (func args scope tail)
+  (list ':APPLY
+        (traverse func scope tail)
+        (map [traverse _ scope nil] args)
+        tail))
 
-(defun traverse-inline-apply (sym args scope)
+(defun traverse-inline-apply (sym args scope tail)
   (let1 lambda (get-inline-function-body sym)
     (traverse `(,lambda ,@args)
-              scope)))
+              scope tail)))
 
-(defun traverse-apply-direct (vars body args scope)
+(defun traverse-apply-direct (vars body args scope tail)
   (let1 proper-vars (check-parameters vars)
     (let ((argnum (length args))
           (varnum (- (length proper-vars)
@@ -155,21 +159,21 @@
       (if (not (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
           (cond ((< argnum varnum)  ;; Error handled in the below.
-                 (traverse-apply-direct proper-vars body args scope))
+                 (traverse-apply-direct proper-vars body args scope tail))
                 ;; ((^(x y &rest z) ...) 1 2 3 4) => ((^(x y z) ...) 1 2 (list 3 4))
                 ((> argnum varnum)
                  (traverse `((^ ,proper-vars ,@body)
                              ,@(take varnum args)
                              (list ,@(drop varnum args)))
-                           scope))
+                           scope tail))
                 ;; ((^(x y &rest z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
                 (t (traverse-apply-direct proper-vars body (append args '(()))
-                                          scope)))
+                                          scope tail)))
         (if (eq? argnum varnum)
-            (let1 args-node (map [traverse _ scope]
+            (let1 args-node (map [traverse _ scope nil]
                                  args)
               (let* ((expanded-scope (expand-scope proper-vars scope))
-                     (body-node (traverse-body body expanded-scope)))
+                     (body-node (traverse-body body expanded-scope tail)))
                 ;; Propagate to upper scope
                 (propagate-scope expanded-scope proper-vars
                                  scope)
@@ -178,14 +182,15 @@
                       expanded-scope
                       proper-vars
                       args-node
-                      body-node)))
+                      body-node
+                      tail)))
           (let1 which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
 
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
          (inner-scope (create-scope proper-vars scope))
-         (body-node (traverse-body body inner-scope)))
+         (body-node (traverse-body body inner-scope t)))
     (let1 varnum (if (eq? vars proper-vars)
                      (length vars)
                    (list (- (length proper-vars) 1)
@@ -200,19 +205,20 @@
             varnum
             body-node))))
 
-(defun traverse-values (args scope)
-  (list ':VALS (map [traverse _ scope]
-                    args)))
+(defun traverse-values (args scope tail)
+  (list ':VALS (maplist [traverse (car _) scope (and (cdr args)
+                                                     tail)]
+                        args)))
 
-(defun traverse-receive (vars vals body scope)
+(defun traverse-receive (vars vals body scope tail)
   (let1 proper-vars (check-parameters vars)
     (let ((varnum (if (eq? vars proper-vars)
                       (length vars)
                     (list (- (length proper-vars) 1)
                           -1)))
-          (val-node (traverse vals scope)))
+          (val-node (traverse vals scope nil)))
       (let* ((expanded-scope (expand-scope proper-vars scope))
-             (body-node (traverse-body body expanded-scope)))
+             (body-node (traverse-body body expanded-scope tail)))
         ;; Propagate to upper scope
         (propagate-scope expanded-scope proper-vars
                          scope)
@@ -222,7 +228,8 @@
               proper-vars
               varnum
               val-node
-              body-node)))))
+              body-node
+              tail)))))
 
 ;; Check function parameters are valid and returns proper vars.
 (defun check-parameters (vars)
@@ -417,7 +424,7 @@
                                         (list* 'CLOSE varnum (length frees)
                                                body-slot
                                                next))))
-               (:INVOKE (expanded-scope proper-vars args-node body)
+               (:INVOKE (expanded-scope proper-vars args-node body tail)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (propagate-scope-sets expanded-scope scope proper-vars)
@@ -426,7 +433,7 @@
                                             (let1 varnum (length proper-vars)
                                               (list* 'EXPND varnum
                                                      (compile-body proper-vars body expanded-scope
-                                                                   (if (tail? next)
+                                                                   (if tail
                                                                        next
                                                                      (list* 'SHRNK varnum next)))))
                                           (compile-body '() body expanded-scope next)))))
@@ -438,14 +445,13 @@
                                        (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                               next))))
-               (:APPLY (f args)
-                       (let ((is-tail (tail? next))
-                             (argnum (length args))
+               (:APPLY (f args tail)
+                       (let ((argnum (length args))
                              (lambda-node (can-goto? f scope)))
                          (cond ((and lambda-node
                                      (eq? (scope-id (lambda-scope-get lambda-node))
                                           (scope-id scope))  ; is in the same scope with target jump point.
-                                     is-tail)
+                                     tail)
                                 (let ((varnum (lambda-varnum-get lambda-node))
                                       (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
                                   (when (pair? varnum)
@@ -458,21 +464,20 @@
                                                        (lambda-body-slot-get lambda-node)))))
                                (t (let1 code (compile-args args scope
                                                            (compile-recur f scope
-                                                                          (if is-tail
+                                                                          (if tail
                                                                               (list 'TAPPLY argnum)
                                                                             (list 'APPLY argnum))))
-                                    (if is-tail
+                                    (if tail
                                         code
                                       (list* 'FRAME code next)))))))
-               (:CONTI (func)
-                       (let* ((is-tail (tail? next))
-                              (c (list* 'CONTI is-tail
+               (:CONTI (func tail)
+                       (let* ((c (list* 'CONTI tail
                                         'PUSH
                                         (compile-recur func scope
-                                                       (if is-tail
+                                                       (if tail
                                                            '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
                                                          '(APPLY 1))))))
-                         (if is-tail
+                         (if tail
                              c
                            (list* 'FRAME c next))))
                (:VALS (args)
@@ -481,13 +486,13 @@
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (expanded-scope proper-vars varnum vals body)
+               (:RECV (expanded-scope proper-vars varnum vals body tail)
                       (let ((frees (scope-frees expanded-scope)))
                         (propagate-scope-sets expanded-scope scope proper-vars)
                         (compile-recur vals scope
                                        (list* 'RECV varnum
                                               (compile-body (scope-local expanded-scope) body expanded-scope
-                                                            (if (tail? next)
+                                                            (if tail
                                                                 next
                                                               (list* 'SHRNK (if (pair? varnum)
                                                                                 (+ (car varnum) 1)
@@ -542,9 +547,6 @@
                      (and (lambda-node? node)   ; Lambda node.
                           node)))))))
 
-(defun tail? (next)
-  (eq? (car next) 'RET))
-
 ;;;;
 ;; Declaim
 
@@ -590,7 +592,7 @@
      (^(cc)
        (set! exit-compile cc)
        (let* ((scope (create-scope '() nil))
-              (tree (traverse x scope)))
+              (tree (traverse x scope nil)))
          (compile-recur tree scope (list 'HALT)))))))
 
 (defun eval (x)
