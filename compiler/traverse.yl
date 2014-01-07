@@ -89,7 +89,6 @@
 (defun traverse-set! (var val scope)
   (unless (symbol? var)
     (compile-error "`set!` requires symbol, but `%@`" var))
-  (traverse var scope)
   (let ((is-local (scope-local-has? scope var))
         (is-free (scope-upper-vars-has? scope var))
         (val-node (traverse val scope)))
