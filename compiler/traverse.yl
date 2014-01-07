@@ -81,8 +81,8 @@
                           (t (traverse-apply func args scope)))))))
 
 (defun traverse-refer (x scope)
-  (when (and (not (member x (scope-local scope)))
-             (member x (scope-upper-vars scope)))  ; Free variable
+  (when (and (not (scope-local-has? scope x))
+             (scope-upper-vars-has? scope x))  ; Free variable
     (register-fref x scope))
   (list ':REF x))
 
@@ -90,8 +90,8 @@
   (unless (symbol? var)
     (compile-error "`set!` requires symbol, but `%@`" var))
   (traverse var scope)
-  (let ((is-local (member var (scope-local scope)))
-        (is-free (member var (scope-upper-vars scope)))
+  (let ((is-local (scope-local-has? scope var))
+        (is-free (scope-upper-vars-has? scope var))
         (val-node (traverse val scope)))
     (when (and (not is-local) is-free)
       (register-fref var scope))
@@ -252,8 +252,8 @@
 (defun expand-macro (x scope)
   (let1 f (car x)
     (if (or (not (symbol? f))
-            (member f (scope-local scope))
-            (member f (scope-upper-vars scope)))
+            (scope-local-has? scope f)
+            (scope-upper-vars-has? scope f))
         x
       (macroexpand x))))
 
@@ -297,8 +297,10 @@
 (defun scope-id (scope)           (vector-get scope 4))
 (defun scope-outer-scope (scope)  (vector-get scope 5))
 
-(defun scope-local-set! (scope v)       (vector-set! scope 0 v))
-(defun scope-upper-vars-set! (scope v)  (vector-set! scope 1 v))
+;; Returns index if the scope has the symbol.
+(defun scope-local-has? (scope sym)  (position sym (scope-local scope)))
+(defun scope-upper-vars-has? (scope sym)  (member sym (scope-upper-vars scope)))
+
 (defun scope-frees-set! (scope v)       (vector-set! scope 2 v))
 
 (defun merge-scope-sets (sets key vals)
@@ -369,7 +371,7 @@
                       (list* 'VOID next))
                (:REF (sym)
                      (receive (op i)
-                              (acond ((position sym (scope-local scope))
+                              (acond ((scope-local-has? scope sym)
                                       (values 'LREF it))
                                      ((position sym (scope-frees scope))
                                       (values 'FREF it))
@@ -381,7 +383,7 @@
                                 next))))
                (:SET (var val)
                      (receive (op i)
-                              (acond ((position var (scope-local scope))
+                              (acond ((scope-local-has? scope var)
                                       (values 'LSET it))
                                      ((position var (scope-frees scope))
                                       (values 'FSET it))
@@ -515,7 +517,7 @@
   (if vars
       (collect-free (cdr vars) scope
                     (let1 x (car vars)
-                      (aif (position x (scope-local scope))
+                      (aif (scope-local-has? scope x)
                            (list* 'LREF it 'PUSH next)
                         (aif (position x (scope-frees scope))
                              (list* 'FREF it 'PUSH next)
