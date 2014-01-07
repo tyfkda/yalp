@@ -266,18 +266,13 @@
 ;;;;
 ;; Scope
 
-(defun create-scope (local oscope)
-  (let ((upper-vars (if oscope
-                        (append (scope-local oscope)
-                                (scope-upper-vars oscope))
-                      '()))
-        (scope-id (gensym)))
-    (vector local upper-vars '() (table) scope-id oscope)))
+(defun create-scope (local-vars outer-scope)
+  (let1 scope-id (gensym)
+    (vector local-vars '() (table) scope-id outer-scope)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
     (vector expanded-vars
-            (scope-upper-vars oscope)
             (scope-frees oscope)
             (scope-sets oscope)
             (scope-id oscope)
@@ -291,17 +286,22 @@
       0)))
 
 (defun scope-local (scope)        (vector-get scope 0))
-(defun scope-upper-vars (scope)   (vector-get scope 1))
-(defun scope-frees (scope)        (vector-get scope 2))
-(defun scope-sets (scope)         (vector-get scope 3))
-(defun scope-id (scope)           (vector-get scope 4))
-(defun scope-outer-scope (scope)  (vector-get scope 5))
+(defun scope-frees (scope)        (vector-get scope 1))
+(defun scope-sets (scope)         (vector-get scope 2))
+(defun scope-id (scope)           (vector-get scope 3))
+(defun scope-outer-scope (scope)  (vector-get scope 4))
 
 ;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)  (position sym (scope-local scope)))
-(defun scope-upper-vars-has? (scope sym)  (member sym (scope-upper-vars scope)))
+(defun scope-upper-vars-has? (scope sym)
+  (alet ((pscope (scope-outer-scope scope)))
+    (if pscope
+        (aif (scope-local-has? pscope sym)
+             it
+          (loop (scope-outer-scope pscope)))
+      nil)))
 
-(defun scope-frees-set! (scope v)       (vector-set! scope 2 v))
+(defun scope-frees-set! (scope v)       (vector-set! scope 1 v))
 
 (defun merge-scope-sets (sets key vals)
   (if (table-exists? sets key)
