@@ -340,16 +340,17 @@
 
 ;; Put cell appear idnex for more than 2 times into table.
 (defun write/ss-construct (s)
-  (let1 h (table 'eq)
-    (table-put! h 'index 0)
+  (let ((h (table 'eq))
+        (index (gensym)))
+    (table-put! h index 0)
     (alet ((s s))
       (when (pair? s)
         (if (table-exists? h s)
             (unless (table-get h s)
               ;; Assign index for the object appeared more than 1 time.
-              (let1 i (table-get h 'index)
+              (let1 i (table-get h index)
                 (table-put! h s i)
-                (table-put! h 'index (+ 1 i))))
+                (table-put! h index (+ 1 i))))
           ;; Put nil for the first appeared object.
           (do (table-put! h s nil)
               ;; And check children recursively.
@@ -358,15 +359,15 @@
     h))
 
 (defun write/ss-print (s h stream)
-  (if (pair? s)
-      (let1 index (table-get h s)
-        (if (and index (< index 0))
-            ;; Print structure after second time or later.
-            (format stream "#%@#" (- -1 index))
-          (do (when index
-                ;; Print structure at first time.
-                (format stream "#%@=" index)
-                (table-put! h s (- -1 index)))
+  (let1 index (table-get h s)
+    (if (and index (< index 0))
+        ;; Print structure after second time or later.
+        (format stream "#%@#" (- -1 index))
+      (do (when index
+            ;; Print structure at first time.
+            (format stream "#%@=" index)
+            (table-put! h s (- -1 index)))
+          (if (pair? s)
               (aif (and (single? (cdr s))
                         (not (table-get h (cdr s)))
                         (assoc (car s) '((quote . "'")
@@ -388,8 +389,8 @@
                               (do (display " . " stream)
                                   (write/ss-print ds h stream))
                             (loop " " ds)))))
-                    (display ")" stream))))))
-    (write s stream)))
+                    (display ")" stream)))
+            (write s stream))))))
 
 ;; Take first n elements from the list.
 (defun take (n ls)
