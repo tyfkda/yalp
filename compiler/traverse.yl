@@ -590,7 +590,3 @@
 
 (defun eval (x)
   (run-binary (compile x)))
-
-(defun error (&rest all)
-  (apply format *stderr* all)
-  (exit 1))
