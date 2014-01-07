@@ -278,6 +278,14 @@
              ,@body
              (,next (cdr ,p))))))))
 
+(defmacro for0-n (var times &body body)
+  (let-gensym (n next)
+    `(let1 ,n ,times
+       (let ,next ((,var 0))
+         (when (< ,var ,n)
+           ,@body
+           (,next (+ ,var 1)))))))
+
 (defun length (x)
   (case (type x)
     (pair (alet ((x x)
@@ -344,21 +352,30 @@
 ;; Put cell appear idnex for more than 2 times into table.
 (defun write/ss-construct (s)
   (let ((h (table 'eq))
-        (index (gensym)))
+        (index (gensym))
+        (assign-index (^(h s index)
+                        (unless (table-get h s)
+                          ;; Assign index for the object appeared more than 1 time.
+                          (let1 i (table-get h index)
+                            (table-put! h s i)
+                            (table-put! h index (+ 1 i)))))))
     (table-put! h index 0)
     (alet ((s s))
-      (when (pair? s)
-        (if (table-exists? h s)
-            (unless (table-get h s)
-              ;; Assign index for the object appeared more than 1 time.
-              (let1 i (table-get h index)
-                (table-put! h s i)
-                (table-put! h index (+ 1 i))))
-          ;; Put nil for the first appeared object.
-          (do (table-put! h s nil)
-              ;; And check children recursively.
-              (loop (car s))
-              (loop (cdr s))))))
+      (case (type s)
+        (pair (if (table-exists? h s)
+                  (assign-index h s index)
+                ;; Put nil for the first appeared object.
+                (do (table-put! h s nil)
+                    ;; And check children recursively.
+                    (loop (car s))
+                    (loop (cdr s)))))
+        (vector (if (table-exists? h s)
+                    (assign-index h s index)
+                  ;; Put nil for the first appeared object.
+                  (do (table-put! h s nil)
+                      ;; And check children recursively.
+                      (for0-n i (length s)
+                        (loop (vector-get s i))))))))
     h))
 
 (defun write/ss-print (s h stream)
@@ -370,30 +387,38 @@
             ;; Print structure at first time.
             (format stream "#%@=" index)
             (table-put! h s (- -1 index)))
-          (if (pair? s)
-              (aif (and (single? (cdr s))
-                        (not (table-get h (cdr s)))
-                        (assoc (car s) '((quote . "'")
-                                         (quasiquote . "`")
-                                         (unquote . ",")
-                                         (unquote-splicing . ",@"))))
-                   ;; Write abbreviated form.
-                   (do (display (cdr it) stream)
-                       (write (cadr s) stream))
-                (do (alet ((c "(")
-                           (s s))
-                      (when s
-                        (display c stream)
-                        (write/ss-print (car s) h stream)
-                        (let1 ds (cdr s)
-                          (if (or (and ds
-                                       (not (pair? ds)))
-                                  (table-get h ds))
-                              (do (display " . " stream)
-                                  (write/ss-print ds h stream))
-                            (loop " " ds)))))
-                    (display ")" stream)))
-            (write s stream))))))
+          (case (type s)
+            (pair (aif (and (single? (cdr s))
+                            (not (table-get h (cdr s)))
+                            (assoc (car s) '((quote . "'")
+                                             (quasiquote . "`")
+                                             (unquote . ",")
+                                             (unquote-splicing . ",@"))))
+                       ;; Write abbreviated form.
+                       (do (display (cdr it) stream)
+                           (write (cadr s) stream))
+                    (do (alet ((c "(")
+                               (s s))
+                          (when s
+                            (display c stream)
+                            (write/ss-print (car s) h stream)
+                            (let1 ds (cdr s)
+                                  (if (or (and ds
+                                               (not (pair? ds)))
+                                          (table-get h ds))
+                                      (do (display " . " stream)
+                                          (write/ss-print ds h stream))
+                                    (loop " " ds)))))
+                        (display ")" stream))))
+            (vector (let1 n (vector-length s)
+                      (alet ((c "#(")
+                             (i 0))
+                        (when (< i n)
+                          (display c stream)
+                          (write/ss-print (vector-get s i) h stream)
+                          (loop " " (+ i 1))))
+                      (display ")" stream)))
+            (t (write s stream)))))))
 
 ;; Take first n elements from the list.
 (defun take (n ls)
