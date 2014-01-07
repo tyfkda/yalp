@@ -266,12 +266,19 @@
 ;; Scope
 
 (defun create-scope (local-vars outer-scope)
-  (let1 scope-id (gensym)
-    (vector local-vars '() (table) scope-id outer-scope)))
+  (let ((scope-id (gensym))
+        (infos (map (^(_) (vector 0)) local-vars)))
+    (vector local-vars
+            infos
+            '()
+            (table)
+            scope-id
+            outer-scope)))
 
 (defun expand-scope (local oscope)
   (let1 expanded-vars (append local (scope-local oscope))
     (vector expanded-vars
+            (scope-local-info oscope)
             (scope-frees oscope)
             (scope-sets oscope)
             (scope-id oscope)
@@ -285,10 +292,13 @@
       0)))
 
 (defun scope-local (scope)        (vector-get scope 0))
-(defun scope-frees (scope)        (vector-get scope 1))
-(defun scope-sets (scope)         (vector-get scope 2))
-(defun scope-id (scope)           (vector-get scope 3))
-(defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-local-info (scope)   (vector-get scope 1))
+(defun scope-frees (scope)        (vector-get scope 2))
+(defun scope-sets (scope)         (vector-get scope 3))
+(defun scope-id (scope)           (vector-get scope 4))
+(defun scope-outer-scope (scope)  (vector-get scope 5))
+
+(defun scope-frees-set! (scope v) (vector-set! scope 2 v))
 
 ;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)  (position sym (scope-local scope)))
@@ -305,8 +315,6 @@
     (if exists
         value
       nil)))
-
-(defun scope-frees-set! (scope v)       (vector-set! scope 1 v))
 
 (defun append-scope-sets! (sets key vals)
   (receive (orig-value exists)
