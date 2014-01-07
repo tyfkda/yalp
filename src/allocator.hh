@@ -53,6 +53,7 @@ private:
 
   GcObject* arena_[ARENA_SIZE];
   int arenaIndex_;
+  int nextGc_;
 };
 
 AllocFunc getDefaultAllocFunc();

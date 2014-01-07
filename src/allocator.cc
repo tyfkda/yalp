@@ -83,7 +83,8 @@ void Allocator::release() {
 
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback)
   : allocFunc_(allocFunc), callback_(callback), userdata_(NULL)
-  , objectTop_(NULL), objectCount_(0), arenaIndex_(0)  {}
+  , objectTop_(NULL), objectCount_(0), arenaIndex_(0)
+  , nextGc_(20000) {}
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
@@ -121,6 +122,11 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
+  if (objectCount_ >= nextGc_) {
+    collectGarbage();
+    nextGc_ = objectCount_ * 2;
+  }
+
   GcObject* gcobj = static_cast<GcObject*>(this->alloc(size));
   gcobj->next_ = objectTop_;
   objectTop_ = gcobj;
