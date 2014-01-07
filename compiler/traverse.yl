@@ -300,6 +300,12 @@
              it
           (loop (scope-outer-scope pscope)))
       nil)))
+(defun scope-sets-has? (scope sym)
+  (receive (value exists)
+           (table-get (scope-sets scope) sym)
+    (if exists
+        value
+      nil)))
 
 (defun scope-frees-set! (scope v)       (vector-set! scope 1 v))
 
@@ -378,7 +384,7 @@
                                      (t (values 'GREF sym)))
                        (list* op i
                               (if (and (not (eq? op 'GREF))
-                                       (table-exists? (scope-sets scope) sym))
+                                       (scope-sets-has? scope sym))
                                   (list* 'UNBOX next)
                                 next))))
                (:SET (var val)
@@ -526,13 +532,12 @@
 
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (let ((sym (cadr f))                     ; Symbol for the reference.
-             (sets (scope-sets scope)))
-         (awhen (table-get sets sym)
-           (and (single? it)                    ; Just 1 time assignment.
-                (let1 node (car it)
-                  (and (lambda-node? node)      ; Lambda node.
-                       node)))))))
+       (let ((sym (cadr f)))                    ; Symbol for the reference.
+         (aif (scope-sets-has? scope sym)
+              (and (single? it)                 ; Just 1 time assignment.
+                   (let1 node (car it)
+                     (and (lambda-node? node)   ; Lambda node.
+                          node)))))))
 
 (defun tail? (next)
   (eq? (car next) 'RET))
