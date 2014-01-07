@@ -84,7 +84,7 @@
 (defun traverse-refer (x scope)
   (when (and (not (scope-local-has? scope x))
              (scope-upper-vars-has? scope x))  ; Free variable
-    (register-fref x scope))
+    (register-fref scope x))
   (list ':REF x))
 
 (defun traverse-set! (var val scope)
@@ -94,9 +94,9 @@
         (is-free (scope-upper-vars-has? scope var))
         (val-node (traverse val scope nil)))
     (when (and (not is-local) is-free)
-      (register-fref var scope))
+      (register-fref scope var))
     (when (or is-local is-free)
-      (register-set! var val-node scope))
+      (register-set! scope var val-node))
     (list ':SET var val-node)))
 
 (defun traverse-def (var val scope)
@@ -106,7 +106,7 @@
              (lambda-expression? val))
     (register-inline-function var val))
   (let1 val-node (traverse val scope nil)
-    (register-set! var val-node scope)
+    (register-set! scope var val-node)
     (list ':DEF var val-node)))
 
 (defun traverse-if (test then rest scope tail)
@@ -130,8 +130,7 @@
                    (list (- (length proper-vars) 1)
                          -1))
       ;; Propagate to upper scope
-      (propagate-scope inner-scope (scope-local inner-scope)
-                       scope)
+      (propagate-scope-to-upper scope inner-scope (scope-local inner-scope))
       ;; Returns lambda node
       (create-lambda-node inner-scope proper-vars varnum body-node))))
 
@@ -174,9 +173,7 @@
                                  args)
               (let* ((expanded-scope (expand-scope proper-vars scope))
                      (body-node (traverse-body body expanded-scope tail)))
-                ;; Propagate to upper scope
-                (propagate-scope expanded-scope proper-vars
-                                 scope)
+                (propagate-scope-to-upper scope expanded-scope proper-vars)
                 ;; Returns lambda node
                 (list ':INVOKE
                       expanded-scope
@@ -195,9 +192,7 @@
                      (length vars)
                    (list (- (length proper-vars) 1)
                          -1))
-      ;; Propagate to upper scope
-      (propagate-scope inner-scope (scope-local inner-scope)
-                       scope)
+      (propagate-scope-to-upper scope inner-scope (scope-local inner-scope))
       ;; Returns macro node
       (list ':MACRO
             inner-scope
@@ -219,9 +214,7 @@
           (val-node (traverse vals scope nil)))
       (let* ((expanded-scope (expand-scope proper-vars scope))
              (body-node (traverse-body body expanded-scope tail)))
-        ;; Propagate to upper scope
-        (propagate-scope expanded-scope proper-vars
-                         scope)
+        (propagate-scope-to-upper scope expanded-scope proper-vars)
         ;; Returns receive node
         (list ':RECV
               expanded-scope
@@ -315,7 +308,7 @@
 
 (defun scope-frees-set! (scope v)       (vector-set! scope 1 v))
 
-(defun merge-scope-sets (sets key vals)
+(defun append-scope-sets! (sets key vals)
   (receive (orig-value exists)
            (table-get sets key)
     (table-put! sets key
@@ -323,7 +316,7 @@
                     (union vals orig-value)
                   vals))))
 
-(defun propagate-scope (inner-scope vars scope)
+(defun propagate-scope-to-upper (scope inner-scope vars)
   (when scope
     (scope-frees-set! scope
                       (union (scope-frees scope)
@@ -335,10 +328,10 @@
         (src-sets (scope-sets src-scope)))
     (dolist (key (table-keys (scope-sets src-scope)))
       (unless (member key vars)
-        (merge-scope-sets dst-sets key (table-get src-sets key))))))
+        (append-scope-sets! dst-sets key (table-get src-sets key))))))
 
 ;; Registers free variable into scope and returns its index number.
-(defun register-fref (x scope)
+(defun register-fref (scope x)
   (let1 frees (scope-frees scope)
     (if frees
         (aif (position x frees)
@@ -349,7 +342,7 @@
       (do (scope-frees-set! scope (cons x nil))
           0))))
 
-(defun register-set! (x v scope)
+(defun register-set! (scope x v)
   (let1 sets (scope-sets scope)
     (receive (orig-value exists)
              (table-get sets x)
