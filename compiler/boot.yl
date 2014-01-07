@@ -216,24 +216,6 @@
   `(aif ,expr
      (do ,@body)))
 
-(defmacro while (test &body body)
-  `(alet ()
-     (when ,test
-       ,@body
-       (loop))))
-
-(defmacro awhile (test &body body)
-  `(alet ()
-     (awhen ,test
-       ,@body
-       (loop))))
-
-(defmacro until (test &body body)
-  `(alet ()
-     (unless ,test
-       ,@body
-       (loop))))
-
 (defmacro let-gensym (names &body body)
   (if (pair? names)
       ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
@@ -242,6 +224,27 @@
          ,@body)
     ;; (let-gensym a ...) => (let1 a (gensym) ...)
     `(let1 ,names (gensym) ,@body)))
+
+(defmacro while (test &body body)
+  (let-gensym next
+    `(let ,next ()
+       (when ,test
+         ,@body
+         (,next)))))
+
+(defmacro awhile (test &body body)
+  (let-gensym next
+    `(let ,next ()
+       (awhen ,test
+         ,@body
+         (,next)))))
+
+(defmacro until (test &body body)
+  (let-gensym next
+    `(let ,next ()
+       (unless ,test
+         ,@body
+         (,next)))))
 
 (defmacro or (&rest args)
   (and args
@@ -268,12 +271,12 @@
 (defmacro dolist (vars &body body)
   (let ((x (car vars))
         (ls (cadr vars)))
-    (let-gensym p
-      `(alet ((,p ,ls))
+    (let-gensym (p next)
+      `(let ,next ((,p ,ls))
          (when (pair? ,p)
            (let1 ,x (car ,p)
              ,@body
-             (loop (cdr ,p))))))))
+             (,next (cdr ,p))))))))
 
 (defun length (x)
   (case (type x)
