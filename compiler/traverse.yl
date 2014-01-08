@@ -275,25 +275,24 @@
 
 ;;;;
 ;; Scope
+;;   var-info: #0=var-info, #1=set-value
 
 (defun create-scope (local-vars outer-scope)
   (let ((scope-id (gensym))
-        (infos (map (^(_) (vector 0)) local-vars)))
+        (infos (map (^(_) (vector 0 nil)) local-vars)))
     (vector local-vars
             infos
             '()
-            (table)
             scope-id
             outer-scope)))
 
 (defun expand-scope (local oscope)
   (let ((expanded-vars (append local (scope-local oscope)))
-        (expanded-var-infos (append (map (^(_) (vector 0)) local)
+        (expanded-var-infos (append (map (^(_) (vector 0 nil)) local)
                                     (scope-local-info oscope))))
     (vector expanded-vars
             expanded-var-infos
             (scope-frees oscope)
-            (scope-sets oscope)
             (scope-id oscope)
             (scope-outer-scope oscope))))
 
@@ -307,9 +306,8 @@
 (defun scope-local (scope)        (vector-get scope 0))
 (defun scope-local-info (scope)   (vector-get scope 1))
 (defun scope-frees (scope)        (vector-get scope 2))
-(defun scope-sets (scope)         (vector-get scope 3))
-(defun scope-id (scope)           (vector-get scope 4))
-(defun scope-outer-scope (scope)  (vector-get scope 5))
+(defun scope-id (scope)           (vector-get scope 3))
+(defun scope-outer-scope (scope)  (vector-get scope 4))
 
 (defun scope-frees-set! (scope v) (vector-set! scope 2 v))
 
@@ -322,34 +320,12 @@
              it
           (loop (scope-outer-scope pscope)))
       nil)))
-(defun scope-sets-has? (scope sym)
-  (receive (value exists)
-           (table-get (scope-sets scope) sym)
-    (if exists
-        value
-      nil)))
-
-(defun append-scope-sets! (sets key vals)
-  (receive (orig-value exists)
-           (table-get sets key)
-    (table-put! sets key
-                (if exists
-                    (union vals orig-value)
-                  vals))))
 
 (defun propagate-scope-to-upper (scope inner-scope vars)
   (when scope
     (scope-frees-set! scope
                       (union (scope-frees scope)
-                             (set-minus (scope-frees inner-scope) (scope-local scope))))
-    (propagate-scope-sets scope inner-scope vars)))
-
-(defun propagate-scope-sets (dst-scope src-scope vars)
-  (let ((dst-sets (scope-sets dst-scope))
-        (src-sets (scope-sets src-scope)))
-    (dolist (key (table-keys (scope-sets src-scope)))
-      (unless (member key vars)
-        (append-scope-sets! dst-sets key (table-get src-sets key))))))
+                             (set-minus (scope-frees inner-scope) (scope-local scope))))))
 
 (defun with-var-info (scope var fn)
   (when scope
@@ -362,7 +338,20 @@
     (with-var-info scope var
                    (^(info)
                      (vector-set! info 0 (logior (vector-get info 0)
-                                                 val))))))
+                                                 val))
+                     info))))
+
+(defun var-has-attr? (scope var flag)
+  (with-var-info scope var
+                 (^(info)
+                   (unless (eq? (logand (vector-get info 0) flag)
+                                0)
+                     info))))
+
+(defun var-is-set? (scope sym)
+  (aif (var-has-attr? scope sym VAR-SET)
+       (vector-get it 1)
+    nil))
 
 ;; Registers free variable into scope and returns its index number.
 (defun register-fref (scope x)
@@ -378,14 +367,9 @@
           0))))
 
 (defun register-set! (scope x v)
-  (add-var-info scope x VAR-SET)
-  (let1 sets (scope-sets scope)
-    (receive (orig-value exists)
-             (table-get sets x)
-      (table-put! sets x
-                  (if exists
-                      (cons v orig-value)
-                    (list v))))))
+  (let1 info (add-var-info scope x VAR-SET)
+    (when info
+      (vector-set! info 1 (cons v (vector-get info 1))))))
 
 ;;;;
 ;; Lambda node
@@ -426,7 +410,7 @@
                                      (t (values 'GREF sym)))
                        (list* op i
                               (if (and (not (eq? op 'GREF))
-                                       (scope-sets-has? scope sym))
+                                       (var-is-set? scope sym))
                                   (list* 'UNBOX next)
                                 next))))
                (:SET (var val)
@@ -441,7 +425,6 @@
                                           (compile-recur else scope next))))
                (:LAMBDA (inner-scope body-slot proper-vars varnum body)
                         (let ((frees (scope-frees inner-scope)))
-                          (propagate-scope-sets inner-scope scope (scope-local inner-scope))
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
                                       (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
@@ -452,7 +435,6 @@
                (:INVOKE (expanded-scope proper-vars args-node body tail)
                         (let ((vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
-                          (propagate-scope-sets expanded-scope scope proper-vars)
                           (compile-args args-node scope
                                         (if proper-vars
                                             (let1 varnum (length proper-vars)
@@ -465,7 +447,6 @@
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local inner-scope))
                              (frees (scope-frees inner-scope)))
-                         (propagate-scope-sets inner-scope scope (scope-local inner-scope))
                          (collect-free frees scope
                                        (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
@@ -490,7 +471,6 @@
                                         (list* 'VALS argnum next)))))
                (:RECV (expanded-scope proper-vars varnum vals body tail)
                       (let ((frees (scope-frees expanded-scope)))
-                        (propagate-scope-sets expanded-scope scope proper-vars)
                         (compile-recur vals scope
                                        (list* 'RECV varnum
                                               (compile-body (scope-local expanded-scope) body expanded-scope
@@ -557,7 +537,7 @@
   ;; local loop.
   (if (and nil  ; TODO: Enable this.
            (lambda-node? val)
-           (let1 ss (scope-sets-has? scope var)
+           (let1 ss (var-is-set? scope var)
              (and ss
                   (single? ss)
                   (car ss))))
@@ -598,7 +578,7 @@
   (alet ((vars locals)
          (n 0))
     (if vars
-        (if (scope-sets-has? scope (car vars))
+        (if (var-is-set? scope (car vars))
             (list* 'BOX n
                    (loop (cdr vars) (+ n 1)))
           (loop (cdr vars) (+ n 1)))
@@ -625,7 +605,7 @@
 (defun can-goto? (f scope)
   (and (eq? (car f) ':REF)                      ; Function is simple reference.
        (let ((sym (cadr f)))                    ; Symbol for the reference.
-         (aif (scope-sets-has? scope sym)
+         (aif (var-is-set? scope sym)
               (and (single? it)                 ; Just 1 time assignment.
                    (let1 node (car it)
                      (and (lambda-node? node)   ; Lambda node.
