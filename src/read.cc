@@ -179,17 +179,6 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   ErrorCode err;
   for (;;) {
     skipSpaces();
-#if 0
-    int c = getc();
-    if (c == terminator) {
-      *pValue = nreverse(value);
-      state_->restoreArenaWith(arena, *pValue);
-      return SUCCESS;
-    }
-
-    ungetc(c);
-#endif
-
     err = read(&v);
     if (err != SUCCESS)
       break;
