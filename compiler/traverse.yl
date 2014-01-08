@@ -37,6 +37,12 @@
 
 ;;;;
 
+(def VAR-ARG 1)        ; is used for argument (or return value).
+(def VAR-CALL 2)       ; is used for function.
+(def VAR-TAIL-CALL 4)  ; is used for function in tail position.
+(def VAR-FREE 8)       ; is captured for free variable.
+(def VAR-SET 16)       ; is set.
+
 ;; Traverses lisp code and generate intermediate AST.
 ;;   x : code to be compiled.
 ;;   scope : code scope.
@@ -140,6 +146,9 @@
            body))
 
 (defun traverse-apply (func args scope tail)
+  (add-var-info scope func (if tail VAR-TAIL-CALL VAR-CALL))
+  (dolist (arg args)
+    (add-var-info scope arg VAR-ARG))
   (list ':APPLY
         (traverse func scope tail)
         (map [traverse _ scope nil] args)
@@ -151,6 +160,8 @@
               scope tail)))
 
 (defun traverse-apply-direct (vars body args scope tail)
+  (dolist (arg args)
+    (add-var-info scope arg VAR-ARG))
   (let1 proper-vars (check-parameters vars)
     (let ((argnum (length args))
           (varnum (- (length proper-vars)
@@ -276,9 +287,11 @@
             outer-scope)))
 
 (defun expand-scope (local oscope)
-  (let1 expanded-vars (append local (scope-local oscope))
+  (let ((expanded-vars (append local (scope-local oscope)))
+        (expanded-var-infos (append (map (^(_) (vector 0)) local)
+                                    (scope-local-info oscope))))
     (vector expanded-vars
-            (scope-local-info oscope)
+            expanded-var-infos
             (scope-frees oscope)
             (scope-sets oscope)
             (scope-id oscope)
@@ -338,8 +351,22 @@
       (unless (member key vars)
         (append-scope-sets! dst-sets key (table-get src-sets key))))))
 
+(defun with-var-info (scope var fn)
+  (when scope
+    (aif (scope-local-has? scope var)
+         (fn (elt (scope-local-info scope) it))
+      (with-var-info (scope-outer-scope scope) var fn))))
+
+(defun add-var-info (scope var val)
+  (when (symbol? var)
+    (with-var-info scope var
+                   (^(info)
+                     (vector-set! info 0 (logior (vector-get info 0)
+                                                 val))))))
+
 ;; Registers free variable into scope and returns its index number.
 (defun register-fref (scope x)
+  (add-var-info scope x VAR-FREE)
   (let1 frees (scope-frees scope)
     (if frees
         (aif (position x frees)
@@ -351,6 +378,7 @@
           0))))
 
 (defun register-set! (scope x v)
+  (add-var-info scope x VAR-SET)
   (let1 sets (scope-sets scope)
     (receive (orig-value exists)
              (table-get sets x)
@@ -653,3 +681,8 @@
 
 (defun eval (x)
   (run-binary (compile x)))
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*)
+  all)
