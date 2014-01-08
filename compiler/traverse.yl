@@ -502,7 +502,7 @@
 
 (defun compile-body (vars body scope next)
   (if body
-      (make-boxes (scope-sets scope) vars
+      (make-boxes scope vars
                   (alet ((body body))
                     (if body
                         (compile-recur (car body) scope
@@ -510,11 +510,11 @@
                       next)))
     (list* 'VOID next)))
 
-(defun make-boxes (sets locals next)
+(defun make-boxes (scope locals next)
   (alet ((vars locals)
          (n 0))
     (if vars
-        (if (table-exists? sets (car vars))
+        (if (scope-sets-has? scope (car vars))
             (list* 'BOX n
                    (loop (cdr vars) (+ n 1)))
           (loop (cdr vars) (+ n 1)))
