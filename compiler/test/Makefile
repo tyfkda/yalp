@@ -3,7 +3,7 @@ RUNTEST=$(YALP)
 
 all:	test
 
-test:	boot-test util-test traverse-test compiler-test
+test:	boot-test util-test traverse-test
 
 boot-test:
 	$(RUNTEST) boot-test.yl
@@ -13,6 +13,3 @@ util-test:
 
 traverse-test:
 	$(RUNTEST) traverse-test.yl
-
-compiler-test:
-	$(RUNTEST) compiler-test.yl
