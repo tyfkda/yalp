@@ -294,7 +294,7 @@
             expanded-var-infos
             (scope-frees oscope)
             (scope-id oscope)
-            (scope-outer-scope oscope))))
+            oscope)))
 
 (defun get-expanded-scope-outer-local-count (scope)
   (let1 outer (scope-outer-scope scope)
