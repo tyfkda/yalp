@@ -388,10 +388,6 @@ void State::free(void* ptr) const {
   allocator_->free(ptr);
 }
 
-void* State::objAlloc(size_t size) const {
-  return allocator_->objAlloc(size);
-}
-
 Value State::intern(const char* name) {
   SymbolId symbolId = symbolManager_->intern(name);
   return Value(symbolId, TAG2_SYMBOL);
@@ -406,9 +402,7 @@ const Symbol* State::getSymbol(unsigned int symbolId) const {
 }
 
 Value State::cons(Value a, Value d) {
-  void* memory = allocator_->objAlloc(sizeof(Cell));
-  Cell* cell = new(memory) Cell(a, d);
-  return Value(cell);
+  return Value(allocator_->newObject<Cell>(a, d));
 }
 
 Value State::car(Value s) {
@@ -422,19 +416,12 @@ Value State::cdr(Value s) {
 }
 
 SHashTable* State::createHashTable(bool equal) {
-  void* memory = allocator_->objAlloc(sizeof(SHashTable));
-  SHashTable* ht;
+  HashPolicy<Value>* policy;
   if (equal)
-    ht = new(memory) SHashTable(allocator_, hashPolicyEqual_);
+    policy = hashPolicyEqual_;
   else
-    ht = new(memory) SHashTable(allocator_, hashPolicyEq_);
-  return ht;
-}
-
-Vector* State::createVector(int size) {
-  void* memory = allocator_->objAlloc(sizeof(Vector));
-  Vector* vector = new(memory) Vector(allocator_, size);
-  return vector;
+    policy = hashPolicyEq_;
+  return allocator_->newObject<SHashTable>(allocator_, policy);
 }
 
 Value State::string(const char* str) {
@@ -450,23 +437,18 @@ Value State::string(const char* str, int len) {
 }
 
 Value State::allocatedString(const char* str, int len) {
-  void* memory = allocator_->objAlloc(sizeof(String));
-  String* s = new(memory) String(str, len);
-  return Value(s);
+  return Value(allocator_->newObject<String>(str, len));
 }
 
 
 Value State::flonum(Flonum f) {
-  void* memory = allocator_->objAlloc(sizeof(SFlonum));
-  SFlonum* p = new(memory) SFlonum(f);
-  return Value(p);
+  return Value(allocator_->newObject<SFlonum>(f));
 }
 
 Value State::createFileStream(FILE* fp) {
   void* memory = allocator_->alloc(sizeof(FileStream));
   FileStream* stream = new(memory) FileStream(fp);
-  void* memory2 = allocator_->objAlloc(sizeof(SStream));
-  return Value(new(memory2) SStream(stream));
+  return Value(allocator_->newObject<SStream>(stream));
 }
 
 Object* State::getFunc() const {
@@ -532,8 +514,7 @@ void State::defineGlobal(Value sym, Value value) {
 
 void State::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   int arena = saveArena();
-  void* memory = objAlloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
+  NativeFunc* nativeFunc = allocator_->newObject<NativeFunc>(func, minArgNum, maxArgNum);
   defineGlobal(name, Value(nativeFunc));
   restoreArena(arena);
 }

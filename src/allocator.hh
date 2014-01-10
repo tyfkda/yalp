@@ -2,6 +2,7 @@
 #define _ALLOCATOR_HH_
 
 #include "yalp/gc_object.hh"
+#include <new>
 #include <stddef.h>  // for size_t
 
 namespace yalp {
@@ -25,15 +26,18 @@ public:
   void* realloc(void* p, size_t size);
   void free(void* p);
 
-  // Allocates managed memory.
-  void* objAlloc(size_t size);
-
   int saveArena() const  { return arenaIndex_; }
   void restoreArena(int index)  { arenaIndex_ = index; }
   void restoreArenaWith(int index, GcObject* gcobj);
 
   // Runs garbage collection.
   void collectGarbage();
+
+  // Create new object with managed memory.
+  template <typename T, typename... Params>
+  T* newObject(Params... parameters) {
+    return new(objAlloc(sizeof(T))) T(parameters...);
+  }
 
 private:
   static const int ARENA_SIZE = 200;
@@ -43,6 +47,9 @@ private:
 
   inline void markArenaObjects();
   void sweep();
+
+  // Allocates managed memory.
+  void* objAlloc(size_t size);
 
   AllocFunc allocFunc_;
   Callback* callback_;

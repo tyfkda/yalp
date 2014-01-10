@@ -217,8 +217,7 @@ int Vm::findOpcode(Value op) {
 }
 
 Value Vm::box(Value x) {
-  void* memory = state_->objAlloc(sizeof(Box));
-  return Value(new(memory) Box(x));
+  return Value(state_->getAllocator()->newObject<Box>(x));
 }
 
 //=============================================================================
@@ -511,8 +510,7 @@ void Vm::apply(Value fn, int argNum) {
 }
 
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = state_->objAlloc(sizeof(Closure));
-  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
@@ -521,8 +519,7 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
 void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
 
-  void* memory = state_->objAlloc(sizeof(Macro));
-  Macro* macro = new(memory) Macro(state_, name, body, nfree, minArgNum, maxArgNum);
+  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     macro->setFreeVariable(i, index(s, i));
 
@@ -530,9 +527,9 @@ void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, in
 }
 
 Value Vm::createContinuation(int s) {
-  void* memory = state_->objAlloc(sizeof(Continuation));
-  return Value(new(memory) Continuation(state_, stack_, s,
-                                        &callStack_[0], callStack_.size()));
+  Continuation* cont = state_->getAllocator()->newObject<Continuation>(
+      state_, stack_, s, &callStack_[0], callStack_.size());
+  return Value(cont);
 }
 
 void Vm::reserveStack(int n) {

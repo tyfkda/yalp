@@ -773,16 +773,18 @@ static Value s_makeVector(State* state) {
   state->checkType(ssize, TT_FIXNUM);
   int size = ssize.toFixnum();
   Value fillValue = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
-  Vector* vector = state->createVector(size);
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, size);
   for (int i = 0; i < size; ++i)
     vector->set(i, fillValue);
   return Value(vector);
 }
 
 static Value s_vector(State* state) {
-  int n = state->getArgNum();
-  Vector* vector = state->createVector(n);
-  for (int i = 0; i < n; ++i)
+  int size = state->getArgNum();
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, size);
+  for (int i = 0; i < size; ++i)
     vector->set(i, state->getArg(i));
   return Value(vector);
 }

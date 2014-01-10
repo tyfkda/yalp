@@ -5,6 +5,7 @@
 #include "build_env.hh"
 #include "yalp/binder.hh"
 #include "yalp/object.hh"
+#include "allocator.hh"
 
 #include <new>
 #include <string>
@@ -33,8 +34,7 @@ protected:
 
 Value createBindingFunc(State* state, void* funcPtr,
                         NativeFuncType bindingFunc, int nParam) {
-  void* memory = state->objAlloc(sizeof(BindedNativeFunc));
-  BindedNativeFunc* nativeFunc = new(memory) BindedNativeFunc(
+  BindedNativeFunc* nativeFunc = state->getAllocator()->newObject<BindedNativeFunc>(
       static_cast<void*>(funcPtr), nParam, bindingFunc);
   return Value(nativeFunc);
 }

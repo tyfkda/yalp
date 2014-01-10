@@ -68,6 +68,7 @@ protected:
 // Cell class.
 class Cell : public Object {
 public:
+  Cell(Value a, Value d);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
@@ -80,7 +81,6 @@ public:
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Cell(Value a, Value d);
   ~Cell()  {}
   virtual void mark() override;
 
@@ -96,6 +96,8 @@ private:
 // String class.
 class String : public Object {
 public:
+  // The given string is allocated in heap and be taken ownership.
+  String(const char* string, int len);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
@@ -106,8 +108,6 @@ public:
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  // The given string is allocated in heap and be taken ownership.
-  String(const char* string, int len);
   ~String()  {}
 private:
   virtual void destruct(Allocator* allocator) override;
@@ -121,6 +121,7 @@ private:
 // Floating point number class.
 class SFlonum : public Object {
 public:
+  SFlonum(Flonum v);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
 
@@ -129,7 +130,6 @@ public:
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  SFlonum(Flonum v);
   ~SFlonum()  {}
 
   Flonum v_;
@@ -140,6 +140,7 @@ protected:
 // Vector class.
 class Vector : public Object {
 public:
+  Vector(Allocator* allocator, int size);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
 
@@ -151,7 +152,6 @@ public:
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
 protected:
-  Vector(Allocator* allocator, int size);
   ~Vector()  {}
   virtual void destruct(Allocator* allocator) override;
   virtual void mark() override;
@@ -168,6 +168,7 @@ class SHashTable : public Object {
 public:
   typedef HashTable<Value, Value> TableType;
 
+  explicit SHashTable(Allocator* allocator, HashPolicy<Value>* policy);
   virtual Type getType() const override;
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
@@ -184,7 +185,6 @@ public:
   const TableType* getHashTable() const  { return table_; }
 
 protected:
-  explicit SHashTable(Allocator* allocator, HashPolicy<Value>* policy);
   ~SHashTable();
   virtual void mark() override;
 
@@ -291,6 +291,7 @@ protected:
 
 class SStream : public Object {
 public:
+  explicit SStream(Stream* stream);
   virtual Type getType() const override;
 
   virtual void output(State*, Stream* o, bool) const override;
@@ -298,7 +299,6 @@ public:
   inline Stream* getStream() const  { return stream_; }
 
 protected:
-  explicit SStream(Stream* stream);
   ~SStream()  {}
   virtual void destruct(Allocator* allocator) override;
 

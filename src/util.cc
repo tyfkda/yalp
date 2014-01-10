@@ -7,6 +7,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "allocator.hh"
 
 namespace yalp {
 
@@ -55,7 +56,8 @@ int length(Value v) {
 
 Value listToVector(State* state, Value ls) {
   int len = length(ls);
-  Vector* vector = state->createVector(len);
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, len);
   Value p = ls;
   for (int i = 0; i < len; ++i) {
     Cell* q = static_cast<Cell*>(p.toObject());
