@@ -21,6 +21,7 @@ TEST_F(ObjectTest, cell) {
   Value d = Value(222);
   Value cell = state_->cons(a, d);
   ASSERT_EQ(TT_CELL, cell.getType());
-  ASSERT_TRUE(state_->car(cell).eq(a));
-  ASSERT_TRUE(state_->cdr(cell).eq(d));
+  Cell* p = static_cast<Cell*>(cell.toObject());
+  ASSERT_TRUE(p->car().eq(a));
+  ASSERT_TRUE(p->cdr().eq(d));
 }

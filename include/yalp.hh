@@ -131,8 +131,6 @@ public:
 
   // Creates cell.
   Value cons(Value a, Value d);
-  Value car(Value s);
-  Value cdr(Value s);
 
   // Converts character code to lisp character value.
   inline Value character(int c) const;

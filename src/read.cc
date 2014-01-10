@@ -325,8 +325,8 @@ ErrorCode Reader::readSharedStructure(Value* pValue) {
       // Copy pair.
       state_->checkType(object, TT_CELL);
       Cell* p = static_cast<Cell*>(tmp.toObject());
-      p->setCar(state_->car(object));
-      p->setCdr(state_->cdr(object));
+      p->setCar(car(object));
+      p->setCdr(cdr(object));
       *pValue = tmp;
       return SUCCESS;
     }

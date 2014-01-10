@@ -405,16 +405,6 @@ Value State::cons(Value a, Value d) {
   return Value(allocator_->newObject<Cell>(a, d));
 }
 
-Value State::car(Value s) {
-  return s.getType() == TT_CELL ?
-    static_cast<Cell*>(s.toObject())->car() : s;
-}
-
-Value State::cdr(Value s) {
-  return s.getType() == TT_CELL ?
-    static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
-}
-
 SHashTable* State::createHashTable(bool equal) {
   HashPolicy<Value>* policy;
   if (equal)

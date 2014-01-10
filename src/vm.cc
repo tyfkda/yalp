@@ -46,8 +46,8 @@
 #define VMTRACE                                                         \
   if (trace_) {                                                         \
     FileStream out(stdout);                                             \
-    Value op = state_->car(x_), d = state_->car(state_->cdr(x_));       \
-    if (d.getType() == TT_CELL) d = Value::NIL; \
+    Value op = car(x_), d = car(cdr(x_));                               \
+    if (d.getType() == TT_CELL) d = Value::NIL;                         \
     format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
   }                                                                     \
 
@@ -944,7 +944,7 @@ Value Vm::runLoop() {
       valueCount_ = 1;
     } NEXT;
     OTHERWISE {
-      Value op = state_->car(prex);
+      Value op = car(prex);
       state_->runtimeError("Unknown op `%@`", &op);
     } NEXT;
   } END_DISPATCH;

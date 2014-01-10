@@ -72,7 +72,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
     const char* abbrev = isAbbrev(state);
     if (abbrev != NULL) {
       o->write(abbrev);
-      state->car(cdr()).output(state, o, inspect);
+      yalp::car(cdr()).output(state, o, inspect);
       return;
     }
   }
@@ -112,7 +112,7 @@ void Cell::setCdr(Value d) {
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(Value::NIL))
+      !yalp::cdr(cdr()).eq(Value::NIL))
     return NULL;
 
   struct {

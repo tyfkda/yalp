@@ -45,16 +45,16 @@ static Value s_macroexpand_1(State* state) {
   Value exp = state->getArg(0);
   if (exp.getType() != TT_CELL)
     return exp;
-  Value name = state->car(exp);
+  Value name = car(exp);
   Value closure = state->getMacro(name);
   if (closure.isFalse())
     return exp;
 
-  Value args = state->cdr(exp);
+  Value args = cdr(exp);
   int argNum = length(args);
   Value* argsArray = static_cast<Value*>(alloca(sizeof(Value) * argNum));
-  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
-    argsArray[i] = state->car(args);
+  for (int i = 0; i < argNum; ++i, args = cdr(args))
+    argsArray[i] = car(args);
   return state->tailcall(closure, argNum, argsArray);
 }
 
@@ -75,12 +75,12 @@ static Value s_cons(State* state) {
 
 static Value s_car(State* state) {
   Value cell = state->getArg(0);
-  return state->car(cell);
+  return car(cell);
 }
 
 static Value s_cdr(State* state) {
   Value cell = state->getArg(0);
-  return state->cdr(cell);
+  return cdr(cell);
 }
 
 static Value s_setCar(State* state) {
@@ -137,8 +137,8 @@ static Value s_append(State* state) {
   Value copied = Value::NIL;
   for (int i = 0; i < lastIndex; ++i) {
     Value ls = state->getArg(i);
-    for (; ls.getType() == TT_CELL; ls = state->cdr(ls))
-      copied = state->cons(state->car(ls), copied);
+    for (; ls.getType() == TT_CELL; ls = cdr(ls))
+      copied = state->cons(car(ls), copied);
   }
   if (copied.eq(Value::NIL))
     return last;
@@ -166,7 +166,7 @@ static Value s_appendBang(State* state) {
       continue;
     state->checkType(ls, TT_CELL);
     for (Value p = ls;;) {
-      Value d = state->cdr(p);
+      Value d = cdr(p);
       if (d.getType() != TT_CELL) {
         static_cast<Cell*>(p.toObject())->setCdr(last);
         break;
@@ -665,8 +665,8 @@ static Value s_apply(State* state) {
     if (i < n - 2)
       args[i] = state->getArg(i + 1);
     else {
-      args[i] = state->car(last);
-      last = state->cdr(last);
+      args[i] = car(last);
+      last = cdr(last);
     }
   }
 
@@ -1028,11 +1028,11 @@ static Value s_join(State* state) {
 
   StrOStream stream(state->getAllocator());
   bool first = true;
-  for (; !ls.eq(Value::NIL); ls = state->cdr(ls)) {
+  for (; !ls.eq(Value::NIL); ls = cdr(ls)) {
     if (!first)
       c.output(state, &stream, false);
     first = false;
-    state->car(ls).output(state, &stream, false);
+    car(ls).output(state, &stream, false);
   }
   return state->string(stream.getString(), stream.getLength());
 }

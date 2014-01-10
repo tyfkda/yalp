@@ -19,6 +19,16 @@ unsigned int strHash(const char* s) {
   return v;
 }
 
+Value car(Value s) {
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->car() : s;
+}
+
+Value cdr(Value s) {
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
+}
+
 Value list(State* state, Value v1) {
   return state->cons(v1, Value::NIL);
 }
