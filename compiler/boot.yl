@@ -487,3 +487,13 @@
 
 (defun remove-if-not (test seq)
   (remove-if [not (test _)] seq))
+
+(defun copy-list (ls)
+  (if (pair? ls)
+      (cons (copy-list (car ls))
+            (copy-list (cdr ls)))
+    ls))
+
+(defun bit? (x flag)
+  (not (eq? (logand x flag)
+            0)))
