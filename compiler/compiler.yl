@@ -128,7 +128,7 @@
           '(:VOID))))
 
 (defun traverse-call/cc (func scope tail)
-  (list ':CONTI (traverse func scope nil) tail))
+  (list ':CONTI (traverse func scope tail)))
 
 (defun traverse-lambda (vars body scope)
   (let* ((proper-vars (check-parameters vars))
@@ -211,8 +211,7 @@
                       expanded-scope
                       proper-vars
                       args-node
-                      body-node
-                      tail)))
+                      body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
             (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
 
@@ -253,8 +252,7 @@
               proper-vars
               varnum
               val-node
-              body-node
-              tail)))))
+              body-node)))))
 
 ;; Check function parameters are valid and returns proper vars.
 (defun check-parameters (vars)
@@ -454,8 +452,9 @@
                                         (list* 'CLOSE varnum (length frees)
                                                body-slot
                                                next))))
-               (:INVOKE (expanded-scope proper-vars args-node body tail)
-                        (let ((vars (scope-local expanded-scope))
+               (:INVOKE (expanded-scope proper-vars args-node body)
+                        (let ((tail (tail? next))
+                              (vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (compile-args args-node scope
                                         (if proper-vars
@@ -475,8 +474,9 @@
                                               next))))
                (:APPLY (f args tail)
                        (compile-apply f args tail scope next))
-               (:CONTI (func tail)
-                       (let* ((c (list* 'CONTI tail
+               (:CONTI (func)
+                       (let* ((tail (tail? next))
+                              (c (list* 'CONTI tail
                                         'PUSH
                                         (compile-recur func scope
                                                        (if tail
@@ -491,8 +491,9 @@
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (expanded-scope proper-vars varnum vals body tail)
-                      (let ((frees (scope-frees expanded-scope)))
+               (:RECV (expanded-scope proper-vars varnum vals body)
+                      (let ((tail (tail? next))
+                            (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
                                        (list* 'RECV varnum
                                               (compile-body (scope-local expanded-scope) body expanded-scope
@@ -632,6 +633,9 @@
                    (let1 node (car it)
                      (and (lambda-node? node)   ; Lambda node.
                           node)))))))
+
+(defun tail? (next)
+  (eq? (car next) 'RET))
 
 ;;;;
 ;; Declaim
