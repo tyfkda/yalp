@@ -507,7 +507,7 @@
 
 (defun compile-apply (f args tail scope next)
   (let ((argnum (length args))
-        (lambda-node (can-goto? f scope)))
+        (lambda-node (apply-func-can-be-loop? f scope)))
     (cond ((and lambda-node
                 (eq? (scope-outer-scope (lambda-scope-get lambda-node))
                      scope))
@@ -625,9 +625,10 @@
                           (error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
-(defun can-goto? (f scope)
-  (and (eq? (car f) ':REF)                      ; Function is simple reference.
-       (let ((sym (cadr f)))                    ; Symbol for the reference.
+;; If a function call can be loop, returns the loop lambda node.
+(defun apply-func-can-be-loop? (fn scope)
+  (and (eq? (car fn) ':REF)                     ; Function is simple reference.
+       (let ((sym (cadr fn)))                   ; Symbol for the reference.
          (aif (var-is-set? scope sym)
               (and (single? it)                 ; Just 1 time assignment.
                    (let1 node (car it)
