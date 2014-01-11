@@ -16,7 +16,7 @@
       (APPLY (n))
       (RET ())
       (TAPPLY (n))
-      (LOOP (n . $next))
+      (LOOP (n keep . $next))
       (BOX (n . $next))
       (UNBOX $next)
       (CONTI (tail . $next))
