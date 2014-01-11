@@ -37,11 +37,13 @@
 
 ;;;;
 
-(def VAR-ARG 1)        ; is used for argument (or return value).
-(def VAR-CALL 2)       ; is used for function.
-(def VAR-TAIL-CALL 4)  ; is used for function in tail position.
-(def VAR-FREE 8)       ; is captured for free variable.
-(def VAR-SET 16)       ; is set.
+(def VAR-ARG 1)              ; is used for argument (or return value).
+(def VAR-FREE 2)             ; is captured for free variable.
+(def VAR-SET 4)              ; is set.
+(def VAR-SELF-TAIL-CALL 8)   ; is used for function in tail position.
+(def VAR-CALL-IN-BASE1 16)   ; is used for function.
+(def VAR-CALL-IN-BASE2 32)   ; is used for function.
+(def VAR-CALL-OTHER 64)      ; is used for function.
 
 ;; Traverses lisp code and generate intermediate AST.
 ;;   x : code to be compiled.
@@ -50,6 +52,7 @@
 ;;   @result : AST.
 (defun traverse (x scope tail)
   (cond ((symbol? x)
+         (add-var-info scope x VAR-ARG)
          (traverse-refer x scope))
         ((pair? x)
          (let1 expanded (expand-macro x scope)
@@ -145,14 +148,34 @@
                                         tail)]
            body))
 
+(defun detect-call-type (func-name calling-scope tail)
+  (aif (with-var-info calling-scope func-name
+                      (^(info _)
+                        (if (scope-local-has? calling-scope func-name)
+                            (if (eq? (logand (vector-get info 0) VAR-CALL-IN-BASE1)
+                                     0)
+                                VAR-CALL-IN-BASE1
+                              VAR-CALL-IN-BASE2)
+                          (let1 sets (var-is-set? calling-scope func-name)
+                            (if (and sets
+                                     (single? sets)
+                                     (lambda-node? (car sets))
+                                     tail)
+                                VAR-SELF-TAIL-CALL
+                              VAR-CALL-OTHER)))))
+       it
+    VAR-CALL-OTHER))
+
 (defun traverse-apply (func args scope tail)
-  (add-var-info scope func (if tail VAR-TAIL-CALL VAR-CALL))
-  (dolist (arg args)
-    (add-var-info scope arg VAR-ARG))
-  (list ':APPLY
-        (traverse func scope tail)
-        (map [traverse _ scope nil] args)
-        tail))
+  (let ((call-type (detect-call-type func scope tail))
+        (func-node (if (symbol? func)
+                       (traverse-refer func scope)
+                     (traverse func scope nil))))
+    (add-var-info scope func call-type)
+    (list ':APPLY
+          func-node
+          (map [traverse _ scope nil] args)
+          tail)))
 
 (defun traverse-inline-apply (sym args scope tail)
   (let1 lambda (get-inline-function-body sym)
@@ -160,8 +183,6 @@
               scope tail)))
 
 (defun traverse-apply-direct (vars body args scope tail)
-  (dolist (arg args)
-    (add-var-info scope arg VAR-ARG))
   (let1 proper-vars (check-parameters vars)
     (let ((argnum (length args))
           (varnum (- (length proper-vars)
@@ -328,22 +349,23 @@
                              (set-minus (scope-frees inner-scope) (scope-local scope))))))
 
 (defun with-var-info (scope var fn)
-  (when scope
-    (aif (scope-local-has? scope var)
-         (fn (elt (scope-local-info scope) it))
-      (with-var-info (scope-outer-scope scope) var fn))))
+  (if (symbol? var)
+      (alet ((scope scope))
+        (when scope
+          (aif (scope-local-has? scope var)
+               (fn (elt (scope-local-info scope) it) scope)
+            (loop (scope-outer-scope scope)))))))
 
 (defun add-var-info (scope var val)
-  (when (symbol? var)
-    (with-var-info scope var
-                   (^(info)
-                     (vector-set! info 0 (logior (vector-get info 0)
-                                                 val))
-                     info))))
+  (with-var-info scope var
+                 (^(info _)
+                   (vector-set! info 0 (logior (vector-get info 0)
+                                               val))
+                   info)))
 
 (defun var-has-attr? (scope var flag)
   (with-var-info scope var
-                 (^(info)
+                 (^(info _)
                    (unless (eq? (logand (vector-get info 0) flag)
                                 0)
                      info))))
