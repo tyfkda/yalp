@@ -85,6 +85,7 @@ static Value s_cdr(State* state) {
 
 static Value s_setCar(State* state) {
   Value s = state->getArg(0);
+  state->checkType(s, TT_CELL);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCar(value);
   return value;
@@ -92,6 +93,7 @@ static Value s_setCar(State* state) {
 
 static Value s_setCdr(State* state) {
   Value s = state->getArg(0);
+  state->checkType(s, TT_CELL);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCdr(value);
   return value;
