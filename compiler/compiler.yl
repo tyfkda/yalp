@@ -505,7 +505,7 @@
                                                                      next)))))))
                (t (error "Unknown [%@]" tree))))
 
-(defun compile-apply (f args tail scope next)
+(defun compile-apply (f args code-tail scope next)
   (let ((argnum (length args))
         (lambda-node (apply-func-can-be-loop? f scope)))
     (cond ((and lambda-node
@@ -513,20 +513,21 @@
                      scope))
            ;; Beginning of loop using self-recursion function.
            (let ((lambda-scope (lambda-scope-get lambda-node))
-                 (body-slot (lambda-body-slot-get lambda-node)))
+                 (body-slot (lambda-body-slot-get lambda-node))
+                 (next-tail (tail? next)))
              (let ((expanded-scope (expand-scope (scope-local lambda-scope) scope)))
                ;(copy-pair! body-slot
                ;            (compile-body (scope-local lambda-scope) (lambda-body-node-get lambda-node) expanded-scope
                ;                          next))
                (let1 c (compile-args args scope
                                      (compile-recur f scope
-                                                    (if tail
+                                                    (if next-tail
                                                         (list* 'SHIFT argnum
                                                                (list* 'DIRECTCALL argnum
                                                                       body-slot))
                                                       (list* 'DIRECTCALL argnum
                                                              body-slot))))
-                 (if tail
+                 (if next-tail
                      c
                    (list* 'FRAME c next))))))
           ;; Continue loop using self-recursion in tail position.
@@ -535,7 +536,7 @@
                          (scope-id scope))
                     (eq? (scope-id (scope-outer-scope (lambda-scope-get lambda-node)))
                          (scope-id scope)))
-                tail)
+                code-tail)
            (let ((varnum (lambda-varnum-get lambda-node))
                  (outer-varnum (length (get-expanded-scope-outer-local-count (lambda-scope-get lambda-node)))))
              (when (pair? varnum)
@@ -546,12 +547,13 @@
                            (list* 'LOOP argnum outer-varnum
                                   (lambda-body-slot-get lambda-node)))))
           ;; Normal function call.
-          (t (let1 code (compile-args args scope
-                                      (compile-recur f scope
-                                                     (if tail
-                                                         (list 'TAPPLY argnum)
-                                                       (list 'APPLY argnum))))
-               (if tail
+          (t (let* ((next-tail (tail? next))
+                    (code (compile-args args scope
+                                        (compile-recur f scope
+                                                       (if next-tail
+                                                           (list 'TAPPLY argnum)
+                                                         (list 'APPLY argnum))))))
+               (if next-tail
                    code
                  (list* 'FRAME code next)))))))
 
