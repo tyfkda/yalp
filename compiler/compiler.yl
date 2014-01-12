@@ -40,9 +40,9 @@
 (def VAR-ARG 1)              ; is used for argument (or return value).
 (def VAR-FREE 2)             ; is captured for free variable.
 (def VAR-SET 4)              ; is set.
-(def VAR-SELF-TAIL-CALL 8)   ; is used for function in tail position.
-(def VAR-CALL-IN-BASE1 16)   ; is used for function.
-(def VAR-CALL-IN-BASE2 32)   ; is used for function.
+(def VAR-SELF-TAIL-RECUR 8)  ; is used for function for self tail recursion.
+(def VAR-CALL-IN-BASE1 16)   ; is used for function in base position.
+(def VAR-CALL-IN-BASE2 32)   ; is used for function in base position, more than 1 time.
 (def VAR-CALL-OTHER 64)      ; is used for function.
 
 ;; Traverses lisp code and generate intermediate AST.
@@ -161,7 +161,7 @@
                                      (single? sets)
                                      (lambda-node? (car sets))
                                      tail)
-                                VAR-SELF-TAIL-CALL
+                                VAR-SELF-TAIL-RECUR
                               VAR-CALL-OTHER)))))
        it
     VAR-CALL-OTHER))
