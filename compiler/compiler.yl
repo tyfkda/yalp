@@ -542,7 +542,7 @@
              (when (pair? varnum)
                (error "Not implemented: rest param for loop"))
              (unless (eq? argnum varnum)
-               (compile-error "Illegal argnum, `%@` requires %@, but %@" (caddr f) varnum argnum))
+               (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
              (compile-args args scope
                            (list* 'LOOP argnum outer-varnum
                                   (lambda-body-slot-get lambda-node)))))
