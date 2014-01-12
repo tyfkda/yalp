@@ -610,6 +610,10 @@
                   (varnum (length lambda-local-vars))
                   (body-slot (lambda-body-slot-get lambda-node))
                   (next-tail (tail? next)))
+             (when (pair? varnum)
+               (error "Not implemented: rest param for loop"))
+             (unless (eq? argnum varnum)
+               (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
              (replace-lambda-scope lambda-node expanded-scope)
              (copy-pair! body-slot
                          (compile-body lambda-local-vars (lambda-body-node-get lambda-node) expanded-scope
