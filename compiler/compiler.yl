@@ -664,10 +664,14 @@
   (alet ((vars locals)
          (n 0))
     (if vars
-        (if (var-is-set? scope (car vars))
-            (list* 'BOX n
-                   (loop (cdr vars) (+ n 1)))
-          (loop (cdr vars) (+ n 1)))
+        (let ((var (car vars))
+              (tail (cdr vars)))
+          (if (and (var-is-set? scope var)
+                   (not (and (symbol-can-be-loop? var scope)
+                             (can-eliminate-lambda-node? scope var))))
+              (list* 'BOX n
+                     (loop tail (+ n 1)))
+            (loop tail (+ n 1))))
       next)))
 
 (defun compile-args (args scope next)
@@ -691,12 +695,13 @@
 ;; If a function call can be loop, returns the loop lambda node.
 (defun apply-func-can-be-loop? (fn scope)
   (and (eq? (car fn) ':REF)                     ; Function is simple reference.
-       (let ((sym (cadr fn)))                   ; Symbol for the reference.
-         (aif (var-is-set? scope sym)
-              (and (single? it)                 ; Just 1 time assignment.
-                   (let1 node (car it)
-                     (and (lambda-node? node)   ; Lambda node.
-                          node)))))))
+       (symbol-can-be-loop? (cadr fn) scope)))  ; Symbol for the reference.
+(defun symbol-can-be-loop? (sym scope)
+  (aif (var-is-set? scope sym)
+       (and (single? it)                        ; Just 1 time assignment.
+            (let1 node (car it)
+              (and (lambda-node? node)          ; Lambda node.
+                   node)))))
 
 (defun tail? (next)
   (eq? (car next) 'RET))
