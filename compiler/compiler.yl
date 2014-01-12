@@ -580,60 +580,74 @@
     (replace-outer-scope! node scope)))
 
 (defun compile-apply (f args code-tail call-type scope next)
-  (let ((argnum (length args))
-        (lambda-node (apply-func-can-be-loop? f scope)))
-    (cond (;; Self tail call?
+  (let1 lambda-node (apply-func-can-be-loop? f scope)
+    (cond (;; Start loop?
+           (and lambda-node
+                (bit? call-type VAR-CALL-IN-BASE1)
+                (can-eliminate-lambda-node? scope (cadr f)))
+           (compile-apply-loop lambda-node f args scope next))
+          (;; Self tail recursion?
            (and lambda-node
                 (bit? call-type VAR-SELF-TAIL-RECUR))
-           ;; Output direct jump for self tail call.
-           (let ((varnum (lambda-varnum-get lambda-node))
-                 (outer-varnum (if (can-eliminate-lambda-node? scope (cadr f))
-                                   (length (scope-local (scope-outer-scope (lambda-scope-get lambda-node))))
-                                 0)))
-             (when (pair? varnum)
-               (error "Not implemented: rest param for loop"))
-             (unless (eq? argnum varnum)
-               (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
-             (compile-args args scope
-                           (list* 'LOOP argnum outer-varnum
-                                  (lambda-body-slot-get lambda-node)))))
-          (;; Start loop?
-           (and lambda-node
-                (let1 func-name (cadr f)
-                  (can-eliminate-lambda-node? scope func-name))
-                (bit? call-type VAR-CALL-IN-BASE1))
-           ;; Beginning of loop using self-recursion function.
-           (let1 lambda-local-vars (scope-local (lambda-scope-get lambda-node))
-             (let ((expanded-scope (expand-scope lambda-local-vars scope))
-                   (varnum (lambda-varnum-get lambda-node))
-                   (body-slot (lambda-body-slot-get lambda-node))
-                   (next-tail (tail? next)))
-               (when (pair? varnum)
-                 (error "Not implemented: rest param for loop"))
-               (unless (eq? argnum varnum)
-                 (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
-               (replace-lambda-scope lambda-node expanded-scope)
-               (copy-pair! body-slot
-                           (compile-body lambda-local-vars (lambda-body-node-get lambda-node) expanded-scope
-                                         (if (or next-tail
-                                                 (eq? varnum 0))
-                                             next
-                                           (list* 'SHRNK varnum next))))
-               (compile-args args scope
-                             (if (eq? varnum 0)
-                                 body-slot
-                               (list* 'EXPND varnum
-                                      body-slot))))))
+           (compile-apply-self-recur lambda-node f args scope))
           ;; Normal function call.
-          (t (let* ((next-tail (tail? next))
-                    (code (compile-args args scope
-                                        (compile-recur f scope
-                                                       (if next-tail
-                                                           (list 'TAPPLY argnum)
-                                                         (list 'APPLY argnum))))))
-               (if next-tail
-                   code
-                 (list* 'FRAME code next)))))))
+          (t (compile-apply-normal f args scope next)))))
+
+(defun compile-apply-normal (f args scope next)
+  (let ((tail (tail? next))
+        (argnum (length args)))
+    (let1 code (compile-args args scope
+                             (compile-recur f scope
+                                            (if tail
+                                                (list 'TAPPLY argnum)
+                                              (list 'APPLY argnum))))
+      (if tail
+          code
+        (list* 'FRAME code next)))))
+
+;; Beginning of loop using self-recursion function.
+(defun compile-apply-loop (lambda-node f args scope next)
+  (let1 lambda-local-vars (scope-local (lambda-scope-get lambda-node))
+    (let ((expanded-scope (expand-scope lambda-local-vars scope))
+          (varnum (lambda-varnum-get lambda-node))
+          (body-slot (lambda-body-slot-get lambda-node))
+          (next-tail (tail? next))
+          (argnum (length args)))
+      (when (pair? varnum)
+        (error "Not implemented: rest param for loop"))
+      (unless (eq? argnum varnum)
+        (compile-error "Illegal argnum, `%@` requires %@, but %@"
+                       (cadr f) varnum argnum))
+      (replace-lambda-scope lambda-node expanded-scope)
+      (copy-pair! body-slot
+                  (compile-body lambda-local-vars
+                                (lambda-body-node-get lambda-node)
+                                expanded-scope
+                                (if (or next-tail
+                                        (eq? varnum 0))
+                                    next
+                                  (list* 'SHRNK varnum next))))
+      (compile-args args scope
+                    (if (eq? varnum 0)
+                        body-slot
+                      (list* 'EXPND varnum
+                             body-slot))))))
+
+;; Output direct jump for self tail call.
+(defun compile-apply-self-recur (lambda-node f args scope)
+  (let ((argnum (length args))
+        (varnum (lambda-varnum-get lambda-node))
+        (outer-varnum (if (can-eliminate-lambda-node? scope (cadr f))
+                          (length (scope-local (scope-outer-scope (lambda-scope-get lambda-node))))
+                        0)))
+    (when (pair? varnum)
+      (error "Not implemented: rest param for loop"))
+    (unless (eq? argnum varnum)
+      (compile-error "Illegal argnum, `%@` requires %@, but %@"
+                     (cadr f) varnum argnum))
+    (compile-args args scope
+                  (list* 'LOOP argnum outer-varnum
+                         (lambda-body-slot-get lambda-node)))))
 
 (defun compile-set! (var val scope next)
   ;; Check whether the set! value is lambda and it is used for local loop.
