@@ -16,6 +16,8 @@
 
 namespace yalp {
 
+const int DEFAULT_NEXT_GC = 20000 * 1000;
+
 #define RAW_ALLOC(allocFunc, size)  (allocFunc(NULL, (size)))
 #define RAW_REALLOC(allocFunc, ptr, size)  (allocFunc((ptr), (size)))
 #define RAW_FREE(allocFunc, ptr)  (allocFunc((ptr), 0))
@@ -84,7 +86,7 @@ void Allocator::release() {
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback)
   : allocFunc_(allocFunc), callback_(callback), userdata_(NULL)
   , objectTop_(NULL), objectCount_(0), arenaIndex_(0)
-  , nextGc_(20000) {}
+  , nextGc_(DEFAULT_NEXT_GC) {}
 
 Allocator::~Allocator() {
   while (objectTop_ != NULL) {
