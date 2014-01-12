@@ -195,7 +195,6 @@
                      (traverse func scope nil))))
     (add-var-info scope func call-type)
     (list ':APPLY
-          tail
           call-type
           func-node
           (map [traverse _ scope nil] args))))
@@ -489,8 +488,8 @@
                                        (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                               next))))
-               (:APPLY (tail call-type f args)
-                       (compile-apply f args tail call-type scope next))
+               (:APPLY (call-type f args)
+                       (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (let* ((tail (tail? next))
                               (c (list* 'CONTI tail
@@ -563,7 +562,7 @@
                     (replace-outer-scope! test scope)
                     (replace-outer-scope! then scope)
                     (replace-outer-scope! else scope))
-               (:APPLY (tail call-type f args)
+               (:APPLY (call-type f args)
                        (replace-outer-scope! f scope)
                        (dolist (arg args)
                          (replace-outer-scope! arg scope)))
@@ -579,7 +578,7 @@
   (dolist (node (lambda-body-node-get lambda-node))
     (replace-outer-scope! node scope)))
 
-(defun compile-apply (f args code-tail call-type scope next)
+(defun compile-apply (f args call-type scope next)
   (let1 lambda-node (apply-func-can-be-loop? f scope)
     (cond (;; Start loop?
            (and lambda-node
