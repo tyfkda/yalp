@@ -173,9 +173,9 @@
                      (traverse func scope nil))))
     (add-var-info scope func call-type)
     (list ':APPLY
+          tail
           func-node
-          (map [traverse _ scope nil] args)
-          tail)))
+          (map [traverse _ scope nil] args))))
 
 (defun traverse-inline-apply (sym args scope tail)
   (let1 lambda (get-inline-function-body sym)
@@ -472,7 +472,7 @@
                                        (list* 'MACRO name varnum (length frees)
                                               (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
                                               next))))
-               (:APPLY (f args tail)
+               (:APPLY (tail f args)
                        (compile-apply f args tail scope next))
                (:CONTI (func)
                        (let* ((tail (tail? next))
