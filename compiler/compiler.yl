@@ -519,7 +519,7 @@
                                                                                 (+ (car varnum) 1)
                                                                               varnum)
                                                                      next)))))))
-               (t (error "Unknown [%@]" tree))))
+               (t (compile-error "Unknown [%@]" tree))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
   (with-var-info scope func-name
@@ -613,7 +613,7 @@
           (next-tail (tail? next))
           (argnum (length args)))
       (when (pair? varnum)
-        (error "Not implemented: rest param for loop"))
+        (compile-error "Not implemented: rest param for loop"))
       (unless (eq? argnum varnum)
         (compile-error "Illegal argnum, `%@` requires %@, but %@"
                        (cadr f) varnum argnum))
@@ -640,7 +640,7 @@
                           (length (scope-local (scope-outer-scope (lambda-scope-get lambda-node))))
                         0)))
     (when (pair? varnum)
-      (error "Not implemented: rest param for loop"))
+      (compile-error "Not implemented: rest param for loop"))
     (unless (eq? argnum varnum)
       (compile-error "Illegal argnum, `%@` requires %@, but %@"
                      (cadr f) varnum argnum))
@@ -704,7 +704,7 @@
                            (list* 'LREF it 'PUSH next)
                         (aif (position x (scope-frees scope))
                              (list* 'FREF it 'PUSH next)
-                          (error "something wrong in collect-free [%@](%@)" x scope)))))
+                          (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
 
 ;; If a function call can be loop, returns the loop lambda node.
