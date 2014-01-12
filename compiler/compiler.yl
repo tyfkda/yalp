@@ -538,10 +538,10 @@
     (vector-set! expanded-scope 4 outer-scope)))
 
 (defun replace-outer-scope! (node scope)
-  ;; Scope replacement is just 1 level, and no need to replace body nodes,
-  ;; because this scope replacement is destructive.
   (record-case node
                (:LAMBDA (inner-scope body-slot proper-vars varnum body)
+                        ;; Scope replacement is just 1 level, and no need to replace body nodes,
+                        ;; because this scope replacement is destructive.
                         (vector-set! inner-scope 4 scope))
                (:INVOKE (expanded-scope proper-vars args-node body)
                         ;; Proper-vars might be shared with scope local
@@ -549,11 +549,13 @@
                         ;; reexpand-scope! function, so it is needed to copy.
                         (let1 copied-proper-vars (copy-list proper-vars)
                           (set-car! (cddr node) copied-proper-vars)
-                          (reexpand-scope! expanded-scope proper-vars scope)))
+                          (reexpand-scope! expanded-scope proper-vars scope)
+                          (replace-body-scope! body expanded-scope)))
                (:RECV (expanded-scope proper-vars varnum vals body)
                       (let1 copied-proper-vars (copy-list proper-vars)
                         (set-car! (cddr node) copied-proper-vars)
-                        (reexpand-scope! expanded-scope proper-vars scope)))
+                        (reexpand-scope! expanded-scope proper-vars scope)
+                        (replace-body-scope! body expanded-scope)))
                (:SET (var val)
                     (replace-outer-scope! val scope))
                (:DEF (var val)
@@ -564,18 +566,19 @@
                     (replace-outer-scope! else scope))
                (:APPLY (call-type f args)
                        (replace-outer-scope! f scope)
-                       (dolist (arg args)
-                         (replace-outer-scope! arg scope)))
+                       (replace-body-scope! args scope))
                (:CONTI (func)
                        (replace-outer-scope! func scope))
                (:VALS (args)
-                      (dolist (arg args)
-                        (replace-outer-scope! arg scope)))
+                      (replace-body-scope! args scope))
                ))
 
-(defun replace-lambda-scope (lambda-node scope)
+(defun replace-lambda-scope! (lambda-node scope)
   (lambda-scope-set! lambda-node scope)
-  (dolist (node (lambda-body-node-get lambda-node))
+  (replace-body-scope! (lambda-body-node-get lambda-node) scope))
+
+(defun replace-body-scope! (body scope)
+  (dolist (node body)
     (replace-outer-scope! node scope)))
 
 (defun compile-apply (f args call-type scope next)
@@ -617,7 +620,7 @@
       (unless (eq? argnum varnum)
         (compile-error "Illegal argnum, `%@` requires %@, but %@"
                        (cadr f) varnum argnum))
-      (replace-lambda-scope lambda-node expanded-scope)
+      (replace-lambda-scope! lambda-node expanded-scope)
       (copy-pair! body-slot
                   (compile-body lambda-local-vars
                                 (lambda-body-node-get lambda-node)
