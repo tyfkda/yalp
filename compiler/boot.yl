@@ -179,7 +179,10 @@
            (,name ,@(map cadr parms))))
     `((^ ,(map car parms)
          ,@body)
-      ,@(map cadr parms))))
+      ,@(map [do (when (and (pair? _)
+                            (not (single? (cdr _))))
+                   (compile-error "malformed let: %@" _))
+                 (cadr _)] parms))))
 
 (defmacro let* (parms &body body)
   (if parms
