@@ -603,28 +603,27 @@
                   (can-eliminate-lambda-node? scope func-name))
                 (bit? call-type VAR-CALL-IN-BASE1))
            ;; Beginning of loop using self-recursion function.
-           (let* ((lambda-scope (lambda-scope-get lambda-node))
-                  (lambda-local-vars (scope-local lambda-scope))
-                  (expanded-scope (expand-scope lambda-local-vars scope))
-                  (varnum (length lambda-local-vars))
-                  (body-slot (lambda-body-slot-get lambda-node))
-                  (next-tail (tail? next)))
-             (when (pair? varnum)
-               (error "Not implemented: rest param for loop"))
-             (unless (eq? argnum varnum)
-               (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
-             (replace-lambda-scope lambda-node expanded-scope)
-             (copy-pair! body-slot
-                         (compile-body lambda-local-vars (lambda-body-node-get lambda-node) expanded-scope
-                                       (if (or next-tail
-                                               (eq? varnum 0))
-                                           next
-                                         (list* 'SHRNK varnum next))))
-             (compile-args args scope
-                           (if (eq? varnum 0)
-                               body-slot
-                             (list* 'EXPND varnum
-                                    body-slot)))))
+           (let1 lambda-local-vars (scope-local (lambda-scope-get lambda-node))
+             (let ((expanded-scope (expand-scope lambda-local-vars scope))
+                   (varnum (length lambda-local-vars))
+                   (body-slot (lambda-body-slot-get lambda-node))
+                   (next-tail (tail? next)))
+               (when (pair? varnum)
+                 (error "Not implemented: rest param for loop"))
+               (unless (eq? argnum varnum)
+                 (compile-error "Illegal argnum, `%@` requires %@, but %@" (cadr f) varnum argnum))
+               (replace-lambda-scope lambda-node expanded-scope)
+               (copy-pair! body-slot
+                           (compile-body lambda-local-vars (lambda-body-node-get lambda-node) expanded-scope
+                                         (if (or next-tail
+                                                 (eq? varnum 0))
+                                             next
+                                           (list* 'SHRNK varnum next))))
+               (compile-args args scope
+                             (if (eq? varnum 0)
+                                 body-slot
+                               (list* 'EXPND varnum
+                                      body-slot))))))
           ;; Normal function call.
           (t (let* ((next-tail (tail? next))
                     (code (compile-args args scope
