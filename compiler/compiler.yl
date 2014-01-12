@@ -605,7 +605,7 @@
            ;; Beginning of loop using self-recursion function.
            (let1 lambda-local-vars (scope-local (lambda-scope-get lambda-node))
              (let ((expanded-scope (expand-scope lambda-local-vars scope))
-                   (varnum (length lambda-local-vars))
+                   (varnum (lambda-varnum-get lambda-node))
                    (body-slot (lambda-body-slot-get lambda-node))
                    (next-tail (tail? next)))
                (when (pair? varnum)
