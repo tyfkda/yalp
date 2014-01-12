@@ -603,7 +603,6 @@
                   (can-eliminate-lambda-node? scope func-name))
                 (bit? call-type VAR-CALL-IN-BASE1))
            ;; Beginning of loop using self-recursion function.
-           ;; TODO: Check argnument number.
            (let* ((lambda-scope (lambda-scope-get lambda-node))
                   (lambda-local-vars (scope-local lambda-scope))
                   (expanded-scope (expand-scope lambda-local-vars scope))
