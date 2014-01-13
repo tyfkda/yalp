@@ -68,5 +68,14 @@
            (set! f (^() 1))
            x))
        (^() 2)))
+(test "set in lambda but not called" -1
+      (let1 n 10
+        ((^(loop)
+           (let1 f (^() (set! loop (^(i acc)
+                                     (if (<= i n)
+                                         (loop (+ i 1) (+ acc i))
+                                       acc))))
+             (loop 0 0)))
+         (^(i acc) -1))))
 
 (test-complete)
