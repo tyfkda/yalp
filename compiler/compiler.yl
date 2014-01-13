@@ -360,26 +360,31 @@
                       (union (scope-frees scope)
                              (set-minus (scope-frees inner-scope) (scope-local scope))))))
 
-(defun with-var-info (scope var fn)
+(defun get-var-info (scope var)
   (if (symbol? var)
-      (alet ((scope scope))
-        (when scope
-          (aif (scope-local-has? scope var)
-               (fn (elt (scope-local-info scope) it) scope)
-            (loop (scope-outer-scope scope)))))))
+      (alet ((pscope scope))
+        (if pscope
+            (aif (scope-local-has? pscope var)
+                 (values (elt (scope-local-info pscope) it)
+                         pscope)
+              (loop (scope-outer-scope pscope)))
+          (values nil nil)))
+    (values nil nil)))
 
 (defun add-var-info (scope var val)
-  (with-var-info scope var
-                 (^(info _)
-                   (vector-set! info 0 (logior (vector-get info 0)
-                                               val))
-                   info)))
+  (receive (info _)
+           (get-var-info scope var)
+    (when info
+      (vector-set! info 0 (logior (vector-get info 0)
+                                  val))
+      info)))
 
 (defun var-has-attr? (scope var flag)
-  (with-var-info scope var
-                 (^(info _)
-                   (and (bit? (vector-get info 0) flag)
-                        info))))
+  (receive (info _)
+           (get-var-info scope var)
+    (and info
+         (bit? (vector-get info 0) flag)
+         info)))
 
 (defun var-is-set? (scope sym)
   (aif (var-has-attr? scope sym VAR-SET)
@@ -520,12 +525,13 @@
                (t (compile-error "Unknown [%@]" node))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
-  (with-var-info scope func-name
-                 (^(info _)
-                   (let1 type (vector-get info 0)
-                     (not (bit? type (logior VAR-ARG
-                                             VAR-CALL-OTHER
-                                             VAR-CALL-IN-BASE2)))))))
+  (receive (info _)
+           (get-var-info scope func-name)
+    (and info
+         (let1 type (vector-get info 0)
+           (not (bit? type (logior VAR-ARG
+                                   VAR-CALL-OTHER
+                                   VAR-CALL-IN-BASE2)))))))
 
 (defun reexpand-scope! (expanded-scope proper-vars outer-scope)
   (let ((expanded-vars (append proper-vars (scope-local outer-scope)))
