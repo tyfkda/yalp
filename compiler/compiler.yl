@@ -174,10 +174,9 @@
   (aif (with-var-info calling-scope func-name
                       (^(info _)
                         (if (scope-local-has? calling-scope func-name)
-                            (if (eq? (logand (vector-get info 0) VAR-CALL-IN-BASE1)
-                                     0)
-                                VAR-CALL-IN-BASE1
-                              VAR-CALL-IN-BASE2)
+                            (if (bit? (vector-get info 0) VAR-CALL-IN-BASE1)
+                                VAR-CALL-IN-BASE2
+                              VAR-CALL-IN-BASE1)
                           (let1 sets (var-is-set? calling-scope func-name)
                             (if (and sets
                                      (single? sets)
@@ -379,9 +378,8 @@
 (defun var-has-attr? (scope var flag)
   (with-var-info scope var
                  (^(info _)
-                   (unless (eq? (logand (vector-get info 0) flag)
-                                0)
-                     info))))
+                   (and (bit? (vector-get info 0) flag)
+                        info))))
 
 (defun var-is-set? (scope sym)
   (aif (var-has-attr? scope sym VAR-SET)
