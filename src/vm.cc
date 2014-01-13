@@ -841,9 +841,16 @@ Value Vm::runLoop() {
       int keep = CADR(x_).toFixnum();
       x_ = CDDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
-      assert(calleeArgNum >= keep);
-      f_ = shiftArgs(n, calleeArgNum - keep, s_);
-      s_ = push(Value(n + keep), f_);
+      int d = calleeArgNum - keep;
+      assert(d >= n);
+      // Before: [a3][a2][a1]f[argnum][c][f][ret][b2][b1][c1]s
+      // After : [a3][c1]f[argnum][c][f][ret][b2][b1]s
+      moveStackElems(stack_, f_ - d, s_ - n, n);
+      if (d > n)
+        moveStackElems(stack_, f_ - d + n, f_, s_ - n - f_);
+      f_ -= d - n;
+      s_ -= d;
+      indexSet(f_, -1, Value(n + keep));
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT

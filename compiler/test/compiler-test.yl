@@ -52,16 +52,26 @@
   (test "propagate-scope-to-upper" '(z) (scope-frees outer-scope)))
 
 (test-section "loop")
-(test "nested loop with free variable" 456
-      (let1 h 123
-        (let recur ((code '(FRAME (HALT) HALT)))
-             h  ; <- needed for make h free variable.
-             (alet ((c code))
-               (if c
-                   (do (when (pair? (car c))
-                         (recur (car c)))
-                       (loop (cdr c)))
-                 456)))))
+(test "tail recursion is loop" 55
+      (let1 n 10
+        (alet ((i 0)
+               (acc 0))
+          (if (<= i n)
+              (loop (+ i 1) (+ acc i))
+            acc))))
+(test "non tail recursion is not loop" 55
+      (let1 n 10
+        (alet ((i 0))
+          (if (<= i n)
+              (+ i (loop (+ i 1)))
+            0))))
+(test "non tail loop start is loop" 55
+      (let1 n 10
+        (+ 0 (alet ((i 0)
+                    (acc 0))
+               (if (<= i n)
+                   (loop (+ i 1) (+ acc i))
+                 acc)))))
 (test "set after call" 2
       ((^(f)
          (let1 x (f)
@@ -77,5 +87,15 @@
                                        acc))))
              (loop 0 0)))
          (^(i acc) -1))))
+(test "nested loop with free variable" 456
+      (let1 h 123
+        (let recur ((code '(FRAME (HALT) HALT)))
+             h  ; <- needed for make h free variable.
+             (alet ((c code))
+               (if c
+                   (do (when (pair? (car c))
+                         (recur (car c)))
+                       (loop (cdr c)))
+                 456)))))
 
 (test-complete)
