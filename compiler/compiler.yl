@@ -425,8 +425,8 @@
 
 ;;;;
 
-(defun compile-recur (tree scope next)
-  (record-case tree
+(defun compile-recur (node scope next)
+  (record-case node
                (:CONST (x)
                        (list* 'CONST x next))
                (:VOID ()
@@ -513,7 +513,7 @@
                                                                                 (+ (car varnum) 1)
                                                                               varnum)
                                                                      next)))))))
-               (t (compile-error "Unknown [%@]" tree))))
+               (t (compile-error "Unknown [%@]" node))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
   (with-var-info scope func-name
