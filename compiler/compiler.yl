@@ -323,9 +323,13 @@
             outer-scope)))
 
 (defun expand-scope (local oscope)
+  (expand-scope2 local
+                 (map [vector 0 nil] local)
+                 oscope))
+
+(defun expand-scope2 (local infos oscope)
   (let ((expanded-vars (append local (scope-local oscope)))
-        (expanded-var-infos (append (map (^(_) (vector 0 nil)) local)
-                                    (scope-local-info oscope))))
+        (expanded-var-infos (append infos (scope-local-info oscope))))
     (vector expanded-vars
             expanded-var-infos
             (scope-frees oscope)
@@ -526,9 +530,13 @@
 (defun reexpand-scope! (expanded-scope proper-vars outer-scope)
   (let ((expanded-vars (append proper-vars (scope-local outer-scope)))
         (expanded-var-infos (append (take (length proper-vars) (scope-local-info expanded-scope))
-                                    (scope-local-info outer-scope))))
+                                    (scope-local-info outer-scope)))
+        (frees (scope-frees expanded-scope)))
     (copy-pair! (scope-local expanded-scope) expanded-vars)
     (copy-pair! (scope-local-info expanded-scope) expanded-var-infos)
+    ;; Free variables are not shared with outer or inner scope,
+    ;; so it can be safely modified.
+    (scope-frees-set! expanded-scope (scope-frees outer-scope))
     (vector-set! expanded-scope 4 outer-scope)))
 
 (defun replace-outer-scope! (node scope)
@@ -603,31 +611,33 @@
 
 ;; Beginning of loop using self-recursion function.
 (defun compile-apply-loop (lambda-node f args scope next)
-  (let1 lambda-local-vars (scope-local (lambda-scope-get lambda-node))
-    (let ((expanded-scope (expand-scope lambda-local-vars scope))
-          (varnum (lambda-varnum-get lambda-node))
-          (body-slot (lambda-body-slot-get lambda-node))
-          (next-tail (tail? next))
-          (argnum (length args)))
-      (when (pair? varnum)
-        (compile-error "Not implemented: rest param for loop"))
-      (unless (eq? argnum varnum)
-        (compile-error "Illegal argnum, `%@` requires %@, but %@"
-                       (cadr f) varnum argnum))
-      (replace-lambda-scope! lambda-node expanded-scope)
-      (copy-pair! body-slot
-                  (compile-body lambda-local-vars
-                                (lambda-body-node-get lambda-node)
-                                expanded-scope
-                                (if (or next-tail
-                                        (eq? varnum 0))
-                                    next
-                                  (list* 'SHRNK varnum next))))
-      (compile-args args scope
-                    (if (eq? varnum 0)
-                        body-slot
-                      (list* 'EXPND varnum
-                             body-slot))))))
+  (let1 lambda-scope (lambda-scope-get lambda-node)
+    (let ((lambda-local-vars (scope-local lambda-scope))
+          (lambda-local-infos (scope-local-info lambda-scope)))
+      (let ((expanded-scope (expand-scope2 lambda-local-vars lambda-local-infos scope))
+            (varnum (lambda-varnum-get lambda-node))
+            (body-slot (lambda-body-slot-get lambda-node))
+            (next-tail (tail? next))
+            (argnum (length args)))
+        (when (pair? varnum)
+          (compile-error "Not implemented: rest param for loop"))
+        (unless (eq? argnum varnum)
+          (compile-error "Illegal argnum, `%@` requires %@, but %@"
+                         (cadr f) varnum argnum))
+        (replace-lambda-scope! lambda-node expanded-scope)
+        (copy-pair! body-slot
+                    (compile-body lambda-local-vars
+                                  (lambda-body-node-get lambda-node)
+                                  expanded-scope
+                                  (if (or next-tail
+                                          (eq? varnum 0))
+                                      next
+                                    (list* 'SHRNK varnum next))))
+        (compile-args args scope
+                      (if (eq? varnum 0)
+                          body-slot
+                        (list* 'EXPND varnum
+                               body-slot)))))))
 
 ;; Output direct jump for self tail call.
 (defun compile-apply-self-recur (lambda-node f args scope)

@@ -52,6 +52,16 @@
   (test "propagate-scope-to-upper" '(z) (scope-frees outer-scope)))
 
 (test-section "loop")
+(test "nested loop with free variable" 456
+      (let1 h 123
+        (let recur ((code '(FRAME (HALT) HALT)))
+             h  ; <- needed for make h free variable.
+             (alet ((c code))
+               (if c
+                   (do (when (pair? (car c))
+                         (recur (car c)))
+                       (loop (cdr c)))
+                 456)))))
 (test "cheat-set" 2
       ((^(f)
          (let1 x (f)
