@@ -171,21 +171,17 @@
            body))
 
 (defun detect-call-type (func-name calling-scope tail)
-  (aif (with-var-info calling-scope func-name
-                      (^(info _)
-                        (if (scope-local-has? calling-scope func-name)
-                            (if (bit? (vector-get info 0) VAR-CALL-IN-BASE1)
-                                VAR-CALL-IN-BASE2
-                              VAR-CALL-IN-BASE1)
-                          (let1 sets (var-is-set? calling-scope func-name)
-                            (if (and sets
-                                     (single? sets)
-                                     (lambda-node? (car sets))
-                                     tail)
-                                VAR-SELF-TAIL-RECUR
-                              VAR-CALL-OTHER)))))
-       it
-    VAR-CALL-OTHER))
+  (let1 sets (var-is-set? calling-scope func-name)
+    (if (and sets
+             (single? sets)
+             (lambda-node? (car sets)))
+        (cond ((scope-local-has? calling-scope func-name)
+               (if (var-has-attr? calling-scope func-name VAR-CALL-IN-BASE1)
+                   VAR-CALL-IN-BASE2
+                 VAR-CALL-IN-BASE1))
+              (tail VAR-SELF-TAIL-RECUR)
+              (t    VAR-CALL-OTHER))
+      VAR-CALL-OTHER)))
 
 (defun traverse-apply (func args scope tail)
   (let ((call-type (detect-call-type func scope tail))

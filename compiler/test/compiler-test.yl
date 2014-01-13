@@ -51,4 +51,12 @@
   (propagate-scope-to-upper outer-scope inner-scope (scope-local inner-scope))
   (test "propagate-scope-to-upper" '(z) (scope-frees outer-scope)))
 
+(test-section "loop")
+(test "cheat-set" 2
+      ((^(f)
+         (let1 x (f)
+           (set! f (^() 1))
+           x))
+       (^() 2)))
+
 (test-complete)
