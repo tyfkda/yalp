@@ -170,6 +170,16 @@
                                         tail)]
            body))
 
+(defun upper-scope-id-is? (scope expected-id)
+  (let1 id (scope-id scope)
+    (alet ((pscope scope))
+      (if pscope
+          (let1 pid (scope-id pscope)
+            (if (eq? pid id)
+                (loop (scope-outer-scope pscope))
+              (eq? pid expected-id)))
+        nil))))
+
 (defun detect-call-type (func-name calling-scope tail)
   (let1 sets (var-is-set? calling-scope func-name)
     (if (and sets
@@ -179,8 +189,14 @@
                (if (var-has-attr? calling-scope func-name VAR-CALL-IN-BASE1)
                    VAR-CALL-IN-BASE2
                  VAR-CALL-IN-BASE1))
-              (tail VAR-SELF-TAIL-RECUR)
-              (t    VAR-CALL-OTHER))
+              (tail
+               (receive (_ defined-scope)
+                        (get-var-info calling-scope func-name)
+                 (if (upper-scope-id-is? calling-scope
+                                         (scope-id defined-scope))
+                     VAR-SELF-TAIL-RECUR
+                   VAR-CALL-OTHER)))
+              (t VAR-CALL-OTHER))
       VAR-CALL-OTHER)))
 
 (defun traverse-apply (func args scope tail)

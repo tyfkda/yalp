@@ -72,6 +72,14 @@
                (if (<= i n)
                    (loop (+ i 1) (+ acc i))
                  acc)))))
+(test "call from outside of self scope is not loop" 55
+      (let1 n 10
+        (alet ((i 0)
+               (acc 0))
+          (let1 f (^(i acc) (loop i acc))
+            (if (<= i n)
+                (f (+ i 1) (+ acc i))
+              acc)))))
 (test "set after call" 2
       ((^(f)
          (let1 x (f)
