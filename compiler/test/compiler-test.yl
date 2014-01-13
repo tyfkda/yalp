@@ -62,7 +62,7 @@
                          (recur (car c)))
                        (loop (cdr c)))
                  456)))))
-(test "cheat-set" 2
+(test "set after call" 2
       ((^(f)
          (let1 x (f)
            (set! f (^() 1))
