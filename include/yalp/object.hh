@@ -17,6 +17,7 @@ Allocator.
 
 #include "yalp.hh"
 #include "yalp/gc_object.hh"
+#include <assert.h>
 
 namespace yalp {
 
@@ -227,6 +228,7 @@ public:
   }
 
   Value getFreeVariable(int index) const {
+    assert(0 <= index && index < freeVarCount_);
     return freeVariables_[index];
   }
 
