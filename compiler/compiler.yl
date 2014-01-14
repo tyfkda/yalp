@@ -551,9 +551,10 @@
            (get-var-info scope func-name)
     (and info
          (let1 type (vector-get info 0)
-           (not (bit? type (logior VAR-ARG
-                                   VAR-CALL-OTHER
-                                   VAR-CALL-IN-BASE2)))))))
+           (and (not (bit? type (logior VAR-ARG
+                                        VAR-CALL-OTHER
+                                        VAR-CALL-IN-BASE2)))
+                (bit? type VAR-CALL-IN-BASE1))))))
 
 (defun reexpand-scope! (expanded-scope proper-vars outer-scope)
   (let ((expanded-vars (append proper-vars (scope-local outer-scope)))

@@ -105,5 +105,14 @@
                          (recur (car c)))
                        (loop (cdr c)))
                  456)))))
+(test "use set result" 55
+      (let1 n 10
+        ((^(loop)
+           ((set! loop (^(i acc)
+                         (if (<= i n)
+                             (loop (+ i 1) (+ acc i))
+                           acc)))
+            0 0))
+         nil)))
 
 (test-complete)
