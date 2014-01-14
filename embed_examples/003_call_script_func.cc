@@ -13,7 +13,7 @@ int main() {
   Value args[] = { Value(1), Value(2) };
   Value result;
   if (state->funcall(fn, 2, args, &result)) {
-    cout << "Result: " << result.toFixnum() << endl;
+    cout << result.toFixnum() << endl;
   } else {
     cout << "Funcall error" << endl;
   }

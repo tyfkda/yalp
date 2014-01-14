@@ -47,15 +47,24 @@ bool Cell::equal(const Object* target) const {
 unsigned int Cell::calcHash(State* state) const {
   const int MUL = 37, ADD = 1;
   unsigned int hash = 0;
-  const Cell* p = this;
-  for (;;) {
-    hash = hash * MUL + p->car().calcHash(state) + ADD;
-    Value d = p->cdr();
-    if (d.getType() != TT_CELL)
-      break;
-    p = static_cast<Cell*>(d.toObject());
+  // Need to avoid infinite loop.
+  const int N = 8;
+  const Cell* queue[N];
+  int w = 0, r = 0;
+  queue[w++] = this;
+  while (r < w) {
+    const Cell* p = queue[r++];
+    for (auto v : { p->car(), p->cdr() }) {
+      if (v.getType() == TT_CELL) {
+        if (w < N)
+          queue[w++] = static_cast<Cell*>(v.toObject());
+        continue;
+      }
+      // TODO: Handle mutual recursive with other container type (i.e. vector).
+      hash = hash * MUL + p->car().calcHash(state) + ADD;
+    }
   }
-  return hash * MUL + p->cdr().calcHash(state);
+  return hash;
 }
 
 void Cell::output(State* state, Stream* o, bool inspect) const {
@@ -63,7 +72,7 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
     const char* abbrev = isAbbrev(state);
     if (abbrev != NULL) {
       o->write(abbrev);
-      state->car(cdr()).output(state, o, inspect);
+      yalp::car(cdr()).output(state, o, inspect);
       return;
     }
   }
@@ -103,7 +112,7 @@ void Cell::setCdr(Value d) {
 const char* Cell::isAbbrev(State* state) const {
   if (car().getType() != TT_SYMBOL ||
       cdr().getType() != TT_CELL ||
-      !state->cdr(cdr()).eq(Value::NIL))
+      !yalp::cdr(cdr()).eq(Value::NIL))
     return NULL;
 
   struct {
@@ -214,6 +223,18 @@ void Vector::destruct(Allocator* allocator) {
 
 Type Vector::getType() const { return TT_VECTOR; }
 
+bool Vector::equal(const Object* target) const {
+  const Vector* p = static_cast<const Vector*>(target);
+  int n = size();
+  if (n != p->size())
+    return false;
+  for (int i = 0; i < n; ++i) {
+    if (!buffer_[i].equal(p->buffer_[i]))
+      return false;
+  }
+  return true;
+}
+
 void Vector::output(State* state, Stream* o, bool inspect) const {
   o->write('#');
   char c = '(';
@@ -321,7 +342,7 @@ void Closure::destruct(Allocator* allocator) {
 Type Closure::getType() const  { return TT_CLOSURE; }
 
 void Closure::output(State*, Stream* o, bool) const {
-  const char* name = "_noname_";
+  const char* name = "(noname)";
   if (name_ != NULL)
     name = name_->c_str();
   o->write("#<closure ");
@@ -349,7 +370,7 @@ NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
 Type NativeFunc::getType() const  { return TT_NATIVEFUNC; }
 
 void NativeFunc::output(State*, Stream* o, bool) const {
-  const char* name = "_noname_";
+  const char* name = "(noname)";
   if (name_ != NULL)
     name = name_->c_str();
   o->write("#<subr ");

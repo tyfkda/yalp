@@ -45,17 +45,21 @@ static Value s_macroexpand_1(State* state) {
   Value exp = state->getArg(0);
   if (exp.getType() != TT_CELL)
     return exp;
-  Value name = state->car(exp);
+  Value name = car(exp);
   Value closure = state->getMacro(name);
   if (closure.isFalse())
     return exp;
 
-  Value args = state->cdr(exp);
+  Value args = cdr(exp);
   int argNum = length(args);
   Value* argsArray = static_cast<Value*>(alloca(sizeof(Value) * argNum));
-  for (int i = 0; i < argNum; ++i, args = state->cdr(args))
-    argsArray[i] = state->car(args);
+  for (int i = 0; i < argNum; ++i, args = cdr(args))
+    argsArray[i] = car(args);
   return state->tailcall(closure, argNum, argsArray);
+}
+
+static Value s_globalVariableTable(State* state) {
+  return Value(state->getGlobalVariableTable());
 }
 
 static Value s_type(State* state) {
@@ -71,16 +75,17 @@ static Value s_cons(State* state) {
 
 static Value s_car(State* state) {
   Value cell = state->getArg(0);
-  return state->car(cell);
+  return car(cell);
 }
 
 static Value s_cdr(State* state) {
   Value cell = state->getArg(0);
-  return state->cdr(cell);
+  return cdr(cell);
 }
 
 static Value s_setCar(State* state) {
   Value s = state->getArg(0);
+  state->checkType(s, TT_CELL);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCar(value);
   return value;
@@ -88,6 +93,7 @@ static Value s_setCar(State* state) {
 
 static Value s_setCdr(State* state) {
   Value s = state->getArg(0);
+  state->checkType(s, TT_CELL);
   Value value = state->getArg(1);
   static_cast<Cell*>(s.toObject())->setCdr(value);
   return value;
@@ -133,8 +139,8 @@ static Value s_append(State* state) {
   Value copied = Value::NIL;
   for (int i = 0; i < lastIndex; ++i) {
     Value ls = state->getArg(i);
-    for (; ls.getType() == TT_CELL; ls = state->cdr(ls))
-      copied = state->cons(state->car(ls), copied);
+    for (; ls.getType() == TT_CELL; ls = cdr(ls))
+      copied = state->cons(car(ls), copied);
   }
   if (copied.eq(Value::NIL))
     return last;
@@ -162,7 +168,7 @@ static Value s_appendBang(State* state) {
       continue;
     state->checkType(ls, TT_CELL);
     for (Value p = ls;;) {
-      Value d = state->cdr(p);
+      Value d = cdr(p);
       if (d.getType() != TT_CELL) {
         static_cast<Cell*>(p.toObject())->setCdr(last);
         break;
@@ -420,17 +426,69 @@ static Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
-static SStream* chooseStream(State* state, int argIndex, const char* defaultStreamName) {
+// Logical operator: Handles fixnum value only.
+template <class Op>
+struct LogiOp {
+  static Value calc(State* state) {
+    Fixnum value = Op::base();
+    for (int n = state->getArgNum(), i = 0; i < n; ++i) {
+      Value v = state->getArg(i);
+      state->checkType(v, TT_FIXNUM);
+      value = Op::calc(value, v.toFixnum());
+    }
+    return Value(value);
+  }
+};
+
+struct LogicalAnd {
+  static Fixnum base()  { return -1; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a & b; }
+};
+struct LogicalOr {
+  static Fixnum base()  { return 0; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a | b; }
+};
+struct LogicalXor {
+  static Fixnum base()  { return 0; }
+  static Fixnum calc(Fixnum a, Fixnum b)  { return a ^ b; }
+};
+
+static Value s_logand(State* state) {
+  return LogiOp<LogicalAnd>::calc(state);
+}
+
+static Value s_logior(State* state) {
+  return LogiOp<LogicalOr>::calc(state);
+}
+
+static Value s_logxor(State* state) {
+  return LogiOp<LogicalXor>::calc(state);
+}
+
+// Arithmetic shift.
+static Value s_ash(State* state) {
+  Value x = state->getArg(0);
+  Value shift = state->getArg(1);
+  state->checkType(x, TT_FIXNUM);
+  state->checkType(shift, TT_FIXNUM);
+  int s = shift.toFixnum();
+  if (s >= 0)
+    return Value(x.toFixnum() << s);
+  else
+    return Value(x.toFixnum() >> -s);
+}
+
+static SStream* chooseStream(State* state, int argIndex, State::Constant defaultStream) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(defaultStreamName);
+    state->referGlobal(state->getConstant(defaultStream));
   state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject());
 }
 
 static Value output(State* state, bool inspect) {
   Value x = state->getArg(0);
-  Stream* stream = chooseStream(state, 1, "*stdout*")->getStream();
+  Stream* stream = chooseStream(state, 1, State::STDOUT)->getStream();
   x.output(state, stream, inspect);
   return x;
 }
@@ -443,8 +501,25 @@ static Value s_display(State* state) {
   return output(state, false);
 }
 
+static Value s_print(State* state) {
+  Value x = state->getArg(0);
+  Stream* stream = chooseStream(state, 1, State::STDOUT)->getStream();
+  x.output(state, stream, false);
+  stream->write("\n");
+  return x;
+}
+
 static Value s_format(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdout*")->getStream();
+  Value ss = state->getArg(0);
+  Stream* stream;
+  StrOStream* ostream = NULL;
+  if (ss.eq(Value::NIL)) {
+    void* memory = alloca(sizeof(StrOStream));
+    stream = ostream = new(memory) StrOStream(state->getAllocator());
+  } else {
+    state->checkType(ss, TT_STREAM);
+    stream = static_cast<SStream*>(ss.toObject())->getStream();
+  }
   Value fmt = state->getArg(1);
   state->checkType(fmt, TT_STRING);
 
@@ -453,11 +528,17 @@ static Value s_format(State* state) {
   for (int i = 0; i < argNum; ++i)
     values[i] = state->getArg(i + 2);
   format(state, stream, static_cast<String*>(fmt.toObject())->c_str(), values);
-  return Value::NIL;
+  if (ostream != NULL) {
+    ostream->close();
+    Value s = state->string(ostream->getString(), ostream->getLength());
+    ostream->~StrOStream();
+    return s;
+  }
+  return state->multiValues();
 }
 
 static Value s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
   Reader reader(state, stream);
   Value exp;
@@ -489,7 +570,7 @@ static Value s_readFromString(State* state) {
 static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
   state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
-  Stream* stream = chooseStream(state, 1, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 1, State::STDIN)->getStream();
   Reader reader(state, stream);
   Value result;
   ErrorCode err = reader.readDelimitedList(delimiter.toCharacter(), &result);
@@ -499,7 +580,7 @@ static Value s_readDelimitedList(State* state) {
 }
 
 static Value s_readChar(State* state) {
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   int c = stream->get();
   return c == EOF ? Value::NIL : state->character(c);
 }
@@ -507,7 +588,7 @@ static Value s_readChar(State* state) {
 static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
   state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
-  SStream* sstream = chooseStream(state, 1, "*stdin*");
+  SStream* sstream = chooseStream(state, 1, State::STDIN);
   sstream->getStream()->ungetc(ch.toCharacter());
   return Value(sstream);
 }
@@ -529,7 +610,7 @@ static Value s_readLine(State* state) {
   char* heap = NULL;
   int heapSize = 0;
 
-  Stream* stream = chooseStream(state, 0, "*stdin*")->getStream();
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
   int c;
   for (;;) {
     c = stream->get();
@@ -586,8 +667,8 @@ static Value s_apply(State* state) {
     if (i < n - 2)
       args[i] = state->getArg(i + 1);
     else {
-      args[i] = state->car(last);
-      last = state->cdr(last);
+      args[i] = car(last);
+      last = cdr(last);
     }
   }
 
@@ -603,16 +684,40 @@ static Value s_runBinary(State* state) {
   return result;
 }
 
+static Value s_load(State* state) {
+  Value fn = state->getArg(0);
+  state->checkType(fn, TT_STRING);
+  String* fileName = static_cast<String*>(fn.toObject());
+  Value result;
+  ErrorCode err = state->runFromFile(fileName->c_str(), &result);
+  if (err != SUCCESS)
+    state->runtimeError("Cannot load \"%s\"", fileName->c_str());
+  return result;
+}
+
+static Value s_loadBinary(State* state) {
+  Value fn = state->getArg(0);
+  state->checkType(fn, TT_STRING);
+  String* fileName = static_cast<String*>(fn.toObject());
+  Value result;
+  ErrorCode err = state->runBinaryFromFile(fileName->c_str(), &result);
+  if (err != SUCCESS)
+    state->runtimeError("Cannot load binary \"%s\"", fileName->c_str());
+  return result;
+}
+
 static Value s_table(State* state) {
-  bool iso = false;
+  bool equal = true;
   if (state->getArgNum() > 0) {
     Value type = state->getArg(0);
-    if (type.eq(state->intern("iso")))
-      iso = true;
+    if (type.eq(state->intern("eq")))
+      equal = false;
+    else if (type.eq(state->intern("equal")))
+      equal = true;
     else
       state->runtimeError("Illegal compare type `%@`", &type);
   }
-  return state->createHashTable(iso);
+  return Value(state->createHashTable(equal));
 }
 
 static Value s_tableGet(State* state) {
@@ -657,9 +762,66 @@ static Value s_tableKeys(State* state) {
 
   const SHashTable::TableType* ht = static_cast<SHashTable*>(h.toObject())->getHashTable();
   Value result = Value::NIL;
-  for (auto kv : *ht)
+  int arena = state->saveArena();
+  for (auto kv : *ht) {
     result = state->cons(kv.key, result);
+    state->restoreArenaWith(arena, result);
+  }
   return result;
+}
+
+static Value s_makeVector(State* state) {
+  Value ssize = state->getArg(0);
+  state->checkType(ssize, TT_FIXNUM);
+  int size = ssize.toFixnum();
+  Value fillValue = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, size);
+  for (int i = 0; i < size; ++i)
+    vector->set(i, fillValue);
+  return Value(vector);
+}
+
+static Value s_vector(State* state) {
+  int size = state->getArgNum();
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, size);
+  for (int i = 0; i < size; ++i)
+    vector->set(i, state->getArg(i));
+  return Value(vector);
+}
+
+static Value s_vectorLength(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  return Value(vector->size());
+}
+
+static Value s_vectorGet(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  int index = i.toFixnum();
+  if (index < 0 || index >= vector->size())
+    state->runtimeError("Out of vector size, %d/%d", vector->size(), index);
+  return vector->get(index);
+}
+
+static Value s_vectorSet(State* state) {
+  Value v = state->getArg(0);
+  state->checkType(v, TT_VECTOR);
+  Vector* vector = static_cast<Vector*>(v.toObject());
+  Value i = state->getArg(1);
+  state->checkType(i, TT_FIXNUM);
+  int index = i.toFixnum();
+  if (index < 0 || index >= vector->size())
+    state->runtimeError("Out of vector size, %d/%d", vector->size(), index);
+  Value value = state->getArg(2);
+  vector->set(index, value);
+  return value;
 }
 
 static Value s_setMacroCharacter(State* state) {
@@ -763,17 +925,18 @@ static Value s_flonum(State* state) {
 }
 
 static Value s_string(State* state) {
-  Value v = state->getArg(0);
-  switch (v.getType()) {
-  case TT_STRING:
-    return v;
-  default:
-    {
-      StrOStream stream(state->getAllocator());
-      v.output(state, &stream, false);
-      return state->string(stream.getString(), stream.getLength());
-    }
+  int n = state->getArgNum();
+  if (n == 1) {
+    Value v = state->getArg(0);
+    if (v.getType() == TT_STRING)
+      return v;
   }
+
+  StrOStream stream(state->getAllocator());
+  for (int i = 0; i < n; ++i) {
+    state->getArg(i).output(state, &stream, false);
+  }
+  return state->string(stream.getString(), stream.getLength());
 }
 
 static Value s_intern(State* state) {
@@ -802,10 +965,78 @@ static Value s_charAt(State* state) {
   return state->character(str->c_str()[i.toFixnum()]);
 }
 
-static Value s_declaim(State* state) {
-  // Completely ignored all arguments.
-  // Returns '(values)' to create empty result.
-  return list(state, state->intern("values"));
+static Value s_substr(State* state) {
+  Value sstr = state->getArg(0);
+  state->checkType(sstr, TT_STRING);
+  String* str = static_cast<String*>(sstr.toObject());
+  int len = str->len();
+  Value ss = state->getArg(1);
+  state->checkType(ss, TT_FIXNUM);
+  int s = ss.toFixnum();
+  int n = len;
+  if (state->getArgNum() > 2) {
+    Value nn = state->getArg(2);
+    state->checkType(nn, TT_FIXNUM);
+    n = nn.toFixnum();
+  }
+
+  if (s > len)
+    s = len;
+  if (n < 0)
+    n = 0;
+  if (s + n > len)
+    n = len - s;
+  return state->string(str->c_str() + s, n);
+}
+
+static Value s_split(State* state) {
+  Value sstr = state->getArg(0);
+  state->checkType(sstr, TT_STRING);
+  String* str = static_cast<String*>(sstr.toObject());
+  Value sd = state->getArg(1);
+  state->checkType(sd, TT_STRING);
+  String* splitter = static_cast<String*>(sd.toObject());
+  int count = 1 << (sizeof(int) * 8 - 2);
+  if (state->getArgNum() > 2) {
+    Value c = state->getArg(2);
+    state->checkType(c, TT_FIXNUM);
+    count = c.toFixnum();
+  }
+
+  Value result = Value::NIL;
+  const char* p = str->c_str();
+  const char* d = splitter->c_str();
+  int len = splitter->len();
+  for (int i = 1; i < count; ++i) {
+    const char* q = strstr(p, d);
+    if (q == NULL)
+      break;
+    Value s = state->string(p, q - p);
+    result = state->cons(s, result);
+    p = q + len;
+  }
+  if (*p != '\0') {
+    if (result.eq(Value::NIL))
+      return list(state, sstr);
+    Value s = state->string(p);
+    result = state->cons(s, result);
+  }
+  return nreverse(result);
+}
+
+static Value s_join(State* state) {
+  Value ls = state->getArg(0);
+  Value c = state->getArg(1);
+
+  StrOStream stream(state->getAllocator());
+  bool first = true;
+  for (; !ls.eq(Value::NIL); ls = cdr(ls)) {
+    if (!first)
+      c.output(state, &stream, false);
+    first = false;
+    car(ls).output(state, &stream, false);
+  }
+  return state->string(stream.getString(), stream.getLength());
 }
 
 void installBasicFunctions(State* state) {
@@ -819,6 +1050,7 @@ void installBasicFunctions(State* state) {
     int minArgNum, maxArgNum;
   } static const FuncTable[] = {
     { "macroexpand-1", s_macroexpand_1, 1 },
+    { "global-variable-table", s_globalVariableTable, 0 },
     { "type", s_type, 1 },
     { "cons", s_cons, 2 },
     { "car", s_car, 1 },
@@ -843,8 +1075,14 @@ void installBasicFunctions(State* state) {
     { "<=", s_lessEqual, 2, -1 },
     { ">=", s_greaterEqual, 2, -1 },
 
-    { "display", s_display, 1, 2 },
+    { "ash", s_ash, 2 },
+    { "logand", s_logand, 0, -1 },
+    { "logior", s_logior, 0, -1 },
+    { "logxor", s_logxor, 0, -1 },
+
     { "write", s_write, 1, 2 },
+    { "display", s_display, 1, 2 },
+    { "print", s_print, 1, 2 },
     { "format", s_format, 2, -1 },
 
     { "read", s_read, 0, 2 },
@@ -858,6 +1096,8 @@ void installBasicFunctions(State* state) {
     { "uniq", s_gensym, 0 },
     { "apply", s_apply, 1, -1 },
     { "run-binary", s_runBinary, 1 },
+    { "load", s_load, 1 },
+    { "load-binary", s_loadBinary, 1 },
 
     { "table", s_table, 0, 1 },
     { "table-get", s_tableGet, 2, 3 },
@@ -865,6 +1105,12 @@ void installBasicFunctions(State* state) {
     { "table-exists?", s_tableExists, 2 },
     { "table-delete!", s_tableDelete, 2 },
     { "table-keys", s_tableKeys, 1 },
+
+    { "make-vector", s_makeVector, 1, 2 },
+    { "vector", s_vector, 0, -1 },
+    { "vector-length", s_vectorLength, 1 },
+    { "vector-get", s_vectorGet, 2 },
+    { "vector-set!", s_vectorSet, 3 },
 
     { "set-macro-character", s_setMacroCharacter, 2 },
     { "get-macro-character", s_getMacroCharacter, 1 },
@@ -878,19 +1124,20 @@ void installBasicFunctions(State* state) {
 
     { "int", s_int, 1 },
     { "flonum", s_flonum, 1 },
-    { "string", s_string, 1 },
     { "intern", s_intern, 1 },
 
+    { "string", s_string, 1, -1 },
     { "string-length", s_stringLength, 1 },
     { "char-at", s_charAt, 2 },
+    { "substr", s_substr, 2, 3 },
+    { "split", s_split, 2, 3 },
+    { "join", s_join, 2 },
   };
 
   for (auto it : FuncTable) {
     int maxArgNum = it.maxArgNum == 0 ? it.minArgNum : it.maxArgNum;
     state->defineNative(it.name, it.func, it.minArgNum, maxArgNum);
   }
-
-  state->defineNativeMacro("declaim", s_declaim, 0, -1);
 
   {
     bind::Binder b(state);

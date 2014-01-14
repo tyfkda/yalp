@@ -7,6 +7,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "allocator.hh"
 
 namespace yalp {
 
@@ -16,6 +17,16 @@ unsigned int strHash(const char* s) {
        *p != '\0'; ++p)
     v = v * 17 + 1 + *p;
   return v;
+}
+
+Value car(Value s) {
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->car() : s;
+}
+
+Value cdr(Value s) {
+  return s.getType() == TT_CELL ?
+    static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
 }
 
 Value list(State* state, Value v1) {
@@ -51,6 +62,19 @@ int length(Value v) {
   for (; v.getType() == TT_CELL; v = static_cast<Cell*>(v.toObject())->cdr())
     ++len;
   return len;
+}
+
+Value listToVector(State* state, Value ls) {
+  int len = length(ls);
+  Allocator* allocator = state->getAllocator();
+  Vector* vector = allocator->newObject<Vector>(allocator, len);
+  Value p = ls;
+  for (int i = 0; i < len; ++i) {
+    Cell* q = static_cast<Cell*>(p.toObject());
+    vector->set(i, q->car());
+    p = q->cdr();
+  }
+  return Value(vector);
 }
 
 struct FormatParams {

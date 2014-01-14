@@ -245,14 +245,15 @@ State::State(Allocator* allocator)
 
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
-    "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile"
+    "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile",
+    "*stdin*", "*stdout*",
   };
   for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
     "unknown", "int", "symbol", "pair", "string", "flonum", "closure",
-    "subr", "continuation", "vector", "table", "stream", "box",
+    "subr", "continuation", "vector", "table", "stream", "macro", "box",
   };
   for (int i = 0; i < NUMBER_OF_TYPES; ++i)
     typeSymbols_[i] = intern(TypeSymbolStrings[i]);
@@ -261,11 +262,8 @@ State::State(Allocator* allocator)
   installBasicFunctions(this);
   installBasicObjects();
 
-  {
-    Value ht = createHashTable(false);
-    assert(ht.getType() == TT_HASH_TABLE);
-    readTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
+  readTable_ = createHashTable(false);
+
   restoreArena(arena);
 }
 
@@ -372,8 +370,10 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
 }
 
 void State::checkType(Value x, Type expected) {
-  if (x.getType() != expected)
-    runtimeError("Type error, %d expected, but `%@`", expected, &x);
+  if (x.getType() != expected) {
+    Value expectedType = getTypeSymbol(expected);
+    runtimeError("Type error, %@ expected, but `%@`", &expectedType, &x);
+  }
 }
 
 void* State::alloc(size_t size) const {
@@ -386,10 +386,6 @@ void* State::realloc(void* ptr, size_t size) const {
 
 void State::free(void* ptr) const {
   allocator_->free(ptr);
-}
-
-void* State::objAlloc(size_t size) const {
-  return allocator_->objAlloc(size);
 }
 
 Value State::intern(const char* name) {
@@ -406,29 +402,16 @@ const Symbol* State::getSymbol(unsigned int symbolId) const {
 }
 
 Value State::cons(Value a, Value d) {
-  void* memory = allocator_->objAlloc(sizeof(Cell));
-  Cell* cell = new(memory) Cell(a, d);
-  return Value(cell);
+  return Value(allocator_->newObject<Cell>(a, d));
 }
 
-Value State::car(Value s) {
-  return s.getType() == TT_CELL ?
-    static_cast<Cell*>(s.toObject())->car() : s;
-}
-
-Value State::cdr(Value s) {
-  return s.getType() == TT_CELL ?
-    static_cast<Cell*>(s.toObject())->cdr() : Value::NIL;
-}
-
-Value State::createHashTable(bool iso) {
-  void* memory = allocator_->objAlloc(sizeof(SHashTable));
-  SHashTable* h;
-  if (iso)
-    h = new(memory) SHashTable(allocator_, hashPolicyEqual_);
+SHashTable* State::createHashTable(bool equal) {
+  HashPolicy<Value>* policy;
+  if (equal)
+    policy = hashPolicyEqual_;
   else
-    h = new(memory) SHashTable(allocator_, hashPolicyEq_);
-  return Value(h);
+    policy = hashPolicyEq_;
+  return allocator_->newObject<SHashTable>(allocator_, policy);
 }
 
 Value State::string(const char* str) {
@@ -444,23 +427,18 @@ Value State::string(const char* str, int len) {
 }
 
 Value State::allocatedString(const char* str, int len) {
-  void* memory = allocator_->objAlloc(sizeof(String));
-  String* s = new(memory) String(str, len);
-  return Value(s);
+  return Value(allocator_->newObject<String>(str, len));
 }
 
 
 Value State::flonum(Flonum f) {
-  void* memory = allocator_->objAlloc(sizeof(SFlonum));
-  SFlonum* p = new(memory) SFlonum(f);
-  return Value(p);
+  return Value(allocator_->newObject<SFlonum>(f));
 }
 
 Value State::createFileStream(FILE* fp) {
   void* memory = allocator_->alloc(sizeof(FileStream));
   FileStream* stream = new(memory) FileStream(fp);
-  void* memory2 = allocator_->objAlloc(sizeof(SStream));
-  return Value(new(memory2) SStream(stream));
+  return Value(allocator_->newObject<SStream>(stream));
 }
 
 Object* State::getFunc() const {
@@ -510,7 +488,7 @@ void State::runtimeError(const char* msg, ...) {
     const CallStack* callStack = vm_->getCallStack();
     for (int i = n; --i >= 0; ) {
       const Symbol* name = callStack[i].callable->getName();
-      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "_noname_"));
+      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
     }
   }
   longJmp();
@@ -526,18 +504,13 @@ void State::defineGlobal(Value sym, Value value) {
 
 void State::defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
   int arena = saveArena();
-  void* memory = objAlloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
+  NativeFunc* nativeFunc = allocator_->newObject<NativeFunc>(func, minArgNum, maxArgNum);
   defineGlobal(name, Value(nativeFunc));
   restoreArena(arena);
 }
 
-void State::defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum) {
-  int arena = saveArena();
-  void* memory = objAlloc(sizeof(NativeFunc));
-  NativeFunc* nativeFunc = new(memory) NativeFunc(func, minArgNum, maxArgNum);
-  vm_->defineMacro(intern(name), Value(nativeFunc));
-  restoreArena(arena);
+SHashTable* State::getGlobalVariableTable() const {
+  return vm_->getGlobalVariableTable();
 }
 
 void State::setMacroCharacter(int c, Value func) {

@@ -1,18 +1,14 @@
-;(load-binary "../../boot.bin")
-;(load "./test.arc")
+;;(load-binary "../../boot.bin")
+(load "./test.yl")
 
 (test-section "functions")
-;; no
-(test "no-nil" t (no nil))
-(test "no-t" nil (no t))
+;; not
+(test "not-nil" t (not nil))
+(test "not-t" nil (not t))
 
 ;; map
 (test "map 1" '(1 4 9) (map (^(x) (* x x)) '(1 2 3)))
 (test "map 3" '(111 222 333) (map + '(1 2 3) '(10 20 30) '(100 200 300)))
-
-;; pair
-(test "pair even" '((1 2) (3 4) (5 6)) (pair '(1 2 3 4 5 6)))
-(test "pair odd" '((1 2) (3 4) (5)) (pair '(1 2 3 4 5)))
 
 ;; cxxr
 (test "cadr" 2 (cadr '(1 2 3 4)))
@@ -47,6 +43,14 @@
 ;; let*
 (test "let*" 12321 (let* ((x 111) (x (* x x))) x))
 
+;; named let
+(test "named let" 15 (let loop ((x 5) (acc 0))
+                       (if (> x 0)
+                           (loop (- x 1) (+ acc x))
+                         acc)))
+;; let without parameter
+(test "let empty" 123 (let () 123))
+
 ;; bracket
 (test "[...]" '(1 4 9) (map [* _ _] '(1 2 3)))
 
@@ -77,9 +81,9 @@
 (test "or" 2 (or nil 2 3))
 (test "or" nil (or nil nil nil))
 
-;; len
-(test "len" 3 (len '(1 2 3)))
-(test "len dotted" 3 (len '(1 2 3 . 4)))
+;; length
+(test "length" 3 (length '(1 2 3)))
+(test "length dotted" 3 (length '(1 2 3 . 4)))
 
 ;; last
 (test "last" '(3) (last '(1 2 3)))
@@ -109,5 +113,36 @@
 
 ;; intersection
 (test "intersect" '(b d) (intersection '(a b c d) '(b d x)))
+
+;; take
+(test "take" '(1 2 3) (take 3 '(1 2 3 4 5)))
+
+;; drop
+(test "drop" '(4 5) (drop 3 '(1 2 3 4 5)))
+
+;; elt
+(test "elt" 4 (elt '(1 2 3 4 5) 3))
+
+;; position-if
+(test "position-if" 2 (position-if symbol? '(1 2 three 4 5)))
+
+;; position
+(test "position-if" 2 (position 3 '(1 2 3 4 5)))
+
+;; single?
+(test "single?" t (single? '(x)))
+(test "single?-no" nil (single? '(x y z)))
+
+;; list?
+(test "list? nil" t (list? nil))
+(test "list? list" t (list? '(1 2 3)))
+(test "list? dotted" nil (list? '(1 2 . 3)))
+(test "list? symbol" nil (list? 'foo))
+
+;; remove-if
+(test "remove-if" '(1 3 5) (remove-if symbol? '(1 two 3 four 5)))
+
+;; remove-if-not
+(test "remove-if-not" '(two four) (remove-if-not symbol? '(1 two 3 four 5)))
 
 (test-complete)

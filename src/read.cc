@@ -34,9 +34,9 @@ const int DEFAULT_SIZE = 24;
 static int hexChar(int c) {
   if (isdigit(c))
     return c - '0';
-  if ('A' <= c && c <= 'F')
+  if ('A' <= c && c <= 'Z')
     return c - ('A' - 10);
-  if ('a' <= c && c <= 'f')
+  if ('a' <= c && c <= 'z')
     return c - ('a' - 10);
   return -1;
 }
@@ -89,6 +89,7 @@ ErrorCode Reader::read(Value* pValue) {
   case '(':
     return readList(pValue);
   case ')': case ']': case '}':
+    ungetc(c);
     return EXTRA_CLOSE_PAREN;
   case ';':
     skipUntilNextLine();
@@ -178,14 +179,6 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   ErrorCode err;
   for (;;) {
     skipSpaces();
-    int c = getc();
-    if (c == terminator) {
-      *pValue = nreverse(value);
-      state_->restoreArenaWith(arena, *pValue);
-      return SUCCESS;
-    }
-
-    ungetc(c);
     err = read(&v);
     if (err != SUCCESS)
       break;
@@ -198,6 +191,17 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
     *pValue = nreverse(value);
     state_->restoreArenaWith(arena, *pValue);
     return NO_CLOSE_PAREN;
+  case EXTRA_CLOSE_PAREN: case ILLEGAL_CHAR:
+    {
+      int c = getc();
+      if (c != terminator) {
+        ungetc(c);
+        return err;
+      }
+      *pValue = nreverse(value);
+      state_->restoreArenaWith(arena, *pValue);
+      return SUCCESS;
+    }
   case DOT_AT_BASE:
     {
       if (value.eq(Value::NIL))
@@ -253,7 +257,7 @@ ErrorCode Reader::readString(char closeChar, Value* pValue) {
           {
             int c1 = hexChar(getc());
             int c2 = hexChar(getc());
-            if (c1 < 0 || c2 < 0)
+            if (c1 < 0 || c1 >= 16 || c2 < 0 || c2 >= 16)
               return ILLEGAL_CHAR;
             c = (c1 << 4) | c2;
           }
@@ -281,6 +285,16 @@ ErrorCode Reader::readSpecial(Value* pValue) {
     return readChar(pValue);
   case '.':
     return readTimeEval(pValue);
+  case '|':
+    if (!skipBlockComment())
+      return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
+    return read(pValue);
+  case 'x':
+    return readNumLiteral(pValue, 16);
+  case 'b':
+    return readNumLiteral(pValue, 2);
+  case '(':
+    return readVector(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -296,19 +310,33 @@ ErrorCode Reader::readSharedStructure(Value* pValue) {
   switch (c) {
   case '=':
     {
-      ErrorCode err = read(pValue);
+      // Store temporary object before reading labeled object
+      // for self referential.
+
+      // Assumes that labeled ss is a pair.
+      Value tmp = state_->cons(Value::NIL, Value::NIL);  // Temporary object.
+      storeShared(n, tmp);
+
+      Value object;
+      ErrorCode err = read(&object);
       if (err != SUCCESS)
         return err;
-      storeShared(n, *pValue);
+
+      // Copy pair.
+      state_->checkType(object, TT_CELL);
+      Cell* p = static_cast<Cell*>(tmp.toObject());
+      p->setCar(car(object));
+      p->setCdr(cdr(object));
+      *pValue = tmp;
       return SUCCESS;
     }
   case '#':
     if (sharedStructures_ != NULL) {
       const Value* p = sharedStructures_->get(n);
-      if (p == NULL)
-        return ILLEGAL_CHAR;
-      *pValue = *p;
-      return SUCCESS;
+      if (p != NULL) {
+        *pValue = *p;
+        return SUCCESS;
+      }
     }
     // Fall
   default:
@@ -358,6 +386,36 @@ ErrorCode Reader::readChar(Value* pValue) {
   return ILLEGAL_CHAR;
 }
 
+ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
+  Fixnum x = 0;
+  for (;;) {
+    int c = getc();
+    if (isDelimiter(c)) {
+      ungetc(c);
+      *pValue = Value(x);
+      return SUCCESS;
+    }
+
+    if (c == '_')
+      continue;
+    int h = hexChar(c);
+    if (h < 0 || h >= base) {
+      ungetc(c);
+      return ILLEGAL_CHAR;
+    }
+    x = (x * base) + h;
+  }
+}
+
+ErrorCode Reader::readVector(Value* pValue) {
+  Value ls;
+  ErrorCode err = readDelimitedList(')', &ls);
+  if (err != SUCCESS)
+    return err;
+  *pValue = listToVector(state_, ls);
+  return SUCCESS;
+}
+
 ErrorCode Reader::readTimeEval(Value* pValue) {
   Value exp;
   ErrorCode err = read(&exp);
@@ -393,6 +451,26 @@ void Reader::skipUntilNextLine() {
   while (c = getc(), c != '\n' && c != EOF)
     ;
   ungetc(c);
+}
+
+bool Reader::skipBlockComment() {
+  int nest = 1;
+  for (;;) {
+    int c = getc();
+    switch (c) {
+    case EOF:
+      return false;
+    case '#':
+      if (getc() == '|')
+        ++nest;
+      break;
+    case '|':
+      if (getc() == '#')
+        if (--nest <= 0)
+          return true;
+      break;
+    }
+  }
 }
 
 bool Reader::isDelimiter(int c) {

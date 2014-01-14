@@ -4,6 +4,7 @@
 #include "yalp/stream.hh"
 
 #include <assert.h>
+#include <fcntl.h>  // O_RDONLY, O_WRONLY
 #include <fstream>
 #include <iostream>
 #include <string.h>
@@ -115,27 +116,62 @@ static bool runBinary(State* state, Stream* stream) {
   return true;
 }
 
-static bool compile(State* state, Stream* stream, bool bNoRun) {
+static void replaceFile(FILE* fp, int fd) {
+  fflush(fp);
+  dup2(fd, fileno(fp));
+}
+
+static FILE* duplicateFile(FILE* fp, const char* mode) {
+  return fdopen(dup(fileno(fp)), mode);
+}
+
+static int reopenFile(FILE* fp, const char* fileName, const char* mode) {
+  int flags = mode[0] == 'w' ? O_WRONLY : O_RDONLY;
+  int fd = open(fileName, flags);
+  dup2(fd, fileno(fp));
+  return fd;
+}
+
+static void writess(State* state, Value value, Value outStream) {
+  Stream* stream = static_cast<SStream*>(outStream.toObject())->getStream();
+  Value fn = state->referGlobal(state->intern("write/ss"));
+  if (!fn.eq(Value::NIL)) {
+    Value args[] = { value, outStream };
+    state->funcall(fn, 2, args, NULL);
+  } else {
+    value.output(state, stream, true);
+  }
+  stream->write("\n");
+}
+
+static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
+  int topArena = state->saveArena();
+  Value outStream = state->createFileStream(outFp);
   Reader reader(state, stream);
   Value exp;
   ErrorCode err;
-  while ((err = reader.read(&exp)) == SUCCESS) {
+  for (;;) {
+    int arena = state->saveArena();
+    err = reader.read(&exp);
+    if (err != SUCCESS)
+      break;
+
     Value code;
     if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       return false;
     }
-    Value writess = state->referGlobal(state->intern("write/ss"));
-    state->funcall(writess, 1, &code, NULL);
-    cout << endl;
 
+    writess(state, code, outStream);
     if (!bNoRun && !state->runBinary(code, NULL))
       return false;
+    state->restoreArena(arena);
   }
   if (err != END_OF_FILE) {
     cerr << "Read error: " << err << endl;
     return false;
   }
+  state->restoreArena(topArena);
   return true;
 }
 
@@ -143,7 +179,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
   if (tty)
     cout << "type ':q' to quit" << endl;
   Value q = state->intern(":q");
-  FileStream out(stdout);
+  Value outStream = state->createFileStream(stdout);
   Reader reader(state, stream);
   for (;;) {
     int arena = state->saveArena();
@@ -177,11 +213,16 @@ static bool repl(State* state, Stream* stream, bool tty) {
     }
     if (tty) {
       const char* prompt = "=> ";
-      for (int n = state->getResultNum(), i = 0; i < n; ++i) {
-        Value result = state->getResult(i);
+      int n = state->getResultNum();
+      // Calling write/ss function breaks multiple values, so need to preserve them.
+      // TODO: Are these values safe from GC?
+      Value* results = static_cast<Value*>(alloca(sizeof(Value) * n));
+      for (int i = 0; i < n; ++i)
+        results[i] = state->getResult(i);
+      for (int i = 0; i < n; ++i) {
+        Value result = results[i];
         cout << prompt;
-        result.output(state, &out, true);
-        cout << endl;
+        writess(state, result, outStream);
         prompt = "   ";
       }
     }
@@ -229,6 +270,9 @@ static void exitIfError(ErrorCode err) {
 int main(int argc, char* argv[]) {
   State* state = State::create(&myAllocFunc);
 
+  FILE* outFp = duplicateFile(stdout, "w");
+  int tmpFd = -1;
+
   bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
@@ -275,39 +319,42 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  if (bCompile)
+    tmpFd = reopenFile(stdout, "/dev/null", "w");
+
   if (ii >= argc) {
   L_noScriptFiles:
     FileStream stream(stdin);
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
-    else if (bCompile)  result = compile(state, &stream, bNoRun);
+    else if (bCompile)  result = compile(state, &stream, bNoRun, outFp);
     else                result = repl(state, &stream, isatty(0) != 0);
     if (!result)
       exit(1);
-  } else {
+  } else if (bCompile) {
     for (; ii < argc; ++ii) {
       if (strcmp(argv[ii], "--") == 0) {
         ++ii;
         break;
       }
-      if (bCompile) {
-        FileStream stream(argv[ii], "r");
-        if (!stream.isOpened()) {
-          std::cerr << "File not found: " << argv[ii] << std::endl;
-          exit(1);
-        }
-        if (!compile(state, &stream, bNoRun))
-          exit(1);
-      } else if (bBinary) {
-        exitIfError(state->runBinaryFromFile(argv[ii]));
-      } else {
-        exitIfError(state->runFromFile(argv[ii]));
+      FileStream stream(argv[ii], "r");
+      if (!stream.isOpened()) {
+        std::cerr << "File not found: " << argv[ii] << std::endl;
+        exit(1);
       }
+      if (!compile(state, &stream, bNoRun, outFp))
+        exit(1);
     }
+  } else {
+    exitIfError(state->runFromFile(argv[ii++]));
   }
   if (!bCompile)
     if (!runMain(state, argc - ii, &argv[ii], NULL))
       exit(1);
+
+  fclose(outFp);
+  if (tmpFd >= 0)
+    replaceFile(stdout, tmpFd);
 
   if (bDebug)
     state->reportDebugInfo();

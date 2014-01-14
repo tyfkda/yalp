@@ -29,6 +29,17 @@ TEST_F(ReadTest, LineComment) {
   Value s;
   ASSERT_EQ(SUCCESS, read(" ; Line comment\n 123", &s));
   ASSERT_TRUE(Value(123).eq(s));
+
+  ASSERT_EQ(SUCCESS, read("(1 ; 2\n #| 3 |#)", &s));
+  ASSERT_TRUE(list(state_, Value(1)).equal(s));
+}
+
+TEST_F(ReadTest, BlockComment) {
+  Value s;
+  ASSERT_EQ(SUCCESS, read("(1 #| 2 #| 3 |# 4 |# 5)", &s));
+  ASSERT_TRUE(list(state_, Value(1), Value(5)).equal(s));
+
+  ASSERT_EQ(ILLEGAL_CHAR, read("(1 #| unterminated block comment", &s));
 }
 
 TEST_F(ReadTest, Eof) {
@@ -84,12 +95,22 @@ TEST_F(ReadTest, DottedList) {
 }
 
 TEST_F(ReadTest, SharedStructure) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));
-  ASSERT_EQ(TT_CELL, s.getType());
-  Cell* cell = static_cast<Cell*>(s.toObject());
-  ASSERT_EQ(TT_CELL, cell->cdr().getType());
-  ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car()));
+  {
+    Value s;
+    ASSERT_EQ(SUCCESS, read("(#0=(a) #0#)", &s));
+    ASSERT_EQ(TT_CELL, s.getType());
+    Cell* cell = static_cast<Cell*>(s.toObject());
+    ASSERT_EQ(TT_CELL, cell->cdr().getType());
+    ASSERT_TRUE(cell->car().eq(static_cast<Cell*>(cell->cdr().toObject())->car()));
+  }
+
+  {
+    Value s;
+    ASSERT_EQ(SUCCESS, read("#0=(a . #0#)", &s));
+    ASSERT_EQ(TT_CELL, s.getType());
+    Cell* cell = static_cast<Cell*>(s.toObject());
+    ASSERT_TRUE(s.eq(cell->cdr()));
+  }
 }
 
 TEST_F(ReadTest, String) {
@@ -136,6 +157,35 @@ TEST_F(ReadTest, Char) {
 
   ASSERT_EQ(SUCCESS, read("#\\tab", &s));
   ASSERT_EQ('\t', s.toCharacter());
+}
+
+TEST_F(ReadTest, HexLiteral) {
+  Value s;
+  ASSERT_EQ(SUCCESS, read("#x1234_abCD", &s));
+  ASSERT_EQ(TT_FIXNUM, s.getType());
+  ASSERT_EQ(0x1234abcd, s.toFixnum());
+
+  ASSERT_EQ(ILLEGAL_CHAR, read("#x0123456789abcdefg", &s));
+}
+
+TEST_F(ReadTest, BinLiteral) {
+  Value s;
+  ASSERT_EQ(SUCCESS, read("#b1101_1110_1010_1101_1011_1110_1110_1111", &s));
+  ASSERT_EQ(TT_FIXNUM, s.getType());
+  ASSERT_EQ(0xdeadbeef, s.toFixnum());
+
+  ASSERT_EQ(ILLEGAL_CHAR, read("#b0123456789abcdefg", &s));
+}
+
+TEST_F(ReadTest, Vector) {
+  Value s;
+  ASSERT_EQ(SUCCESS, read("#(1 2 3)", &s));
+  ASSERT_EQ(TT_VECTOR, s.getType());
+  Vector* v = static_cast<Vector*>(s.toObject());
+  ASSERT_EQ(3, v->size());
+  ASSERT_TRUE(Value(1).eq(v->get(0)));
+  ASSERT_TRUE(Value(2).eq(v->get(1)));
+  ASSERT_TRUE(Value(3).eq(v->get(2)));
 }
 
 TEST_F(ReadTest, Error) {

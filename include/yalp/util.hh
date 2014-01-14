@@ -17,11 +17,15 @@ class Value;
 // Hash function for C string.
 unsigned int strHash(const char* s);
 
+Value car(Value s);
+Value cdr(Value s);
+
 Value list(State* state, Value v1);
 Value list(State* state, Value v1, Value v2);
 Value list(State* state, Value v1, Value v2, Value v3);
 Value nreverse(Value v);
 int length(Value v);
+Value listToVector(State* state, Value ls);
 
 // Print format.
 void format(State* state, Stream* out, const char* fmt, ...);

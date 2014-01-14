@@ -33,21 +33,23 @@
 #define CASE(opcode)  L_ ## opcode:
 #define NEXT  goto *JumpTable[FETCH_OP];
 #define END_DISPATCH
+#define OTHERWISE  L_otherwise:
 
 #else
 #define INIT_DISPATCH  for (;;) { VMTRACE; switch (FETCH_OP) {
 #define CASE(opcode) case opcode:
 #define NEXT break
 #define END_DISPATCH }}
+#define OTHERWISE default:
 #endif
 
-#define VMTRACE                                  \
-  if (trace_) {                                  \
-    FileStream out(stdout);                      \
-    std::cout << "run: stack=" << s_ << ", x=";  \
-    x_.output(state_, &out, true);               \
-    std::cout << std::endl;                      \
-  }                                              \
+#define VMTRACE                                                         \
+  if (trace_) {                                                         \
+    FileStream out(stdout);                                             \
+    Value op = car(x_), d = car(cdr(x_));                               \
+    if (d.getType() == TT_CELL) d = Value::NIL;                         \
+    format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+  }                                                                     \
 
 namespace yalp {
 
@@ -71,6 +73,7 @@ namespace yalp {
   OP(APPLY) \
   OP(RET) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
+  OP(LOOP) \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
@@ -146,6 +149,29 @@ protected:
   Value x_;
 };
 
+// Macro class.
+class Macro : public Closure {
+public:
+  Macro(State* state, Value name, Value body, int freeVarCount,
+        int minArgNum, int maxArgNum)
+    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
+    setName(name.toSymbol(state));
+  }
+  virtual Type getType() const override  { return TT_MACRO; }
+
+  virtual void output(State*, Stream* o, bool) const override {
+    const char* name = "(noname)";
+    if (name_ != NULL)
+      name = name_->c_str();
+    o->write("#<macro ");
+    o->write(name);
+    o->write('>');
+  }
+
+protected:
+  ~Macro()  {}
+};
+
 //=============================================================================
 // Inline methods
 
@@ -185,12 +211,11 @@ int Vm::findOpcode(Value op) {
   for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
     if (op.eq(opcodes_[i]))
       return i;
-  return -1;
+  return NUMBER_OF_OPCODE;
 }
 
 Value Vm::box(Value x) {
-  void* memory = state_->objAlloc(sizeof(Box));
-  return Value(new(memory) Box(x));
+  return Value(state_->getAllocator()->newObject<Box>(x));
 }
 
 //=============================================================================
@@ -234,16 +259,7 @@ Vm::Vm(State* state)
       opcodes_[i] = state_->intern(NameTable[i]);
   }
 
-  {
-    Value ht = state_->createHashTable(false);
-    assert(ht.getType() == TT_HASH_TABLE);
-    globalVariableTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
-
-  {
-    Value ht = state_->createHashTable(false);
-    macroTable_ = static_cast<SHashTable*>(ht.toObject());
-  }
+  globalVariableTable_ = state_->createHashTable(false);
 
   endOfCode_ = list(state_, OPCVAL(HALT));
   return_ = list(state_, OPCVAL(RET));
@@ -269,7 +285,6 @@ void Vm::resetError() {
 
 void Vm::markRoot() {
   globalVariableTable_->mark();
-  macroTable_->mark();
   // Mark stack.
   for (int n = s_, i = 0; i < n; ++i)
     stack_[i].mark();
@@ -319,8 +334,10 @@ bool Vm::assignGlobal(Value sym, Value value) {
 }
 
 Value Vm::getMacro(Value name) {
-  const Value* result = macroTable_->get(name);
-  return result != NULL ? *result : Value::NIL;
+  Value v = referGlobal(name, NULL);
+  if (v.getType() != TT_MACRO)
+    return Value::NIL;
+  return v;
 }
 
 int Vm::pushArgs(int argNum, const Value* args, int s) {
@@ -360,6 +377,7 @@ Value Vm::funcall(Value fn, int argNum, const Value* args) {
   switch (fn.getType()) {
   case TT_CLOSURE:
   case TT_CONTINUATION:
+  case TT_MACRO:
     {
       Value oldX = x_;
       x_ = endOfCode_;
@@ -376,6 +394,7 @@ Value Vm::funcall(Value fn, int argNum, const Value* args) {
 Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
   switch (fn.getType()) {
   case TT_CLOSURE:
+  case TT_MACRO:
     if (isTailCall(x_)) {
       // Shifts arguments.
       int calleeArgNum = index(f_, -1).toFixnum();
@@ -426,6 +445,7 @@ void Vm::apply(Value fn, int argNum) {
   valueCount_ = 1;
   switch (fn.getType()) {
   case TT_CLOSURE:
+  case TT_MACRO:
     {
       Closure* closure = static_cast<Closure*>(fn.toObject());
       int min = closure->getMinArgNum(), max = closure->getMaxArgNum();
@@ -488,26 +508,26 @@ void Vm::apply(Value fn, int argNum) {
 }
 
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  void* memory = state_->objAlloc(sizeof(Closure));
-  Closure* closure = new(memory) Closure(state_, body, nfree, minArgNum, maxArgNum);
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
 }
 
-void Vm::defineMacro(Value name, Value func) {
+void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
-  if (!func.isObject() || !static_cast<Object*>(func.toObject())->isCallable())
-    state_->runtimeError("`%@` is not callable", &func);
-  static_cast<Callable*>(func.toObject())->setName(name.toSymbol(state_));
-  macroTable_->put(name, func);
-  defineGlobal(name, state_->intern("*macro*"));
+
+  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree, minArgNum, maxArgNum);
+  for (int i = 0; i < nfree; ++i)
+    macro->setFreeVariable(i, index(s, i));
+
+  defineGlobal(name, Value(macro));
 }
 
 Value Vm::createContinuation(int s) {
-  void* memory = state_->objAlloc(sizeof(Continuation));
-  return Value(new(memory) Continuation(state_, stack_, s,
-                                        &callStack_[0], callStack_.size()));
+  Continuation* cont = state_->getAllocator()->newObject<Continuation>(
+      state_, stack_, s, &callStack_[0], callStack_.size());
+  return Value(cont);
 }
 
 void Vm::reserveStack(int n) {
@@ -647,9 +667,12 @@ void Vm::replaceOpcodes(Value x) {
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case EXPND: case SHRNK:
-    case VALS: case RECV:
+    case GSET: case DEF: case BOX: case CONTI: case EXPND:
+    case SHRNK: case VALS: case RECV:
       x = CDR(x);
+      break;
+    case LOOP:
+      x = CDDR(x);
       break;
     case TEST: case FRAME:
       replaceOpcodes(CAR(x));
@@ -691,6 +714,7 @@ Value Vm::runLoop() {
 #define OP(name)  &&L_ ## name ,
     OPS
 #undef OP
+    &&L_otherwise
   };
 #endif
 
@@ -720,7 +744,7 @@ Value Vm::runLoop() {
     CASE(FREF) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      assert(c_.getType() == TT_CLOSURE);
+      assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
       a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       valueCount_ = 1;
     } NEXT;
@@ -745,7 +769,7 @@ Value Vm::runLoop() {
     CASE(FSET) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      assert(c_.getType() == TT_CLOSURE);
+      assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
       Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
@@ -811,10 +835,26 @@ Value Vm::runLoop() {
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
     } NEXT;
+    CASE(LOOP) {
+      // Tail self recursive call (goto): Like SHIFT.
+      int n = CAR(x_).toFixnum();
+      int keep = CADR(x_).toFixnum();
+      x_ = CDDR(x_);
+      int calleeArgNum = index(f_, -1).toFixnum();
+      int d = calleeArgNum - keep;
+      assert(d >= n);
+      // Before: [a3][a2][a1]f[argnum][c][f][ret][b2][b1][c1]s
+      // After : [a3][c1]f[argnum][c][f][ret][b2][b1]s
+      moveStackElems(stack_, f_ - d, s_ - n, n);
+      if (d > n)
+        moveStackElems(stack_, f_ - d + n, f_, s_ - n - f_);
+      f_ -= d - n;
+      s_ -= d;
+      indexSet(f_, -1, Value(n + keep));
+    } NEXT;
     CASE(TAPPLY) {
       // SHIFT
       int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_);
       shiftCallStack();
@@ -858,9 +898,10 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      defineMacro(name, createClosure(body, nfree, s_, min, max));
+      defineMacro(name, body, nfree, s_, min, max);
       s_ -= nfree;
       state_->restoreArena(arena);
+      valueCount_ = 0;
     } NEXT;
     CASE(EXPND) {
       int n = CAR(x_).toFixnum();
@@ -890,6 +931,10 @@ Value Vm::runLoop() {
       }
       restoreValues(min, max);
       valueCount_ = 1;
+    } NEXT;
+    OTHERWISE {
+      Value op = car(prex);
+      state_->runtimeError("Unknown op `%@`", &op);
     } NEXT;
   } END_DISPATCH;
 }

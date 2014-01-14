@@ -30,6 +30,7 @@ class State;
 class Stream;
 class Symbol;
 class SymbolManager;
+class Vector;
 class Vm;
 
 typedef long Fixnum;
@@ -53,6 +54,7 @@ enum Type {
   TT_VECTOR,
   TT_HASH_TABLE,
   TT_STREAM,
+  TT_MACRO,
   TT_BOX,  // TODO: This label should not be public, so hide this.
   NUMBER_OF_TYPES,
 };
@@ -117,7 +119,7 @@ public:
   Value referGlobal(Value sym, bool* pExist = NULL);
   void defineGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
-  void defineNativeMacro(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
+  SHashTable* getGlobalVariableTable() const;
 
   // Converts C++ bool value to lisp bool value.
   inline Value boolean(bool b) const;
@@ -129,8 +131,6 @@ public:
 
   // Creates cell.
   Value cons(Value a, Value d);
-  Value car(Value s);
-  Value cdr(Value s);
 
   // Converts character code to lisp character value.
   inline Value character(int c) const;
@@ -143,7 +143,7 @@ public:
   // Floating point number.
   Value flonum(Flonum f);
 
-  Value createHashTable(bool iso);
+  SHashTable* createHashTable(bool equal);
 
   // File stream.
   Value createFileStream(FILE* fp);
@@ -180,6 +180,8 @@ public:
     UNQUOTE,
     UNQUOTE_SPLICING,
     COMPILE,
+    STDIN,
+    STDOUT,
     NUMBER_OF_CONSTANTS
   };
   inline Value getConstant(Constant c) const;
@@ -188,7 +190,6 @@ public:
   void* alloc(size_t size) const;
   void* realloc(void* ptr, size_t size) const;
   void free(void* ptr) const;
-  void* objAlloc(size_t size) const;
   Allocator* getAllocator()  { return allocator_; }
 
   void setMacroCharacter(int c, Value func);

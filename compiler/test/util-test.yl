@@ -1,5 +1,5 @@
 ;(load-binary "../../boot.bin")
-;(load "./test.arc")
+(load "./test.yl")
 
 (test-section "dotted->proper")
 (test "proper" '(1 2 3) (dotted->proper '(1 2 3)))

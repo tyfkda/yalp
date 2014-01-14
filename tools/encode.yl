@@ -1,0 +1,27 @@
+;; Encode opcode from symbol to integer value
+
+(load "tools/code-walker.yl")
+
+(def *optbl*
+  (let1 h (table)
+    (alet ((ls instructions)
+           (i 0))
+      (when ls
+        (table-put! h (car (car ls)) i)
+        (loop (cdr ls) (+ i 1))))
+    h))
+
+(defun encode! (code)
+  (vm-walker code
+    (^(c recur)
+      (aif (table-get *optbl* (car c))
+        (set-car! c it))
+      t)))
+
+(defun main (args)
+  (files-or-stdin args
+                  (^(stream)
+                    (awhile (read stream)
+                      (encode! it)
+                      (write/ss it)
+                      (display "\n")))))

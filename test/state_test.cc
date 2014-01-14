@@ -40,8 +40,8 @@ TEST_F(StateTest, Nil) {
 TEST_F(StateTest, Cons) {
   Value v = state_->cons(Value(1), Value(2));
   ASSERT_EQ(TT_CELL, v.getType());
-  ASSERT_TRUE(Value(1).eq(state_->car(v)));
-  ASSERT_TRUE(Value(2).eq(state_->cdr(v)));
+  ASSERT_TRUE(Value(1).eq(car(v)));
+  ASSERT_TRUE(Value(2).eq(cdr(v)));
   ASSERT_TRUE(v.eq(v));
   ASSERT_TRUE(v.equal(v));
 
