@@ -389,7 +389,7 @@ Continuation::Continuation(State* state, const Value* stack, int size,
     memcpy(copiedStack_, stack, sizeof(Value) * size);
   }
 
-  if (--callStackSize > 0) {
+  if (callStackSize > 0) {
     int nbytes = sizeof(CallStack) * callStackSize;
     callStack_ = static_cast<CallStack*>(state->alloc(nbytes));
     callStackSize_ = callStackSize;

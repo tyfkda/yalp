@@ -140,7 +140,21 @@
           '(:VOID))))
 
 (defun traverse-call/cc (func scope tail)
-  (list ':CONTI (traverse func scope tail)))
+  (if (direct-invoke? func)
+      (let ((vars (cadr func))
+            (body (cddr func)))
+        (when (not (eq? (check-parameters vars) vars))
+          (compile-error "Not implemented: rest param for call/cc"))
+        (unless (eq? (length vars) 1)
+          (compile-error "Illegal parameters, call/cc requires 1 parameter function, but `%@`"
+                         vars))
+        (let* ((expanded-scope (expand-scope vars scope))
+               (body-node (traverse-body body expanded-scope tail)))
+          (propagate-scope-to-upper scope expanded-scope vars)
+          ;; Returns CONTI node
+          (list ':CONTI-DIRECT
+                expanded-scope vars body-node)))
+    (list ':CONTI (traverse func scope tail))))
 
 (defun prepare-lambda-node (vars body scope)
   (let ((proper-vars (check-parameters vars))
@@ -517,6 +531,8 @@
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (compile-conti func scope next))
+               (:CONTI-DIRECT (expanded-scope vars body)
+                              (compile-conti-direct expanded-scope vars body next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
@@ -591,6 +607,8 @@
                        (replace-body-scope! args scope))
                (:CONTI (func)
                        (replace-outer-scope! func scope))
+               (:CONTI-DIRECT (expanded-scope vars body)
+                       (replace-body-scope! body scope))
                (:VALS (args)
                       (replace-body-scope! args scope))
                ))
@@ -703,6 +721,21 @@
     (if tail
         c
       (list* 'FRAME c next))))
+
+(defun compile-conti-direct (expanded-scope vars body next)
+  (let* ((tail (tail? next))
+         (c (list* 'CONTI tail
+                   'PUSH
+                   'EXPND 1
+                   (compile-body vars body expanded-scope
+                                 (if tail
+                                     next
+                                   (list 'SHRNK 1
+                                         'UNFRAME))))))
+    (if tail
+        c
+      (list* 'FRAME c next))))
+
 
 (defun compile-body (vars body scope next)
   (if body

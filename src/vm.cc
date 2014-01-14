@@ -72,6 +72,7 @@ namespace yalp {
   OP(FRAME) \
   OP(APPLY) \
   OP(RET) \
+  OP(UNFRAME) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(LOOP) \
   OP(BOX) \
@@ -662,7 +663,7 @@ void Vm::replaceOpcodes(Value x) {
     static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
     x = CDR(x);
     switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET:
+    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
@@ -834,6 +835,9 @@ Value Vm::runLoop() {
       int argNum = index(s_, 0).toFixnum();
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
+    } NEXT;
+    CASE(UNFRAME) {
+      s_ = popCallFrame(s_);
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
