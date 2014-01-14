@@ -516,16 +516,7 @@
                (:APPLY (call-type f args)
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
-                       (let* ((tail (tail? next))
-                              (c (list* 'CONTI tail
-                                        'PUSH
-                                        (compile-recur func scope
-                                                       (if tail
-                                                           '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
-                                                         '(APPLY 1))))))
-                         (if tail
-                             c
-                           (list* 'FRAME c next))))
+                       (compile-conti func scope next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
@@ -700,6 +691,18 @@
       (compile-recur val scope
                      (list* op i
                             next)))))
+
+(defun compile-conti (func scope next)
+  (let* ((tail (tail? next))
+         (c (list* 'CONTI tail
+                   'PUSH
+                   (compile-recur func scope
+                                  (if tail
+                                      '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                    '(APPLY 1))))))
+    (if tail
+        c
+      (list* 'FRAME c next))))
 
 (defun compile-body (vars body scope next)
   (if body
