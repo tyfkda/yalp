@@ -36,6 +36,9 @@ Under construction.
 * Can be used for shell scripting language
 
 ## Release
+### v006
+* Generate loop code for tail recursion
+
 ### v005
 * Add function binder
 * Chaned to Common Lisp like syntax
