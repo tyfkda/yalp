@@ -151,8 +151,7 @@
                          vars))
         (let* ((inner-scope (create-scope vars scope))
                (body-node (traverse-body body inner-scope tail)))
-          ;; Use normal scope, not expanded scope
-          ;; to handle SETJMP ~ LONGJMP.
+          ;; Use normal scope, not expanded scope to handle SETJMP ~ LONGJMP.
           ;; If the continuation is not SETJMP ~ LONGJMP, replace scope at
           ;; compile time.
           (propagate-scope-to-upper scope inner-scope vars)
@@ -539,7 +538,7 @@
                (:CONTI (func)
                        (compile-conti func scope next))
                (:CONTI-DIRECT (inner-scope vars body)
-                              (compile-conti-direct inner-scope vars body next))
+                              (compile-conti-direct inner-scope vars body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
@@ -749,30 +748,40 @@
         c
       (list* 'FRAME c next))))
 
-(defun compile-conti-direct (inner-scope vars body next)
-  (let1 tail (tail? next)
-    (if (var-has-attr? inner-scope (car vars) VAR-ARG)
-        ;; Replace scope to use expanded scope.
-        (let1 expanded-scope (reexpand-scope! inner-scope
-                                              (scope-local inner-scope)
-                                              (scope-outer-scope inner-scope))
-          (replace-body-scope! body expanded-scope)
-          (let1 c (list* 'CONTI tail
-                         'PUSH
-                         'EXPND 1
-                         (compile-body vars body expanded-scope
-                                       (if tail
-                                           next
-                                         (list 'SHRNK 1
-                                               'UNFRAME))))
-            (if tail
-                c
-              (list* 'FRAME c next))))
-      (list* 'FRAME
-             (list* 'SETJMP
-                    (compile-body vars body inner-scope
-                                  (list 'RET)))
-             next))))
+(defun compile-conti-direct (inner-scope vars body scope next)
+  (let ((tail (tail? next))
+        (flag (receive (info _)
+                       (get-var-info inner-scope (car vars))
+                (vector-get info 0))))
+    (cond ((bit? flag VAR-ARG)
+           ;; Normal continuation.
+           ;; Replace scope to use expanded scope.
+           (let1 expanded-scope (reexpand-scope! inner-scope
+                                                 (scope-local inner-scope)
+                                                 (scope-outer-scope inner-scope))
+             (replace-body-scope! body expanded-scope)
+             (let1 c (list* 'CONTI tail
+                            'PUSH
+                            'EXPND 1
+                            (compile-body vars body expanded-scope
+                                          (if tail
+                                              next
+                                            (list 'SHRNK 1
+                                                  'UNFRAME))))
+               (if tail
+                   c
+                 (list* 'FRAME c next)))))
+          ((bit? flag (logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+           ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
+           (list* 'FRAME
+                  (list* 'SETJMP
+                         (compile-body vars body inner-scope
+                                       (list 'RET)))
+                  next))
+          (t ;; Continuation is not used, omit creating it.
+           (replace-body-scope! body scope)
+           (compile-body vars body scope
+                         next)))))
 
 (defun compile-body (vars body scope next)
   (if body
