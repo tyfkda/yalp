@@ -115,4 +115,17 @@
             0 0))
          nil)))
 
+(test-section "call/cc")
+(test "direct jump" '(nil 4 5)
+      (call/cc
+       (^(break)
+         (alet ((ls '(1 2 nil 4 5))
+                (acc 0))
+           (if ls
+               (do (unless (int? (car ls))
+                     (break ls))
+                   (loop (cdr ls)
+                         (+ acc (car ls))))
+             acc)))))
+
 (test-complete)

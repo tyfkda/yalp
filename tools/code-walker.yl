@@ -21,6 +21,8 @@
       (BOX (n . $next))
       (UNBOX $next)
       (CONTI (tail . $next))
+      (SETJMP $next)
+      (LONGJMP ())
       (MACRO (name nparam nfree $body . $next))
       (EXPND (n . $next))
       (SHRNK (n . $next))
