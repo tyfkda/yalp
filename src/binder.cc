@@ -13,7 +13,7 @@
 namespace yalp {
 namespace bind {
 
-const char Type<int>::TYPE_NAME[] = "fixnum";
+const char Type<int>::TYPE_NAME[] = "int";
 const char Type<double>::TYPE_NAME[] = "flonum";
 const char Type<const char*>::TYPE_NAME[] = "string";
 const char Type<Value>::TYPE_NAME[] = "Value";

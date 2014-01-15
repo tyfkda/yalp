@@ -50,7 +50,7 @@
 (defun caddddr (x) (car (cddddr x)))
 (defun cdddddr (x) (cdr (cddddr x)))
 
-(defun fixnum? (x) (eq? (type x) 'fixnum))
+(defun int? (x) (eq? (type x) 'int))
 (defun pair? (x) (eq? (type x) 'pair))
 (defun symbol? (x) (eq? (type x) 'symbol))
 (defun string? (x) (eq? (type x) 'string))
