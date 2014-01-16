@@ -89,20 +89,6 @@
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
 
-(defun maplist (f ls)
-  (alet ((ls ls)
-         (acc '()))
-    (if (pair? ls)
-        (loop (cdr ls)
-              (cons (f ls) acc))
-      (let1 result (reverse! acc)
-        (if ls
-            (if acc
-                (do (set-cdr! acc (f ls))
-                    result)
-              (f ls))
-          result)))))
-
 (defun qq-expand (x)
   (if (pair? x)
       ((^(m)
@@ -326,6 +312,20 @@
     (if (pair? ls)
         (loop (cdr ls) (cons (car ls) acc))
       acc)))
+
+(defun maplist (f ls)
+  (alet ((ls ls)
+         (acc '()))
+    (if (pair? ls)
+        (loop (cdr ls)
+              (cons (f ls) acc))
+      (let1 result (reverse! acc)
+        (if ls
+            (if acc
+                (do (set-cdr! acc (f ls))
+                    result)
+              (f ls))
+          result)))))
 
 (defun member (x ls)
   (any? [eq? x _] ls))
