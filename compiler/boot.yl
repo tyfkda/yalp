@@ -5,30 +5,30 @@
 
 ;; 'x => (quote x)
 (set-macro-character #\'
-                     (^(stream ch)
-                       (list (quote quote) (read stream))))
+  (^(stream ch)
+    (list (quote quote) (read stream))))
 
 ;; `x => (quasiquote x)
 (set-macro-character #\`
-                     (^(stream ch)
-                       (list 'quasiquote (read stream))))
+  (^(stream ch)
+    (list 'quasiquote (read stream))))
 
 ;; ,x => (unquote x)
 ;; ,@x => (unquote-splicing x)
 (set-macro-character #\,
-                     (^(stream ch)
-                       ((^(c)
-                          (if (eq? c #\@)
-                              (list 'unquote-splicing (read stream))
-                            (list 'unquote (read (unread-char c stream)))))
-                        (read-char stream))))
+  (^(stream ch)
+    ((^(c)
+       (if (eq? c #\@)
+           (list 'unquote-splicing (read stream))
+         (list 'unquote (read (unread-char c stream)))))
+     (read-char stream))))
 
 ;; Creates simple 1 parameter function with bracket notation.
 ;; [...] => (^(_) ...)
 (set-macro-character #\[
-                     (^(stream ch)
-                       ;;`(^ (_) ,(read-delimited-list #\] stream))))
-                       (list '^ '(_) (read-delimited-list #\] stream))))
+  (^(stream ch)
+    ;;`(^ (_) ,(read-delimited-list #\] stream))))
+    (list '^ '(_) (read-delimited-list #\] stream))))
 
 ;;; Basic functions and macros.
 
