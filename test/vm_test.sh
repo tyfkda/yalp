@@ -86,6 +86,9 @@ run call/cc-nil nil '(call/cc
 run_raw invoke-call/cc '1234' '(def *cc* ())
                                (display (call/cc (^(cc) (set! *cc* cc) 12)))
                                (*cc* 34)'
+run call/cc-indirect 123 '((^(f)
+                             (call/cc f))
+                           (^(cc) (cc 123)))'
 run global-var 111 '(def global 111)
                     global'
 run restargs-direct '(1 (2 3))' '((^(x &rest y) (list x y)) 1 2 3)'

@@ -72,11 +72,14 @@ namespace yalp {
   OP(FRAME) \
   OP(APPLY) \
   OP(RET) \
+  OP(UNFRAME) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(LOOP) \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
+  OP(SETJMP) \
+  OP(LONGJMP) \
   OP(MACRO) \
   OP(EXPND) \
   OP(SHRNK) \
@@ -662,9 +665,9 @@ void Vm::replaceOpcodes(Value x) {
     static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
     x = CDR(x);
     switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET:
+    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
       return;
-    case VOID: case PUSH: case UNBOX: case NIL:
+    case VOID: case PUSH: case UNBOX: case NIL: case SETJMP:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case BOX: case CONTI: case EXPND:
@@ -835,6 +838,9 @@ Value Vm::runLoop() {
       s_ = popCallFrame(s_ - argNum - 1);
       popCallStack();
     } NEXT;
+    CASE(UNFRAME) {
+      s_ = popCallFrame(s_);
+    } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
       int n = CAR(x_).toFixnum();
@@ -883,6 +889,17 @@ Value Vm::runLoop() {
       }
       a_ = createContinuation(s);
       state_->restoreArena(arena);
+    } NEXT;
+    CASE(SETJMP) {
+      f_ = push(Value(s_), s_);
+      s_ = push(Value(1), f_);
+      pushCallStack(NULL);
+    } NEXT;
+    CASE(LONGJMP) {
+      int s = a_.toFixnum();
+      a_ = index(s_, 0);
+      assert(s <= s_);
+      s_ = popCallFrame(s);
     } NEXT;
     CASE(MACRO) {
       int arena = state_->saveArena();
