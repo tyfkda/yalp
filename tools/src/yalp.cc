@@ -214,6 +214,11 @@ static bool repl(State* state, Stream* stream, bool tty) {
     if (tty) {
       const char* prompt = "=> ";
       int n = state->getResultNum();
+      if (n == 0) {
+        cout << ";; No result value\n";
+        continue;
+      }
+
       // Calling write/ss function breaks multiple values, so need to preserve them.
       // TODO: Are these values safe from GC?
       Value* results = static_cast<Value*>(alloca(sizeof(Value) * n));
