@@ -706,6 +706,20 @@ static Value s_loadBinary(State* state) {
   return result;
 }
 
+static Value s_error(State* state) {
+  FileStream out(stderr);
+  Value fmt = state->getArg(0);
+  state->checkType(fmt, TT_STRING);
+
+  int argNum = state->getArgNum() - 1;
+  Value* values = static_cast<Value*>(alloca(sizeof(Value) * argNum));
+  for (int i = 0; i < argNum; ++i)
+    values[i] = state->getArg(i + 1);
+  format(state, &out, static_cast<String*>(fmt.toObject())->c_str(), values);
+  state->runtimeError("");
+  return state->multiValues();
+}
+
 static Value s_table(State* state) {
   bool equal = true;
   if (state->getArgNum() > 0) {
@@ -1098,6 +1112,7 @@ void installBasicFunctions(State* state) {
     { "run-binary", s_runBinary, 1 },
     { "load", s_load, 1 },
     { "load-binary", s_loadBinary, 1 },
+    { "error", s_error, 1, -1 },
 
     { "table", s_table, 0, 1 },
     { "table-get", s_tableGet, 2, 3 },
