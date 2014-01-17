@@ -49,15 +49,13 @@
   (if (pair? ls)
       (map1-loop f (cdr ls)
                  (cons (f (car ls)) acc))
-    ((^(result)
-       (if ls
-           (if acc
-               ((^()
-                  (set-cdr! acc (f ls))
-                  result))
-             (f ls))
-         result))
-     (reverse! acc))))
+    (let1 result (reverse! acc)
+      (if ls
+          (if acc
+              (do (set-cdr! acc (f ls))
+                  result)
+            (f ls))
+        result))))
 
 (defun mapn-loop (f lss acc)
   (if (any? not lss)
