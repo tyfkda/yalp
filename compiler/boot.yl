@@ -6,21 +6,18 @@
 ;; 'x => (quote x)
 (set-macro-character #\'
   (^(stream ch)
-    (list (quote quote) (read stream))))
+    `(quote ,(read stream))))
 
 ;; Creates simple 1 parameter function with bracket notation.
 ;; [...] => (^(_) ...)
 (set-macro-character #\[
   (^(stream ch)
-    ;;`(^ (_) ,(read-delimited-list #\] stream))))
-    (list '^ '(_) (read-delimited-list #\] stream))))
+    `(^ (_) ,(read-delimited-list #\] stream))))
 
 ;;; Basic functions and macros.
 
 (defmacro defun (name vars &body body)
-  ;; `(def ,name (^ ,vars ,@body))
-  (list 'def name
-        (list* '^ vars body)))
+  `(def ,name (^ ,vars ,@body)))
 
 (defun not (x) (if x nil t))
 
