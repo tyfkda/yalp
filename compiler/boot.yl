@@ -6,36 +6,18 @@
 ;; 'x => (quote x)
 (set-macro-character #\'
   (^(stream ch)
-    (list (quote quote) (read stream))))
-
-;; `x => (quasiquote x)
-(set-macro-character #\`
-  (^(stream ch)
-    (list 'quasiquote (read stream))))
-
-;; ,x => (unquote x)
-;; ,@x => (unquote-splicing x)
-(set-macro-character #\,
-  (^(stream ch)
-    ((^(c)
-       (if (eq? c #\@)
-           (list 'unquote-splicing (read stream))
-         (list 'unquote (read (unread-char c stream)))))
-     (read-char stream))))
+    `(quote ,(read stream))))
 
 ;; Creates simple 1 parameter function with bracket notation.
 ;; [...] => (^(_) ...)
 (set-macro-character #\[
   (^(stream ch)
-    ;;`(^ (_) ,(read-delimited-list #\] stream))))
-    (list '^ '(_) (read-delimited-list #\] stream))))
+    `(^ (_) ,(read-delimited-list #\] stream))))
 
 ;;; Basic functions and macros.
 
 (defmacro defun (name vars &body body)
-  ;; `(def ,name (^ ,vars ,@body))
-  (list 'def name
-        (list* '^ vars body)))
+  `(def ,name (^ ,vars ,@body)))
 
 (defun not (x) (if x nil t))
 
@@ -88,42 +70,6 @@
   (if rest
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
-
-(defun qq-expand (x)
-  (if (pair? x)
-      ((^(m)
-         (if (eq? m 'unquote)
-             (cadr x)
-           (if (eq? m 'unquote-splicing)
-               (error "Illegal ,@")
-             (if (eq? m 'quasiquote)
-                 (qq-expand
-                  (qq-expand (cadr x)))
-               (list 'append
-                     (qq-expand-list (car x))
-                     (qq-expand (cdr x)))))))
-       (car x))
-    (list 'quote x)))
-
-(defun qq-expand-list (x)
-  (if (pair? x)
-      ((^(m)
-         (if (eq? m 'unquote)
-             (list 'list (cadr x))
-           (if (eq? m 'unquote-splicing)
-               (cadr x)
-             (if (eq? m 'quasiquote)
-                 (qq-expand-list
-                  (qq-expand (cadr x)))
-               (list 'list
-                     (list 'append
-                           (qq-expand-list (car x))
-                           (qq-expand (cdr x))))))))
-       (car x))
-    (list 'quote (list x))))
-
-(defmacro quasiquote (x)
-  (qq-expand x))
 
 (defmacro do (&body body)
   `((^() ,@body)))
