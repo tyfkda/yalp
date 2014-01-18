@@ -113,7 +113,7 @@
           (let1 lambda-node (prepare-lambda-node vars body scope)
             (when (or is-local is-free)
               (register-set! scope var lambda-node))
-            (traverse-lambda-exec lambda-node body scope)
+            (traverse-lambda-exec lambda-node body)
             (list ':SET var lambda-node)))
       ;; Otherwise, do normal registration.
       (let ((val-node (traverse val scope nil)))
@@ -172,18 +172,19 @@
                           -1))))
       (create-lambda-node inner-scope proper-vars varnum body-node))))
 
-(defun traverse-lambda-exec (lambda-node body scope)
+(defun traverse-lambda-exec (lambda-node body)
   (let ((inner-scope (lambda-scope-get lambda-node))
         (proper-vars (lambda-vars-get lambda-node))
         (tmp-body-node (lambda-body-node-get lambda-node)))
     (copy-pair! tmp-body-node (traverse-body body inner-scope t))
     ;; Propagate to upper scope
-    (propagate-scope-to-upper scope inner-scope proper-vars)
+    (propagate-scope-to-upper (scope-outer-scope inner-scope)
+                              inner-scope proper-vars)
     lambda-node))
 
 (defun traverse-lambda (vars body scope)
   (traverse-lambda-exec (prepare-lambda-node vars body scope)
-                        body scope))
+                        body))
 
 (defun traverse-body (body scope tail)
   (maplist [traverse (car _) scope (and (not (cdr _))
