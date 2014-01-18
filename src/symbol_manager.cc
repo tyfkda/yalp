@@ -4,7 +4,6 @@
 
 #include "build_env.hh"
 #include "symbol_manager.hh"
-#include "yalp/util.hh"  // for strHash
 
 #include <assert.h>
 #include <iostream>
@@ -19,6 +18,14 @@ const int PAGE_OBJECT_COUNT = 64;
 const int NAME_BUFFER_SIZE = 1024 - sizeof(void*);
 
 //=============================================================================
+
+static unsigned int strHash(const char* s) {
+  unsigned int v = 0;
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
+       *p != '\0'; ++p)
+    v = v * 17 + 1 + *p;
+  return v;
+}
 
 Symbol::Symbol(char* name)
   : name_(name), hash_(strHash(name)) {}

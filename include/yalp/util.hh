@@ -14,9 +14,6 @@ class State;
 class Stream;
 class Value;
 
-// Hash function for C string.
-unsigned int strHash(const char* s);
-
 Value car(Value s);
 Value cdr(Value s);
 

@@ -11,14 +11,6 @@
 
 namespace yalp {
 
-unsigned int strHash(const char* s) {
-  unsigned int v = 0;
-  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
-       *p != '\0'; ++p)
-    v = v * 17 + 1 + *p;
-  return v;
-}
-
 Value car(Value s) {
   return s.getType() == TT_CELL ?
     static_cast<Cell*>(s.toObject())->car() : s;

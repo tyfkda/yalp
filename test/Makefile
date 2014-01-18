@@ -100,7 +100,7 @@ hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
 run-hash_table_test:	hash_table_test
 	./hash_table_test
 
-symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-symbol_manager_test:	symbol_manager_test
 	./symbol_manager_test

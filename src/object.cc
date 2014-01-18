@@ -5,7 +5,7 @@
 #include "build_env.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
-#include "yalp/util.hh"  // for strHash
+#include "yalp/util.hh"
 #include "hash_table.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"  // for CallStack
@@ -146,7 +146,11 @@ bool String::equal(const Object* target) const {
 }
 
 unsigned int String::calcHash(State*) const {
-  return strHash(string_);
+  unsigned int v = 0;
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(string_);
+       *p != '\0'; ++p)
+    v = v * 23 + 1 + *p;
+  return v;
 }
 
 void String::output(State*, Stream* o, bool inspect) const {
