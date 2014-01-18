@@ -7,6 +7,7 @@
 #include "yalp/stream.hh"
 #include "yalp/util.hh"  // for strHash
 #include "hash_table.hh"
+#include "symbol_manager.hh"
 #include "vm.hh"  // for CallStack
 
 #include <assert.h>
@@ -14,13 +15,6 @@
 #include <string.h>  // for memcmp
 
 namespace yalp {
-
-//=============================================================================
-// Symbol class is not derived from Object.
-// Instances are managed by SymbolManager
-// and not be the target of GC.
-Symbol::Symbol(char* name)
-  : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
 bool Object::equal(const Object* o) const {

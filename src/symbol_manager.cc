@@ -4,7 +4,6 @@
 
 #include "build_env.hh"
 #include "symbol_manager.hh"
-#include "yalp/object.hh"
 #include "yalp/util.hh"  // for strHash
 
 #include <assert.h>
@@ -18,6 +17,11 @@ const int PAGE_OBJECT_COUNT = 64;
 
 // Number of objects which a page contains.
 const int NAME_BUFFER_SIZE = 1024 - sizeof(void*);
+
+//=============================================================================
+
+Symbol::Symbol(char* name)
+  : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
 /*

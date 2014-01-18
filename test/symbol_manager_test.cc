@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "symbol_manager.hh"
-#include "yalp/object.hh"
 
 using namespace yalp;
 

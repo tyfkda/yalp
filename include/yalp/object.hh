@@ -29,23 +29,6 @@ class HashTable;
 class CallStack;
 class Stream;
 
-// Symbol class
-class Symbol {
-public:
-  ~Symbol()  {}
-
-  unsigned int getHash() const  { return hash_; }
-  const char* c_str() const  { return name_; }
-
-private:
-  explicit Symbol(char* name);
-
-  char* name_;
-  unsigned int hash_;  // Pre-calculated hash value.
-
-  friend class SymbolManager;
-};
-
 // Base class.
 class Object : public GcObject {
 public:

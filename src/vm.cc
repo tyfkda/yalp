@@ -7,6 +7,7 @@
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
+#include "symbol_manager.hh"
 
 #include <assert.h>
 #include <iostream>

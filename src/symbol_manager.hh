@@ -10,9 +10,22 @@
 namespace yalp {
 
 class Allocator;
-class Symbol;
 
 typedef int SymbolId;
+
+// Symbol class
+class Symbol {
+public:
+  explicit Symbol(char* name);
+  ~Symbol()  {}
+
+  unsigned int getHash() const  { return hash_; }
+  const char* c_str() const  { return name_; }
+
+private:
+  char* name_;
+  unsigned int hash_;  // Pre-calculated hash value.
+};
 
 class SymbolManager {
 public:
