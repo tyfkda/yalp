@@ -65,7 +65,6 @@ void SymbolManager::release() {
 SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
   , table_(&s_hashPolicy, allocator)
-  , gensymIndex_(0)
   , symbolPageTop_(NULL), symbolArray_(NULL), symbolIndex_(0)
   , namePageTop_(NULL), nameBufferSize_(0), nameBufferOffset_(0) {
 }
@@ -97,15 +96,8 @@ SymbolId SymbolManager::intern(const char* name) {
   return symbolId;
 }
 
-SymbolId SymbolManager::gensym() {
-  int no = ++gensymIndex_;
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "#G:%d", no);
-  return generate(buffer);
-}
-
 const Symbol* SymbolManager::get(SymbolId symbolId) const {
-  assert(symbolId < symbolIndex_);
+  assert(0 <= symbolId && symbolId < symbolIndex_);
   return symbolArray_[symbolId];
 }
 

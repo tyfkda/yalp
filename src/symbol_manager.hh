@@ -12,7 +12,7 @@ namespace yalp {
 class Allocator;
 class Symbol;
 
-typedef unsigned int SymbolId;
+typedef int SymbolId;
 
 class SymbolManager {
 public:
@@ -25,9 +25,6 @@ public:
 
   // Create symbol from c-string.
   SymbolId intern(const char* name);
-
-  // Generate unique symbol.
-  SymbolId gensym();
 
   const Symbol* get(SymbolId symbolId) const;
 
@@ -45,7 +42,6 @@ private:
 
   Allocator* allocator_;
   TableType table_;
-  int gensymIndex_;
 
   // Memory blocks for Symbol instances.
   struct SymbolPage;

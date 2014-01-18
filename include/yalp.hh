@@ -93,6 +93,8 @@ public:
   inline bool isFalse() const;
 
 private:
+  void outputSymbol(State* state, Stream* o) const;
+
   Fixnum v_;
 };
 
@@ -126,8 +128,9 @@ public:
 
   // Returns symbol value.
   Value intern(const char* name);
+  // Generate unique symbol.
   Value gensym();
-  const Symbol* getSymbol(unsigned int symbolId) const;
+  const Symbol* getSymbol(int symbolId) const;
 
   // Creates cell.
   Value cons(Value a, Value d);
@@ -235,6 +238,7 @@ private:
   SHashTable* readTable_;
   Vm* vm_;
   jmp_buf* jmp_;
+  int gensymIndex_;
 
   friend struct StateAllocatorCallback;
 };

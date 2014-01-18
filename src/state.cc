@@ -80,7 +80,9 @@ unsigned int Value::calcHash(State* state) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      return toSymbol(state)->getHash();
+      if (v_ >= 0)
+        return toSymbol(state)->getHash();
+      return (v_ >> TAG2_SHIFT) * 29;
     }
   }
   assert(!"Must not happen");
@@ -110,16 +112,29 @@ void Value::output(State* state, Stream* o, bool inspect) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      if (state != NULL)
-        o->write(toSymbol(state)->c_str());
-      else {
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "#symbol:%ld>", v_ >> TAG2_SHIFT);
-        o->write(buffer);
-      }
-      return;
+      outputSymbol(state, o);
+      break;
     }
   }
+}
+
+void Value::outputSymbol(State* state, Stream* o) const {
+  char buffer[64];
+  if (state == NULL) {
+    snprintf(buffer, sizeof(buffer), "#<symbol:%ld>", v_ >> TAG2_SHIFT);
+    o->write(buffer);
+    return;
+  }
+
+  if (v_ < 0) {  // gensym-ed symbol.
+    int id = -(v_ >> TAG2_SHIFT);
+    snprintf(buffer, sizeof(buffer), "G:%d", id);
+    o->write(buffer);
+    return;
+  }
+
+  // Normal symbol.
+  o->write(toSymbol(state)->c_str());
 }
 
 Fixnum Value::toFixnum() const {
@@ -236,10 +251,8 @@ State::State(Allocator* allocator)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(allocator_->alloc(sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , hashPolicyEqual_(new(allocator_->alloc(sizeof(*hashPolicyEqual_))) HashPolicyEqual(this))
-  , readTable_(NULL)
-  , vm_(NULL)
-  , jmp_(NULL) {
-
+  , readTable_(NULL), vm_(NULL), jmp_(NULL)
+  , gensymIndex_(0) {
   int arena = saveArena();
   allocator->setUserData(this);
 
@@ -394,10 +407,11 @@ Value State::intern(const char* name) {
 }
 
 Value State::gensym() {
-  return Value(symbolManager_->gensym(), TAG2_SYMBOL);
+  return Value(--gensymIndex_, TAG2_SYMBOL);
 }
 
-const Symbol* State::getSymbol(unsigned int symbolId) const {
+const Symbol* State::getSymbol(int symbolId) const {
+  assert(symbolId >= 0);
   return symbolManager_->get(symbolId);
 }
 
@@ -584,6 +598,7 @@ void State::allocFailed(void*, size_t) {
 void State::reportDebugInfo() const {
   vm_->reportDebugInfo();
   symbolManager_->reportDebugInfo();
+  fprintf(stdout, "Total gensym: %d\n", gensymIndex_);
 }
 
 }  // namespace yalp
