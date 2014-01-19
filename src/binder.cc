@@ -15,6 +15,7 @@ namespace bind {
 
 const char Type<int>::TYPE_NAME[] = "int";
 #ifndef DISABLE_FLONUM
+const char Type<float>::TYPE_NAME[] = "flonum";
 const char Type<double>::TYPE_NAME[] = "flonum";
 #endif
 const char Type<const char*>::TYPE_NAME[] = "string";
