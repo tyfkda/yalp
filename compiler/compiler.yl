@@ -854,9 +854,11 @@
 
 (let1 exit-compile nil
   (defun compile-error (&rest args)
-    (apply format *stderr* args)
-    (display "\n" *stderr*)
-    (exit-compile nil))
+    (if exit-compile
+        (do (apply format *stderr* args)
+            (display "\n" *stderr*)
+            (exit-compile nil))
+      (error (apply format nil args))))
 
   (defun compile (x)
     (call/cc
@@ -864,7 +866,9 @@
        (set! exit-compile cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope nil)))
-         (compile-recur tree scope (list 'HALT)))))))
+         (let1 result (compile-recur tree scope (list 'HALT))
+           (set! exit-compile nil)
+           result))))))
 
 (defun eval (x)
   (run-binary (compile x)))
