@@ -5,4 +5,8 @@
     (+ (fib (- n 1))
        (fib (- n 2)))))
 
-(print (fib 10))
+(defun main (args)
+  (let1 n (if args
+              (int (car args))
+            10)
+    (print (fib n))))
