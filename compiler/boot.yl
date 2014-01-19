@@ -313,7 +313,7 @@
 ;; Construct table which contains object appear index for more than 2 times.
 (let1 index-key (gensym)
   (defun create-ss-table (s)
-    (let ((h (table 'eq))
+    (let ((h (table 'eq?))
           ;; Assign index for the object appeared more than 1 time.
           (assign-index (^(h s index-key)
                           (unless (table-get h s)
