@@ -30,6 +30,9 @@
 /build/yalp.vcxproj.filters
 /build/yalp.vcxproj.user
 
+# Xcode
+/build/xcode/*
+
 # GTAGS
 /GPATH
 /GRTAGS

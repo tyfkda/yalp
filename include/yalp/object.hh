@@ -81,13 +81,13 @@ private:
 class String : public Object {
 public:
   // The given string is allocated in heap and be taken ownership.
-  String(const char* string, int len);
+  String(const char* string, size_t len);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
 
   const char* c_str() const  { return string_; }
-  int len() const  { return len_; }
+  size_t len() const  { return len_; }
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
@@ -97,7 +97,7 @@ private:
   virtual void destruct(Allocator* allocator) override;
 
   const char* string_;
-  int len_;
+  size_t len_;
 
   friend class State;
 };

@@ -19,7 +19,7 @@ public:
   virtual void ungetc(int c) = 0;
   virtual bool write(char c);
   virtual bool write(const char* s);
-  virtual bool write(const char* s, int len) = 0;
+  virtual bool write(const char* s, size_t len) = 0;
 
 protected:
   Stream();
@@ -39,7 +39,7 @@ public:
   virtual int get() override;
   virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
   FILE* fp_;
@@ -56,7 +56,7 @@ public:
   virtual int get() override;
   virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
   const char* p_;
@@ -76,7 +76,7 @@ public:
   virtual int get() override;
   virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
   Allocator* allocator_;

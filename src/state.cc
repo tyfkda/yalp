@@ -442,7 +442,7 @@ Value State::string(const char* str) {
   return string(str, strlen(str));
 }
 
-Value State::string(const char* str, int len) {
+Value State::string(const char* str, size_t len) {
   void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
   memcpy(copiedString, str, len);
@@ -450,7 +450,7 @@ Value State::string(const char* str, int len) {
   return allocatedString(copiedString, len);
 }
 
-Value State::allocatedString(const char* str, int len) {
+Value State::allocatedString(const char* str, size_t len) {
   return Value(allocator_->newObject<String>(str, len));
 }
 

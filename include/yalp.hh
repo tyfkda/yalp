@@ -150,8 +150,8 @@ public:
 
   // Converts C string to lisp String.
   Value string(const char* str);
-  Value string(const char* str, int len);
-  Value allocatedString(const char* string, int len);  // string is passed.
+  Value string(const char* str, size_t len);
+  Value allocatedString(const char* string, size_t len);  // string is passed.
 
 #ifndef DISABLE_FLONUM
   // Floating point number.
@@ -258,7 +258,7 @@ private:
 inline bool Value::eq(Value target) const  { return v_ == target.v_; }
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
-inline int Value::toCharacter() const  { return toFixnum(); }
+inline int Value::toCharacter() const  { return static_cast<int>(toFixnum()); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }

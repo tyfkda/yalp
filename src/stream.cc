@@ -50,7 +50,7 @@ void FileStream::ungetc(int c) {
   ::ungetc(c, fp_);
 }
 
-bool FileStream::write(const char* s, int len) {
+bool FileStream::write(const char* s, size_t len) {
   return static_cast<int>(fwrite(s, 1, len, fp_)) == len;
 }
 
@@ -84,7 +84,7 @@ void StrStream::ungetc(int c) {
   ungetc_ = c;
 }
 
-bool StrStream::write(const char*, int) {
+bool StrStream::write(const char*, size_t) {
   return false;
 }
 
@@ -103,7 +103,7 @@ bool StrOStream::close()  { return true; }
 
 int StrOStream::get()  { return EOF; }
 void StrOStream::ungetc(int)  {}
-bool StrOStream::write(const char* s, int len) {
+bool StrOStream::write(const char* s, size_t len) {
   size_t newLen = len_ + len;
   if (newLen >= bufferSize_) {
     size_t newSize = newLen + (BUFFER_BLOCK_SIZE - 1);

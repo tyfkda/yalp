@@ -127,7 +127,7 @@ const char* Cell::isAbbrev(State* state) const {
 
 //=============================================================================
 
-String::String(const char* string, int len)
+String::String(const char* string, size_t len)
   : Object()
   , string_(string), len_(len) {
 }
@@ -160,8 +160,8 @@ void String::output(State*, Stream* o, bool inspect) const {
   }
 
   o->write('"');
-  int prev = 0;
-  for (int n = len_, i = 0; i < n; ++i) {
+  size_t prev = 0;
+  for (size_t n = len_, i = 0; i < n; ++i) {
     unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
     const char* s = NULL;
     switch (c) {

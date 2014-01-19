@@ -65,7 +65,7 @@ struct BinOp {
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
-      break;
+      return Value::NIL;
     }
     if (n == 1)
       return Value(Op::single(acc));
@@ -80,7 +80,7 @@ struct BinOp {
         return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
-        break;
+        return Value::NIL;
       }
     }
     return Value(acc);
@@ -146,7 +146,7 @@ struct CompareOp {
       break;
     default:
       state->runtimeError("Number expected, but `%@`", &x);
-      break;
+      return Value::NIL;
     }
 
     for (int i = 1; i < n; ++i) {
@@ -164,7 +164,7 @@ struct CompareOp {
         return calcf(state, i, static_cast<Flonum>(acc));
       default:
         state->runtimeError("Number expected, but `%@`", &x);
-        break;
+        return Value::NIL;
       }
     }
     return state->boolean(true);

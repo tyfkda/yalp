@@ -26,7 +26,7 @@ template<>
 struct Type<int> {
   static const char TYPE_NAME[];
   static int check(Value v)  { return v.getType() == TT_FIXNUM; }
-  static int get(State*, Value v)  { return v.toFixnum(); }
+  static int get(State*, Value v)  { return static_cast<int>(v.toFixnum()); }
   static Value ret(State*, int i)  { return Value(i); }
 };
 

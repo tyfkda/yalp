@@ -134,8 +134,8 @@ void SymbolManager::expandSymbolPage(SymbolId oldSize) {
                                                            sizeof(Symbol*) * extendedCount));
 }
 
-void SymbolManager::expandNamePage(int len) {
-  int bufferSize = NAME_BUFFER_SIZE;
+void SymbolManager::expandNamePage(size_t len) {
+  size_t bufferSize = NAME_BUFFER_SIZE;
   if (bufferSize <= len) {
     bufferSize = (len / NAME_BUFFER_SIZE + 1) * NAME_BUFFER_SIZE;
   }
@@ -147,7 +147,7 @@ void SymbolManager::expandNamePage(int len) {
 }
 
 char* SymbolManager::copyString(const char* name) {
-  int len = strlen(name);
+  size_t len = strlen(name);
   if (namePageTop_ == NULL || nameBufferSize_ - nameBufferOffset_ <= len)
     expandNamePage(len);
   char* copied = &namePageTop_->buffer[nameBufferOffset_];
