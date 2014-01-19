@@ -187,6 +187,9 @@ void Vm::indexSet(int s, int i, Value v) {
   stack_[s - i - 1] = v;
 }
 
+int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
+Value Vm::getArg(int index) const  { return this->index(f_, index); }
+
 int Vm::push(Value x, int s) {
   reserveStack(s + 1);
   stack_[s] = x;

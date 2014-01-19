@@ -30,9 +30,9 @@ public:
 
   inline Object* getFunc() const;
   // Gets argument number for current native function.
-  inline int getArgNum() const;
+  int getArgNum() const;
   // Gets argument value for the index.
-  inline Value getArg(int index) const;
+  Value getArg(int index) const;
 
   inline Value multiValues();
   inline Value multiValues(Value v0);
@@ -132,8 +132,6 @@ private:
 };
 
 Object* Vm::getFunc() const  { return c_.toObject(); }
-int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
-Value Vm::getArg(int index) const  { return this->index(f_, index); }
 
 Value Vm::multiValues()  { valueCount_ = 0; return a_ = Value::NIL; }
 Value Vm::multiValues(Value v0)  { reserveValuesBuffer(valueCount_ = 1); return v0; }
