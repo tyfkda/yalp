@@ -1,15 +1,21 @@
 ;; Test framework
 
-(defmacro test (name expected actual)
+(defmacro test-exec (name expected actual compare)
   (let-gensym (v result)
     `(let1 ,v ,expected
        (format *stdout* "Testing %@ ... " ',name)
        (let1 ,result ,actual
-         (if (equal? ,v ,result)
+         (if (,compare ,v ,result)
              (print "ok")
            (do
              (format *stdout* "FAILED: %@ expected, but %@\n" ,v ,result)
              (exit 1)))))))
+
+(defmacro test (name expected actual)
+  `(test-exec ,name ,expected ,actual equal?))
+
+(defmacro test-eq (name expected actual)
+  `(test-exec ,name ,expected ,actual eq?))
 
 (defun test-section (name)
   (format *stdout* "==== %@\n" name))

@@ -402,8 +402,20 @@
       (alet ((pscope scope))
         (if pscope
             (aif (scope-local-has? pscope var)
-                 (values (elt (scope-local-info pscope) it)
-                         pscope)
+                 ;; Find most upper scope including the var because
+                 ;; expanded scopes share the var info.
+                 (let ((id (scope-id pscope)))
+                   (let loop2 ((idx it)
+                               (pscope pscope))
+                     (let ((qscope (scope-outer-scope pscope)))
+                       (aif (and qscope
+                                (eq? (scope-id qscope) id)
+                                (>= idx (- (length (scope-local pscope))
+                                           (length (scope-local qscope))))
+                                (scope-local-has? qscope var))
+                            (loop2 it qscope)
+                         (values (elt (scope-local-info pscope) idx)
+                                 pscope)))))
               (loop (scope-outer-scope pscope)))
           (values nil nil)))
     (values nil nil)))

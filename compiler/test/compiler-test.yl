@@ -51,6 +51,14 @@
   (propagate-scope-to-upper outer-scope inner-scope (scope-local inner-scope))
   (test "propagate-scope-to-upper" '(z) (scope-frees outer-scope)))
 
+(test-section "get-var-info")
+(let* ((scope1 (create-scope '(a) nil))
+       (scope2 (expand-scope '(b) scope1))
+       (scope3 (create-scope '(c) scope2)))
+  (receive (info found-scope)
+           (get-var-info scope3 'a)
+    (test-eq "expanded scope" scope1 found-scope)))
+
 (test-section "loop")
 (test "tail recursion is loop" 55
       (let1 n 10
