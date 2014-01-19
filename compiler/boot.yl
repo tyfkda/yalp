@@ -307,34 +307,34 @@
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
-    (write/ss-print s (write/ss-construct s) stream)
+    (write/ss-print s (create-ss-table s) stream)
     s))
 
 ;; Construct table which contains object appear index for more than 2 times.
-(defun write/ss-construct (s)
-  (let ((h (table 'eq))
-        (index-key (gensym))
-        ;; Assign index for the object appeared more than 1 time.
-        (assign-index (^(h s index-key)
-                        (unless (table-get h s)
-                          (let1 index (table-get h index-key)
-                            (table-put! h s index)
-                            (table-put! h index-key (+ 1 index)))))))
-    (table-put! h index-key 0)
-    (alet ((s s))
-      (let1 typ (type s)
-        (when (member typ '(pair vector))
-          (if (table-exists? h s)
-              (assign-index h s index-key)
-            ;; Put nil for the first appeared object.
-            (do (table-put! h s nil)
-                ;; And check children recursively.
-                (case typ
-                  (pair (loop (car s))
-                        (loop (cdr s)))
-                  (vector (for0-n i (length s)
-                                  (loop (vector-get s i))))))))))
-    h))
+(let1 index-key (gensym)
+  (defun create-ss-table (s)
+    (let ((h (table 'eq))
+          ;; Assign index for the object appeared more than 1 time.
+          (assign-index (^(h s index-key)
+                          (unless (table-get h s)
+                            (let1 index (table-get h index-key)
+                              (table-put! h s index)
+                              (table-put! h index-key (+ 1 index)))))))
+      (table-put! h index-key 0)
+      (alet ((s s))
+        (let1 typ (type s)
+          (when (member typ '(pair vector))
+            (if (table-exists? h s)
+                (assign-index h s index-key)
+              ;; Put nil for the first appeared object.
+              (do (table-put! h s nil)
+                  ;; And check children recursively.
+                  (case typ
+                    (pair (loop (car s))
+                          (loop (cdr s)))
+                    (vector (for0-n i (length s)
+                                    (loop (vector-get s i))))))))))
+      h)))
 
 (defun write/ss-print (s h stream)
   (let1 index (table-get h s)
