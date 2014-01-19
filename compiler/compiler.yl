@@ -149,17 +149,14 @@
         (unless (eq? (length vars) 1)
           (compile-error "Illegal parameters, call/cc requires 1 parameter function, but `%@`"
                          vars))
-        (let* ((inner-scope (create-scope vars scope))
-               (body-node (traverse-body body inner-scope tail)))
-          ;; Use normal scope, not expanded scope to handle SETJMP ~ LONGJMP.
-          ;; If the continuation is not SETJMP ~ LONGJMP, replace scope at
-          ;; compile time.
-          (propagate-scope-to-upper scope inner-scope vars)
+        (let* ((expanded-scope (expand-scope vars scope))
+               (body-node (traverse-body body expanded-scope tail)))
+          (propagate-scope-to-upper scope expanded-scope vars)
           ;; Set the parameter is continuation.
-          (add-var-info inner-scope (car vars) VAR-CONTI)
+          (add-var-info expanded-scope (car vars) VAR-CONTI)
           ;; Returns CONTI node
           (list ':CONTI-DIRECT
-                inner-scope vars body-node)))
+                expanded-scope vars body-node)))
     (list ':CONTI (traverse func scope tail))))
 
 (defun prepare-lambda-node (vars body scope)
@@ -408,12 +405,11 @@
                    (let loop2 ((idx it)
                                (pscope pscope))
                      (let ((qscope (scope-outer-scope pscope)))
-                       (aif (and qscope
+                       (if (and qscope
                                 (eq? (scope-id qscope) id)
                                 (>= idx (- (length (scope-local pscope))
-                                           (length (scope-local qscope))))
-                                (scope-local-has? qscope var))
-                            (loop2 it qscope)
+                                           (length (scope-local qscope)))))
+                           (loop2 (scope-local-has? qscope var) qscope)
                          (values (elt (scope-local-info pscope) idx)
                                  pscope)))))
               (loop (scope-outer-scope pscope)))
@@ -550,8 +546,8 @@
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (compile-conti func scope next))
-               (:CONTI-DIRECT (inner-scope vars body)
-                              (compile-conti-direct inner-scope vars body scope next))
+               (:CONTI-DIRECT (expanded-scope vars body)
+                              (compile-conti-direct expanded-scope vars body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
@@ -592,6 +588,7 @@
     ;; Free variables are not shared with outer or inner scope,
     ;; so it can be safely modified.
     (scope-frees-set! expanded-scope (scope-frees outer-scope))
+    (vector-set! expanded-scope 3 (scope-id outer-scope))  ; scope-id
     (vector-set! expanded-scope 4 outer-scope)
     expanded-scope))
 
@@ -627,7 +624,7 @@
                        (replace-body-scope! args scope))
                (:CONTI (func)
                        (replace-outer-scope! func scope))
-               (:CONTI-DIRECT (inner-scope vars body)
+               (:CONTI-DIRECT (expanded-scope vars body)
                        (replace-body-scope! body scope))
                (:VALS (args)
                       (replace-body-scope! args scope))
@@ -652,27 +649,8 @@
            (and lambda-node
                 (bit? call-type VAR-SELF-TAIL-RECUR))
            (compile-apply-self-recur lambda-node f args scope))
-          (;; Longjmp?
-           (and (eq? ':REF (car f))
-                (receive (info _)
-                         (get-var-info scope (cadr f))
-                  (and info
-                       (let1 flag (vector-get info 0)
-                         (and (bit? flag VAR-CONTI)
-                              (not (bit? flag VAR-ARG)))))))
-           (compile-apply-conti f args scope))
           ;; Normal function call.
           (t (compile-apply-normal f args scope next)))))
-
-(defun compile-apply-conti (f args scope)
-  (let1 argnum (length args)
-    (when (> argnum 1)
-      (compile-error "Too many argument for `%@`" (cadr f)))
-    (let1 c (compile-recur f scope
-                           (list 'LONGJMP))
-      (if (eq? argnum 0)
-          (list* 'NIL 'PUSH c)
-        (compile-args args scope c)))))
 
 (defun compile-apply-normal (f args scope next)
   (let ((tail (tail? next))
@@ -761,36 +739,24 @@
         c
       (list* 'FRAME c next))))
 
-(defun compile-conti-direct (inner-scope vars body scope next)
+(defun compile-conti-direct (expanded-scope vars body scope next)
   (let ((tail (tail? next))
         (flag (receive (info _)
-                       (get-var-info inner-scope (car vars))
+                       (get-var-info expanded-scope (car vars))
                 (vector-get info 0))))
-    (cond ((bit? flag VAR-ARG)
+    (cond ((bit? flag (logior VAR-ARG VAR-SET VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
            ;; Normal continuation.
-           ;; Replace scope to use expanded scope.
-           (let1 expanded-scope (reexpand-scope! inner-scope
-                                                 (scope-local inner-scope)
-                                                 (scope-outer-scope inner-scope))
-             (replace-body-scope! body expanded-scope)
-             (let1 c (list* 'CONTI tail
-                            'PUSH
-                            'EXPND 1
-                            (compile-body vars body expanded-scope
-                                          (if tail
-                                              next
-                                            (list 'SHRNK 1
-                                                  'UNFRAME))))
-               (if tail
-                   c
-                 (list* 'FRAME c next)))))
-          ((bit? flag (logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
-           ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
-           (list* 'FRAME
-                  (list* 'SETJMP
-                         (compile-body vars body inner-scope
-                                       (list 'RET)))
-                  next))
+           (let1 c (list* 'CONTI tail
+                          'PUSH
+                          'EXPND 1
+                          (compile-body vars body expanded-scope
+                                        (if tail
+                                            next
+                                          (list 'SHRNK 1
+                                                'UNFRAME))))
+             (if tail
+                 c
+               (list* 'FRAME c next))))
           (t ;; Continuation is not used, omit creating it.
            (replace-body-scope! body scope)
            (compile-body vars body scope

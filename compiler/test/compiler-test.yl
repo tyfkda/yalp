@@ -124,6 +124,16 @@
          nil)))
 
 (test-section "call/cc")
+(test "free variable" 123
+      (let1 x 123
+        (call/cc
+         (^(cc)
+           (cc x)))))
+(test "set! call/cc var" 12321
+      (call/cc
+       (^(cc)
+         (set! cc (^(x) (* x x)))
+         (cc 111))))
 (test "direct jump" '(nil 4 5)
       (call/cc
        (^(break)
@@ -135,5 +145,22 @@
                    (loop (cdr ls)
                          (+ acc (car ls))))
              acc)))))
+(test "frame, conti and loop" (+ 123 15)
+      (let1 x 123  ;; For expand frame.
+        (+ (call/cc
+            (^(break)
+              (alet ((ls '(1 2 3 4 5))
+                     (acc 0))
+                (if ls
+                    (do (unless (int? (car ls))
+                          (break ls))
+                        (loop (cdr ls) (+ (car ls) acc)))
+                  acc))))
+           x)))
+(test "longjmp from closure" 123
+      (call/cc
+       (^(break)
+         (let1 f (^() (break 123))
+           (f)))))
 
 (test-complete)
