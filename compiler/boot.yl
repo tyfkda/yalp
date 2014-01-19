@@ -310,33 +310,30 @@
     (write/ss-print s (write/ss-construct s) stream)
     s))
 
-;; Put cell appear idnex for more than 2 times into table.
+;; Construct table which contains object appear index for more than 2 times.
 (defun write/ss-construct (s)
   (let ((h (table 'eq))
-        (index (gensym))
-        (assign-index (^(h s index)
+        (index-key (gensym))
+        ;; Assign index for the object appeared more than 1 time.
+        (assign-index (^(h s index-key)
                         (unless (table-get h s)
-                          ;; Assign index for the object appeared more than 1 time.
-                          (let1 i (table-get h index)
-                            (table-put! h s i)
-                            (table-put! h index (+ 1 i)))))))
-    (table-put! h index 0)
+                          (let1 index (table-get h index-key)
+                            (table-put! h s index)
+                            (table-put! h index-key (+ 1 index)))))))
+    (table-put! h index-key 0)
     (alet ((s s))
-      (case (type s)
-        (pair (if (table-exists? h s)
-                  (assign-index h s index)
-                ;; Put nil for the first appeared object.
-                (do (table-put! h s nil)
-                    ;; And check children recursively.
-                    (loop (car s))
-                    (loop (cdr s)))))
-        (vector (if (table-exists? h s)
-                    (assign-index h s index)
-                  ;; Put nil for the first appeared object.
-                  (do (table-put! h s nil)
-                      ;; And check children recursively.
-                      (for0-n i (length s)
-                        (loop (vector-get s i))))))))
+      (let1 typ (type s)
+        (when (member typ '(pair vector))
+          (if (table-exists? h s)
+              (assign-index h s index-key)
+            ;; Put nil for the first appeared object.
+            (do (table-put! h s nil)
+                ;; And check children recursively.
+                (case typ
+                  (pair (loop (car s))
+                        (loop (cdr s)))
+                  (vector (for0-n i (length s)
+                                  (loop (vector-get s i))))))))))
     h))
 
 (defun write/ss-print (s h stream)
