@@ -38,7 +38,11 @@ static_assert(sizeof(Fixnum) >= sizeof(void*),
               "Fixnum must have enough size to store pointer value");
 
 #ifndef DISABLE_FLONUM
+#ifdef USE_FLOAT
 typedef double Flonum;
+#else
+typedef float Flonum;
+#endif
 #endif
 
 typedef void* (*AllocFunc)(void* p, size_t size);

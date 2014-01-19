@@ -331,15 +331,15 @@ void installFlonumFunctions(State* state) {
 
   {
     bind::Binder b(state);
-    b.bind("sin", (double (*)(double)) sin);
-    b.bind("cos", (double (*)(double)) cos);
-    b.bind("tan", (double (*)(double)) tan);
-    b.bind("sqrt", (double (*)(double)) sqrt);
-    b.bind("log", (double (*)(double)) log);
-    b.bind("floor", (double (*)(double)) floor);
-    b.bind("ceil", (double (*)(double)) ceil);
-    b.bind("atan2", (double (*)(double, double)) atan2);
-    b.bind("expt", (double (*)(double, double)) pow);
+    b.bind("sin", (Flonum (*)(Flonum)) sin);
+    b.bind("cos", (Flonum (*)(Flonum)) cos);
+    b.bind("tan", (Flonum (*)(Flonum)) tan);
+    b.bind("sqrt", (Flonum (*)(Flonum)) sqrt);
+    b.bind("log", (Flonum (*)(Flonum)) log);
+    b.bind("floor", (Flonum (*)(Flonum)) floor);
+    b.bind("ceil", (Flonum (*)(Flonum)) ceil);
+    b.bind("atan2", (Flonum (*)(Flonum, Flonum)) atan2);
+    b.bind("expt", (Flonum (*)(Flonum, Flonum)) pow);
   }
 #else
   (void)state;  // To avoid warning.
