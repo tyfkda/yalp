@@ -130,7 +130,8 @@ TEST_F(ReadTest, String) {
   ASSERT_FALSE(state_->string("null").equal(s));
 }
 
-TEST_F(ReadTest, Float) {
+#ifndef DISABLE_FLONUM
+TEST_F(ReadTest, Flonum) {
   Value s;
   Flonum f = static_cast<Flonum>(1.23);
   ASSERT_EQ(SUCCESS, read("1.23", &s));
@@ -140,6 +141,7 @@ TEST_F(ReadTest, Float) {
   ASSERT_EQ(SUCCESS, read("-1.23", &s));
   ASSERT_TRUE(state_->flonum(-f).equal(s));
 }
+#endif
 
 TEST_F(ReadTest, Char) {
   Value s;

@@ -30,6 +30,7 @@ struct Type<int> {
   static Value ret(State*, int i)  { return Value(i); }
 };
 
+#ifndef DISABLE_FLONUM
 // float
 template<>
 struct Type<float> {
@@ -47,6 +48,7 @@ struct Type<double> {
   static double get(State* state, Value v)  { return static_cast<double>(v.toFlonum(state)); }
   static Value ret(State* state, double f)  { return state->flonum(static_cast<yalp::Flonum>(f)); }
 };
+#endif
 
 // const char* (string)
 template<>

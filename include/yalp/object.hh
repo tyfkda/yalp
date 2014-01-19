@@ -102,6 +102,7 @@ private:
   friend class State;
 };
 
+#ifndef DISABLE_FLONUM
 // Floating point number class.
 class SFlonum : public Object {
 public:
@@ -120,6 +121,7 @@ protected:
 
   friend class State;
 };
+#endif
 
 // Vector class.
 class Vector : public Object {

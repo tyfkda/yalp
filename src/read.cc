@@ -162,7 +162,11 @@ ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
+#ifdef DISABLE_FLONUM
+    return ILLEGAL_CHAR;
+#else
     *pValue = state_->flonum(static_cast<Flonum>(atof(buffer)));
+#endif
   else
     *pValue = Value(atol(buffer));
   return SUCCESS;

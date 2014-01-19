@@ -14,7 +14,9 @@ namespace yalp {
 namespace bind {
 
 const char Type<int>::TYPE_NAME[] = "int";
+#ifndef DISABLE_FLONUM
 const char Type<double>::TYPE_NAME[] = "flonum";
+#endif
 const char Type<const char*>::TYPE_NAME[] = "string";
 const char Type<Value>::TYPE_NAME[] = "Value";
 const char Type<std::string>::TYPE_NAME[] = "string";

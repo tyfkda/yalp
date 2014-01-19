@@ -110,22 +110,22 @@ stream_test:	stream_test.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/allocator.o gtest_main
 run-stream_test:	stream_test
 	./stream_test
 
-object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
+object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-object_test:	object_test
 	./object_test
 
-read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
+read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-read_test:	read_test
 	./read_test
 
-state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
+state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-state_test:	state_test
 	./state_test
 
-util_test:	util_test.o $(OBJ_DIR)/util.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/binder.o gtest_main.a
+util_test:	util_test.o $(OBJ_DIR)/util.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread -o $@ $^
 run-util_test:	util_test
 	./util_test

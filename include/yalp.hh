@@ -37,7 +37,9 @@ typedef long Fixnum;
 static_assert(sizeof(Fixnum) >= sizeof(void*),
               "Fixnum must have enough size to store pointer value");
 
+#ifndef DISABLE_FLONUM
 typedef double Flonum;
+#endif
 
 typedef void* (*AllocFunc)(void* p, size_t size);
 
@@ -47,7 +49,9 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
+#ifndef DISABLE_FLONUM
   TT_FLONUM,  // Floating point number
+#endif
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_CONTINUATION,
@@ -71,7 +75,9 @@ public:
   Type getType() const;
 
   Fixnum toFixnum() const;
+#ifndef DISABLE_FLONUM
   Flonum toFlonum(State* state) const;
+#endif
   bool isObject() const;
   Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
@@ -143,8 +149,10 @@ public:
   Value string(const char* str, int len);
   Value allocatedString(const char* string, int len);  // string is passed.
 
+#ifndef DISABLE_FLONUM
   // Floating point number.
   Value flonum(Flonum f);
+#endif
 
   SHashTable* createHashTable(bool equal);
 

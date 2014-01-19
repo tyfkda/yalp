@@ -9,6 +9,7 @@
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "basic.hh"
+#include "flonum.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
 
@@ -142,6 +143,7 @@ Fixnum Value::toFixnum() const {
   return v_ >> 1;
 }
 
+#ifndef DISABLE_FLONUM
 Flonum Value::toFlonum(State* state) const {
   switch (getType()) {
   case TT_FLONUM:
@@ -153,6 +155,7 @@ Flonum Value::toFlonum(State* state) const {
     return 0;
   }
 }
+#endif
 
 bool Value::isObject() const {
   return (v_ & TAG_MASK) == TAG_OBJECT;
@@ -265,14 +268,21 @@ State::State(Allocator* allocator)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "int", "symbol", "pair", "string", "flonum", "closure",
-    "subr", "continuation", "vector", "table", "stream", "macro", "box",
+    "unknown", "int", "symbol", "pair", "string",
+#ifndef DISABLE_FLONUM
+    "flonum",
+#endif
+    "closure", "subr", "continuation", "vector", "table", "stream", "macro",
+    "box",
   };
   for (int i = 0; i < NUMBER_OF_TYPES; ++i)
     typeSymbols_[i] = intern(TypeSymbolStrings[i]);
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+#ifndef DISABLE_FLONUM
+  installFlonumFunctions(this);
+#endif
   installBasicObjects();
 
   readTable_ = createHashTable(false);
@@ -442,11 +452,6 @@ Value State::string(const char* str, int len) {
 
 Value State::allocatedString(const char* str, int len) {
   return Value(allocator_->newObject<String>(str, len));
-}
-
-
-Value State::flonum(Flonum f) {
-  return Value(allocator_->newObject<SFlonum>(f));
 }
 
 Value State::createFileStream(FILE* fp) {

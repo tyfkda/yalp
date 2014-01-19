@@ -187,26 +187,6 @@ void String::output(State*, Stream* o, bool inspect) const {
 
 //=============================================================================
 
-SFlonum::SFlonum(Flonum v)
-  : Object()
-  , v_(v) {
-}
-
-Type SFlonum::getType() const  { return TT_FLONUM; }
-
-bool SFlonum::equal(const Object* target) const {
-  const SFlonum* p = static_cast<const SFlonum*>(target);
-  return v_ == p->v_;
-}
-
-void SFlonum::output(State*, Stream* o, bool) const {
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%f", v_);
-  o->write(buffer);
-}
-
-//=============================================================================
-
 Vector::Vector(Allocator* allocator, int size)
   : Object()
   , size_(size) {
