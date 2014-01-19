@@ -309,7 +309,7 @@
 (defun check-parameters (vars)
   (unless (list? vars)
     (compile-error "parameters must be list, but %@" vars))
-  (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
+  (let1 proper-vars (aif (position-if [member _ '(&rest &body)] vars)
                          (let ((required (take it vars))
                                (rest (drop (+ it 1) vars)))
                            (unless (single? rest)
