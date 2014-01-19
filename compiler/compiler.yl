@@ -88,7 +88,7 @@
                     (cond ((direct-invoke? func)
                            (traverse-apply-direct (cadr func) (cddr func) args scope tail))
                           ((inline-function? func)
-                           (traverse-inline-apply func args scope))
+                           (traverse-inline-apply func args scope tail))
                           (t (traverse-apply func args scope tail)))))))
 
 (defun traverse-refer (x scope)
