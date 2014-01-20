@@ -449,18 +449,14 @@
        (vector-get it 1)
     nil))
 
-;; Registers free variable into scope and returns its index number.
+;; Registers free variable into scope.
 (defun register-fref (scope x)
   (add-var-info scope x VAR-FREE)
   (let1 frees (scope-frees scope)
     (if frees
-        (aif (position x frees)
-             it
-          (let1 index (length frees)
-            (set-cdr! (last frees) (cons x nil))
-            index))
-      (do (scope-frees-set! scope (cons x nil))
-          0))))
+        (unless (member x frees)
+          (set-cdr! (last frees) (cons x nil)))
+      (scope-frees-set! scope (cons x nil)))))
 
 (defun register-set! (scope x v)
   (add-var-info scope x VAR-SET)
