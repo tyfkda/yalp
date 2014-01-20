@@ -189,9 +189,9 @@
            body))
 
 (defun upper-scope-is? (scope expected-scope)
-  (let ((upper (scope-block-top-get (scope-outer-scope (scope-block-top-get scope))))
-        (expected-top (scope-block-top-get expected-scope)))
-    (eq? upper expected-top)))
+  (let ((upper (scope-upper-block-top-get scope))
+        (expected (scope-block-top-get expected-scope)))
+    (eq? upper expected)))
 
 (defun detect-call-type (func-name calling-scope tail)
   (let1 sets (var-is-set? calling-scope func-name)
@@ -386,6 +386,9 @@
     (if (scope-block-top? pscope)
         pscope
       (loop (scope-outer-scope pscope)))))
+
+(defun scope-upper-block-top-get (scope)
+  (scope-block-top-get (scope-outer-scope (scope-block-top-get scope))))
 
 (defun same-scope-block? (scope1 scope2)
   (eq? (scope-block-top-get scope1)
