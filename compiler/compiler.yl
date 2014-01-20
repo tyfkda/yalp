@@ -394,6 +394,10 @@
             (loop outer)
           pscope)))))
 
+(defun same-scope-block? (scope1 scope2)
+  (eq? (scope-block-top-get scope1)
+       (scope-block-top-get scope2)))
+
 ;; Returns free var index if the symbol is free in the scope.
 (defun scope-frees-has? (scope sym)
   (position sym (scope-frees (scope-block-top-get scope))))
@@ -471,8 +475,7 @@
   (receive (info defined-scope)
            (get-var-info scope x)
     (if info
-        (let1 val (if (eq? (scope-id defined-scope)
-                           (scope-id scope))
+        (let1 val (if (same-scope-block? defined-scope scope)
                       v   ;; Keep value only when set! is on same scope with variable defined scope.
                     nil)  ;; Otherwise, use dummy value.
           (vector-set! info 1 (cons val (vector-get info 1)))))))
