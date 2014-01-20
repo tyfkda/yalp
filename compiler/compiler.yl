@@ -362,13 +362,11 @@
                  oscope))
 
 (defun expand-scope2 (local infos oscope)
-  (let ((expanded-vars (append local (scope-local oscope)))
-        (expanded-var-infos (append infos (scope-local-info oscope))))
-    (vector expanded-vars
-            expanded-var-infos
-            (scope-frees oscope)
-            (scope-id oscope)
-            oscope)))
+  (vector local
+          infos
+          (scope-frees oscope)
+          (scope-id oscope)
+          oscope))
 
 (defun scope-local (scope)        (vector-get scope 0))
 (defun scope-local-info (scope)   (vector-get scope 1))
@@ -379,14 +377,50 @@
 (defun scope-frees-set! (scope v) (vector-set! scope 2 v))
 
 ;; Returns index if the scope has the symbol.
-(defun scope-local-has? (scope sym)  (position sym (scope-local scope)))
+(defun scope-local-has? (scope sym)
+  (let1 id (scope-id scope)
+    (alet ((pscope scope)
+           (offset 0))
+      (when (and pscope
+                 (eq? (scope-id pscope) id))
+        (aif (scope-local-only-has? pscope sym)
+             (+ it offset)
+          (loop (scope-outer-scope pscope)
+                (+ offset (length (scope-local pscope)))))))))
+(defun scope-local-only-has? (scope sym)
+  (position sym (scope-local scope)))
+
+;; Returns scope block top for the given scope.
+(defun scope-block-top-get (scope)
+  (let1 id (scope-id scope)
+    (alet ((pscope scope))
+      (let1 outer (scope-outer-scope pscope)
+        (if (and outer
+               (eq? (scope-id outer) id))
+            (loop outer)
+          pscope)))))
+
+;; Returns free var index if the symbol is free in the scope.
+(defun scope-frees-has? (scope sym)
+  (position sym (scope-frees (scope-block-top-get scope))))
+
 (defun scope-upper-vars-has? (scope sym)
-  (alet ((pscope (scope-outer-scope scope)))
+  (alet ((pscope (scope-outer-scope (scope-block-top-get scope))))
     (if pscope
-        (aif (scope-local-has? pscope sym)
-             it
+        (if (scope-local-only-has? pscope sym)
+            t
           (loop (scope-outer-scope pscope)))
       nil)))
+
+(defun scope-local-count (scope)
+  (let1 id (scope-id scope)
+    (alet ((pscope scope)
+           (count 0))
+      (if (and pscope
+               (eq? (scope-id pscope) id))
+          (loop (scope-outer-scope pscope)
+                (+ count (length (scope-local pscope))))
+        count))))
 
 (defun propagate-scope-to-upper (scope inner-scope vars)
   (when scope
@@ -398,20 +432,9 @@
   (if (symbol? var)
       (alet ((pscope scope))
         (if pscope
-            (aif (scope-local-has? pscope var)
-                 ;; Find most upper scope including the var because
-                 ;; expanded scopes share the var info.
-                 (let ((id (scope-id pscope)))
-                   (let loop2 ((idx it)
-                               (pscope pscope))
-                     (let ((qscope (scope-outer-scope pscope)))
-                       (if (and qscope
-                                (eq? (scope-id qscope) id)
-                                (>= idx (- (length (scope-local pscope))
-                                           (length (scope-local qscope)))))
-                           (loop2 (scope-local-has? qscope var) qscope)
-                         (values (elt (scope-local-info pscope) idx)
-                                 pscope)))))
+            (aif (scope-local-only-has? pscope var)
+                 (values (elt (scope-local-info pscope) it)
+                         pscope)
               (loop (scope-outer-scope pscope)))
           (values nil nil)))
     (values nil nil)))
@@ -495,7 +518,7 @@
                      (receive (op i)
                               (acond ((scope-local-has? scope sym)
                                       (values 'LREF it))
-                                     ((position sym (scope-frees scope))
+                                     ((scope-frees-has? scope sym)
                                       (values 'FREF it))
                                      (t (values 'GREF sym)))
                        (list* op i
@@ -579,12 +602,13 @@
                 (bit? type VAR-CALL-IN-BASE1))))))
 
 (defun reexpand-scope! (expanded-scope proper-vars outer-scope)
-  (let ((expanded-vars (append proper-vars (scope-local outer-scope)))
-        (expanded-var-infos (append (take (length proper-vars) (scope-local-info expanded-scope))
-                                    (scope-local-info outer-scope)))
-        (frees (scope-frees expanded-scope)))
-    (copy-pair! (scope-local expanded-scope) expanded-vars)
-    (copy-pair! (scope-local-info expanded-scope) expanded-var-infos)
+  (let ((expanded-var-infos (scope-local-info expanded-scope)))
+    (let1 old-local (scope-local expanded-scope)
+      (if old-local
+          (do (copy-pair! old-local proper-vars)
+              (copy-pair! (scope-local-info expanded-scope) expanded-var-infos))
+        (do (vector-set! expanded-scope 0 proper-vars)
+            (vector-set! expanded-scope 1 expanded-var-infos))))
     ;; Free variables are not shared with outer or inner scope,
     ;; so it can be safely modified.
     (scope-frees-set! expanded-scope (scope-frees outer-scope))
@@ -699,7 +723,7 @@
   (let ((argnum (length args))
         (varnum (lambda-varnum-get lambda-node))
         (outer-varnum (if (can-eliminate-lambda-node? scope (cadr f))
-                          (length (scope-local (scope-outer-scope (lambda-scope-get lambda-node))))
+                          (scope-local-count (scope-outer-scope (lambda-scope-get lambda-node)))
                         0)))
     (when (pair? varnum)
       (compile-error "Not implemented: rest param for loop"))
@@ -720,7 +744,7 @@
     (receive (op i)
              (acond ((scope-local-has? scope var)
                      (values 'LSET it))
-                    ((position var (scope-frees scope))
+                    ((scope-frees-has? scope var)
                      (values 'FSET it))
                     (t (values 'GSET var)))
       (compile-recur val scope
@@ -799,7 +823,7 @@
                     (let1 x (car vars)
                       (aif (scope-local-has? scope x)
                            (list* 'LREF it 'PUSH next)
-                        (aif (position x (scope-frees scope))
+                        (aif (scope-frees-has? scope x)
                              (list* 'FREF it 'PUSH next)
                           (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
