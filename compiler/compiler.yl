@@ -172,7 +172,6 @@
 
 (defun traverse-lambda-exec (lambda-node body)
   (let ((inner-scope (lambda-scope-get lambda-node))
-        (proper-vars (lambda-vars-get lambda-node))
         (tmp-body-node (lambda-body-node-get lambda-node)))
     (when body
       (copy-pair! tmp-body-node (traverse-body body inner-scope t)))
@@ -252,7 +251,6 @@
                 ;; Returns lambda node
                 (list ':INVOKE
                       expanded-scope
-                      proper-vars
                       args-node
                       body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
@@ -290,7 +288,6 @@
         ;; Returns receive node
         (list ':RECV
               expanded-scope
-              proper-vars
               varnum
               val-node
               body-node)))))
@@ -484,7 +481,6 @@
   (list ':LAMBDA
         scope
         (cons nil nil)  ; body-slot
-        proper-vars
         varnum
         body-node))
 
@@ -493,9 +489,8 @@
 
 (def lambda-scope-get      cadr)
 (def lambda-body-slot-get  caddr)
-(def lambda-vars-get       cadddr)
-(def lambda-varnum-get     caddddr)
-(defun lambda-body-node-get (node)  (elt node 5))
+(def lambda-varnum-get     cadddr)
+(defun lambda-body-node-get (node)  (elt node 4))
 
 (defun lambda-scope-set! (node scope)
   (set-car! (cdr node) scope))
@@ -530,7 +525,7 @@
                                    (list* 'TEST
                                           (compile-recur then scope next)
                                           (compile-recur else scope next))))
-               (:LAMBDA (inner-scope body-slot proper-vars varnum body)
+               (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
@@ -539,8 +534,9 @@
                                         (list* 'CLOSE varnum (length frees)
                                                body-slot
                                                next))))
-               (:INVOKE (expanded-scope proper-vars args-node body)
+               (:INVOKE (expanded-scope args-node body)
                         (let ((tail (tail? next))
+                              (proper-vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (compile-args args-node scope
                                         (if proper-vars
@@ -570,7 +566,7 @@
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (expanded-scope proper-vars varnum vals body)
+               (:RECV (expanded-scope varnum vals body)
                       (let ((tail (tail? next))
                             (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
@@ -600,10 +596,10 @@
                         ;; Scope replacement is just 1 level, and no need to replace body nodes,
                         ;; because this scope replacement is destructive.
                         (scope-outer-scope-set! inner-scope scope))
-               (:INVOKE (expanded-scope proper-vars args-node body)
+               (:INVOKE (expanded-scope args-node body)
                         (scope-outer-scope-set! expanded-scope scope))
-               (:RECV (expanded-scope proper-vars varnum vals body)
-                        (scope-outer-scope-set! expanded-scope scope))
+               (:RECV (expanded-scope varnum vals body)
+                      (scope-outer-scope-set! expanded-scope scope))
                (:SET (var val)
                     (replace-outer-scope! val scope))
                (:DEF (var val)
