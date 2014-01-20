@@ -346,7 +346,7 @@
                  outer-scope))
 (defun expand-scope2 (local-infos outer-scope)
   (vector local-infos
-          (scope-frees outer-scope)
+          '()              ; Free variables.
           nil              ; Not scope block top.
           '()              ; alist containing set variables.
           outer-scope))
