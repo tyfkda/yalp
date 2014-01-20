@@ -335,37 +335,40 @@
 
 ;;;;
 ;; Scope
-;;   var-info: #0=var-info, #1=set-value
+;;   var-info: #0=var-info
 
 (defun create-scope (local-vars outer-scope)
-  (let ((infos (map (^(_) (vector 0 nil)) local-vars)))
-    (vector local-vars
-            infos
-            '()
-            t              ; Scope block top.
-            outer-scope)))
+  (vector local-vars
+          (map [vector 0] local-vars)
+          '()
+          t                ; Scope block top.
+          '()              ; alist containing set variables.
+          outer-scope))
 
 (defun expand-scope (local oscope)
   (expand-scope2 local
-                 (map [vector 0 nil] local)
+                 (map [vector 0] local)
                  oscope))
 (defun expand-scope2 (local infos oscope)
   (vector local
           infos
           (scope-frees oscope)
           nil              ; Not scope block top.
+          '()              ; alist containing set variables.
           oscope))
 
 (defun scope-local (scope)        (vector-get scope 0))
 (defun scope-local-info (scope)   (vector-get scope 1))
 (defun scope-frees (scope)        (vector-get scope 2))
 (defun scope-block-top? (scope)   (vector-get scope 3))
-(defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-sets (scope)         (vector-get scope 4))
+(defun scope-outer-scope (scope)  (vector-get scope 5))
 
 (defun scope-frees-set! (scope v) (vector-set! scope 2 v))
+(defun scope-sets-set! (scope v)  (vector-set! scope 4 v))
 
 (defun scope-outer-scope-set! (scope outer-scope)
-  (vector-set! scope 4 outer-scope))
+  (vector-set! scope 5 outer-scope))
 
 ;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)
@@ -441,9 +444,11 @@
          info)))
 
 (defun var-is-set? (scope sym)
-  (aif (var-has-attr? scope sym VAR-SET)
-       (vector-get it 1)
-    nil))
+  (receive (info defined-scope)
+           (get-var-info scope sym)
+    (aif (and defined-scope
+              (assoc sym (scope-sets defined-scope)))
+         (cdr it))))
 
 ;; Registers free variable into scope block.
 (defun register-fref (scope x)
@@ -463,11 +468,14 @@
   (add-var-info scope x VAR-SET)
   (receive (info defined-scope)
            (get-var-info scope x)
-    (if info
-        (let1 val (if (same-scope-block? defined-scope scope)
-                      v   ;; Keep value only when set! is on same scope with variable defined scope.
-                    nil)  ;; Otherwise, use dummy value.
-          (vector-set! info 1 (cons val (vector-get info 1)))))))
+    (when info
+      (let1 val (if (same-scope-block? defined-scope scope)
+                    v   ;; Keep value only when set! is on same scope with variable defined scope.
+                  nil)  ;; Otherwise, use dummy value.
+        (let1 sets (scope-sets defined-scope)
+          (aif (assoc x sets)
+               (set-cdr! it (cons v (cdr it)))
+            (scope-sets-set! defined-scope (acons x (list v) sets))))))))
 
 ;;;;
 ;; Lambda node
