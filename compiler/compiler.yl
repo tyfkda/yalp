@@ -161,7 +161,9 @@
 
 (defun prepare-lambda-node (vars body scope)
   (let ((proper-vars (check-parameters vars))
-        (body-node (cons nil nil)))
+        (body-node (if body
+                       (cons nil nil)
+                     nil)))
     (let ((inner-scope (create-scope proper-vars scope))
           (varnum (if (eq? vars proper-vars)
                       (length vars)
@@ -173,7 +175,8 @@
   (let ((inner-scope (lambda-scope-get lambda-node))
         (proper-vars (lambda-vars-get lambda-node))
         (tmp-body-node (lambda-body-node-get lambda-node)))
-    (copy-pair! tmp-body-node (traverse-body body inner-scope t))
+    (when body
+      (copy-pair! tmp-body-node (traverse-body body inner-scope t)))
     ;; Propagate to upper scope
     (propagate-scope-to-upper (scope-outer-scope inner-scope)
                               inner-scope proper-vars)
