@@ -364,6 +364,9 @@
 
 (defun scope-frees-set! (scope v) (vector-set! scope 2 v))
 
+(defun scope-outer-scope-set! (scope outer-scope)
+  (vector-set! scope 4 outer-scope))
+
 ;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)
   (alet ((pscope scope)
@@ -584,40 +587,16 @@
                                         VAR-CALL-IN-BASE2)))
                 (bit? type VAR-CALL-IN-BASE1))))))
 
-(defun reexpand-scope! (expanded-scope proper-vars outer-scope)
-  (let ((expanded-var-infos (scope-local-info expanded-scope)))
-    (let1 old-local (scope-local expanded-scope)
-      (if old-local
-          (do (copy-pair! old-local proper-vars)
-              (copy-pair! (scope-local-info expanded-scope) expanded-var-infos))
-        (do (vector-set! expanded-scope 0 proper-vars)
-            (vector-set! expanded-scope 1 expanded-var-infos))))
-    ;; Free variables are not shared with outer or inner scope,
-    ;; so it can be safely modified.
-    (scope-frees-set! expanded-scope (scope-frees outer-scope))
-    (vector-set! expanded-scope 3 nil)  ; Not scope block top.
-    (vector-set! expanded-scope 4 outer-scope)
-    expanded-scope))
-
 (defun replace-outer-scope! (node scope)
   (record-case node
                (:LAMBDA (inner-scope body-slot proper-vars varnum body)
                         ;; Scope replacement is just 1 level, and no need to replace body nodes,
                         ;; because this scope replacement is destructive.
-                        (vector-set! inner-scope 4 scope))
+                        (scope-outer-scope-set! inner-scope scope))
                (:INVOKE (expanded-scope proper-vars args-node body)
-                        ;; Proper-vars might be shared with scope local
-                        ;; variables, and local variables are modified in
-                        ;; reexpand-scope! function, so it is needed to copy.
-                        (let1 copied-proper-vars (copy-list proper-vars)
-                          (set-car! (cddr node) copied-proper-vars)
-                          (reexpand-scope! expanded-scope proper-vars scope)
-                          (replace-body-scope! body expanded-scope)))
+                        (scope-outer-scope-set! expanded-scope scope))
                (:RECV (expanded-scope proper-vars varnum vals body)
-                      (let1 copied-proper-vars (copy-list proper-vars)
-                        (set-car! (cddr node) copied-proper-vars)
-                        (reexpand-scope! expanded-scope proper-vars scope)
-                        (replace-body-scope! body expanded-scope)))
+                        (scope-outer-scope-set! expanded-scope scope))
                (:SET (var val)
                     (replace-outer-scope! val scope))
                (:DEF (var val)
