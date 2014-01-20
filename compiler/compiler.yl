@@ -541,7 +541,6 @@
                                                next))))
                (:INVOKE (expanded-scope proper-vars args-node body)
                         (let ((tail (tail? next))
-                              (vars (scope-local expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (compile-args args-node scope
                                         (if proper-vars
