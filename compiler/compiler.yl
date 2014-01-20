@@ -334,22 +334,22 @@
 ;; Scope
 ;;   var-info: #0=var-info
 
-(defun create-scope (local-vars outer-scope)
-  (vector (map [cons _ 0] local-vars)
+(defun create-scope (local outer-scope)
+  (vector (map [cons _ 0] local)
           '()              ; Free variables.
           t                ; Scope block top.
           '()              ; alist containing set variables.
           outer-scope))
 
-(defun expand-scope (local oscope)
+(defun expand-scope (local outer-scope)
   (expand-scope2 (map [cons _ 0] local)
-                 oscope))
-(defun expand-scope2 (local-infos oscope)
+                 outer-scope))
+(defun expand-scope2 (local-infos outer-scope)
   (vector local-infos
-          (scope-frees oscope)
+          (scope-frees outer-scope)
           nil              ; Not scope block top.
           '()              ; alist containing set variables.
-          oscope))
+          outer-scope))
 
 (defun scope-local-infos (scope)  (vector-get scope 0))
 (defun scope-frees (scope)        (vector-get scope 1))
