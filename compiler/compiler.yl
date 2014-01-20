@@ -342,57 +342,50 @@
 ;;   var-info: #0=var-info, #1=set-value
 
 (defun create-scope (local-vars outer-scope)
-  (let ((scope-id (gensym))
-        (infos (map (^(_) (vector 0 nil)) local-vars)))
+  (let ((infos (map (^(_) (vector 0 nil)) local-vars)))
     (vector local-vars
             infos
             '()
-            scope-id
+            t              ; Scope block top.
             outer-scope)))
 
 (defun expand-scope (local oscope)
   (expand-scope2 local
                  (map [vector 0 nil] local)
                  oscope))
-
 (defun expand-scope2 (local infos oscope)
   (vector local
           infos
           (scope-frees oscope)
-          (scope-id oscope)
+          nil              ; Not scope block top.
           oscope))
 
 (defun scope-local (scope)        (vector-get scope 0))
 (defun scope-local-info (scope)   (vector-get scope 1))
 (defun scope-frees (scope)        (vector-get scope 2))
-(defun scope-id (scope)           (vector-get scope 3))
+(defun scope-block-top? (scope)   (vector-get scope 3))
 (defun scope-outer-scope (scope)  (vector-get scope 4))
 
 (defun scope-frees-set! (scope v) (vector-set! scope 2 v))
 
 ;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)
-  (let1 id (scope-id scope)
-    (alet ((pscope scope)
-           (offset 0))
-      (when (and pscope
-                 (eq? (scope-id pscope) id))
-        (aif (scope-local-only-has? pscope sym)
-             (+ it offset)
-          (loop (scope-outer-scope pscope)
-                (+ offset (length (scope-local pscope)))))))))
+  (alet ((pscope scope)
+         (offset 0))
+    (aif (scope-local-only-has? pscope sym)
+         (+ it offset)
+      (unless (scope-block-top? pscope)
+        (loop (scope-outer-scope pscope)
+              (+ offset (length (scope-local pscope))))))))
 (defun scope-local-only-has? (scope sym)
   (position sym (scope-local scope)))
 
 ;; Returns scope block top for the given scope.
 (defun scope-block-top-get (scope)
-  (let1 id (scope-id scope)
-    (alet ((pscope scope))
-      (let1 outer (scope-outer-scope pscope)
-        (if (and outer
-               (eq? (scope-id outer) id))
-            (loop outer)
-          pscope)))))
+  (alet ((pscope scope))
+    (if (scope-block-top? pscope)
+        pscope
+      (loop (scope-outer-scope pscope)))))
 
 (defun same-scope-block? (scope1 scope2)
   (eq? (scope-block-top-get scope1)
@@ -411,14 +404,13 @@
       nil)))
 
 (defun scope-local-count (scope)
-  (let1 id (scope-id scope)
-    (alet ((pscope scope)
-           (count 0))
-      (if (and pscope
-               (eq? (scope-id pscope) id))
-          (loop (scope-outer-scope pscope)
-                (+ count (length (scope-local pscope))))
-        count))))
+  (alet ((pscope scope)
+         (count 0))
+    (let1 count2 (+ count (length (scope-local pscope)))
+      (if (scope-block-top? pscope)
+          count2
+        (loop (scope-outer-scope pscope)
+              count2)))))
 
 (defun propagate-scope-to-upper (scope inner-scope vars)
   (when scope
@@ -609,7 +601,7 @@
     ;; Free variables are not shared with outer or inner scope,
     ;; so it can be safely modified.
     (scope-frees-set! expanded-scope (scope-frees outer-scope))
-    (vector-set! expanded-scope 3 (scope-id outer-scope))  ; scope-id
+    (vector-set! expanded-scope 3 nil)  ; Not scope block top.
     (vector-set! expanded-scope 4 outer-scope)
     expanded-scope))
 
