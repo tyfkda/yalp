@@ -86,7 +86,7 @@ private:
   void shrinkFrame(int n);
   void reserveValuesBuffer(int n);
   void storeValues(int n, int s);  // Move arguments from stack to values buffer.
-  void restoreValues(int min, int max);
+  int restoreValues(int min, int max);
   int pushArgs(int argNum, const Value* args, int s);
 
   void pushCallStack(Callable* callable);

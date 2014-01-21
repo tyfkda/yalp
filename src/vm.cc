@@ -82,6 +82,8 @@ namespace yalp {
   OP(MACRO) \
   OP(EXPND) \
   OP(SHRNK) \
+  OP(ADDSP) \
+  OP(LOCAL) \
   OP(VALS) \
   OP(RECV) \
   OP(NIL) \
@@ -643,7 +645,7 @@ void Vm::storeValues(int n, int s) {
   valueCount_ = n;
 }
 
-void Vm::restoreValues(int min, int max) {
+int Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
   checkArgNum(state_, opcodes_[RECV], argNum, min, max);
   reserveStack(s_ + argNum);
@@ -656,8 +658,7 @@ void Vm::restoreValues(int min, int max) {
     argNum += ds;
     n = min + 1;
   }
-  expandFrame(n);
-  //s_ -= argNum - n;
+  return n;
 }
 
 void Vm::replaceOpcodes(Value x) {
@@ -677,11 +678,11 @@ void Vm::replaceOpcodes(Value x) {
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case EXPND:
-    case SHRNK: case VALS: case RECV:
+    case GSET: case DEF: case BOX: case CONTI: case EXPND: case ADDSP:
+    case SHRNK: case VALS:
       x = CDR(x);
       break;
-    case LOOP:
+    case LOOP: case LOCAL: case RECV:
       x = CDDR(x);
       break;
     case TEST: case FRAME:
@@ -854,20 +855,18 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
-      int n = CAR(x_).toFixnum();
-      int keep = CADR(x_).toFixnum();
+      int offset = CAR(x_).toFixnum();
+      int n = CADR(x_).toFixnum();
       x_ = CDDR(x_);
-      int calleeArgNum = index(f_, -1).toFixnum();
-      int d = calleeArgNum - keep;
-      assert(d >= n);
-      // Before: [a3][a2][a1]f[argnum][c][f][ret][b2][b1][c1]s
-      // After : [a3][c1]f[argnum][c][f][ret][b2][b1]s
-      moveStackElems(stack_, f_ - d, s_ - n, n);
-      if (d > n)
-        moveStackElems(stack_, f_ - d + n, f_, s_ - n - f_);
-      f_ -= d - n;
-      s_ -= d;
-      indexSet(f_, -1, Value(n + keep));
+      // TODO: Remove this conditional.
+      if (offset > 0) {
+        for (int i = 0; i < n; ++i)
+          indexSet(f_, -(offset + i) - 2, index(s_, i));
+      } else {
+        for (int i = 0; i < n; ++i)
+          indexSet(f_, offset + i, index(s_, i));
+      }
+      s_ -= n;
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
@@ -932,6 +931,20 @@ Value Vm::runLoop() {
       x_ = CDR(x_);
       shrinkFrame(n);
     } NEXT;
+    CASE(ADDSP) {
+      int n = CAR(x_).toFixnum();
+      x_ = CDR(x_);
+      s_ += n;
+      reserveStack(s_);
+    } NEXT;
+    CASE(LOCAL) {
+      int offset = CAR(x_).toFixnum();
+      int n = CADR(x_).toFixnum();
+      x_ = CDDR(x_);
+      for (int i = 0; i < n; ++i)
+        indexSet(f_, -(offset + i) - 2, index(s_, i));
+      s_ -= n;
+    } NEXT;
     CASE(VALS) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
@@ -939,8 +952,9 @@ Value Vm::runLoop() {
       s_ -= n;
     } NEXT;
     CASE(RECV) {
-      Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      x_ = CDR(x_);
+      int offset = CAR(x_).toFixnum();
+      Value nparam = CADR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      x_ = CDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -948,7 +962,10 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      restoreValues(min, max);
+      int n = restoreValues(min, max);
+      for (int i = 0; i < n; ++i)
+        indexSet(f_, -(offset + i) - 2, index(s_, i));
+      s_ -= n;
       valueCount_ = 1;
     } NEXT;
     OTHERWISE {
