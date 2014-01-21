@@ -418,6 +418,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
     {
       // Save to local variable, instead of creating call frame.
       int oldS = s_;
+      int oldF = f_;
       Value oldX = x_;
 
       s_ = pushArgs(argNum, args, s_);
@@ -429,6 +430,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
         popCallStack();
 
       s_ = oldS;
+      f_ = oldF;
       x_ = oldX;
       return a_;
     }
@@ -836,8 +838,8 @@ Value Vm::runLoop() {
       apply(a_, argNum);
     } NEXT;
     CASE(RET) {
-      int argNum = index(s_, 0).toFixnum();
-      s_ = popCallFrame(s_ - argNum - 1);
+      int argNum = index(f_, -1).toFixnum();
+      s_ = popCallFrame(f_ - argNum);
       popCallStack();
     } NEXT;
     CASE(UNFRAME) {
