@@ -13,10 +13,10 @@
 #include <iostream>
 #include <string.h>  // for memmove
 
-//#define REPLACE_OPCODE
+#define REPLACE_OPCODE
 
 #ifdef __GNUC__
-//#define DIRECT_THREADED
+#define DIRECT_THREADED
 #endif
 
 #ifdef REPLACE_OPCODE
