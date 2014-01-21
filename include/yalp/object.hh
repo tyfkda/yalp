@@ -199,11 +199,12 @@ protected:
 // Closure class.
 class Closure : public Callable {
 public:
-  Closure(State* state, Value body, int freeVarCount,
+  Closure(State* state, Value body, int freeVarCount, int workSize,
           int minArgNum, int maxArgNum);
   virtual Type getType() const override;
 
   Value getBody() const  { return body_; }
+  int getWorkSize() const  { return workSize_; }
   int getMinArgNum() const  { return minArgNum_; }
   int getMaxArgNum() const  { return maxArgNum_; }
   bool hasRestParam() const  { return maxArgNum_ < 0; }
@@ -227,6 +228,7 @@ protected:
   Value body_;
   Value* freeVariables_;
   int freeVarCount_;
+  int workSize_;
   int minArgNum_;
   int maxArgNum_;
 };

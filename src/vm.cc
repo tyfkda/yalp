@@ -154,9 +154,9 @@ protected:
 // Macro class.
 class Macro : public Closure {
 public:
-  Macro(State* state, Value name, Value body, int freeVarCount,
+  Macro(State* state, Value name, Value body, int freeVarCount, int workSize,
         int minArgNum, int maxArgNum)
-    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
+    : Closure(state, body, freeVarCount, workSize, minArgNum, maxArgNum) {
     setName(name.toSymbol(state));
   }
   virtual Type getType() const override  { return TT_MACRO; }
@@ -196,9 +196,9 @@ int Vm::push(Value x, int s) {
   return s + 1;
 }
 
-int Vm::shiftArgs(int n, int m, int s) {
-  moveStackElems(stack_, s - n - m - 1, s - n, n);
-  return s - m - 1;
+int Vm::shiftArgs(int n, int m, int s, int f) {
+  moveStackElems(stack_, f - m, s - n, n);
+  return f - m + n;
 }
 
 bool Vm::isTailCall(Value x) const  { return CAR(x).eq(OPCVAL(RET)); }
@@ -404,7 +404,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
       // Shifts arguments.
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = pushArgs(argNum, args, s_);
-      s_ = shiftArgs(argNum, calleeArgNum, s_);
+      s_ = shiftArgs(argNum, calleeArgNum, s_, f_);
       shiftCallStack();
     } else {
       // Makes frame.
@@ -466,7 +466,8 @@ void Vm::apply(Value fn, int argNum) {
       x_ = closure->getBody();
       f_ = s_;
       c_ = fn;
-      s_ = push(Value(argNum), s_);
+      s_ = push(Value(argNum), s_) + closure->getWorkSize();
+      reserveStack(s_);
     }
     break;
   case TT_NATIVEFUNC:
@@ -514,17 +515,19 @@ void Vm::apply(Value fn, int argNum) {
   }
 }
 
-Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
+Value Vm::createClosure(Value body, int nfree, int nwork, int s, int minArgNum, int maxArgNum) {
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, nwork, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
 }
 
-void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum) {
+void Vm::defineMacro(Value name, Value body, int nfree, int nwork, int s,
+                     int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
 
-  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree, minArgNum, maxArgNum);
+  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree,
+                                                          nwork, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     macro->setFreeVariable(i, index(s, i));
 
@@ -686,12 +689,15 @@ void Vm::replaceOpcodes(Value x) {
       x = CDR(x);
       break;
     case CLOSE:
-      replaceOpcodes(CADDR(x));
-      x = CDDDR(x);
-      break;
-    case MACRO:
       replaceOpcodes(CADDDR(x));
       x = CDDDDR(x);
+      break;
+    case MACRO:
+      {
+        Value tmp = CDDDDR(x);
+        replaceOpcodes(CAR(tmp));
+        x = CDR(tmp);
+      }
       break;
     default:
       state_->runtimeError("Unknown op `%@`", &op);
@@ -806,8 +812,9 @@ Value Vm::runLoop() {
       int arena = state_->saveArena();
       Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
-      Value body = CADDR(x_);
-      x_ = CDDDR(x_);
+      int nwork = CADDR(x_).toFixnum();
+      Value body = CADDDR(x_);
+      x_ = CDDDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -815,7 +822,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      a_ = createClosure(body, nfree, s_, min, max);
+      a_ = createClosure(body, nfree, nwork, s_, min, max);
       s_ -= nfree;
 
       if (nfree == 0) {
@@ -866,7 +873,7 @@ Value Vm::runLoop() {
       // SHIFT
       int n = CAR(x_).toFixnum();
       int calleeArgNum = index(f_, -1).toFixnum();
-      s_ = shiftArgs(n, calleeArgNum, s_);
+      s_ = shiftArgs(n, calleeArgNum, s_, f_);
       shiftCallStack();
       // APPLY
       apply(a_, n);
@@ -899,8 +906,10 @@ Value Vm::runLoop() {
       Value name = CAR(x_);
       Value nparam = CADR(x_);
       int nfree = CADDR(x_).toFixnum();
-      Value body = CADDDR(x_);
-      x_ = CDDDDR(x_);
+      int nwork = CADDDR(x_).toFixnum();
+      Value tmp = CDDDDR(x_);
+      Value body = CAR(tmp);
+      x_ = CDR(tmp);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -908,7 +917,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      defineMacro(name, body, nfree, s_, min, max);
+      defineMacro(name, body, nfree, nwork, s_, min, max);
       s_ -= nfree;
       state_->restoreArena(arena);
       valueCount_ = 0;

@@ -71,12 +71,13 @@ private:
   ~Vm();
   void installNativeFunctions();
   Value runLoop();
-  Value createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum);
+  Value createClosure(Value body, int nfree, int nwork, int s, int minArgNum, int maxArgNum);
   Value createContinuation(int s);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
 
-  void defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum);
+  void defineMacro(Value name, Value body, int nfree, int nwork, int s,
+                   int minArgNum, int maxArgNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
   int modifyRestParams(int argNum, int minArgNum);
@@ -95,7 +96,7 @@ private:
   inline Value index(int s, int i) const;
   inline void indexSet(int s, int i, Value v);
   inline int push(Value x, int s);
-  inline int shiftArgs(int n, int m, int s);
+  inline int shiftArgs(int n, int m, int s, int f);
   inline bool isTailCall(Value x) const;
   inline int pushCallFrame(Value ret, int s);
   inline int popCallFrame(int s);

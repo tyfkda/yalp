@@ -339,7 +339,8 @@
           '()              ; Free variables.
           t                ; Scope block top.
           '()              ; alist containing set variables.
-          outer-scope))
+          outer-scope
+          0))              ; Scope work size.
 
 (defun expand-scope (local outer-scope)
   (expand-scope2 (map [cons _ 0] local)
@@ -349,16 +350,19 @@
           '()              ; Free variables.
           nil              ; Not scope block top.
           '()              ; alist containing set variables.
-          outer-scope))
+          outer-scope
+          0))              ; Scope work size.
 
 (defun scope-local-infos (scope)  (vector-get scope 0))
 (defun scope-frees (scope)        (vector-get scope 1))
 (defun scope-block-top? (scope)   (vector-get scope 2))
 (defun scope-sets (scope)         (vector-get scope 3))
 (defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-work-size (scope)    (vector-get scope 5))
 
 (defun scope-frees-set! (scope v) (vector-set! scope 1 v))
 (defun scope-sets-set! (scope v)  (vector-set! scope 3 v))
+(defun scope-work-size-set! (scope v)  (vector-set! scope 5 v))
 
 (defun scope-outer-scope-set! (scope outer-scope)
   (vector-set! scope 4 outer-scope))
@@ -474,6 +478,15 @@
                (set-cdr! it (cons v (cdr it)))
             (scope-sets-set! defined-scope (acons x (list v) sets))))))))
 
+(defun calc-scope-work-size (scope)
+  (alet ((pscope scope)
+         (size 0))
+    (if (scope-block-top? pscope)
+        (when (> size (scope-work-size pscope))
+          (scope-work-size-set! pscope size))
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
 ;;;;
 ;; Lambda node
 
@@ -532,12 +545,14 @@
                                       (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET)))
                           (collect-free frees scope
                                         (list* 'CLOSE varnum (length frees)
+                                               (scope-work-size inner-scope)
                                                body-slot
                                                next))))
                (:INVOKE (expanded-scope args-node body)
                         (let ((tail (tail? next))
                               (proper-vars (scope-local-infos expanded-scope))
                               (frees (scope-frees expanded-scope)))
+                          (calc-scope-work-size expanded-scope)
                           (compile-args args-node scope
                                         (if proper-vars
                                             (let1 varnum (length proper-vars)
@@ -549,16 +564,19 @@
                                           (compile-body '() body expanded-scope next)))))
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local-infos inner-scope))
-                             (frees (scope-frees inner-scope)))
+                             (frees (scope-frees inner-scope))
+                             (code (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))))
                          (collect-free frees scope
                                        (list* 'MACRO name varnum (length frees)
-                                              (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))
+                                              (scope-work-size inner-scope)
+                                              code
                                               next))))
                (:APPLY (call-type f args)
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (compile-conti func scope next))
                (:CONTI-DIRECT (expanded-scope vars body)
+                              (calc-scope-work-size expanded-scope)
                               (compile-conti-direct expanded-scope vars body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
@@ -567,6 +585,7 @@
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
                (:RECV (expanded-scope varnum vals body)
+                      (calc-scope-work-size expanded-scope)
                       (let ((tail (tail? next))
                             (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
@@ -860,3 +879,8 @@
 
 (defun eval (x)
   (run-binary (compile x)))
+
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*))

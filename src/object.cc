@@ -301,10 +301,11 @@ void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
-Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int maxArgNum)
+Closure::Closure(State* state, Value body, int freeVarCount, int workSize,
+                 int minArgNum, int maxArgNum)
   : Callable()
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
-  , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
+  , workSize_(workSize), minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
   if (freeVarCount > 0) {
     void* memory = state->alloc(sizeof(Value) * freeVarCount);
     freeVariables_ = new(memory) Value[freeVarCount];
