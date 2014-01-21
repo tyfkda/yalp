@@ -888,8 +888,8 @@ Value Vm::runLoop() {
       x_ = CDR(x_);
       int s = s_;
       if (tail.isTrue()) {
-        int calleeArgNum = index(s_, 0).toFixnum();
-        s -= calleeArgNum + 1;
+        int calleeArgNum = index(f_, -1).toFixnum();
+        s = f_ - calleeArgNum;
       }
       a_ = createContinuation(s);
       state_->restoreArena(arena);
