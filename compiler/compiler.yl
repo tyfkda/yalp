@@ -155,7 +155,7 @@
           (add-var-info expanded-scope (car vars) VAR-CONTI)
           ;; Returns CONTI node
           (list ':CONTI-DIRECT
-                expanded-scope vars body-node)))
+                expanded-scope body-node)))
     (list ':CONTI (traverse func scope tail))))
 
 (defun prepare-lambda-node (vars body scope)
@@ -589,9 +589,9 @@
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (compile-conti func scope next))
-               (:CONTI-DIRECT (expanded-scope vars body)
+               (:CONTI-DIRECT (expanded-scope body)
                               (calc-scope-work-size expanded-scope)
-                              (compile-conti-direct expanded-scope vars body scope next))
+                              (compile-conti-direct expanded-scope body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
@@ -641,7 +641,7 @@
                        (replace-body-scope! args scope))
                (:CONTI (func)
                        (replace-outer-scope! func scope))
-               (:CONTI-DIRECT (expanded-scope vars body)
+               (:CONTI-DIRECT (expanded-scope body)
                        (replace-body-scope! body scope))
                (:VALS (args)
                       (replace-body-scope! args scope))
@@ -753,27 +753,28 @@
         c
       (list* 'FRAME c next))))
 
-(defun compile-conti-direct (expanded-scope vars body scope next)
-  (let ((tail (tail? next))
-        (flag (receive (info _)
-                       (get-var-info expanded-scope (car vars))
-                (var-info-flag-get info))))
-    (cond ((bit? flag (logior VAR-ARG VAR-SET VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
-           ;; Normal continuation.
-           (let1 c (list* 'CONTI tail
-                          'PUSH
-                          'LOCAL (scope-upper-work-size expanded-scope) 1
-                          (compile-body vars body expanded-scope
-                                        (if tail
-                                            next
-                                          (list 'UNFRAME))))
-             (if tail
-                 c
-               (list* 'FRAME c next))))
-          (t ;; Continuation is not used, omit creating it.
-           (replace-body-scope! body scope)
-           (compile-body vars body scope
-                         next)))))
+(defun compile-conti-direct (expanded-scope body scope next)
+  (let1 vars (scope-local-infos expanded-scope)
+    (let ((tail (tail? next))
+          (flag (receive (info _)
+                         (get-var-info expanded-scope (caar vars))
+                  (var-info-flag-get info))))
+      (cond ((bit? flag (logior VAR-ARG VAR-SET VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+             ;; Normal continuation.
+             (let1 c (list* 'CONTI tail
+                            'PUSH
+                            'LOCAL (scope-upper-work-size expanded-scope) 1
+                            (compile-body vars body expanded-scope
+                                          (if tail
+                                              next
+                                            (list 'UNFRAME))))
+               (if tail
+                   c
+                 (list* 'FRAME c next))))
+            (t ;; Continuation is not used, omit creating it.
+             (replace-body-scope! body scope)
+             (compile-body vars body scope
+                           next))))))
 
 (defun compile-body (vars body scope next)
   (if body
