@@ -80,8 +80,6 @@ namespace yalp {
   OP(UNBOX) \
   OP(CONTI) \
   OP(MACRO) \
-  OP(EXPND) \
-  OP(SHRNK) \
   OP(ADDSP) \
   OP(LOCAL) \
   OP(VALS) \
@@ -578,53 +576,6 @@ Value Vm::createRestParams(int argNum, int minArgNum, int s) {
   return acc;
 }
 
-void Vm::expandFrame(int n) {
-  if (f_ == 0) {
-    // No upper frame: create first frame.
-    //   Before: f_[z][y][x][B][A]s_
-    //   After:  [B][A]f_[N][z][x][y]s_
-    reserveStack(s_ + n + 1);
-    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
-    moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
-    stack_[n] = Value(n);
-    s_ += 1;
-    f_ = n;
-    return;
-  }
-
-  // Before: [z][y][x]f_[argnum][B][A]s_
-  // After:  [z][y][x][B][A]f_[argnum+n]s_
-  int argNum = stack_[f_].toFixnum();
-  int src = f_, dst = src + n;
-  reserveStack(s_ + n);
-  stack_[f_] = Value(argNum + n);
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  moveStackElems(stack_, src, s_, n);  // Move arguments.
-  f_ += n;
-}
-
-void Vm::shrinkFrame(int n) {
-  if (f_ - n == 0) {
-    assert(stack_[f_].toFixnum() == n);
-    // No upper frame: create first frame.
-    //   Before: [B][A]f_[N][z][x][y]s_
-    //   After:  f_[z][y][x]s_
-    moveStackElems(stack_, 0, f_ + 1, s_ - (f_ + 1));  // Shift stack.
-    s_ -= f_ + 1;
-    f_ = 0;
-    return;
-  }
-
-  // Before: [z][y][x][B][A]f_[argnum]s_
-  // After:  [z][y][x]f_[argnum-n]s_
-  int argnum = stack_[f_].toFixnum();
-  stack_[f_] = Value(argnum - n);
-  int src = f_, dst = f_ - n;
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  s_ -= n;
-  f_ -= n;
-}
-
 void Vm::reserveValuesBuffer(int n) {
   if (n - 1 > valuesSize_) {
     // Allocation size is n - 1, because values[0] is stored in a_ register.
@@ -678,8 +629,7 @@ void Vm::replaceOpcodes(Value x) {
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case EXPND: case ADDSP:
-    case SHRNK: case VALS:
+    case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
       x = CDR(x);
       break;
     case LOOP: case LOCAL: case RECV:
@@ -920,16 +870,6 @@ Value Vm::runLoop() {
       s_ -= nfree;
       state_->restoreArena(arena);
       valueCount_ = 0;
-    } NEXT;
-    CASE(EXPND) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
-      expandFrame(n);
-    } NEXT;
-    CASE(SHRNK) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
-      shrinkFrame(n);
     } NEXT;
     CASE(ADDSP) {
       int n = CAR(x_).toFixnum();
