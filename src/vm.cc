@@ -154,9 +154,9 @@ protected:
 // Macro class.
 class Macro : public Closure {
 public:
-  Macro(State* state, Value name, Value body, int freeVarCount, int workSize,
+  Macro(State* state, Value name, Value body, int freeVarCount,
         int minArgNum, int maxArgNum)
-    : Closure(state, body, freeVarCount, workSize, minArgNum, maxArgNum) {
+    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
     setName(name.toSymbol(state));
   }
   virtual Type getType() const override  { return TT_MACRO; }
@@ -466,8 +466,7 @@ void Vm::apply(Value fn, int argNum) {
       x_ = closure->getBody();
       f_ = s_;
       c_ = fn;
-      s_ = push(Value(argNum), s_) + closure->getWorkSize();
-      reserveStack(s_);
+      s_ = push(Value(argNum), s_);
     }
     break;
   case TT_NATIVEFUNC:
@@ -515,22 +514,20 @@ void Vm::apply(Value fn, int argNum) {
   }
 }
 
-Value Vm::createClosure(Value body, int nfree, int nwork, int s, int minArgNum, int maxArgNum) {
-  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, nwork, minArgNum, maxArgNum);
+Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
 }
 
-void Vm::defineMacro(Value name, Value body, int nfree, int nwork, int s,
+void Vm::defineMacro(Value name, Value body, int nfree, int s,
                      int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
-
   Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree,
-                                                          nwork, minArgNum, maxArgNum);
+                                                          minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     macro->setFreeVariable(i, index(s, i));
-
   defineGlobal(name, Value(macro));
 }
 
@@ -640,12 +637,12 @@ void Vm::replaceOpcodes(Value x) {
       x = CDR(x);
       break;
     case CLOSE:
-      replaceOpcodes(CADDDR(x));
-      x = CDDDDR(x);
+      replaceOpcodes(CADDR(x));
+      x = CDDDR(x);
       break;
     case MACRO:
       {
-        Value tmp = CDDDDR(x);
+        Value tmp = CDDDR(x);
         replaceOpcodes(CAR(tmp));
         x = CDR(tmp);
       }
@@ -763,9 +760,8 @@ Value Vm::runLoop() {
       int arena = state_->saveArena();
       Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
       int nfree = CADR(x_).toFixnum();
-      int nwork = CADDR(x_).toFixnum();
-      Value body = CADDDR(x_);
-      x_ = CDDDDR(x_);
+      Value body = CADDR(x_);
+      x_ = CDDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -773,7 +769,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      a_ = createClosure(body, nfree, nwork, s_, min, max);
+      a_ = createClosure(body, nfree, s_, min, max);
       s_ -= nfree;
 
       if (nfree == 0) {
@@ -855,8 +851,7 @@ Value Vm::runLoop() {
       Value name = CAR(x_);
       Value nparam = CADR(x_);
       int nfree = CADDR(x_).toFixnum();
-      int nwork = CADDDR(x_).toFixnum();
-      Value tmp = CDDDDR(x_);
+      Value tmp = CDDDR(x_);
       Value body = CAR(tmp);
       x_ = CDR(tmp);
       int min, max;
@@ -866,7 +861,7 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      defineMacro(name, body, nfree, nwork, s_, min, max);
+      defineMacro(name, body, nfree, s_, min, max);
       s_ -= nfree;
       state_->restoreArena(arena);
       valueCount_ = 0;

@@ -553,11 +553,14 @@
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
                                       (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET)))
-                          (collect-free frees scope
-                                        (list* 'CLOSE varnum (length frees)
-                                               (scope-work-size inner-scope)
-                                               body-slot
-                                               next))))
+                          (let1 work-size (scope-work-size inner-scope)
+                            (collect-free frees scope
+                                          (list* 'CLOSE varnum (length frees)
+                                                 (if (eq? work-size 0)
+                                                     body-slot
+                                                   (list* 'ADDSP work-size
+                                                          body-slot))
+                                                 next)))))
                (:INVOKE (expanded-scope args-node body)
                         (let ((tail (tail? next))
                               (proper-vars (scope-local-infos expanded-scope))
@@ -574,11 +577,14 @@
                        (let ((vars (scope-local-infos inner-scope))
                              (frees (scope-frees inner-scope))
                              (code (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))))
-                         (collect-free frees scope
-                                       (list* 'MACRO name varnum (length frees)
-                                              (scope-work-size inner-scope)
-                                              code
-                                              next))))
+                         (let1 work-size (scope-work-size inner-scope)
+                           (collect-free frees scope
+                                         (list* 'MACRO name varnum (length frees)
+                                                (if (eq? work-size 0)
+                                                    code
+                                                  (list* 'ADDSP work-size
+                                                         code))
+                                                next)))))
                (:APPLY (call-type f args)
                        (compile-apply f args call-type scope next))
                (:CONTI (func)

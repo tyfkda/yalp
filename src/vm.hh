@@ -71,12 +71,12 @@ private:
   ~Vm();
   void installNativeFunctions();
   Value runLoop();
-  Value createClosure(Value body, int nfree, int nwork, int s, int minArgNum, int maxArgNum);
+  Value createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum);
   Value createContinuation(int s);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
 
-  void defineMacro(Value name, Value body, int nfree, int nwork, int s,
+  void defineMacro(Value name, Value body, int nfree, int s,
                    int minArgNum, int maxArgNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
