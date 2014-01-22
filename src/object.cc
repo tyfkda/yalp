@@ -301,7 +301,8 @@ void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
-Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int maxArgNum)
+Closure::Closure(State* state, Value body, int freeVarCount,
+                 int minArgNum, int maxArgNum)
   : Callable()
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {

@@ -76,16 +76,15 @@ private:
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
 
-  void defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum);
+  void defineMacro(Value name, Value body, int nfree, int s,
+                   int minArgNum, int maxArgNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
   int modifyRestParams(int argNum, int minArgNum);
   Value createRestParams(int argNum, int minArgNum, int s);
-  void expandFrame(int n);
-  void shrinkFrame(int n);
   void reserveValuesBuffer(int n);
   void storeValues(int n, int s);  // Move arguments from stack to values buffer.
-  void restoreValues(int min, int max);
+  int restoreValues(int min, int max);
   int pushArgs(int argNum, const Value* args, int s);
 
   void pushCallStack(Callable* callable);
@@ -95,7 +94,7 @@ private:
   inline Value index(int s, int i) const;
   inline void indexSet(int s, int i, Value v);
   inline int push(Value x, int s);
-  inline int shiftArgs(int n, int m, int s);
+  inline int shiftArgs(int n, int m, int s, int f);
   inline bool isTailCall(Value x) const;
   inline int pushCallFrame(Value ret, int s);
   inline int popCallFrame(int s);

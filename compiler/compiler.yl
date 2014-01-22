@@ -339,7 +339,8 @@
           '()              ; Free variables.
           t                ; Scope block top.
           '()              ; alist containing set variables.
-          outer-scope))
+          outer-scope
+          0))              ; Scope work size.
 
 (defun expand-scope (local outer-scope)
   (expand-scope2 (map [cons _ 0] local)
@@ -349,29 +350,42 @@
           '()              ; Free variables.
           nil              ; Not scope block top.
           '()              ; alist containing set variables.
-          outer-scope))
+          outer-scope
+          0))              ; Scope work size.
 
 (defun scope-local-infos (scope)  (vector-get scope 0))
 (defun scope-frees (scope)        (vector-get scope 1))
 (defun scope-block-top? (scope)   (vector-get scope 2))
 (defun scope-sets (scope)         (vector-get scope 3))
 (defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-work-size (scope)    (vector-get scope 5))
 
 (defun scope-frees-set! (scope v) (vector-set! scope 1 v))
 (defun scope-sets-set! (scope v)  (vector-set! scope 3 v))
+(defun scope-work-size-set! (scope v)  (vector-set! scope 5 v))
 
 (defun scope-outer-scope-set! (scope outer-scope)
   (vector-set! scope 4 outer-scope))
 
 ;; Returns index if the scope has the symbol.
+(defun scope-upper-work-size (scope)
+  (alet ((pscope (scope-outer-scope scope))
+         (size 0))
+    (if (scope-block-top? pscope)
+        size
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
+;; Returns index if the scope has the symbol.
 (defun scope-local-has? (scope sym)
-  (alet ((pscope scope)
-         (offset 0))
+  (alet ((pscope scope))
     (aif (scope-local-only-has? pscope sym)
-         (+ it offset)
+         (if (scope-block-top? pscope)
+             it
+           ;; Work index starts from -2 and grows negative (-1 = argnum)
+           (- -2 (+ it (scope-upper-work-size pscope))))
       (unless (scope-block-top? pscope)
-        (loop (scope-outer-scope pscope)
-              (+ offset (length (scope-local-infos pscope))))))))
+        (loop (scope-outer-scope pscope))))))
 (defun scope-local-only-has? (scope sym)
   (position-if [eq? (car _) sym] (scope-local-infos scope)))
 
@@ -474,6 +488,15 @@
                (set-cdr! it (cons v (cdr it)))
             (scope-sets-set! defined-scope (acons x (list v) sets))))))))
 
+(defun calc-scope-work-size (scope)
+  (alet ((pscope scope)
+         (size 0))
+    (if (scope-block-top? pscope)
+        (when (> size (scope-work-size pscope))
+          (scope-work-size-set! pscope size))
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
 ;;;;
 ;; Lambda node
 
@@ -530,35 +553,44 @@
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
                                       (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET)))
-                          (collect-free frees scope
-                                        (list* 'CLOSE varnum (length frees)
-                                               body-slot
-                                               next))))
+                          (let1 work-size (scope-work-size inner-scope)
+                            (collect-free frees scope
+                                          (list* 'CLOSE varnum (length frees)
+                                                 (if (eq? work-size 0)
+                                                     body-slot
+                                                   (list* 'ADDSP work-size
+                                                          body-slot))
+                                                 next)))))
                (:INVOKE (expanded-scope args-node body)
                         (let ((tail (tail? next))
                               (proper-vars (scope-local-infos expanded-scope))
                               (frees (scope-frees expanded-scope)))
+                          (calc-scope-work-size expanded-scope)
                           (compile-args args-node scope
                                         (if proper-vars
                                             (let1 varnum (length proper-vars)
-                                              (list* 'EXPND varnum
+                                              (list* 'LOCAL (scope-upper-work-size expanded-scope) varnum
                                                      (compile-body proper-vars body expanded-scope
-                                                                   (if tail
-                                                                       next
-                                                                     (list* 'SHRNK varnum next)))))
+                                                                   next)))
                                           (compile-body '() body expanded-scope next)))))
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local-infos inner-scope))
-                             (frees (scope-frees inner-scope)))
-                         (collect-free frees scope
-                                       (list* 'MACRO name varnum (length frees)
-                                              (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))
-                                              next))))
+                             (frees (scope-frees inner-scope))
+                             (code (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))))
+                         (let1 work-size (scope-work-size inner-scope)
+                           (collect-free frees scope
+                                         (list* 'MACRO name varnum (length frees)
+                                                (if (eq? work-size 0)
+                                                    code
+                                                  (list* 'ADDSP work-size
+                                                         code))
+                                                next)))))
                (:APPLY (call-type f args)
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
                        (compile-conti func scope next))
                (:CONTI-DIRECT (expanded-scope vars body)
+                              (calc-scope-work-size expanded-scope)
                               (compile-conti-direct expanded-scope vars body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
@@ -567,17 +599,13 @@
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
                (:RECV (expanded-scope varnum vals body)
+                      (calc-scope-work-size expanded-scope)
                       (let ((tail (tail? next))
                             (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
-                                       (list* 'RECV varnum
+                                       (list* 'RECV (scope-upper-work-size expanded-scope) varnum
                                               (compile-body (scope-local-infos expanded-scope) body expanded-scope
-                                                            (if tail
-                                                                next
-                                                              (list* 'SHRNK (if (pair? varnum)
-                                                                                (+ (car varnum) 1)
-                                                                              varnum)
-                                                                     next)))))))
+                                                            next)))))
                (t (compile-error "Unknown [%@]" node))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
@@ -672,14 +700,12 @@
                     (compile-body lambda-local-vars
                                   (lambda-body-node-get lambda-node)
                                   expanded-scope
-                                  (if (or next-tail
-                                          (eq? varnum 0))
-                                      next
-                                    (list* 'SHRNK varnum next))))
+                                  next))
+        (calc-scope-work-size expanded-scope)
         (compile-args args scope
                       (if (eq? varnum 0)
                           body-slot
-                        (list* 'EXPND varnum
+                        (list* 'LOCAL (scope-upper-work-size expanded-scope) varnum
                                body-slot)))))))
 
 ;; Output direct jump for self tail call.
@@ -687,7 +713,7 @@
   (let ((argnum (length args))
         (varnum (lambda-varnum-get lambda-node))
         (outer-varnum (if (can-eliminate-lambda-node? scope (cadr f))
-                          (scope-local-count (scope-outer-scope (lambda-scope-get lambda-node)))
+                          (scope-upper-work-size (lambda-scope-get lambda-node))
                         0)))
     (when (pair? varnum)
       (compile-error "Not implemented: rest param for loop"))
@@ -695,7 +721,7 @@
       (compile-error "Illegal argnum, `%@` requires %@, but %@"
                      (cadr f) varnum argnum))
     (compile-args args scope
-                  (list* 'LOOP argnum outer-varnum
+                  (list* 'LOOP outer-varnum argnum
                          (lambda-body-slot-get lambda-node)))))
 
 (defun compile-set! (var val scope next)
@@ -736,12 +762,11 @@
            ;; Normal continuation.
            (let1 c (list* 'CONTI tail
                           'PUSH
-                          'EXPND 1
+                          'LOCAL (scope-upper-work-size expanded-scope) 1
                           (compile-body vars body expanded-scope
                                         (if tail
                                             next
-                                          (list 'SHRNK 1
-                                                'UNFRAME))))
+                                          (list 'UNFRAME))))
              (if tail
                  c
                (list* 'FRAME c next))))
@@ -761,17 +786,16 @@
     (list* 'VOID next)))
 
 (defun make-boxes (scope locals next)
-  (alet ((vars locals)
-         (n 0))
+  (alet ((vars locals))
     (if vars
         (let ((var (caar vars))
               (tail (cdr vars)))
           (if (and (var-is-set? scope var)
                    (not (and (symbol-can-be-loop? var scope)
                              (can-eliminate-lambda-node? scope var))))
-              (list* 'BOX n
-                     (loop tail (+ n 1)))
-            (loop tail (+ n 1))))
+              (list* 'BOX (scope-local-has? scope var)
+                     (loop tail))
+            (loop tail)))
       next)))
 
 (defun compile-args (args scope next)
@@ -854,9 +878,22 @@
        (set! exit-compile cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope nil)))
-         (let1 result (compile-recur tree scope (list 'HALT))
+         (let* ((eoc (list 'HALT))
+                (result (compile-recur tree scope eoc))
+                (work-size (scope-work-size scope)))
            (set! exit-compile nil)
-           result))))))
+           (if (eq? work-size 0)
+               result
+             ;; Tweak stack layout for base level.
+             (do (copy-pair! eoc (list 'ADDSP (- -1 work-size) 'HALT))
+                 (list* 'CONST 0 'PUSH  ; argnum
+                        'ADDSP work-size
+                        result)))))))))
 
 (defun eval (x)
   (run-binary (compile x)))
+
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*))
