@@ -419,21 +419,28 @@ static Value s_format(State* state) {
   return state->multiValues();
 }
 
-static Value s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
-  Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
-  Reader reader(state, stream);
+static Value doRead(State* state, Reader* reader, Value* eof) {
   Value exp;
-  ErrorCode err = reader.read(&exp);
+  ErrorCode err = reader->read(&exp);
   switch (err) {
   case SUCCESS:
     return exp;
   case END_OF_FILE:
-    return eof;
+    if (eof != NULL)
+      return *eof;
+    break;
   default:
-    state->runtimeError("Read error %d", err);
-    return Value::NIL;
+    break;
   }
+  raiseReadError(state, err, reader);
+  return Value::NIL;
+}
+
+static Value s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
+  Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
+  Reader reader(state, stream);
+  return doRead(state, &reader, &eof);
 }
 
 static Value s_readFromString(State* state) {
@@ -442,11 +449,7 @@ static Value s_readFromString(State* state) {
 
   StrStream stream(static_cast<String*>(s.toObject())->c_str());
   Reader reader(state, &stream);
-  Value exp;
-  ErrorCode err = reader.read(&exp);
-  if (err != SUCCESS)
-    state->runtimeError("Read error %d", err);
-  return exp;
+  return doRead(state, &reader, NULL);
 }
 
 static Value s_readDelimitedList(State* state) {

@@ -250,26 +250,8 @@ static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
 }
 
 static void exitIfError(ErrorCode err) {
-  const char* msg = NULL;
-  switch (err) {
-  case SUCCESS:
-    return;
-  case END_OF_FILE:  msg = "End of file"; break;
-  case NO_CLOSE_PAREN:  msg = "No close paren"; break;
-  case EXTRA_CLOSE_PAREN:  msg = "Extra close paren"; break;
-  case DOT_AT_BASE:  msg = "Dot at base"; break;
-  case ILLEGAL_CHAR:  msg = "Illegal char"; break;
-  case COMPILE_ERROR:  msg = "Compile error"; break;
-  case FILE_NOT_FOUND:  msg = "File not found"; break;
-  case RUNTIME_ERROR:  break;  // Error message is already printed when runtime error.
-  default:
-    assert(!"Not handled");
-    msg = "Unknown error";
-    break;
-  }
-  if (msg != NULL)
-    std::cout << msg << std::endl;
-  exit(1);
+  if (err != SUCCESS)
+    exit(1);
 }
 
 int main(int argc, char* argv[]) {

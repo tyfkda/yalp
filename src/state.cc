@@ -351,13 +351,16 @@ ErrorCode State::runFromString(const char* string, Value* pResult) {
 
 ErrorCode State::run(Stream* stream, Value* pResult) {
   Reader reader(this, stream);
-  Value exp;
-  ErrorCode err;
   for (;;) {
     int arena = allocator_->saveArena();
-    err = reader.read(&exp);
-    if (err != SUCCESS)
-      break;
+    Value exp;
+    ErrorCode err = reader.read(&exp);
+    if (err != SUCCESS) {
+      if (err == END_OF_FILE)
+        return SUCCESS;
+      raiseReadError(this, err, &reader);
+      return err;
+    }
     Value code;
     if (!compile(exp, &code) || code.isFalse())
       return COMPILE_ERROR;
@@ -365,9 +368,6 @@ ErrorCode State::run(Stream* stream, Value* pResult) {
       return RUNTIME_ERROR;
     allocator_->restoreArena(arena);
   }
-  if (err == END_OF_FILE)
-    return SUCCESS;
-  return err;
 }
 
 ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
@@ -376,20 +376,20 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
     return FILE_NOT_FOUND;
 
   Reader reader(this, &stream);
-  Value bin;
-  ErrorCode err;
   for (;;) {
     int arena = allocator_->saveArena();
-    err = reader.read(&bin);
-    if (err != SUCCESS)
-      break;
+    Value bin;
+    ErrorCode err = reader.read(&bin);
+    if (err != SUCCESS) {
+      if (err == END_OF_FILE)
+        return SUCCESS;
+      raiseReadError(this, err, &reader);
+      return err;
+    }
     if (!runBinary(bin, pResult))
       return RUNTIME_ERROR;
     allocator_->restoreArena(arena);
   }
-  if (err == END_OF_FILE)
-    return SUCCESS;
-  return err;
 }
 
 void State::checkType(Value x, Type expected) {
@@ -573,10 +573,6 @@ jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
 void State::longJmp() {
   if (jmp_ != NULL)
     longjmp(*jmp_, 1);
-
-  // If process comes here, something wrong.
-  FileStream errout(stderr);
-  errout.write("State::longJmp is empty\n");
 }
 
 void State::resetError() {
