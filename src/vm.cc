@@ -516,6 +516,101 @@ void Vm::apply(Value fn, int argNum) {
   }
 }
 
+static Value applyFunctionNormal(State* state, Vm* vm) {
+  int n = vm->getArgNum();
+  // Counts argument number for the given function.
+  int argNum = n - 1;
+  Value last = Value::NIL;
+  if (n > 1) {
+    // Last argument should be a list and its elements are function arguments.
+    last = vm->getArg(n - 1);
+    if (last.eq(Value::NIL))
+      argNum -= 1;
+    else {
+      state->checkType(last, TT_CELL);
+      argNum += length(last) - 1;
+    }
+  }
+
+  Value* args = NULL;
+  if (argNum > 0)
+    args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
+  for (int i = 0; i < argNum; ++i) {
+    if (i < n - 2)
+      args[i] = vm->getArg(i + 1);
+    else {
+      args[i] = car(last);
+      last = cdr(last);
+    }
+  }
+
+  Value fn = vm->getArg(0);
+  return vm->tailcall(fn, argNum, args);
+}
+
+Value Vm::applyFunction() {
+  Value f = getArg(0);
+  switch (f.getType()) {
+  case TT_CLOSURE:
+  case TT_MACRO:
+    return applyFunctionClosure();
+  default:
+    return applyFunctionNormal(state_, this);
+  }
+}
+
+// Apply closure: Avoid list creation for closure which has rest parameter.
+Value Vm::applyFunctionClosure() {
+  State* state = state_;
+  Vm* vm = this;
+  Value fn = vm->getArg(0);
+  Closure* closure = static_cast<Closure*>(fn.toObject());
+  if (!closure->hasRestParam())
+    return applyFunctionNormal(state, vm);
+
+  int n = vm->getArgNum();
+  int argNum = closure->getMinArgNum() + 1;
+  Value* args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
+  int idx = 1;
+  Value ls = vm->getArg(n - 1);
+
+  for (int i = 0; i < argNum - 1; ++i) {
+    if (idx < n - 1) {
+      args[i] = vm->getArg(idx++);
+    } else if (ls.eq(Value::NIL)) {
+      state->runtimeError("Too few arguments for %@", &fn);
+    } else {
+      args[i] = car(ls);
+      ls = cdr(ls);
+    }
+  }
+  if (idx < n - 1) {
+    for (int i = n - 1; --i >= idx; )
+      ls = state->cons(vm->getArg(i), ls);
+  }
+  args[argNum - 1] = ls;
+
+  if (isTailCall(x_)) {
+    // Shifts arguments.
+    int calleeArgNum = index(f_, -1).toFixnum();
+    s_ = pushArgs(argNum, args, s_);
+    s_ = shiftArgs(argNum, calleeArgNum, s_, f_);
+    shiftCallStack();
+  } else {
+    // Makes frame.
+    s_ = pushCallFrame(x_, s_);
+    s_ = pushArgs(argNum, args, s_);
+  }
+
+  x_ = closure->getBody();
+  f_ = s_;
+  c_ = fn;
+  s_ = push(Value(argNum), s_);
+
+  // runLoop will run after this function exited.
+  return Value::NIL;
+}
+
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
   Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)

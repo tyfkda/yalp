@@ -530,35 +530,7 @@ static Value s_gensym(State* state) {
 }
 
 static Value s_apply(State* state) {
-  int n = state->getArgNum();
-  // Counts argument number for the given function.
-  int argNum = n - 1;
-  Value last = Value::NIL;
-  if (n > 1) {
-    // Last argument should be a list and its elements are function arguments.
-    last = state->getArg(n - 1);
-    if (last.eq(Value::NIL))
-      argNum -= 1;
-    else {
-      state->checkType(last, TT_CELL);
-      argNum += length(last) - 1;
-    }
-  }
-
-  Value* args = NULL;
-  if (argNum > 0)
-    args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
-  for (int i = 0; i < argNum; ++i) {
-    if (i < n - 2)
-      args[i] = state->getArg(i + 1);
-    else {
-      args[i] = car(last);
-      last = cdr(last);
-    }
-  }
-
-  Value f = state->getArg(0);
-  return state->tailcall(f, argNum, args);
+  return state->applyFunction();
 }
 
 static Value s_runBinary(State* state) {

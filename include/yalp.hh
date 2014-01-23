@@ -124,6 +124,7 @@ public:
 
   bool funcall(Value fn, int argNum, const Value* args, Value* pResult);
   Value tailcall(Value fn, int argNum, const Value* args);
+  Value applyFunction();
 
   inline Value referGlobal(const char* sym, bool* pExist = NULL);
   inline void defineGlobal(const char* sym, Value value);

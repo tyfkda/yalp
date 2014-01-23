@@ -564,6 +564,10 @@ Value State::tailcall(Value fn, int argNum, const Value* args) {
   return vm_->tailcall(fn, argNum, args);
 }
 
+Value State::applyFunction() {
+  return vm_->applyFunction();
+}
+
 jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
   jmp_buf* old = jmp_;
   jmp_ = jmp;

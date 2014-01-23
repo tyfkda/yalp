@@ -54,6 +54,8 @@ public:
   Value funcall(Value fn, int argNum, const Value* args);
   // Calls function at tail position.
   inline Value tailcall(Value fn, int argNum, const Value* args);
+  // Apply function to arguments on stack as tailcall.
+  Value applyFunction();
 
   void resetError();
 
@@ -75,6 +77,7 @@ private:
   Value createContinuation(int s);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
+  Value applyFunctionClosure();
 
   void defineMacro(Value name, Value body, int nfree, int s,
                    int minArgNum, int maxArgNum);
