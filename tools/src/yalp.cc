@@ -98,10 +98,10 @@ static void dumpLeakedMemory() {
 
 static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
-  Value bin;
   ErrorCode err;
   for (;;) {
     int arena = state->saveArena();
+    Value bin;
     err = reader.read(&bin);
     if (err != SUCCESS)
       break;
@@ -148,10 +148,10 @@ static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
   int topArena = state->saveArena();
   Value outStream = state->createFileStream(outFp);
   Reader reader(state, stream);
-  Value exp;
   ErrorCode err;
   for (;;) {
     int arena = state->saveArena();
+    Value exp;
     err = reader.read(&exp);
     if (err != SUCCESS)
       break;
@@ -185,9 +185,9 @@ static bool repl(State* state, Stream* stream, bool tty) {
     int arena = state->saveArena();
     if (tty)
       cout << "> " << std::flush;
-    Value s;
-    ErrorCode err = reader.read(&s);
-    if (err == END_OF_FILE || s.eq(q))
+    Value exp;
+    ErrorCode err = reader.read(&exp);
+    if (err == END_OF_FILE || exp.eq(q))
       break;
 
     if (err != SUCCESS) {
@@ -197,7 +197,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
     Value code;
-    if (!state->compile(s, &code) || code.isFalse()) {
+    if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       if (!tty)
         return false;
