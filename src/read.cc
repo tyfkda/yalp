@@ -87,7 +87,7 @@ ErrorCode Reader::read(Value* pValue) {
 
   switch (c) {
   case '(':
-    return readList(pValue);
+    return readDelimitedList(')', pValue);
   case ')': case ']': case '}':
     ungetc(c);
     return EXTRA_CLOSE_PAREN;
@@ -170,10 +170,6 @@ ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   else
     *pValue = Value(atol(buffer));
   return SUCCESS;
-}
-
-ErrorCode Reader::readList(Value* pValue) {
-  return readDelimitedList(')', pValue);
 }
 
 ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {

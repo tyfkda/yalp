@@ -31,7 +31,6 @@ private:
   inline int getc();
   inline void ungetc(int c);
   ErrorCode readSymbolOrNumber(Value* pValue);
-  ErrorCode readList(Value* pValue);
   ErrorCode readString(char closeChar, Value* pValue);
   ErrorCode readSpecial(Value* pValue);
   ErrorCode readSharedStructure(Value* pValue);
