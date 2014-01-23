@@ -26,6 +26,8 @@ public:
   // and returns them in a list.
   ErrorCode readDelimitedList(int terminator, Value* pValue);
 
+  inline int getLineNumber() const  { return lineNo_; }
+
 private:
   inline static bool isSpace(int c);
   inline int getc();
@@ -56,6 +58,7 @@ private:
   HashTable<int, Value>* sharedStructures_;
   char* buffer_;
   int size_;
+  int lineNo_;
 };
 
 }  // namespace yalp

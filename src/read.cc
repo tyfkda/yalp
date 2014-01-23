@@ -61,7 +61,7 @@ void Reader::ungetc(int c)  { stream_->ungetc(c); }
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
-  , buffer_(NULL), size_(0) {
+  , buffer_(NULL), size_(0), lineNo_(0) {
 }
 
 Reader::~Reader() {
@@ -75,6 +75,7 @@ Reader::~Reader() {
 
 ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
+  lineNo_ = stream_->getLineNumber();
   int c = getc();
   Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
@@ -174,6 +175,7 @@ ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
 
 ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   int arena = state_->saveArena();
+  int lineNo = stream_->getLineNumber();
   Value value = Value::NIL;
   Value v;
   ErrorCode err;
@@ -190,6 +192,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   case END_OF_FILE:
     *pValue = nreverse(value);
     state_->restoreArenaWith(arena, *pValue);
+    lineNo_ = lineNo;
     return NO_CLOSE_PAREN;
   case EXTRA_CLOSE_PAREN: case ILLEGAL_CHAR:
     {
@@ -213,9 +216,11 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
         return err;
 
       skipSpaces();
+      lineNo = stream_->getLineNumber();
       int c = getc();
       if (c != terminator) {
         ungetc(c);
+        lineNo_ = lineNo;
         return NO_CLOSE_PAREN;
       }
 

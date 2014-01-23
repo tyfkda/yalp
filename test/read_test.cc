@@ -10,19 +10,23 @@ class ReadTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
     state_ = State::create();
+    reader_ = NULL;
   }
 
   virtual void TearDown() override {
+    if (reader_ != NULL)
+      delete reader_;
     state_->release();
   }
 
   ErrorCode read(const char* str, Value* pValue) {
     StrStream stream(str);
-    Reader reader(state_, &stream);
-    return reader.read(pValue);
+    reader_ = new Reader(state_, &stream);
+    return reader_->read(pValue);
   }
 
   State* state_;
+  Reader* reader_;
 };
 
 TEST_F(ReadTest, LineComment) {
@@ -192,9 +196,14 @@ TEST_F(ReadTest, Vector) {
 
 TEST_F(ReadTest, Error) {
   Value s;
-  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
-  ASSERT_EQ(EXTRA_CLOSE_PAREN, read(")", &s));
+  ASSERT_EQ(NO_CLOSE_PAREN, read("(1\n (2\n (3)", &s));
+  ASSERT_EQ(2, reader_->getLineNumber());
+  ASSERT_EQ(EXTRA_CLOSE_PAREN, read("\n\n)", &s));
+  ASSERT_EQ(3, reader_->getLineNumber());
   ASSERT_EQ(ILLEGAL_CHAR, read("(. 1)", &s));
-  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 . 2 3)", &s));
+  ASSERT_EQ(1, reader_->getLineNumber());
+  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 . 2\n 3)", &s));
+  ASSERT_EQ(2, reader_->getLineNumber());
   ASSERT_EQ(NO_CLOSE_STRING, read("\"string", &s));
+  ASSERT_EQ(1, reader_->getLineNumber());
 }
