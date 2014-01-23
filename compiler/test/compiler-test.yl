@@ -129,10 +129,5 @@
                         (loop (cdr ls) (+ (car ls) acc)))
                   acc))))
            x)))
-(test "longjmp from closure" 123
-      (call/cc
-       (^(break)
-         (let1 f (^() (break 123))
-           (f)))))
 
 (test-complete)

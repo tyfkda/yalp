@@ -79,6 +79,8 @@ namespace yalp {
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
+  OP(SETJMP) \
+  OP(LONGJMP) \
   OP(MACRO) \
   OP(ADDSP) \
   OP(LOCAL) \
@@ -621,7 +623,7 @@ void Vm::replaceOpcodes(Value x) {
     static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
     x = CDR(x);
     switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME:
+    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
@@ -630,6 +632,10 @@ void Vm::replaceOpcodes(Value x) {
       x = CDR(x);
       break;
     case LOOP: case LOCAL: case RECV:
+      x = CDDR(x);
+      break;
+    case SETJMP:
+      replaceOpcodes(CADR(x));
       x = CDDR(x);
       break;
     case TEST: case FRAME:
@@ -845,6 +851,31 @@ Value Vm::runLoop() {
       }
       a_ = createContinuation(s);
       state_->restoreArena(arena);
+    } NEXT;
+    CASE(SETJMP) {
+      // Setjmp stores current closure and stack/frame pointer onto stack.
+      int offset = CAR(x_).toFixnum();
+      Value ret = CDDR(x_);
+      x_ = CADR(x_);
+      // Encode frame pointer and stack pointer value into single integer
+      // for setjmp continuation.
+      const int shiftBits = sizeof(Fixnum) / 2 * 8;
+      Fixnum v = s_ | (static_cast<Fixnum>(f_) << shiftBits);
+      indexSet(f_, -offset - 2, Value(f_ + offset + 1));  // Pointer.
+      indexSet(f_, -offset - 3, Value(v));
+      indexSet(f_, -offset - 4, c_);
+      indexSet(f_, -offset - 5, ret);
+    } NEXT;
+    CASE(LONGJMP) {
+      int p = a_.toFixnum();
+      a_ = index(s_, 0);
+      const int shiftBits = sizeof(Fixnum) / 2 * 8;
+      const Fixnum mask = (static_cast<Fixnum>(1) << shiftBits) - 1;
+      Fixnum v = stack_[p + 1].toFixnum();
+      c_ = stack_[p + 2];
+      x_ = stack_[p + 3];
+      s_ = v & mask;
+      f_ = v >> shiftBits;
     } NEXT;
     CASE(MACRO) {
       int arena = state_->saveArena();

@@ -666,8 +666,30 @@
            (and lambda-node
                 (bit? call-type VAR-SELF-TAIL-RECUR))
            (compile-apply-self-recur lambda-node f args scope))
-          ;; Normal function call.
-          (t (compile-apply-normal f args scope next)))))
+          (t
+           ;; Longjmp?
+           (aif (and (eq? ':REF (car f))
+                     (receive (info defined-scope)
+                              (get-var-info scope (cadr f))
+                       (and info
+                            (let1 flag (var-info-flag-get info)
+                              (and (bit? flag VAR-CONTI)
+                                   (not (bit? flag (logior VAR-ARG VAR-SET)))
+                                   ;(var-is-set? defined-scope (cadr f))
+                                   )))))
+                (compile-apply-conti f args #|(car it|# scope)
+             ;; Normal function call.
+             (compile-apply-normal f args scope next))))))
+
+(defun compile-apply-conti (f args scope)
+  (let1 argnum (length args)
+    (when (> argnum 1)
+      (compile-error "Too many argument for `%@`" (cadr f)))
+    (let1 c (compile-recur f scope
+                           (list 'LONGJMP))
+      (if (eq? argnum 0)
+          (list* 'NIL 'PUSH c)
+        (compile-args args scope c)))))
 
 (defun compile-apply-normal (f args scope next)
   (let ((tail (tail? next))
@@ -759,7 +781,7 @@
           (flag (receive (info _)
                          (get-var-info expanded-scope (caar vars))
                   (var-info-flag-get info))))
-      (cond ((bit? flag (logior VAR-ARG VAR-SET VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+      (cond ((bit? flag (logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* 'CONTI tail
                             'PUSH
@@ -771,6 +793,26 @@
                (if tail
                    c
                  (list* 'FRAME c next))))
+            ((bit? flag (logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+             ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
+             ;; Re-expand scope to store frame pointer and and closure to stack.
+             (let* ((dummy-symbol (gensym))
+                    ;; Add 3 extra local variables.
+                    (modified-vars (append (scope-local-infos expanded-scope)
+                                           (list (cons dummy-symbol VAR-ARG)
+                                                 (cons dummy-symbol VAR-ARG)
+                                                 (cons dummy-symbol VAR-ARG))))
+                    (expanded-scope (expand-scope2 modified-vars
+                                                   scope)))
+               (replace-body-scope! body expanded-scope)
+               (calc-scope-work-size expanded-scope)
+               ;; Set next code to enable longjmp to refer it.
+                                        ;(register-set2! expanded-scope (caar (scope-local-infos expanded-scope))
+                                        ;                next)
+               (list* 'SETJMP (scope-upper-work-size expanded-scope)
+                      (compile-body vars body expanded-scope
+                                    next)
+                      next)))
             (t ;; Continuation is not used, omit creating it.
              (replace-body-scope! body scope)
              (compile-body vars body scope
