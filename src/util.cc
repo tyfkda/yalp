@@ -112,7 +112,7 @@ static void format(State* state, Stream* out, const char* fmt, FormatParams* par
     case '@':
       {
         const Value* p = params->getValue();
-        p->output(state, out, false);
+        p->output(state, out, true);
       }
       break;
     case 's':
