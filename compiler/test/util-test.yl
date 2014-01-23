@@ -1,7 +1,0 @@
-;(load-binary "../../boot.bin")
-(load "./test.yl")
-
-(test-section "set")
-(test "minus" '(a c) (set-minus '(a b c) '(b d x)))
-
-(test-complete)

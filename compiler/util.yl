@@ -15,12 +15,3 @@
                       `(,key
                         (record (cdr ,value) ,@(cdr e))))))
                 args)))))
-
-;;;; set
-
-(defun set-minus (s1 s2)
-  (if s1
-      (if (member (car s1) s2)
-          (set-minus (cdr s1) s2)
-        (cons (car s1) (set-minus (cdr s1) s2)))
-    '()))
