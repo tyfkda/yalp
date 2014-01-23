@@ -25,7 +25,7 @@
       (LONGJMP ())
       (MACRO (name nparam nfree $body . $next))
       (ADDSP (n . $next))
-      (LOCAL (offset n . $next))
+      (LOCAL (offset . $next))
       (VALS (n . $next))
       (RECV (n . $next))
       (NIL $next)

@@ -724,9 +724,10 @@ void Vm::replaceOpcodes(Value x) {
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
+    case LOCAL:
       x = CDR(x);
       break;
-    case LOOP: case LOCAL: case RECV:
+    case LOOP: case RECV:
       x = CDDR(x);
       break;
     case SETJMP:
@@ -1000,11 +1001,8 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(LOCAL) {
       int offset = CAR(x_).toFixnum();
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
-      for (int i = 0; i < n; ++i)
-        indexSet(f_, -(offset + i) - 2, index(s_, i));
-      s_ -= n;
+      x_ = CDR(x_);
+      indexSet(f_, -offset - 2, a_);
     } NEXT;
     CASE(VALS) {
       int n = CAR(x_).toFixnum();

@@ -566,13 +566,8 @@
                               (proper-vars (scope-local-infos expanded-scope))
                               (frees (scope-frees expanded-scope)))
                           (calc-scope-work-size expanded-scope)
-                          (compile-args args-node scope
-                                        (if proper-vars
-                                            (let1 varnum (length proper-vars)
-                                              (list* 'LOCAL (scope-upper-work-size expanded-scope) varnum
-                                                     (compile-body proper-vars body expanded-scope
-                                                                   next)))
-                                          (compile-body '() body expanded-scope next)))))
+                          (compile-args-for-local args-node scope expanded-scope
+                                                  (compile-body proper-vars body expanded-scope next))))
                (:MACRO (inner-scope name varnum body)
                        (let ((vars (scope-local-infos inner-scope))
                              (frees (scope-frees inner-scope))
@@ -724,11 +719,8 @@
                                   expanded-scope
                                   next))
         (calc-scope-work-size expanded-scope)
-        (compile-args args scope
-                      (if (eq? varnum 0)
-                          body-slot
-                        (list* 'LOCAL (scope-upper-work-size expanded-scope) varnum
-                               body-slot)))))))
+        (compile-args-for-local args scope expanded-scope
+                                body-slot)))))
 
 ;; Output direct jump for self tail call.
 (defun compile-apply-self-recur (lambda-node f args scope)
@@ -784,8 +776,7 @@
       (cond ((bit? flag (logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* 'CONTI tail
-                            'PUSH
-                            'LOCAL (scope-upper-work-size expanded-scope) 1
+                            'LOCAL (scope-upper-work-size expanded-scope)
                             (compile-body vars body expanded-scope
                                           (if tail
                                               next
@@ -847,6 +838,15 @@
                     (compile-recur (car args) scope
                                    (list* 'PUSH next)))
     next))
+(defun compile-args-for-local (args scope expanded-scope next)
+  (alet ((args args)
+         (i (scope-upper-work-size expanded-scope))
+         (next next))
+    (if args
+        (loop (cdr args) (+ i 1)
+              (compile-recur (car args) scope
+                             (list* 'LOCAL i next)))
+      next)))
 
 (defun collect-free (vars scope next)
   (if vars
