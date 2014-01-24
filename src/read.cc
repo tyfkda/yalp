@@ -81,8 +81,11 @@ ErrorCode Reader::read(Value* pValue) {
   if (fn.isTrue()) {
     SStream ss(stream_);
     Value args[] = { Value(&ss), state_->character(c) };
-    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
+    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+      if (state_->getResultNum() == 0)
+        return read(pValue);
       return SUCCESS;
+    }
     return ILLEGAL_CHAR;
   }
 
@@ -92,9 +95,6 @@ ErrorCode Reader::read(Value* pValue) {
   case ')': case ']': case '}':
     ungetc(c);
     return EXTRA_CLOSE_PAREN;
-  case ';':
-    skipUntilNextLine();
-    return read(pValue);
   case '"':
     return readString(c, pValue);
   case '#':
@@ -447,13 +447,6 @@ void Reader::storeShared(int id, Value value) {
 void Reader::skipSpaces() {
   int c;
   while (isSpace(c = getc()))
-    ;
-  ungetc(c);
-}
-
-void Reader::skipUntilNextLine() {
-  int c;
-  while (c = getc(), c != '\n' && c != EOF)
     ;
   ungetc(c);
 }

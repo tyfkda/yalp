@@ -42,7 +42,6 @@ private:
   ErrorCode readTimeEval(Value* pValue);
   void storeShared(int id, Value value);
   void skipSpaces();
-  void skipUntilNextLine();
   bool skipBlockComment();
   static bool isDelimiter(int c);
   static inline int isNotDelimiter(int c)  { return !isDelimiter(c); }

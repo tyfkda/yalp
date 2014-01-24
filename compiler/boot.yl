@@ -3,6 +3,12 @@
 
 ;;; Basic read macros.
 
+;; Line comment
+(set-macro-character #\;
+  (^(stream ch)
+    (until (member (read-char stream) '(#\nl -1)))
+    (values)))
+
 ;; 'x => (quote x)
 (set-macro-character #\'
   (^(stream ch)
