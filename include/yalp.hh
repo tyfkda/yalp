@@ -226,6 +226,8 @@ public:
 
   void setMacroCharacter(int c, Value func);
   Value getMacroCharacter(int c);
+  void setDispatchMacroCharacter(int c1, int c2, Value func);
+  Value getDispatchMacroCharacter(int c1, int c2);
   Value getMacro(Value name);
 
   // Check value type, and raise runtime error if the value is not expected type.

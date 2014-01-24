@@ -79,12 +79,26 @@ ErrorCode Reader::read(Value* pValue) {
   int c = getc();
   Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
-    SStream ss(stream_);
-    Value args[] = { Value(&ss), state_->character(c) };
-    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+    if (fn.getType() != TT_HASH_TABLE) {  // Single macro character.
+      SStream ss(stream_);
+      Value args[] = { Value(&ss), state_->character(c) };
+      if (!state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
+        return ILLEGAL_CHAR;
       if (state_->getResultNum() == 0)
         return read(pValue);
       return SUCCESS;
+    }
+    // Dispatch macro character.
+    int c2 = getc();
+    fn = state_->getDispatchMacroCharacter(c, c2);
+    if (fn.isTrue()) {
+      SStream ss(stream_);
+      Value args[] = { Value(&ss), state_->character(c), state_->character(c2) };
+      if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+        if (state_->getResultNum() == 0)
+          return read(pValue);
+        return SUCCESS;
+      }
     }
     return ILLEGAL_CHAR;
   }
