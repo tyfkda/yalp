@@ -27,7 +27,7 @@
       (ADDSP (n . $next))
       (LOCAL (offset . $next))
       (VALS (n . $next))
-      (RECV (n . $next))
+      (RECV (offset n . $next))
       (NIL $next)
       ))
 
