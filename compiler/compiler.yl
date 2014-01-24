@@ -408,11 +408,11 @@
   (position sym (scope-frees (scope-block-top-get scope))))
 
 (defun scope-upper-vars-has? (scope sym)
-  (alet ((pscope (scope-outer-scope (scope-block-top-get scope))))
-    (if pscope
-        (if (scope-local-only-has? pscope sym)
-            t
-          (loop (scope-outer-scope pscope)))
+  (alet ((pscope (scope-block-top-get scope)))
+    (aif (scope-outer-scope pscope)
+         (if (scope-local-only-has? it sym)
+             it
+           (loop it))
       nil)))
 
 (defun scope-local-count (scope)
