@@ -128,7 +128,6 @@
              (lambda-expression? val))
     (register-inline-function var val))
   (let1 val-node (traverse val scope nil)
-    (register-set! scope var val-node)
     (list ':DEF var val-node)))
 
 (defun traverse-if (test then rest scope tail)
