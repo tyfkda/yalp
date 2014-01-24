@@ -1002,7 +1002,7 @@ Value Vm::runLoop() {
     CASE(LOCAL) {
       int offset = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      indexSet(f_, -offset - 2, a_);
+      indexSet(f_, offset, a_);
     } NEXT;
     CASE(VALS) {
       int n = CAR(x_).toFixnum();

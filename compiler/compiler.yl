@@ -376,7 +376,7 @@
       (loop (scope-outer-scope pscope)
             (+ size (length (scope-local-infos pscope)))))))
 
-;; Returns index if the scope has the symbol.
+;; Returns local offset if the scope has the symbol.
 (defun scope-local-has? (scope sym)
   (alet ((pscope scope))
     (aif (scope-local-only-has? pscope sym)
@@ -776,7 +776,7 @@
       (cond ((bit? flag (logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* 'CONTI tail
-                            'LOCAL (scope-upper-work-size expanded-scope)
+                            'LOCAL (scope-local-has? expanded-scope (caar vars))
                             (compile-body vars body expanded-scope
                                           (if tail
                                               next
@@ -840,12 +840,13 @@
     next))
 (defun compile-args-for-local (args scope expanded-scope next)
   (alet ((args args)
+         (vars (scope-local-infos expanded-scope))
          (i (scope-upper-work-size expanded-scope))
          (next next))
     (if args
-        (loop (cdr args) (+ i 1)
+        (loop (cdr args) (cdr vars) (+ i 1)
               (compile-recur (car args) scope
-                             (list* 'LOCAL i next)))
+                             (list* 'LOCAL (scope-local-has? expanded-scope (caar vars)) next)))
       next)))
 
 (defun collect-free (vars scope next)
