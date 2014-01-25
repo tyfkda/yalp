@@ -449,7 +449,8 @@ static Value s_readFromString(State* state) {
 
   StrStream stream(static_cast<String*>(s.toObject())->c_str());
   Reader reader(state, &stream);
-  return doRead(state, &reader, NULL);
+  Value result = doRead(state, &reader, NULL);
+  return state->multiValues(result, Value(stream.getIndex()));
 }
 
 static Value s_readDelimitedList(State* state) {

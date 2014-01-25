@@ -57,15 +57,16 @@ private:
 class StrStream : public Stream {
 public:
   explicit StrStream(const char* string);
-  ~StrStream();
 
   virtual bool close() override;
   using Stream::write;
   virtual bool write(const char* s, size_t len) override;
+  int getIndex() const  { return p_ - string_; }
 
 private:
   virtual int doGet() override;
 
+  const char* string_;
   const char* p_;
 };
 

@@ -69,10 +69,7 @@ bool FileStream::write(const char* s, size_t len) {
 
 //=============================================================================
 StrStream::StrStream(const char* string)
-  : Stream(), p_(string) {
-}
-
-StrStream::~StrStream() {
+  : Stream(), string_(string), p_(string) {
 }
 
 bool StrStream::close() {
