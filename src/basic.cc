@@ -268,19 +268,19 @@ struct GreaterEqual {
 
 }  // namespace
 
-static Value s_add(State* state) {
+Value s_add(State* state) {
   return BinOp<Add>::calc(state);
 }
 
-static Value s_sub(State* state) {
+Value s_sub(State* state) {
   return BinOp<Sub>::calc(state);
 }
 
-static Value s_mul(State* state) {
+Value s_mul(State* state) {
   return BinOp<Mul>::calc(state);
 }
 
-static Value s_div(State* state) {
+Value s_div(State* state) {
   return BinOp<Div>::calc(state);
 }
 
@@ -292,19 +292,19 @@ static Value s_mod(State* state) {
   return Value(a.toFixnum() % b.toFixnum());
 }
 
-static Value s_lessThan(State* state) {
+Value s_lessThan(State* state) {
   return CompareOp<LessThan>::calc(state);
 }
 
-static Value s_greaterThan(State* state) {
+Value s_greaterThan(State* state) {
   return CompareOp<GreaterThan>::calc(state);
 }
 
-static Value s_lessEqual(State* state) {
+Value s_lessEqual(State* state) {
   return CompareOp<LessEqual>::calc(state);
 }
 
-static Value s_greaterEqual(State* state) {
+Value s_greaterEqual(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 

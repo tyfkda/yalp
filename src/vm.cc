@@ -9,6 +9,10 @@
 #include "yalp/util.hh"
 #include "symbol_manager.hh"
 
+#ifndef DISABLE_FLONUM
+#include "flonum.hh"
+#endif
+
 #include <assert.h>
 #include <iostream>
 #include <string.h>  // for memmove
@@ -87,6 +91,18 @@ namespace yalp {
   OP(VALS) \
   OP(RECV) \
   OP(NIL) \
+  OP(CAR) \
+  OP(CDR) \
+  OP(ADD) \
+  OP(SUB) \
+  OP(NEG) \
+  OP(MUL) \
+  OP(DIV) \
+  OP(INV) \
+  OP(LT) \
+  OP(LE) \
+  OP(GT) \
+  OP(GE) \
 
 enum Opcode {
 #define OP(name)  name,
@@ -177,6 +193,59 @@ protected:
 };
 
 //=============================================================================
+
+#ifdef DISABLE_FLONUM
+extern Value s_add(State*);
+extern Value s_sub(State*);
+extern Value s_mul(State*);
+extern Value s_div(State*);
+extern Value s_lessThan(State*);
+extern Value s_lessEqual(State*);
+extern Value s_greaterThan(State*);
+extern Value s_greaterEqual(State*);
+#else
+#define s_add  s_addFlonum
+#define s_sub  s_subFlonum
+#define s_mul  s_mulFlonum
+#define s_div  s_divFlonum
+#define s_lessThan  s_lessThanFlonum
+#define s_lessEqual  s_lessEqualFlonum
+#define s_greaterThan  s_greaterThanFlonum
+#define s_greaterEqual  s_greaterEqualFlonum
+#endif
+
+#define SIMPLE_EMBED_INST(OP, func)             \
+  CASE(OP) {                                    \
+    Fixnum n = CAR(x_).toFixnum();              \
+    x_ = CDR(x_);                               \
+    a_ = callEmbedFunction(func, n);            \
+  } NEXT
+
+template <class Op>
+struct UnaryOp {
+  static Value calc(State* state, Value a) {
+    switch (a.getType()) {
+    case TT_FIXNUM:
+      return Value(Op::calc(a.toFixnum()));
+#ifndef DISABLE_FLONUM
+    case TT_FLONUM:
+      return state->flonum(Op::calc(a.toFlonum(state)));
+#endif
+    default:
+      state->runtimeError("Number expected, but `%@`", &a);
+      return a;
+    }
+  }
+};
+
+struct Neg {
+  template <class X> static X calc(X x)  { return -x; }
+};
+struct Inv {
+  template <class X> static X calc(X x)  { return 1 / x; }
+};
+
+//=============================================================================
 // Inline methods
 
 Value Vm::index(int s, int i) const {
@@ -191,6 +260,16 @@ void Vm::indexSet(int s, int i, Value v) {
 
 int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
 Value Vm::getArg(int index) const  { return this->index(f_, index); }
+
+Value Vm::callEmbedFunction(NativeFuncType func, Fixnum n) {
+  int oldF = f_;
+  f_ = s_;
+  s_ = push(Value(n), s_);
+  Value a = (*func)(state_);
+  s_ -= n + 1;
+  f_ = oldF;
+  return a;
+}
 
 int Vm::push(Value x, int s) {
   reserveStack(s + 1);
@@ -721,10 +800,12 @@ void Vm::replaceOpcodes(Value x) {
     case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
+    case CAR: case CDR: case NEG: case INV:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
     case LOCAL:
+    case ADD: case SUB: case MUL: case DIV: case LT: case GT: case LE: case GE:
       x = CDR(x);
       break;
     case LOOP: case RECV:
@@ -1026,6 +1107,26 @@ Value Vm::runLoop() {
         indexSet(f_, -(offset + i) - 2, index(s_, i));
       s_ -= n;
       valueCount_ = 1;
+    } NEXT;
+    CASE(CAR) {
+      a_ = car(a_);
+    } NEXT;
+    CASE(CDR) {
+      a_ = cdr(a_);
+    } NEXT;
+    SIMPLE_EMBED_INST(ADD, s_add);
+    SIMPLE_EMBED_INST(SUB, s_sub);
+    SIMPLE_EMBED_INST(MUL, s_mul);
+    SIMPLE_EMBED_INST(DIV, s_div);
+    SIMPLE_EMBED_INST(LT, s_lessThan);
+    SIMPLE_EMBED_INST(LE, s_lessEqual);
+    SIMPLE_EMBED_INST(GT, s_greaterThan);
+    SIMPLE_EMBED_INST(GE, s_greaterEqual);
+    CASE(NEG) {
+      a_ = UnaryOp<Neg>::calc(state_, a_);
+    } NEXT;
+    CASE(INV) {
+      a_ = UnaryOp<Inv>::calc(state_, a_);
     } NEXT;
     OTHERWISE {
       Value op = car(prex);

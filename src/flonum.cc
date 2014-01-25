@@ -213,37 +213,37 @@ struct GreaterEqual {
   template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
 };
 
-static Value s_add(State* state) {
+} // namespace
+
+Value s_addFlonum(State* state) {
   return BinOp<Add>::calc(state);
 }
 
-static Value s_sub(State* state) {
+Value s_subFlonum(State* state) {
   return BinOp<Sub>::calc(state);
 }
 
-static Value s_mul(State* state) {
+Value s_mulFlonum(State* state) {
   return BinOp<Mul>::calc(state);
 }
 
-static Value s_div(State* state) {
+Value s_divFlonum(State* state) {
   return BinOp<Div>::calc(state);
 }
 
-} // namespace
-
-static Value s_lessThan(State* state) {
+Value s_lessThanFlonum(State* state) {
   return CompareOp<LessThan>::calc(state);
 }
 
-static Value s_greaterThan(State* state) {
+Value s_greaterThanFlonum(State* state) {
   return CompareOp<GreaterThan>::calc(state);
 }
 
-static Value s_lessEqual(State* state) {
+Value s_lessEqualFlonum(State* state) {
   return CompareOp<LessEqual>::calc(state);
 }
 
-static Value s_greaterEqual(State* state) {
+Value s_greaterEqualFlonum(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
@@ -270,7 +270,7 @@ static Value s_flonum(State* state) {
   return v;
 }
 
-static Value s_mod(State* state) {
+Value s_modFlonum(State* state) {
   Value a = state->getArg(0);
   Value b = state->getArg(1);
   switch (a.getType()) {
@@ -313,15 +313,15 @@ void installFlonumFunctions(State* state) {
     int minArgNum, maxArgNum;
   } static const FuncTable[] = {
     { "flonum", s_flonum, 1 },
-    { "+", s_add, 0, -1 },
-    { "-", s_sub, 0, -1 },
-    { "*", s_mul, 0, -1 },
-    { "/", s_div, 0, -1 },
-    { "mod", s_mod, 2 },
-    { "<", s_lessThan, 2, -1 },
-    { ">", s_greaterThan, 2, -1 },
-    { "<=", s_lessEqual, 2, -1 },
-    { ">=", s_greaterEqual, 2, -1 },
+    { "+", s_addFlonum, 0, -1 },
+    { "-", s_subFlonum, 0, -1 },
+    { "*", s_mulFlonum, 0, -1 },
+    { "/", s_divFlonum, 0, -1 },
+    { "mod", s_modFlonum, 2 },
+    { "<", s_lessThanFlonum, 2, -1 },
+    { ">", s_greaterThanFlonum, 2, -1 },
+    { "<=", s_lessEqualFlonum, 2, -1 },
+    { ">=", s_greaterEqualFlonum, 2, -1 },
   };
 
   for (auto it : FuncTable) {

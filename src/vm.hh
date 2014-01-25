@@ -89,6 +89,7 @@ private:
   void storeValues(int n, int s);  // Move arguments from stack to values buffer.
   int restoreValues(int min, int max);
   int pushArgs(int argNum, const Value* args, int s);
+  Value callEmbedFunction(NativeFuncType func, Fixnum n);
 
   void pushCallStack(Callable* callable);
   void popCallStack();

@@ -648,6 +648,21 @@
   (dolist (node body)
     (replace-outer-scope! node scope)))
 
+(defun compile-embed-op (op args scope next)
+  (compile-args args scope
+                (list* op (length args)
+                       next)))
+(defun compile-embed-op-1 (op args scope next)
+  (compile-args (cdr args) scope
+                (compile-recur (car args) scope
+                               (list* op next))))
+
+(def *compiler-embed-funcs* (table))
+(defun register-embed-func (name func)
+  (table-put! *compiler-embed-funcs* name func))
+(defun compiler-embed-func? (name)
+  (table-get *compiler-embed-funcs* name))
+
 (defun compile-apply (f args call-type scope next)
   (let1 lambda-node (apply-func-can-be-loop? f scope)
     (cond (;; Start loop?
@@ -671,8 +686,12 @@
                                    ;(var-is-set? defined-scope (cadr f))
                                    )))))
                 (compile-apply-conti f args #|(car it|# scope)
-             ;; Normal function call.
-             (compile-apply-normal f args scope next))))))
+             (aif (and (eq? (car f) ':REF)
+                       (compiler-embed-func? (cadr f)))
+                  ;; Embeded function.
+                  (it args scope next)
+               ;; Normal function call.
+               (compile-apply-normal f args scope next)))))))
 
 (defun compile-apply-conti (f args scope)
   (let1 argnum (length args)
@@ -935,6 +954,38 @@
 (defun eval (x)
   (run-binary (compile x)))
 
+(defun simple-embed-func (op)
+  (^ (args scope next)
+     (compile-embed-op op args scope next)))
+(defun simple-embed-func-1 (op)
+  (^ (args scope next)
+     (compile-embed-op-1 op args scope next)))
+(defun arith-embed-func (sym op base single)
+  (^ (args scope next)
+     (if args
+         (if (single? args)
+             (compile-recur (car args) scope
+                            (if single
+                                (list* single next)
+                              next))
+           (compile-embed-op op args scope next))
+       (if base
+           (list* 'CONST base next)
+         (compile-error "`%@` requires at least 1 parameter" sym)))))
+
+;; Install embed functions.
+(dolist (p (list (cons '+ (arith-embed-func '+ 'ADD 0 nil))
+                 (cons '- (arith-embed-func '- 'SUB nil 'NEG))
+                 (cons '* (arith-embed-func '* 'MUL 1 nil))
+                 (cons '/ (arith-embed-func '/ 'DIV nil 'INV))
+                 (cons '< (simple-embed-func 'LT))
+                 (cons '> (simple-embed-func 'GT))
+                 (cons '<= (simple-embed-func 'LE))
+                 (cons '>= (simple-embed-func 'GE))
+                 (cons 'car (simple-embed-func-1 'CAR))
+                 (cons 'cdr (simple-embed-func-1 'CDR))
+                 ))
+  (register-embed-func (car p) (cdr p)))
 
 (defun debug/ss (&rest all)
   (write/ss all *stderr*)
