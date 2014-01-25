@@ -51,29 +51,29 @@
         (any? f (cdr ls)))
     nil))
 
-(defun map1-loop (f ls acc)
-  (if (pair? ls)
-      (map1-loop f (cdr ls)
-                 (cons (f (car ls)) acc))
-    (let1 result (reverse! acc)
-      (if ls
-          (if acc
-              (do (set-cdr! acc (f ls))
-                  result)
-            (f ls))
-        result))))
-
-(defun mapn-loop (f lss acc)
-  (if (any? not lss)
-      (reverse! acc)
-    (mapn-loop f (map1-loop cdr lss '())
-               (cons (apply f (map1-loop car lss '()))
-                     acc))))
-
 (defun map (f ls &rest rest)
   (if rest
-      (mapn-loop f (cons ls rest) '())
-    (map1-loop f ls '())))
+      ;; mapn
+      (alet ((lss (cons ls rest))
+             (acc '()))
+        (if (any? not lss)
+            (reverse! acc)
+          (loop (map cdr lss)
+                (cons (apply f (map car lss))
+                      acc))))
+    ;; map1
+    (alet ((ls ls)
+           (acc '()))
+      (if (pair? ls)
+          (loop (cdr ls)
+                (cons (f (car ls)) acc))
+        (let1 result (reverse! acc)
+          (if ls
+              (if acc
+                  (do (set-cdr! acc (f ls))
+                      result)
+                (f ls))
+            result))))))
 
 (defmacro do (&body body)
   `((^() ,@body)))
