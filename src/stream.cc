@@ -64,7 +64,7 @@ int FileStream::doGet() {
 }
 
 bool FileStream::write(const char* s, size_t len) {
-  return static_cast<int>(fwrite(s, 1, len, fp_)) == len;
+  return fwrite(s, 1, len, fp_) == len;
 }
 
 //=============================================================================

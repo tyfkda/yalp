@@ -810,7 +810,7 @@ static Value s_charAt(State* state) {
   state->checkType(i, TT_FIXNUM);
   Fixnum index = i.toFixnum();
   String* str = static_cast<String*>(v.toObject());
-  if (index < 0 || index >= str->len())
+  if (index < 0 || static_cast<size_t>(index) >= str->len())
     return Value::NIL;
   return state->character(str->c_str()[i.toFixnum()]);
 }
