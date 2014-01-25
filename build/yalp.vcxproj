@@ -86,6 +86,7 @@
     <ClCompile Include="..\src\allocator.cc" />
     <ClCompile Include="..\src\basic.cc" />
     <ClCompile Include="..\src\binder.cc" />
+    <ClCompile Include="..\src\flonum.cc" />
     <ClCompile Include="..\src\object.cc" />
     <ClCompile Include="..\src\read.cc" />
     <ClCompile Include="..\src\state.cc" />
@@ -99,6 +100,7 @@
     <None Include="..\src\allocator.hh" />
     <None Include="..\src\basic.hh" />
     <None Include="..\src\build_env.hh" />
+    <None Include="..\src\flonum.hh" />
     <None Include="..\src\hash_table.hh" />
     <None Include="..\src\symbol_manager.hh" />
     <None Include="..\src\vm.hh" />

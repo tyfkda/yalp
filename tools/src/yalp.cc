@@ -13,6 +13,11 @@
 #include <io.h>
 #define noexcept  // nothing
 #define isatty  _isatty
+#define dup  _dup
+#define dup2  _dup2
+#define fileno  _fileno
+#define open  _open
+#define fdopen  _fdopen
 #else
 #include <unistd.h>  // for isatty()
 #endif
