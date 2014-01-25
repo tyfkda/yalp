@@ -33,16 +33,6 @@ const Fixnum TAG2_SYMBOL = 3;
 // Assumes that first symbol is nil.
 const Value Value::NIL = Value(0, TAG2_SYMBOL);
 
-Value::Value() : v_(TAG_OBJECT) {
-  // Initialized to illegal value.
-}
-
-Value::Value(Fixnum i)
-  : v_((i << 1) | TAG_FIXNUM) {}
-
-Value::Value(class Object* object)
-  : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
-
 Value::Value(Fixnum i, int tag2)
   : v_((i << TAG2_SHIFT) | tag2) {}
 

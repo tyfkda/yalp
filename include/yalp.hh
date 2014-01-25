@@ -71,9 +71,9 @@ enum Type {
 // Variant type.
 class Value {
 public:
-  Value();
-  explicit Value(Fixnum i);
-  explicit Value(Object* object);
+  inline Value();
+  inline explicit Value(Fixnum i);
+  inline explicit Value(Object* object);
   explicit Value(Fixnum i, int tag2);
 
   // Gets value type.
@@ -286,6 +286,16 @@ const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
 const Fixnum TAG_FIXNUM = 0;
 const Fixnum TAG_OBJECT = 1;
 const Fixnum TAG_OTHER = 3;
+
+Value::Value() : v_(TAG_OBJECT) {
+  // Initialized to illegal value.
+}
+
+Value::Value(Fixnum i)
+  : v_((i << 1) | TAG_FIXNUM) {}
+
+Value::Value(class Object* object)
+  : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
 
 bool Value::isFixnum() const  { return (v_ & 1) == TAG_FIXNUM; }
 
