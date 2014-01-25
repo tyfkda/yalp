@@ -57,7 +57,7 @@ boot.bin:	self.bin
 	mv self.bin boot.bin
 
 self.bin:	compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/compiler.yl
-	./yalp -L boot.bin -C compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/compiler.yl > _self.bin
+	./yalp -L boot.bin -C $^ > _self.bin
 	#./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
 	#rm _self.bin
 	mv _self.bin self.bin
