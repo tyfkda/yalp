@@ -111,8 +111,10 @@
         (let ((vars (cadr val))
               (body (cddr val)))
           (let1 lambda-node (prepare-lambda-node vars body scope)
-            (when (or is-local is-free)
-              (register-set! scope var lambda-node))
+            (cond ((eq? op ':DEF)
+                   (do-register-set! scope var lambda-node))
+                  ((or is-local is-free)
+                   (register-set! scope var lambda-node)))
             (traverse-lambda-exec lambda-node body)
             (list op var lambda-node)))
       ;; Otherwise, do normal registration.
@@ -194,7 +196,10 @@
               (tail
                (receive (_ defined-scope)
                         (get-var-info calling-scope func-name)
-                 (if (upper-scope-is? calling-scope defined-scope)
+                 (if (if defined-scope
+                         (upper-scope-is? calling-scope defined-scope)
+                       ;; Calling global function as self recursion.
+                       (eq? (lambda-scope-get (car sets)) (scope-block-top-get calling-scope)))
                      VAR-SELF-TAIL-RECUR
                    VAR-CALL-OTHER)))
               (t VAR-CALL-OTHER))
@@ -474,10 +479,12 @@
       (let1 val (if (same-scope-block? defined-scope scope)
                     v   ;; Keep value only when set! is on same scope with variable defined scope.
                   nil)  ;; Otherwise, use dummy value.
-        (let1 sets (scope-sets defined-scope)
-          (aif (assoc x sets)
-               (set-cdr! it (cons val (cdr it)))
-            (scope-sets-set! defined-scope (acons x (list val) sets))))))))
+        (do-register-set! defined-scope x val)))))
+(defun do-register-set! (scope x val)
+  (let1 sets (scope-sets scope)
+    (aif (assoc x sets)
+         (set-cdr! it (cons val (cdr it)))
+      (scope-sets-set! scope (acons x (list val) sets)))))
 
 (defun calc-scope-work-size (scope)
   (alet ((pscope scope)
