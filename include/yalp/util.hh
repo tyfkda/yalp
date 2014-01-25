@@ -6,16 +6,15 @@
 #define _YALP_UTIL_HH_
 
 #include "yalp/config.hh"
+#include "yalp/error_code.hh"
 #include <stdarg.h>
 
 namespace yalp {
 
+class Reader;
 class State;
 class Stream;
 class Value;
-
-// Hash function for C string.
-unsigned int strHash(const char* s);
 
 Value car(Value s);
 Value cdr(Value s);
@@ -31,6 +30,8 @@ Value listToVector(State* state, Value ls);
 void format(State* state, Stream* out, const char* fmt, ...);
 void format(State* state, Stream* out, const char* fmt, va_list ap);
 void format(State* state, Stream* out, const char* fmt, const Value* values);
+
+void raiseReadError(State* state, ErrorCode err, Reader* reader);
 
 }  // namespace yalp
 

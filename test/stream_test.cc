@@ -19,7 +19,6 @@ protected:
 
 TEST_F(StreamTest, testStrOStream) {
   StrOStream stream(allocator_);
-
   stream.write("foo");
   stream.write("bar");
   stream.write("baz");

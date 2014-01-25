@@ -61,7 +61,7 @@ void Reader::ungetc(int c)  { stream_->ungetc(c); }
 Reader::Reader(State* state, Stream* stream)
   : state_(state), stream_(stream)
   , sharedStructures_(NULL)
-  , buffer_(NULL), size_(0) {
+  , buffer_(NULL), size_(0), lineNo_(0) {
 }
 
 Reader::~Reader() {
@@ -75,25 +75,26 @@ Reader::~Reader() {
 
 ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
+  lineNo_ = stream_->getLineNumber();
   int c = getc();
   Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
     SStream ss(stream_);
     Value args[] = { Value(&ss), state_->character(c) };
-    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
+    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+      if (state_->getResultNum() == 0)
+        return read(pValue);
       return SUCCESS;
+    }
     return ILLEGAL_CHAR;
   }
 
   switch (c) {
   case '(':
-    return readList(pValue);
+    return readDelimitedList(')', pValue);
   case ')': case ']': case '}':
     ungetc(c);
     return EXTRA_CLOSE_PAREN;
-  case ';':
-    skipUntilNextLine();
-    return read(pValue);
   case '"':
     return readString(c, pValue);
   case '#':
@@ -162,18 +163,19 @@ ErrorCode Reader::readSymbolOrNumber(Value* pValue) {
   if (hasSymbolChar || !hasDigit)
     *pValue = state_->intern(buffer);
   else if (hasDot)
+#ifdef DISABLE_FLONUM
+    return ILLEGAL_CHAR;
+#else
     *pValue = state_->flonum(static_cast<Flonum>(atof(buffer)));
+#endif
   else
     *pValue = Value(atol(buffer));
   return SUCCESS;
 }
 
-ErrorCode Reader::readList(Value* pValue) {
-  return readDelimitedList(')', pValue);
-}
-
 ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   int arena = state_->saveArena();
+  int lineNo = stream_->getLineNumber();
   Value value = Value::NIL;
   Value v;
   ErrorCode err;
@@ -190,6 +192,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
   case END_OF_FILE:
     *pValue = nreverse(value);
     state_->restoreArenaWith(arena, *pValue);
+    lineNo_ = lineNo;
     return NO_CLOSE_PAREN;
   case EXTRA_CLOSE_PAREN: case ILLEGAL_CHAR:
     {
@@ -213,9 +216,11 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
         return err;
 
       skipSpaces();
+      lineNo = stream_->getLineNumber();
       int c = getc();
       if (c != terminator) {
         ungetc(c);
+        lineNo_ = lineNo;
         return NO_CLOSE_PAREN;
       }
 
@@ -442,13 +447,6 @@ void Reader::storeShared(int id, Value value) {
 void Reader::skipSpaces() {
   int c;
   while (isSpace(c = getc()))
-    ;
-  ungetc(c);
-}
-
-void Reader::skipUntilNextLine() {
-  int c;
-  while (c = getc(), c != '\n' && c != EOF)
     ;
   ungetc(c);
 }

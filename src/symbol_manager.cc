@@ -4,8 +4,6 @@
 
 #include "build_env.hh"
 #include "symbol_manager.hh"
-#include "yalp/object.hh"
-#include "yalp/util.hh"  // for strHash
 
 #include <assert.h>
 #include <iostream>
@@ -18,6 +16,19 @@ const int PAGE_OBJECT_COUNT = 64;
 
 // Number of objects which a page contains.
 const int NAME_BUFFER_SIZE = 1024 - sizeof(void*);
+
+//=============================================================================
+
+static unsigned int strHash(const char* s) {
+  unsigned int v = 0;
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
+       *p != '\0'; ++p)
+    v = v * 17 + 1 + *p;
+  return v;
+}
+
+Symbol::Symbol(char* name)
+  : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
 /*
@@ -65,7 +76,6 @@ void SymbolManager::release() {
 SymbolManager::SymbolManager(Allocator* allocator)
   : allocator_(allocator)
   , table_(&s_hashPolicy, allocator)
-  , gensymIndex_(0)
   , symbolPageTop_(NULL), symbolArray_(NULL), symbolIndex_(0)
   , namePageTop_(NULL), nameBufferSize_(0), nameBufferOffset_(0) {
 }
@@ -97,15 +107,8 @@ SymbolId SymbolManager::intern(const char* name) {
   return symbolId;
 }
 
-SymbolId SymbolManager::gensym() {
-  int no = ++gensymIndex_;
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "#G:%d", no);
-  return generate(buffer);
-}
-
 const Symbol* SymbolManager::get(SymbolId symbolId) const {
-  assert(symbolId < symbolIndex_);
+  assert(0 <= symbolId && symbolId < symbolIndex_);
   return symbolArray_[symbolId];
 }
 
@@ -131,8 +134,8 @@ void SymbolManager::expandSymbolPage(SymbolId oldSize) {
                                                            sizeof(Symbol*) * extendedCount));
 }
 
-void SymbolManager::expandNamePage(int len) {
-  int bufferSize = NAME_BUFFER_SIZE;
+void SymbolManager::expandNamePage(size_t len) {
+  size_t bufferSize = NAME_BUFFER_SIZE;
   if (bufferSize <= len) {
     bufferSize = (len / NAME_BUFFER_SIZE + 1) * NAME_BUFFER_SIZE;
   }
@@ -144,7 +147,7 @@ void SymbolManager::expandNamePage(int len) {
 }
 
 char* SymbolManager::copyString(const char* name) {
-  int len = strlen(name);
+  size_t len = strlen(name);
   if (namePageTop_ == NULL || nameBufferSize_ - nameBufferOffset_ <= len)
     expandNamePage(len);
   char* copied = &namePageTop_->buffer[nameBufferOffset_];

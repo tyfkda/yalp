@@ -13,6 +13,11 @@
 #include <io.h>
 #define noexcept  // nothing
 #define isatty  _isatty
+#define dup  _dup
+#define dup2  _dup2
+#define fileno  _fileno
+#define open  _open
+#define fdopen  _fdopen
 #else
 #include <unistd.h>  // for isatty()
 #endif
@@ -98,10 +103,10 @@ static void dumpLeakedMemory() {
 
 static bool runBinary(State* state, Stream* stream) {
   Reader reader(state, stream);
-  Value bin;
   ErrorCode err;
   for (;;) {
     int arena = state->saveArena();
+    Value bin;
     err = reader.read(&bin);
     if (err != SUCCESS)
       break;
@@ -148,10 +153,10 @@ static bool compile(State* state, Stream* stream, bool bNoRun, FILE* outFp) {
   int topArena = state->saveArena();
   Value outStream = state->createFileStream(outFp);
   Reader reader(state, stream);
-  Value exp;
   ErrorCode err;
   for (;;) {
     int arena = state->saveArena();
+    Value exp;
     err = reader.read(&exp);
     if (err != SUCCESS)
       break;
@@ -185,9 +190,9 @@ static bool repl(State* state, Stream* stream, bool tty) {
     int arena = state->saveArena();
     if (tty)
       cout << "> " << std::flush;
-    Value s;
-    ErrorCode err = reader.read(&s);
-    if (err == END_OF_FILE || s.eq(q))
+    Value exp;
+    ErrorCode err = reader.read(&exp);
+    if (err == END_OF_FILE || exp.eq(q))
       break;
 
     if (err != SUCCESS) {
@@ -197,7 +202,7 @@ static bool repl(State* state, Stream* stream, bool tty) {
       continue;
     }
     Value code;
-    if (!state->compile(s, &code) || code.isFalse()) {
+    if (!state->compile(exp, &code) || code.isFalse()) {
       state->resetError();
       if (!tty)
         return false;
@@ -214,6 +219,11 @@ static bool repl(State* state, Stream* stream, bool tty) {
     if (tty) {
       const char* prompt = "=> ";
       int n = state->getResultNum();
+      if (n == 0) {
+        cout << ";; No result value\n";
+        continue;
+      }
+
       // Calling write/ss function breaks multiple values, so need to preserve them.
       // TODO: Are these values safe from GC?
       Value* results = static_cast<Value*>(alloca(sizeof(Value) * n));
@@ -245,26 +255,8 @@ static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
 }
 
 static void exitIfError(ErrorCode err) {
-  const char* msg = NULL;
-  switch (err) {
-  case SUCCESS:
-    return;
-  case END_OF_FILE:  msg = "End of file"; break;
-  case NO_CLOSE_PAREN:  msg = "No close paren"; break;
-  case EXTRA_CLOSE_PAREN:  msg = "Extra close paren"; break;
-  case DOT_AT_BASE:  msg = "Dot at base"; break;
-  case ILLEGAL_CHAR:  msg = "Illegal char"; break;
-  case COMPILE_ERROR:  msg = "Compile error"; break;
-  case FILE_NOT_FOUND:  msg = "File not found"; break;
-  case RUNTIME_ERROR:  break;  // Error message is already printed when runtime error.
-  default:
-    assert(!"Not handled");
-    msg = "Unknown error";
-    break;
-  }
-  if (msg != NULL)
-    std::cout << msg << std::endl;
-  exit(1);
+  if (err != SUCCESS)
+    exit(1);
 }
 
 int main(int argc, char* argv[]) {

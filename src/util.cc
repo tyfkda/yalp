@@ -6,18 +6,11 @@
 #include "yalp/util.hh"
 #include "yalp.hh"
 #include "yalp/object.hh"
+#include "yalp/read.hh"
 #include "yalp/stream.hh"
 #include "allocator.hh"
 
 namespace yalp {
-
-unsigned int strHash(const char* s) {
-  unsigned int v = 0;
-  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(s);
-       *p != '\0'; ++p)
-    v = v * 17 + 1 + *p;
-  return v;
-}
 
 Value car(Value s) {
   return s.getType() == TT_CELL ?
@@ -119,7 +112,7 @@ static void format(State* state, Stream* out, const char* fmt, FormatParams* par
     case '@':
       {
         const Value* p = params->getValue();
-        p->output(state, out, false);
+        p->output(state, out, true);
       }
       break;
     case 's':
@@ -163,6 +156,31 @@ void format(State* state, Stream* out, const char* fmt, ...) {
 void format(State* state, Stream* out, const char* fmt, const Value* values) {
   ValueParams params(values);
   format(state, out, fmt, &params);
+}
+
+void raiseReadError(State* state, ErrorCode err, Reader* reader) {
+  switch (err) {
+  case END_OF_FILE:
+    state->runtimeError("Unexpected EOF");
+    break;
+  case NO_CLOSE_PAREN:
+    state->runtimeError("No close paren begins from line %d", reader->getLineNumber());
+    break;
+  case EXTRA_CLOSE_PAREN:
+    state->runtimeError("Extra close paren at line %d", reader->getLineNumber());
+    break;
+  case NO_CLOSE_STRING:
+    state->runtimeError("No close string at line %d", reader->getLineNumber());
+    break;
+  case DOT_AT_BASE:
+    state->runtimeError("Illegal dot at line %d", reader->getLineNumber());
+    break;
+  case ILLEGAL_CHAR:
+    state->runtimeError("Illegal char at line %d", reader->getLineNumber());
+    break;
+  default:
+    break;
+  }
 }
 
 }  // namespace yalp

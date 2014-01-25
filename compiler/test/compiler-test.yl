@@ -14,6 +14,7 @@
 (test-section "find-free")
 (test "check-parameters" '(x y z) (check-parameters '(x y z)))
 (test "check-parameters-rest" '(x y z) (check-parameters '(x y &rest z)))
+(test "check-parameters-body" '(x y z) (check-parameters '(x y &body z)))
 
 (test-section "macroexpand")
 (test "macroexpand-1" '(x y . z) (macroexpand-1 '(x y . z)))
@@ -22,34 +23,13 @@
 (test "direct-invoke?" t (direct-invoke? '(^(x y))))
 (test "direct-invoke?-false" nil (direct-invoke? 'func))
 
-(test-section "scope")
-;(test "append-scope-sets!" '((z 4) (y 2) (x 1 3)) (let1 ht (alist->table '((x 3) (z 4)))
-;                                                    (append-scope-sets! ht 'x '(1))
-;                                                    (append-scope-sets! ht 'y '(2))
-;                                                    (table->alist ht)))
-;(let ((scope (create-scope '(x) nil)))
-;  (register-set! scope 'x 1)
-;  (register-set! scope 'y 2)
-;  (register-set! scope 'x 3)
-;  (test "register-set!" '((y 2) (x 3 1)) (table->alist (scope-sets scope))))
-;(let* ((outer-scope (create-scope '(x) nil))
-;       (inner-scope (create-scope '(y) outer-scope)))
-;  (register-set! inner-scope 'x 1)
-;  (register-set! inner-scope 'y 2)
-;  (propagate-scope-sets outer-scope inner-scope (scope-local inner-scope))
-;  (test "propagate-scope-sets to-outer" '((x 1)) (table->alist (scope-sets outer-scope))))
-;(let* ((outer-scope (create-scope '(x) nil))
-;       (inner-scope (create-scope '(y) outer-scope)))
-;  (register-set! outer-scope 'x 1)
-;  (register-set! outer-scope 'y 2)
-;  (propagate-scope-sets inner-scope outer-scope (scope-local inner-scope))
-;  (test "propagate-scope-sets to-inner" '((x 1)) (table->alist (scope-sets inner-scope))))
-(let* ((outer-scope (create-scope '(x) nil))
-       (inner-scope (create-scope '(y) outer-scope)))
-  (register-fref inner-scope 'x)
-  (register-fref inner-scope 'z)
-  (propagate-scope-to-upper outer-scope inner-scope (scope-local inner-scope))
-  (test "propagate-scope-to-upper" '(z) (scope-frees outer-scope)))
+(test-section "get-var-info")
+(let* ((scope1 (create-scope '(a) nil))
+       (scope2 (expand-scope '(b) scope1))
+       (scope3 (create-scope '(c) scope2)))
+  (receive (info found-scope)
+           (get-var-info scope3 'a)
+    (test-eq "expanded scope" scope1 found-scope)))
 
 (test-section "loop")
 (test "tail recursion is loop" 55
@@ -114,5 +94,40 @@
                            acc)))
             0 0))
          nil)))
+
+(test-section "call/cc")
+(test "free variable" 123
+      (let1 x 123
+        (call/cc
+         (^(cc)
+           (cc x)))))
+(test "set! call/cc var" 12321
+      (call/cc
+       (^(cc)
+         (set! cc (^(x) (* x x)))
+         (cc 111))))
+(test "direct jump" '(nil 4 5)
+      (call/cc
+       (^(break)
+         (alet ((ls '(1 2 nil 4 5))
+                (acc 0))
+           (if ls
+               (do (unless (int? (car ls))
+                     (break ls))
+                   (loop (cdr ls)
+                         (+ acc (car ls))))
+             acc)))))
+(test "frame, conti and loop" (+ 123 15)
+      (let1 x 123  ;; For expand frame.
+        (+ (call/cc
+            (^(break)
+              (alet ((ls '(1 2 3 4 5))
+                     (acc 0))
+                (if ls
+                    (do (unless (int? (car ls))
+                          (break ls))
+                        (loop (cdr ls) (+ (car ls) acc)))
+                  acc))))
+           x)))
 
 (test-complete)

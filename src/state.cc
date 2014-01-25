@@ -9,6 +9,7 @@
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
 #include "basic.hh"
+#include "flonum.hh"
 #include "symbol_manager.hh"
 #include "vm.hh"
 
@@ -80,7 +81,9 @@ unsigned int Value::calcHash(State* state) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      return toSymbol(state)->getHash();
+      if (v_ >= 0)
+        return toSymbol(state)->getHash();
+      return (v_ >> TAG2_SHIFT) * 29;
     }
   }
   assert(!"Must not happen");
@@ -110,16 +113,29 @@ void Value::output(State* state, Stream* o, bool inspect) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-      if (state != NULL)
-        o->write(toSymbol(state)->c_str());
-      else {
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "#symbol:%ld>", v_ >> TAG2_SHIFT);
-        o->write(buffer);
-      }
-      return;
+      outputSymbol(state, o);
+      break;
     }
   }
+}
+
+void Value::outputSymbol(State* state, Stream* o) const {
+  char buffer[64];
+  if (state == NULL) {
+    snprintf(buffer, sizeof(buffer), "#<symbol:%ld>", v_ >> TAG2_SHIFT);
+    o->write(buffer);
+    return;
+  }
+
+  if (v_ < 0) {  // gensym-ed symbol.
+    int id = -(v_ >> TAG2_SHIFT);
+    snprintf(buffer, sizeof(buffer), "G:%d", id);
+    o->write(buffer);
+    return;
+  }
+
+  // Normal symbol.
+  o->write(toSymbol(state)->c_str());
 }
 
 Fixnum Value::toFixnum() const {
@@ -127,6 +143,7 @@ Fixnum Value::toFixnum() const {
   return v_ >> 1;
 }
 
+#ifndef DISABLE_FLONUM
 Flonum Value::toFlonum(State* state) const {
   switch (getType()) {
   case TT_FLONUM:
@@ -138,6 +155,7 @@ Flonum Value::toFlonum(State* state) const {
     return 0;
   }
 }
+#endif
 
 bool Value::isObject() const {
   return (v_ & TAG_MASK) == TAG_OBJECT;
@@ -236,10 +254,8 @@ State::State(Allocator* allocator)
   , symbolManager_(SymbolManager::create(allocator_))
   , hashPolicyEq_(new(allocator_->alloc(sizeof(*hashPolicyEq_))) HashPolicyEq(this))
   , hashPolicyEqual_(new(allocator_->alloc(sizeof(*hashPolicyEqual_))) HashPolicyEqual(this))
-  , readTable_(NULL)
-  , vm_(NULL)
-  , jmp_(NULL) {
-
+  , readTable_(NULL), vm_(NULL), jmp_(NULL)
+  , gensymIndex_(0) {
   int arena = saveArena();
   allocator->setUserData(this);
 
@@ -252,14 +268,21 @@ State::State(Allocator* allocator)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "int", "symbol", "pair", "string", "flonum", "closure",
-    "subr", "continuation", "vector", "table", "stream", "macro", "box",
+    "unknown", "int", "symbol", "pair", "string",
+#ifndef DISABLE_FLONUM
+    "flonum",
+#endif
+    "closure", "subr", "continuation", "vector", "table", "stream", "macro",
+    "box",
   };
   for (int i = 0; i < NUMBER_OF_TYPES; ++i)
     typeSymbols_[i] = intern(TypeSymbolStrings[i]);
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+#ifndef DISABLE_FLONUM
+  installFlonumFunctions(this);
+#endif
   installBasicObjects();
 
   readTable_ = createHashTable(false);
@@ -328,13 +351,16 @@ ErrorCode State::runFromString(const char* string, Value* pResult) {
 
 ErrorCode State::run(Stream* stream, Value* pResult) {
   Reader reader(this, stream);
-  Value exp;
-  ErrorCode err;
   for (;;) {
     int arena = allocator_->saveArena();
-    err = reader.read(&exp);
-    if (err != SUCCESS)
-      break;
+    Value exp;
+    ErrorCode err = reader.read(&exp);
+    if (err != SUCCESS) {
+      if (err == END_OF_FILE)
+        return SUCCESS;
+      raiseReadError(this, err, &reader);
+      return err;
+    }
     Value code;
     if (!compile(exp, &code) || code.isFalse())
       return COMPILE_ERROR;
@@ -342,9 +368,6 @@ ErrorCode State::run(Stream* stream, Value* pResult) {
       return RUNTIME_ERROR;
     allocator_->restoreArena(arena);
   }
-  if (err == END_OF_FILE)
-    return SUCCESS;
-  return err;
 }
 
 ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
@@ -353,20 +376,20 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
     return FILE_NOT_FOUND;
 
   Reader reader(this, &stream);
-  Value bin;
-  ErrorCode err;
   for (;;) {
     int arena = allocator_->saveArena();
-    err = reader.read(&bin);
-    if (err != SUCCESS)
-      break;
+    Value bin;
+    ErrorCode err = reader.read(&bin);
+    if (err != SUCCESS) {
+      if (err == END_OF_FILE)
+        return SUCCESS;
+      raiseReadError(this, err, &reader);
+      return err;
+    }
     if (!runBinary(bin, pResult))
       return RUNTIME_ERROR;
     allocator_->restoreArena(arena);
   }
-  if (err == END_OF_FILE)
-    return SUCCESS;
-  return err;
 }
 
 void State::checkType(Value x, Type expected) {
@@ -394,10 +417,11 @@ Value State::intern(const char* name) {
 }
 
 Value State::gensym() {
-  return Value(symbolManager_->gensym(), TAG2_SYMBOL);
+  return Value(--gensymIndex_, TAG2_SYMBOL);
 }
 
-const Symbol* State::getSymbol(unsigned int symbolId) const {
+const Symbol* State::getSymbol(int symbolId) const {
+  assert(symbolId >= 0);
   return symbolManager_->get(symbolId);
 }
 
@@ -418,7 +442,7 @@ Value State::string(const char* str) {
   return string(str, strlen(str));
 }
 
-Value State::string(const char* str, int len) {
+Value State::string(const char* str, size_t len) {
   void* stringBuffer = allocator_->alloc(sizeof(char) * (len + 1));
   char* copiedString = new(stringBuffer) char[len + 1];
   memcpy(copiedString, str, len);
@@ -426,13 +450,8 @@ Value State::string(const char* str, int len) {
   return allocatedString(copiedString, len);
 }
 
-Value State::allocatedString(const char* str, int len) {
+Value State::allocatedString(const char* str, size_t len) {
   return Value(allocator_->newObject<String>(str, len));
-}
-
-
-Value State::flonum(Flonum f) {
-  return Value(allocator_->newObject<SFlonum>(f));
 }
 
 Value State::createFileStream(FILE* fp) {
@@ -545,6 +564,10 @@ Value State::tailcall(Value fn, int argNum, const Value* args) {
   return vm_->tailcall(fn, argNum, args);
 }
 
+Value State::applyFunction() {
+  return vm_->applyFunction();
+}
+
 jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
   jmp_buf* old = jmp_;
   jmp_ = jmp;
@@ -554,10 +577,6 @@ jmp_buf* State::setJmpbuf(jmp_buf* jmp) {
 void State::longJmp() {
   if (jmp_ != NULL)
     longjmp(*jmp_, 1);
-
-  // If process comes here, something wrong.
-  FileStream errout(stderr);
-  errout.write("State::longJmp is empty\n");
 }
 
 void State::resetError() {
@@ -584,6 +603,7 @@ void State::allocFailed(void*, size_t) {
 void State::reportDebugInfo() const {
   vm_->reportDebugInfo();
   symbolManager_->reportDebugInfo();
+  fprintf(stdout, "Total gensym: %d\n", gensymIndex_);
 }
 
 }  // namespace yalp

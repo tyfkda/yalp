@@ -37,7 +37,13 @@ typedef long Fixnum;
 static_assert(sizeof(Fixnum) >= sizeof(void*),
               "Fixnum must have enough size to store pointer value");
 
+#ifndef DISABLE_FLONUM
+#ifdef USE_FLOAT
 typedef double Flonum;
+#else
+typedef float Flonum;
+#endif
+#endif
 
 typedef void* (*AllocFunc)(void* p, size_t size);
 
@@ -47,7 +53,9 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
+#ifndef DISABLE_FLONUM
   TT_FLONUM,  // Floating point number
+#endif
   TT_CLOSURE,
   TT_NATIVEFUNC,
   TT_CONTINUATION,
@@ -71,7 +79,9 @@ public:
   Type getType() const;
 
   Fixnum toFixnum() const;
+#ifndef DISABLE_FLONUM
   Flonum toFlonum(State* state) const;
+#endif
   bool isObject() const;
   Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
@@ -93,6 +103,8 @@ public:
   inline bool isFalse() const;
 
 private:
+  void outputSymbol(State* state, Stream* o) const;
+
   Fixnum v_;
 };
 
@@ -112,6 +124,7 @@ public:
 
   bool funcall(Value fn, int argNum, const Value* args, Value* pResult);
   Value tailcall(Value fn, int argNum, const Value* args);
+  Value applyFunction();
 
   inline Value referGlobal(const char* sym, bool* pExist = NULL);
   inline void defineGlobal(const char* sym, Value value);
@@ -126,8 +139,9 @@ public:
 
   // Returns symbol value.
   Value intern(const char* name);
+  // Generate unique symbol.
   Value gensym();
-  const Symbol* getSymbol(unsigned int symbolId) const;
+  const Symbol* getSymbol(int symbolId) const;
 
   // Creates cell.
   Value cons(Value a, Value d);
@@ -137,11 +151,13 @@ public:
 
   // Converts C string to lisp String.
   Value string(const char* str);
-  Value string(const char* str, int len);
-  Value allocatedString(const char* string, int len);  // string is passed.
+  Value string(const char* str, size_t len);
+  Value allocatedString(const char* string, size_t len);  // string is passed.
 
+#ifndef DISABLE_FLONUM
   // Floating point number.
   Value flonum(Flonum f);
+#endif
 
   SHashTable* createHashTable(bool equal);
 
@@ -235,6 +251,7 @@ private:
   SHashTable* readTable_;
   Vm* vm_;
   jmp_buf* jmp_;
+  int gensymIndex_;
 
   friend struct StateAllocatorCallback;
 };
@@ -242,7 +259,7 @@ private:
 inline bool Value::eq(Value target) const  { return v_ == target.v_; }
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
-inline int Value::toCharacter() const  { return toFixnum(); }
+inline int Value::toCharacter() const  { return static_cast<int>(toFixnum()); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }

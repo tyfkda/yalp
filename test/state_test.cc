@@ -2,6 +2,7 @@
 #include "yalp.hh"
 #include "yalp/object.hh"
 #include "yalp/util.hh"
+#include "symbol_manager.hh"
 
 using namespace yalp;
 

@@ -9,4 +9,10 @@
 #define override  // Disable C++11 `override` keyword
 #endif
 
+// Opt-out Flonum?
+//#define DISABLE_FLONUM
+
+// Use `float` for Flonum? (default: double)
+//#define USE_FLOAT
+
 #endif

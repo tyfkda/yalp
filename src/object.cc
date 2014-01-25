@@ -5,8 +5,9 @@
 #include "build_env.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
-#include "yalp/util.hh"  // for strHash
+#include "yalp/util.hh"
 #include "hash_table.hh"
+#include "symbol_manager.hh"
 #include "vm.hh"  // for CallStack
 
 #include <assert.h>
@@ -14,13 +15,6 @@
 #include <string.h>  // for memcmp
 
 namespace yalp {
-
-//=============================================================================
-// Symbol class is not derived from Object.
-// Instances are managed by SymbolManager
-// and not be the target of GC.
-Symbol::Symbol(char* name)
-  : name_(name), hash_(strHash(name)) {}
 
 //=============================================================================
 bool Object::equal(const Object* o) const {
@@ -54,14 +48,16 @@ unsigned int Cell::calcHash(State* state) const {
   queue[w++] = this;
   while (r < w) {
     const Cell* p = queue[r++];
-    for (auto v : { p->car(), p->cdr() }) {
+    Value vals[] = { p->car(), p->cdr() };
+    for (int i = 0; i < 2; ++i) {
+      Value v = vals[i];
       if (v.getType() == TT_CELL) {
         if (w < N)
           queue[w++] = static_cast<Cell*>(v.toObject());
         continue;
       }
       // TODO: Handle mutual recursive with other container type (i.e. vector).
-      hash = hash * MUL + p->car().calcHash(state) + ADD;
+      hash = hash * MUL + v.calcHash(state) + ADD;
     }
   }
   return hash;
@@ -133,7 +129,7 @@ const char* Cell::isAbbrev(State* state) const {
 
 //=============================================================================
 
-String::String(const char* string, int len)
+String::String(const char* string, size_t len)
   : Object()
   , string_(string), len_(len) {
 }
@@ -152,7 +148,11 @@ bool String::equal(const Object* target) const {
 }
 
 unsigned int String::calcHash(State*) const {
-  return strHash(string_);
+  unsigned int v = 0;
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(string_);
+       *p != '\0'; ++p)
+    v = v * 23 + 1 + *p;
+  return v;
 }
 
 void String::output(State*, Stream* o, bool inspect) const {
@@ -162,8 +162,8 @@ void String::output(State*, Stream* o, bool inspect) const {
   }
 
   o->write('"');
-  int prev = 0;
-  for (int n = len_, i = 0; i < n; ++i) {
+  size_t prev = 0;
+  for (size_t n = len_, i = 0; i < n; ++i) {
     unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
     const char* s = NULL;
     switch (c) {
@@ -185,26 +185,6 @@ void String::output(State*, Stream* o, bool inspect) const {
   if (prev != len_)
     o->write(&string_[prev], len_ - prev);
   o->write('"');
-}
-
-//=============================================================================
-
-SFlonum::SFlonum(Flonum v)
-  : Object()
-  , v_(v) {
-}
-
-Type SFlonum::getType() const  { return TT_FLONUM; }
-
-bool SFlonum::equal(const Object* target) const {
-  const SFlonum* p = static_cast<const SFlonum*>(target);
-  return v_ == p->v_;
-}
-
-void SFlonum::output(State*, Stream* o, bool) const {
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%f", v_);
-  o->write(buffer);
 }
 
 //=============================================================================
@@ -323,7 +303,8 @@ void Callable::setName(const Symbol* name)  { name_ = name; }
 
 //=============================================================================
 // Closure class.
-Closure::Closure(State* state, Value body, int freeVarCount, int minArgNum, int maxArgNum)
+Closure::Closure(State* state, Value body, int freeVarCount,
+                 int minArgNum, int maxArgNum)
   : Callable()
   , body_(body), freeVariables_(NULL), freeVarCount_(freeVarCount)
   , minArgNum_(minArgNum), maxArgNum_(maxArgNum) {
@@ -389,7 +370,7 @@ Continuation::Continuation(State* state, const Value* stack, int size,
     memcpy(copiedStack_, stack, sizeof(Value) * size);
   }
 
-  if (--callStackSize > 0) {
+  if (callStackSize > 0) {
     int nbytes = sizeof(CallStack) * callStackSize;
     callStack_ = static_cast<CallStack*>(state->alloc(nbytes));
     callStackSize_ = callStackSize;

@@ -1,41 +1,29 @@
 ;(declaim
-; (inline no caar cdar cadr cddr member))
+; (inline not caar cdar cadr cddr))
 
 ;;; Basic read macros.
 
+;; Line comment
+(set-macro-character #\;
+  (^(stream ch)
+    (until (member (read-char stream) '(#\nl -1)))
+    (values)))
+
 ;; 'x => (quote x)
 (set-macro-character #\'
-                     (^(stream ch)
-                       (list (quote quote) (read stream))))
-
-;; `x => (quasiquote x)
-(set-macro-character #\`
-                     (^(stream ch)
-                       (list 'quasiquote (read stream))))
-
-;; ,x => (unquote x)
-;; ,@x => (unquote-splicing x)
-(set-macro-character #\,
-                     (^(stream ch)
-                       ((^(c)
-                          (if (eq? c #\@)
-                              (list 'unquote-splicing (read stream))
-                            (list 'unquote (read (unread-char c stream)))))
-                        (read-char stream))))
+  (^(stream ch)
+    `(quote ,(read stream))))
 
 ;; Creates simple 1 parameter function with bracket notation.
 ;; [...] => (^(_) ...)
 (set-macro-character #\[
-                     (^(stream ch)
-                       ;;`(^ (_) ,(read-delimited-list #\] stream))))
-                       (list '^ '(_) (read-delimited-list #\] stream))))
+  (^(stream ch)
+    `(^ (_) ,(read-delimited-list #\] stream))))
 
 ;;; Basic functions and macros.
 
 (defmacro defun (name vars &body body)
-  ;; `(def ,name (^ ,vars ,@body))
-  (list 'def name
-        (list* '^ vars body)))
+  `(def ,name (^ ,vars ,@body)))
 
 (defun not (x) (if x nil t))
 
@@ -50,7 +38,7 @@
 (defun caddddr (x) (car (cddddr x)))
 (defun cdddddr (x) (cdr (cddddr x)))
 
-(defun fixnum? (x) (eq? (type x) 'fixnum))
+(defun int? (x) (eq? (type x) 'int))
 (defun pair? (x) (eq? (type x) 'pair))
 (defun symbol? (x) (eq? (type x) 'symbol))
 (defun string? (x) (eq? (type x) 'string))
@@ -67,15 +55,13 @@
   (if (pair? ls)
       (map1-loop f (cdr ls)
                  (cons (f (car ls)) acc))
-    ((^(result)
-       (if ls
-           (if acc
-               ((^()
-                  (set-cdr! acc (f ls))
-                  result))
-             (f ls))
-         result))
-     (reverse! acc))))
+    (let1 result (reverse! acc)
+      (if ls
+          (if acc
+              (do (set-cdr! acc (f ls))
+                  result)
+            (f ls))
+        result))))
 
 (defun mapn-loop (f lss acc)
   (if (any? not lss)
@@ -88,56 +74,6 @@
   (if rest
       (mapn-loop f (cons ls rest) '())
     (map1-loop f ls '())))
-
-(defun maplist (f ls)
-  (alet ((ls ls)
-         (acc '()))
-    (if (pair? ls)
-        (loop (cdr ls)
-              (cons (f ls) acc))
-      (let1 result (reverse! acc)
-        (if ls
-            (if acc
-                (do (set-cdr! acc (f ls))
-                    result)
-              (f ls))
-          result)))))
-
-(defun qq-expand (x)
-  (if (pair? x)
-      ((^(m)
-         (if (eq? m 'unquote)
-             (cadr x)
-           (if (eq? m 'unquote-splicing)
-               (error "Illegal ,@")
-             (if (eq? m 'quasiquote)
-                 (qq-expand
-                  (qq-expand (cadr x)))
-               (list 'append
-                     (qq-expand-list (car x))
-                     (qq-expand (cdr x)))))))
-       (car x))
-    (list 'quote x)))
-
-(defun qq-expand-list (x)
-  (if (pair? x)
-      ((^(m)
-         (if (eq? m 'unquote)
-             (list 'list (cadr x))
-           (if (eq? m 'unquote-splicing)
-               (cadr x)
-             (if (eq? m 'quasiquote)
-                 (qq-expand-list
-                  (qq-expand (cadr x)))
-               (list 'list
-                     (list 'append
-                           (qq-expand-list (car x))
-                           (qq-expand (cdr x))))))))
-       (car x))
-    (list 'quote (list x))))
-
-(defmacro quasiquote (x)
-  (qq-expand x))
 
 (defmacro do (&body body)
   `((^() ,@body)))
@@ -327,6 +263,20 @@
         (loop (cdr ls) (cons (car ls) acc))
       acc)))
 
+(defun maplist (f ls)
+  (alet ((ls ls)
+         (acc '()))
+    (if (pair? ls)
+        (loop (cdr ls)
+              (cons (f ls) acc))
+      (let1 result (reverse! acc)
+        (if ls
+            (if acc
+                (do (set-cdr! acc (f ls))
+                    result)
+              (f ls))
+          result)))))
+
 (defun member (x ls)
   (any? [eq? x _] ls))
 
@@ -363,37 +313,34 @@
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
-    (write/ss-print s (write/ss-construct s) stream)
+    (write/ss-print s (create-ss-table s) stream)
     s))
 
-;; Put cell appear idnex for more than 2 times into table.
-(defun write/ss-construct (s)
-  (let ((h (table 'eq))
-        (index (gensym))
-        (assign-index (^(h s index)
-                        (unless (table-get h s)
-                          ;; Assign index for the object appeared more than 1 time.
-                          (let1 i (table-get h index)
-                            (table-put! h s i)
-                            (table-put! h index (+ 1 i)))))))
-    (table-put! h index 0)
-    (alet ((s s))
-      (case (type s)
-        (pair (if (table-exists? h s)
-                  (assign-index h s index)
-                ;; Put nil for the first appeared object.
-                (do (table-put! h s nil)
-                    ;; And check children recursively.
-                    (loop (car s))
-                    (loop (cdr s)))))
-        (vector (if (table-exists? h s)
-                    (assign-index h s index)
-                  ;; Put nil for the first appeared object.
-                  (do (table-put! h s nil)
-                      ;; And check children recursively.
-                      (for0-n i (length s)
-                        (loop (vector-get s i))))))))
-    h))
+;; Construct table which contains object appear index for more than 2 times.
+(let1 index-key (gensym)
+  (defun create-ss-table (s)
+    (let ((h (table 'eq?))
+          ;; Assign index for the object appeared more than 1 time.
+          (assign-index (^(h s index-key)
+                          (unless (table-get h s)
+                            (let1 index (table-get h index-key)
+                              (table-put! h s index)
+                              (table-put! h index-key (+ 1 index)))))))
+      (table-put! h index-key 0)
+      (alet ((s s))
+        (let1 typ (type s)
+          (when (member typ '(pair vector))
+            (if (table-exists? h s)
+                (assign-index h s index-key)
+              ;; Put nil for the first appeared object.
+              (do (table-put! h s nil)
+                  ;; And check children recursively.
+                  (case typ
+                    (pair (loop (car s))
+                          (loop (cdr s)))
+                    (vector (for0-n i (length s)
+                                    (loop (vector-get s i))))))))))
+      h)))
 
 (defun write/ss-print (s h stream)
   (let1 index (table-get h s)

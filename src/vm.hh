@@ -30,9 +30,9 @@ public:
 
   inline Object* getFunc() const;
   // Gets argument number for current native function.
-  inline int getArgNum() const;
+  int getArgNum() const;
   // Gets argument value for the index.
-  inline Value getArg(int index) const;
+  Value getArg(int index) const;
 
   inline Value multiValues();
   inline Value multiValues(Value v0);
@@ -54,6 +54,8 @@ public:
   Value funcall(Value fn, int argNum, const Value* args);
   // Calls function at tail position.
   inline Value tailcall(Value fn, int argNum, const Value* args);
+  // Apply function to arguments on stack as tailcall.
+  Value applyFunction();
 
   void resetError();
 
@@ -75,17 +77,17 @@ private:
   Value createContinuation(int s);
   Value funcallSetup(Value fn, int argNum, const Value* args, bool tailcall);
   void apply(Value fn, int argNum);
+  Value applyFunctionClosure();
 
-  void defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum);
+  void defineMacro(Value name, Value body, int nfree, int s,
+                   int minArgNum, int maxArgNum);
 
   void reserveStack(int n);  // Ensure the stack has enough size of n
   int modifyRestParams(int argNum, int minArgNum);
   Value createRestParams(int argNum, int minArgNum, int s);
-  void expandFrame(int n);
-  void shrinkFrame(int n);
   void reserveValuesBuffer(int n);
   void storeValues(int n, int s);  // Move arguments from stack to values buffer.
-  void restoreValues(int min, int max);
+  int restoreValues(int min, int max);
   int pushArgs(int argNum, const Value* args, int s);
 
   void pushCallStack(Callable* callable);
@@ -95,7 +97,7 @@ private:
   inline Value index(int s, int i) const;
   inline void indexSet(int s, int i, Value v);
   inline int push(Value x, int s);
-  inline int shiftArgs(int n, int m, int s);
+  inline int shiftArgs(int n, int m, int s, int f);
   inline bool isTailCall(Value x) const;
   inline int pushCallFrame(Value ret, int s);
   inline int popCallFrame(int s);
@@ -132,8 +134,6 @@ private:
 };
 
 Object* Vm::getFunc() const  { return c_.toObject(); }
-int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
-Value Vm::getArg(int index) const  { return this->index(f_, index); }
 
 Value Vm::multiValues()  { valueCount_ = 0; return a_ = Value::NIL; }
 Value Vm::multiValues(Value v0)  { reserveValuesBuffer(valueCount_ = 1); return v0; }

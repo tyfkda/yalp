@@ -12,6 +12,10 @@ function error_exit() {
 function run() {
   echo -n "Testing $1 ... "
   result=$(echo "(write ((^() $3)))" | ../yalp -L ../boot.bin)
+  code=$?
+  if [ $code -ne 0 ]; then
+    error_exit "exit status is not 0 [$code]"
+  fi
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
@@ -21,6 +25,10 @@ function run() {
 function run_raw() {
   echo -n "Testing $1 ... "
   result=$(echo "$3" | ../yalp -L ../boot.bin)
+  code=$?
+  if [ $code -ne 0 ]; then
+    error_exit "exit status is not 0 [$code]"
+  fi
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
@@ -44,7 +52,7 @@ run nil nil 'nil'
 run t t 't'
 run quote abc '(quote abc)'
 run string '"string"' '"string"'
-run float '1.230000' '1.23'
+run flonum '1.230000' '1.23'
 run if-true 2 '(if 1 2 3)'
 run if-false 3 '(if nil 2 3)'
 run no-else 2 '(if 1 2)'
@@ -86,6 +94,12 @@ run call/cc-nil nil '(call/cc
 run_raw invoke-call/cc '1234' '(def *cc* ())
                                (display (call/cc (^(cc) (set! *cc* cc) 12)))
                                (*cc* 34)'
+run call/cc-indirect 123 '((^(f)
+                             (call/cc f))
+                           (^(cc) (cc 123)))'
+run call/cc-unused 123 '(call/cc
+                          (^(cc)
+                            123))'
 run global-var 111 '(def global 111)
                     global'
 run restargs-direct '(1 (2 3))' '((^(x &rest y) (list x y)) 1 2 3)'
@@ -151,9 +165,9 @@ run '>' t '(> 2 1)'
 run '<=' t '(<= 2 2)'
 run '>=' t '(>= 2 2)'
 
-# Float
-run 'float-eq?' nil '(eq? 1.0 1.0)'
-run 'float-equal?' t '(equal? 1.0 1.0)'
+# Flonum
+run 'flonum-eq?' nil '(eq? 1.0 1.0)'
+run 'flonum-equal?' t '(equal? 1.0 1.0)'
 run +float '1.230000' '(+ 1 0.23)'
 run -float '0.770000' '(- 1 0.23)'
 run -negate '-0.230000' '(- 0.23)'

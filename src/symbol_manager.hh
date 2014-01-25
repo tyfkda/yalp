@@ -10,9 +10,22 @@
 namespace yalp {
 
 class Allocator;
-class Symbol;
 
-typedef unsigned int SymbolId;
+typedef int SymbolId;
+
+// Symbol class
+class Symbol {
+public:
+  explicit Symbol(char* name);
+  ~Symbol()  {}
+
+  unsigned int getHash() const  { return hash_; }
+  const char* c_str() const  { return name_; }
+
+private:
+  char* name_;
+  unsigned int hash_;  // Pre-calculated hash value.
+};
 
 class SymbolManager {
 public:
@@ -26,9 +39,6 @@ public:
   // Create symbol from c-string.
   SymbolId intern(const char* name);
 
-  // Generate unique symbol.
-  SymbolId gensym();
-
   const Symbol* get(SymbolId symbolId) const;
 
   void reportDebugInfo() const;
@@ -38,14 +48,13 @@ private:
   ~SymbolManager();
   SymbolId generate(const char* name);
   void expandSymbolPage(SymbolId oldSize);
-  void expandNamePage(int len);
+  void expandNamePage(size_t len);
   char* copyString(const char* name);
 
   static StrHashPolicy s_hashPolicy;
 
   Allocator* allocator_;
   TableType table_;
-  int gensymIndex_;
 
   // Memory blocks for Symbol instances.
   struct SymbolPage;
@@ -56,8 +65,8 @@ private:
   // Memory blocks for Names.
   struct NamePage;
   NamePage* namePageTop_;
-  int nameBufferSize_;
-  int nameBufferOffset_;
+  size_t nameBufferSize_;
+  size_t nameBufferOffset_;
 };
 
 }  // namespace yalp

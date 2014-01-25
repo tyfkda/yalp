@@ -5,7 +5,6 @@
 #include "build_env.hh"
 #include "basic.hh"
 #include "yalp.hh"
-#include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/read.hh"
 #include "yalp/stream.hh"
@@ -16,13 +15,6 @@
 #include <assert.h>
 #include <string.h>  // for memcpy
 #include <stdlib.h>  // for exit
-
-#ifdef _MSC_VER
-#include <math.h>
-#else
-#include <alloca.h>
-#include <tgmath.h>
-#endif
 
 namespace yalp {
 
@@ -184,6 +176,20 @@ static Value s_reverseBang(State* state) {
   return nreverse(state->getArg(0));
 }
 
+static Value s_eq(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  return state->boolean(a.eq(b));
+}
+
+static Value s_equal(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  return state->boolean(a.equal(b));
+}
+
+namespace {
+
 template <class Op>
 struct BinOp {
   static Value calc(State* state) {
@@ -191,57 +197,17 @@ struct BinOp {
     if (n <= 0)
       return Value(Op::base());
     Value x = state->getArg(0);
-    Fixnum acc;
-    switch (x.getType()) {
-    case TT_FIXNUM:
-      acc = x.toFixnum();
-      break;
-    case TT_FLONUM:
-      return calcf(state, 1, x.toFlonum(state));
-      break;
-    default:
-      state->runtimeError("Number expected, but `%@`", &x);
-      break;
-    }
+    state->checkType(x, TT_FIXNUM);
+    Fixnum acc = x.toFixnum();
     if (n == 1)
       return Value(Op::single(acc));
 
     for (int i = 1; i < n; ++i) {
       Value x = state->getArg(i);
-      switch (x.getType()) {
-      case TT_FIXNUM:
-        acc = Op::op(acc, x.toFixnum());
-        break;
-      case TT_FLONUM:
-        return calcf(state, i, static_cast<Flonum>(acc));
-      default:
-        state->runtimeError("Number expected, but `%@`", &x);
-        break;
-      }
+      state->checkType(x, TT_FIXNUM);
+      acc = Op::op(acc, x.toFixnum());
     }
     return Value(acc);
-  }
-
-  static Value calcf(State* state, int i, Flonum acc) {
-    int n = state->getArgNum();
-    if (n == 1)
-      return state->flonum(Op::single(acc));
-
-    for (; i < n; ++i) {
-      Value x = state->getArg(i);
-      switch (x.getType()) {
-      case TT_FIXNUM:
-        acc = Op::op(acc, x.toFixnum());
-        break;
-      case TT_FLONUM:
-        acc = Op::op(acc, x.toFlonum(state));
-        break;
-      default:
-        state->runtimeError("Number expected, but `%@`", &x);
-        break;
-      }
-    }
-    return state->flonum(acc);
   }
 };
 
@@ -266,6 +232,42 @@ struct Div {
   template <class X, class Y> static X op(X x, Y y)  { return x / y; }
 };
 
+template <class Op>
+struct CompareOp {
+  static Value calc(State* state) {
+    int n = state->getArgNum();
+    assert(n >= 1);
+    Value x = state->getArg(0);
+    state->checkType(x, TT_FIXNUM);
+    Fixnum acc = x.toFixnum();
+
+    for (int i = 1; i < n; ++i) {
+      Value x = state->getArg(i);
+      state->checkType(x, TT_FIXNUM);
+      Fixnum xx = x.toFixnum();
+      if (!Op::satisfy(acc, xx))
+        return state->boolean(false);
+      acc = xx;
+    }
+    return state->boolean(true);
+  }
+};
+
+struct LessThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
+};
+struct GreaterThan {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
+};
+struct LessEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
+};
+struct GreaterEqual {
+  template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
+};
+
+}  // namespace
+
 static Value s_add(State* state) {
   return BinOp<Add>::calc(state);
 }
@@ -284,131 +286,11 @@ static Value s_div(State* state) {
 
 static Value s_mod(State* state) {
   Value a = state->getArg(0);
+  state->checkType(a, TT_FIXNUM);
   Value b = state->getArg(1);
-  switch (a.getType()) {
-  case TT_FIXNUM:
-    switch (b.getType()) {
-    case TT_FIXNUM:
-      return Value(a.toFixnum() % b.toFixnum());
-    case TT_FLONUM:
-      return state->flonum(fmod(a.toFixnum(), b.toFlonum(state)));
-    default:
-      state->runtimeError("Number expected, but `%@`", &b);
-      break;
-    }
-    break;
-  case TT_FLONUM:
-    switch (b.getType()) {
-    case TT_FIXNUM:
-      return state->flonum(fmod(a.toFlonum(state), b.toFixnum()));
-    case TT_FLONUM:
-      return state->flonum(fmod(a.toFlonum(state), b.toFlonum(state)));
-    default:
-      state->runtimeError("Number expected, but `%@`", &b);
-      break;
-    }
-    break;
-  default:
-    state->runtimeError("Number expected, but `%@`", &a);
-    break;
-  }
-  return Value::NIL;
+  state->checkType(b, TT_FIXNUM);
+  return Value(a.toFixnum() % b.toFixnum());
 }
-
-static Value s_eq(State* state) {
-  Value a = state->getArg(0);
-  Value b = state->getArg(1);
-  return state->boolean(a.eq(b));
-}
-
-static Value s_equal(State* state) {
-  Value a = state->getArg(0);
-  Value b = state->getArg(1);
-  return state->boolean(a.equal(b));
-}
-
-template <class Op>
-struct CompareOp {
-  static Value calc(State* state) {
-    int n = state->getArgNum();
-    assert(n >= 1);
-    Value x = state->getArg(0);
-    Fixnum acc;
-    switch (x.getType()) {
-    case TT_FIXNUM:
-      acc = x.toFixnum();
-      break;
-    case TT_FLONUM:
-      return calcf(state, 1, x.toFlonum(state));
-      break;
-    default:
-      state->runtimeError("Number expected, but `%@`", &x);
-      break;
-    }
-
-    for (int i = 1; i < n; ++i) {
-      Value x = state->getArg(i);
-      switch (x.getType()) {
-      case TT_FIXNUM:
-        {
-          Fixnum xx = x.toFixnum();
-          if (!Op::satisfy(acc, xx))
-            return state->boolean(false);
-          acc = xx;
-        }
-        break;
-      case TT_FLONUM:
-        return calcf(state, i, static_cast<Flonum>(acc));
-      default:
-        state->runtimeError("Number expected, but `%@`", &x);
-        break;
-      }
-    }
-    return state->boolean(true);
-  }
-
-  static Value calcf(State* state, int i, Flonum acc) {
-    int n = state->getArgNum();
-    for (; i < n; ++i) {
-      Value x = state->getArg(i);
-      switch (x.getType()) {
-      case TT_FIXNUM:
-        {
-          Fixnum xx = x.toFixnum();
-          if (!Op::satisfy(acc, xx))
-            return state->boolean(false);
-          acc = xx;
-        }
-        break;
-      case TT_FLONUM:
-        {
-          Flonum xx = x.toFlonum(state);
-          if (!Op::satisfy(acc, xx))
-            return state->boolean(false);
-          acc = xx;
-        }
-        break;
-      default:
-        state->runtimeError("Number expected, but `%@`", &x);
-        break;
-      }
-    }
-    return state->boolean(true);
-  }
-};
-
-struct LessThan {
-  template <class X, class Y> static bool satisfy(X x, Y y)  { return x < y; }
-};
-struct GreaterThan {
-  template <class X, class Y> static bool satisfy(X x, Y y)  { return x > y; }
-};
-struct LessEqual {
-  template <class X, class Y> static bool satisfy(X x, Y y)  { return x <= y; }
-};
-struct GreaterEqual {
-  template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
-};
 
 static Value s_lessThan(State* state) {
   return CompareOp<LessThan>::calc(state);
@@ -537,21 +419,28 @@ static Value s_format(State* state) {
   return state->multiValues();
 }
 
-static Value s_read(State* state) {
-  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
-  Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
-  Reader reader(state, stream);
+static Value doRead(State* state, Reader* reader, Value* eof) {
   Value exp;
-  ErrorCode err = reader.read(&exp);
+  ErrorCode err = reader->read(&exp);
   switch (err) {
   case SUCCESS:
     return exp;
   case END_OF_FILE:
-    return eof;
+    if (eof != NULL)
+      return *eof;
+    break;
   default:
-    state->runtimeError("Read error %d", err);
-    return Value::NIL;
+    break;
   }
+  raiseReadError(state, err, reader);
+  return Value::NIL;
+}
+
+static Value s_read(State* state) {
+  Stream* stream = chooseStream(state, 0, State::STDIN)->getStream();
+  Value eof = state->getArgNum() > 1 ? state->getArg(1) : Value::NIL;
+  Reader reader(state, stream);
+  return doRead(state, &reader, &eof);
 }
 
 static Value s_readFromString(State* state) {
@@ -560,11 +449,7 @@ static Value s_readFromString(State* state) {
 
   StrStream stream(static_cast<String*>(s.toObject())->c_str());
   Reader reader(state, &stream);
-  Value exp;
-  ErrorCode err = reader.read(&exp);
-  if (err != SUCCESS)
-    state->runtimeError("Read error %d", err);
-  return exp;
+  return doRead(state, &reader, NULL);
 }
 
 static Value s_readDelimitedList(State* state) {
@@ -645,35 +530,7 @@ static Value s_gensym(State* state) {
 }
 
 static Value s_apply(State* state) {
-  int n = state->getArgNum();
-  // Counts argument number for the given function.
-  int argNum = n - 1;
-  Value last = Value::NIL;
-  if (n > 1) {
-    // Last argument should be a list and its elements are function arguments.
-    last = state->getArg(n - 1);
-    if (last.eq(Value::NIL))
-      argNum -= 1;
-    else {
-      state->checkType(last, TT_CELL);
-      argNum += length(last) - 1;
-    }
-  }
-
-  Value* args = NULL;
-  if (argNum > 0)
-    args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
-  for (int i = 0; i < argNum; ++i) {
-    if (i < n - 2)
-      args[i] = state->getArg(i + 1);
-    else {
-      args[i] = car(last);
-      last = cdr(last);
-    }
-  }
-
-  Value f = state->getArg(0);
-  return state->tailcall(f, argNum, args);
+  return state->applyFunction();
 }
 
 static Value s_runBinary(State* state) {
@@ -706,13 +563,27 @@ static Value s_loadBinary(State* state) {
   return result;
 }
 
+static Value s_error(State* state) {
+  FileStream out(stderr);
+  Value fmt = state->getArg(0);
+  state->checkType(fmt, TT_STRING);
+
+  int argNum = state->getArgNum() - 1;
+  Value* values = static_cast<Value*>(alloca(sizeof(Value) * argNum));
+  for (int i = 0; i < argNum; ++i)
+    values[i] = state->getArg(i + 1);
+  format(state, &out, static_cast<String*>(fmt.toObject())->c_str(), values);
+  state->runtimeError("");
+  return state->multiValues();
+}
+
 static Value s_table(State* state) {
   bool equal = true;
   if (state->getArgNum() > 0) {
     Value type = state->getArg(0);
-    if (type.eq(state->intern("eq")))
+    if (type.eq(state->intern("eq?")))
       equal = false;
-    else if (type.eq(state->intern("equal")))
+    else if (type.eq(state->intern("equal?")))
       equal = true;
     else
       state->runtimeError("Illegal compare type `%@`", &type);
@@ -883,11 +754,13 @@ static Value s_int(State* state) {
   switch (v.getType()) {
   case TT_FIXNUM:
     return v;
+#ifndef DISABLE_FLONUM
   case TT_FLONUM:
     {
       Flonum f = v.toFlonum(state);
       return Value(static_cast<Fixnum>(f));
     }
+#endif
   case TT_STRING:
     {
       String* string = static_cast<String*>(v.toObject());
@@ -898,29 +771,6 @@ static Value s_int(State* state) {
     break;
   }
   state->runtimeError("Cannot convert `%@` to int", &v);
-  return v;
-}
-
-static Value s_flonum(State* state) {
-  Value v = state->getArg(0);
-  switch (v.getType()) {
-  case TT_FLONUM:
-    return v;
-  case TT_FIXNUM:
-    {
-      Fixnum i = v.toFixnum();
-      return state->flonum(static_cast<Flonum>(i));
-    }
-  case TT_STRING:
-    {
-      String* string = static_cast<String*>(v.toObject());
-      double d = atof(string->c_str());
-      return state->flonum(static_cast<Flonum>(d));
-    }
-  default:
-    break;
-  }
-  state->runtimeError("Cannot convert `%@` to flonum", &v);
   return v;
 }
 
@@ -960,7 +810,7 @@ static Value s_charAt(State* state) {
   state->checkType(i, TT_FIXNUM);
   Fixnum index = i.toFixnum();
   String* str = static_cast<String*>(v.toObject());
-  if (index < 0 || index >= str->len())
+  if (index < 0 || static_cast<size_t>(index) >= str->len())
     return Value::NIL;
   return state->character(str->c_str()[i.toFixnum()]);
 }
@@ -1098,6 +948,7 @@ void installBasicFunctions(State* state) {
     { "run-binary", s_runBinary, 1 },
     { "load", s_load, 1 },
     { "load-binary", s_loadBinary, 1 },
+    { "error", s_error, 1, -1 },
 
     { "table", s_table, 0, 1 },
     { "table-get", s_tableGet, 2, 3 },
@@ -1123,7 +974,6 @@ void installBasicFunctions(State* state) {
     { "close", s_close, 1 },
 
     { "int", s_int, 1 },
-    { "flonum", s_flonum, 1 },
     { "intern", s_intern, 1 },
 
     { "string", s_string, 1, -1 },
@@ -1137,19 +987,6 @@ void installBasicFunctions(State* state) {
   for (auto it : FuncTable) {
     int maxArgNum = it.maxArgNum == 0 ? it.minArgNum : it.maxArgNum;
     state->defineNative(it.name, it.func, it.minArgNum, maxArgNum);
-  }
-
-  {
-    bind::Binder b(state);
-    b.bind("sin", (double (*)(double)) sin);
-    b.bind("cos", (double (*)(double)) cos);
-    b.bind("tan", (double (*)(double)) tan);
-    b.bind("sqrt", (double (*)(double)) sqrt);
-    b.bind("log", (double (*)(double)) log);
-    b.bind("floor", (double (*)(double)) floor);
-    b.bind("ceil", (double (*)(double)) ceil);
-    b.bind("atan2", (double (*)(double, double)) atan2);
-    b.bind("expt", (double (*)(double, double)) pow);
   }
 }
 

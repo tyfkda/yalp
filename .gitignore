@@ -22,13 +22,17 @@
 /_*
 
 # Windows Visual Studio
-/build/obj/*
-/build/yalp.opensdf
-/build/yalp.sdf
-/build/yalp.sln
-/build/yalp.v11.suo
-/build/yalp.vcxproj.filters
-/build/yalp.vcxproj.user
+/build/msvc/Debug/*
+/build/msvc/Release/*
+/build/msvc/yalp.opensdf
+/build/msvc/yalp.sdf
+/build/msvc/yalp.sln
+/build/msvc/yalp.v11.suo
+/build/msvc/yalp.vcxproj.filters
+/build/msvc/yalp.vcxproj.user
+
+# Xcode
+/build/xcode/*
 
 # GTAGS
 /GPATH

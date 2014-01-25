@@ -26,12 +26,13 @@ public:
   // and returns them in a list.
   ErrorCode readDelimitedList(int terminator, Value* pValue);
 
+  inline int getLineNumber() const  { return lineNo_; }
+
 private:
   inline static bool isSpace(int c);
   inline int getc();
   inline void ungetc(int c);
   ErrorCode readSymbolOrNumber(Value* pValue);
-  ErrorCode readList(Value* pValue);
   ErrorCode readString(char closeChar, Value* pValue);
   ErrorCode readSpecial(Value* pValue);
   ErrorCode readSharedStructure(Value* pValue);
@@ -41,7 +42,6 @@ private:
   ErrorCode readTimeEval(Value* pValue);
   void storeShared(int id, Value value);
   void skipSpaces();
-  void skipUntilNextLine();
   bool skipBlockComment();
   static bool isDelimiter(int c);
   static inline int isNotDelimiter(int c)  { return !isDelimiter(c); }
@@ -57,6 +57,7 @@ private:
   HashTable<int, Value>* sharedStructures_;
   char* buffer_;
   int size_;
+  int lineNo_;
 };
 
 }  // namespace yalp

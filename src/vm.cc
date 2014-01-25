@@ -7,6 +7,7 @@
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
 #include "yalp/util.hh"
+#include "symbol_manager.hh"
 
 #include <assert.h>
 #include <iostream>
@@ -72,14 +73,17 @@ namespace yalp {
   OP(FRAME) \
   OP(APPLY) \
   OP(RET) \
+  OP(UNFRAME) \
   OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(LOOP) \
   OP(BOX) \
   OP(UNBOX) \
   OP(CONTI) \
+  OP(SETJMP) \
+  OP(LONGJMP) \
   OP(MACRO) \
-  OP(EXPND) \
-  OP(SHRNK) \
+  OP(ADDSP) \
+  OP(LOCAL) \
   OP(VALS) \
   OP(RECV) \
   OP(NIL) \
@@ -185,15 +189,18 @@ void Vm::indexSet(int s, int i, Value v) {
   stack_[s - i - 1] = v;
 }
 
+int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
+Value Vm::getArg(int index) const  { return this->index(f_, index); }
+
 int Vm::push(Value x, int s) {
   reserveStack(s + 1);
   stack_[s] = x;
   return s + 1;
 }
 
-int Vm::shiftArgs(int n, int m, int s) {
-  moveStackElems(stack_, s - n - m - 1, s - n, n);
-  return s - m - 1;
+int Vm::shiftArgs(int n, int m, int s, int f) {
+  moveStackElems(stack_, f - m, s - n, n);
+  return f - m + n;
 }
 
 bool Vm::isTailCall(Value x) const  { return CAR(x).eq(OPCVAL(RET)); }
@@ -399,7 +406,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
       // Shifts arguments.
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = pushArgs(argNum, args, s_);
-      s_ = shiftArgs(argNum, calleeArgNum, s_);
+      s_ = shiftArgs(argNum, calleeArgNum, s_, f_);
       shiftCallStack();
     } else {
       // Makes frame.
@@ -413,6 +420,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
     {
       // Save to local variable, instead of creating call frame.
       int oldS = s_;
+      int oldF = f_;
       Value oldX = x_;
 
       s_ = pushArgs(argNum, args, s_);
@@ -424,6 +432,7 @@ Value Vm::funcallSetup(Value fn, int argNum, const Value* args, bool tailcall) {
         popCallStack();
 
       s_ = oldS;
+      f_ = oldF;
       x_ = oldX;
       return a_;
     }
@@ -507,6 +516,101 @@ void Vm::apply(Value fn, int argNum) {
   }
 }
 
+static Value applyFunctionNormal(State* state, Vm* vm) {
+  int n = vm->getArgNum();
+  // Counts argument number for the given function.
+  int argNum = n - 1;
+  Value last = Value::NIL;
+  if (n > 1) {
+    // Last argument should be a list and its elements are function arguments.
+    last = vm->getArg(n - 1);
+    if (last.eq(Value::NIL))
+      argNum -= 1;
+    else {
+      state->checkType(last, TT_CELL);
+      argNum += length(last) - 1;
+    }
+  }
+
+  Value* args = NULL;
+  if (argNum > 0)
+    args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
+  for (int i = 0; i < argNum; ++i) {
+    if (i < n - 2)
+      args[i] = vm->getArg(i + 1);
+    else {
+      args[i] = car(last);
+      last = cdr(last);
+    }
+  }
+
+  Value fn = vm->getArg(0);
+  return vm->tailcall(fn, argNum, args);
+}
+
+Value Vm::applyFunction() {
+  Value f = getArg(0);
+  switch (f.getType()) {
+  case TT_CLOSURE:
+  case TT_MACRO:
+    return applyFunctionClosure();
+  default:
+    return applyFunctionNormal(state_, this);
+  }
+}
+
+// Apply closure: Avoid list creation for closure which has rest parameter.
+Value Vm::applyFunctionClosure() {
+  State* state = state_;
+  Vm* vm = this;
+  Value fn = vm->getArg(0);
+  Closure* closure = static_cast<Closure*>(fn.toObject());
+  if (!closure->hasRestParam())
+    return applyFunctionNormal(state, vm);
+
+  int n = vm->getArgNum();
+  int argNum = closure->getMinArgNum() + 1;
+  Value* args = static_cast<Value*>(alloca(sizeof(Value*) * argNum));
+  int idx = 1;
+  Value ls = vm->getArg(n - 1);
+
+  for (int i = 0; i < argNum - 1; ++i) {
+    if (idx < n - 1) {
+      args[i] = vm->getArg(idx++);
+    } else if (ls.eq(Value::NIL)) {
+      state->runtimeError("Too few arguments for %@", &fn);
+    } else {
+      args[i] = car(ls);
+      ls = cdr(ls);
+    }
+  }
+  if (idx < n - 1) {
+    for (int i = n - 1; --i >= idx; )
+      ls = state->cons(vm->getArg(i), ls);
+  }
+  args[argNum - 1] = ls;
+
+  if (isTailCall(x_)) {
+    // Shifts arguments.
+    int calleeArgNum = index(f_, -1).toFixnum();
+    s_ = pushArgs(argNum, args, s_);
+    s_ = shiftArgs(argNum, calleeArgNum, s_, f_);
+    shiftCallStack();
+  } else {
+    // Makes frame.
+    s_ = pushCallFrame(x_, s_);
+    s_ = pushArgs(argNum, args, s_);
+  }
+
+  x_ = closure->getBody();
+  f_ = s_;
+  c_ = fn;
+  s_ = push(Value(argNum), s_);
+
+  // runLoop will run after this function exited.
+  return Value::NIL;
+}
+
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
   Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
@@ -514,13 +618,13 @@ Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgN
   return Value(closure);
 }
 
-void Vm::defineMacro(Value name, Value body, int nfree, int s, int minArgNum, int maxArgNum) {
+void Vm::defineMacro(Value name, Value body, int nfree, int s,
+                     int minArgNum, int maxArgNum) {
   state_->checkType(name, TT_SYMBOL);
-
-  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree, minArgNum, maxArgNum);
+  Macro* macro = state_->getAllocator()->newObject<Macro>(state_, name, body, nfree,
+                                                          minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     macro->setFreeVariable(i, index(s, i));
-
   defineGlobal(name, Value(macro));
 }
 
@@ -566,53 +670,6 @@ Value Vm::createRestParams(int argNum, int minArgNum, int s) {
   return acc;
 }
 
-void Vm::expandFrame(int n) {
-  if (f_ == 0) {
-    // No upper frame: create first frame.
-    //   Before: f_[z][y][x][B][A]s_
-    //   After:  [B][A]f_[N][z][x][y]s_
-    reserveStack(s_ + n + 1);
-    moveStackElems(stack_, n + 1, 0, s_);  // Shift stack.
-    moveStackElems(stack_, 0, s_ + 1, n);  // Move arguments.
-    stack_[n] = Value(n);
-    s_ += 1;
-    f_ = n;
-    return;
-  }
-
-  // Before: [z][y][x]f_[argnum][B][A]s_
-  // After:  [z][y][x][B][A]f_[argnum+n]s_
-  int argNum = stack_[f_].toFixnum();
-  int src = f_, dst = src + n;
-  reserveStack(s_ + n);
-  stack_[f_] = Value(argNum + n);
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  moveStackElems(stack_, src, s_, n);  // Move arguments.
-  f_ += n;
-}
-
-void Vm::shrinkFrame(int n) {
-  if (f_ - n == 0) {
-    assert(stack_[f_].toFixnum() == n);
-    // No upper frame: create first frame.
-    //   Before: [B][A]f_[N][z][x][y]s_
-    //   After:  f_[z][y][x]s_
-    moveStackElems(stack_, 0, f_ + 1, s_ - (f_ + 1));  // Shift stack.
-    s_ -= f_ + 1;
-    f_ = 0;
-    return;
-  }
-
-  // Before: [z][y][x][B][A]f_[argnum]s_
-  // After:  [z][y][x]f_[argnum-n]s_
-  int argnum = stack_[f_].toFixnum();
-  stack_[f_] = Value(argnum - n);
-  int src = f_, dst = f_ - n;
-  moveStackElems(stack_, dst, src, s_ - src);  // Shift stack.
-  s_ -= n;
-  f_ -= n;
-}
-
 void Vm::reserveValuesBuffer(int n) {
   if (n - 1 > valuesSize_) {
     // Allocation size is n - 1, because values[0] is stored in a_ register.
@@ -633,7 +690,7 @@ void Vm::storeValues(int n, int s) {
   valueCount_ = n;
 }
 
-void Vm::restoreValues(int min, int max) {
+int Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
   checkArgNum(state_, opcodes_[RECV], argNum, min, max);
   reserveStack(s_ + argNum);
@@ -646,8 +703,7 @@ void Vm::restoreValues(int min, int max) {
     argNum += ds;
     n = min + 1;
   }
-  expandFrame(n);
-  //s_ -= argNum - n;
+  return n;
 }
 
 void Vm::replaceOpcodes(Value x) {
@@ -662,16 +718,20 @@ void Vm::replaceOpcodes(Value x) {
     static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
     x = CDR(x);
     switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET:
+    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case EXPND:
-    case SHRNK: case VALS: case RECV:
+    case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
+    case LOCAL:
       x = CDR(x);
       break;
-    case LOOP:
+    case LOOP: case RECV:
+      x = CDDR(x);
+      break;
+    case SETJMP:
+      replaceOpcodes(CADR(x));
       x = CDDR(x);
       break;
     case TEST: case FRAME:
@@ -683,8 +743,11 @@ void Vm::replaceOpcodes(Value x) {
       x = CDDDR(x);
       break;
     case MACRO:
-      replaceOpcodes(CADDDR(x));
-      x = CDDDDR(x);
+      {
+        Value tmp = CDDDR(x);
+        replaceOpcodes(CAR(tmp));
+        x = CDR(tmp);
+      }
       break;
     default:
       state_->runtimeError("Unknown op `%@`", &op);
@@ -831,32 +894,33 @@ Value Vm::runLoop() {
       apply(a_, argNum);
     } NEXT;
     CASE(RET) {
-      int argNum = index(s_, 0).toFixnum();
-      s_ = popCallFrame(s_ - argNum - 1);
+      int argNum = index(f_, -1).toFixnum();
+      s_ = popCallFrame(f_ - argNum);
       popCallStack();
+    } NEXT;
+    CASE(UNFRAME) {
+      s_ = popCallFrame(s_);
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
-      int n = CAR(x_).toFixnum();
-      int keep = CADR(x_).toFixnum();
+      int offset = CAR(x_).toFixnum();
+      int n = CADR(x_).toFixnum();
       x_ = CDDR(x_);
-      int calleeArgNum = index(f_, -1).toFixnum();
-      int d = calleeArgNum - keep;
-      assert(d >= n);
-      // Before: [a3][a2][a1]f[argnum][c][f][ret][b2][b1][c1]s
-      // After : [a3][c1]f[argnum][c][f][ret][b2][b1]s
-      moveStackElems(stack_, f_ - d, s_ - n, n);
-      if (d > n)
-        moveStackElems(stack_, f_ - d + n, f_, s_ - n - f_);
-      f_ -= d - n;
-      s_ -= d;
-      indexSet(f_, -1, Value(n + keep));
+      // TODO: Remove this conditional.
+      if (offset > 0) {
+        for (int i = 0; i < n; ++i)
+          indexSet(f_, -(offset + i) - 2, index(s_, i));
+      } else {
+        for (int i = 0; i < n; ++i)
+          indexSet(f_, offset + i, index(s_, i));
+      }
+      s_ -= n;
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
       int n = CAR(x_).toFixnum();
       int calleeArgNum = index(f_, -1).toFixnum();
-      s_ = shiftArgs(n, calleeArgNum, s_);
+      s_ = shiftArgs(n, calleeArgNum, s_, f_);
       shiftCallStack();
       // APPLY
       apply(a_, n);
@@ -878,19 +942,45 @@ Value Vm::runLoop() {
       x_ = CDR(x_);
       int s = s_;
       if (tail.isTrue()) {
-        int calleeArgNum = index(s_, 0).toFixnum();
-        s -= calleeArgNum + 1;
+        int calleeArgNum = index(f_, -1).toFixnum();
+        s = f_ - calleeArgNum;
       }
       a_ = createContinuation(s);
       state_->restoreArena(arena);
+    } NEXT;
+    CASE(SETJMP) {
+      // Setjmp stores current closure and stack/frame pointer onto stack.
+      int offset = CAR(x_).toFixnum();
+      Value ret = CDDR(x_);
+      x_ = CADR(x_);
+      // Encode frame pointer and stack pointer value into single integer
+      // for setjmp continuation.
+      const int shiftBits = sizeof(Fixnum) / 2 * 8;
+      Fixnum v = s_ | (static_cast<Fixnum>(f_) << shiftBits);
+      indexSet(f_, -offset - 2, Value(f_ + offset + 1));  // Pointer.
+      indexSet(f_, -offset - 3, Value(v));
+      indexSet(f_, -offset - 4, c_);
+      indexSet(f_, -offset - 5, ret);
+    } NEXT;
+    CASE(LONGJMP) {
+      int p = a_.toFixnum();
+      a_ = index(s_, 0);
+      const int shiftBits = sizeof(Fixnum) / 2 * 8;
+      const Fixnum mask = (static_cast<Fixnum>(1) << shiftBits) - 1;
+      Fixnum v = stack_[p + 1].toFixnum();
+      c_ = stack_[p + 2];
+      x_ = stack_[p + 3];
+      s_ = v & mask;
+      f_ = v >> shiftBits;
     } NEXT;
     CASE(MACRO) {
       int arena = state_->saveArena();
       Value name = CAR(x_);
       Value nparam = CADR(x_);
       int nfree = CADDR(x_).toFixnum();
-      Value body = CADDDR(x_);
-      x_ = CDDDDR(x_);
+      Value tmp = CDDDR(x_);
+      Value body = CAR(tmp);
+      x_ = CDR(tmp);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -903,15 +993,16 @@ Value Vm::runLoop() {
       state_->restoreArena(arena);
       valueCount_ = 0;
     } NEXT;
-    CASE(EXPND) {
+    CASE(ADDSP) {
       int n = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      expandFrame(n);
+      s_ += n;
+      reserveStack(s_);
     } NEXT;
-    CASE(SHRNK) {
-      int n = CAR(x_).toFixnum();
+    CASE(LOCAL) {
+      int offset = CAR(x_).toFixnum();
       x_ = CDR(x_);
-      shrinkFrame(n);
+      indexSet(f_, offset, a_);
     } NEXT;
     CASE(VALS) {
       int n = CAR(x_).toFixnum();
@@ -920,8 +1011,9 @@ Value Vm::runLoop() {
       s_ -= n;
     } NEXT;
     CASE(RECV) {
-      Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      x_ = CDR(x_);
+      int offset = CAR(x_).toFixnum();
+      Value nparam = CADR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      x_ = CDDR(x_);
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -929,7 +1021,10 @@ Value Vm::runLoop() {
       } else {
         min = max = nparam.toFixnum();
       }
-      restoreValues(min, max);
+      int n = restoreValues(min, max);
+      for (int i = 0; i < n; ++i)
+        indexSet(f_, -(offset + i) - 2, index(s_, i));
+      s_ -= n;
       valueCount_ = 1;
     } NEXT;
     OTHERWISE {

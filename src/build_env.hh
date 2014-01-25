@@ -5,6 +5,8 @@
 #ifndef _BUILD_ENV_HH_
 #define _BUILD_ENV_HH_
 
+#include "yalp/config.hh"
+
 // Windows, Visual Studio
 #ifdef _MSC_VER
 #include <stdarg.h>

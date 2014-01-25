@@ -29,23 +29,6 @@ class HashTable;
 class CallStack;
 class Stream;
 
-// Symbol class
-class Symbol {
-public:
-  ~Symbol()  {}
-
-  unsigned int getHash() const  { return hash_; }
-  const char* c_str() const  { return name_; }
-
-private:
-  explicit Symbol(char* name);
-
-  char* name_;
-  unsigned int hash_;  // Pre-calculated hash value.
-
-  friend class SymbolManager;
-};
-
 // Base class.
 class Object : public GcObject {
 public:
@@ -98,13 +81,13 @@ private:
 class String : public Object {
 public:
   // The given string is allocated in heap and be taken ownership.
-  String(const char* string, int len);
+  String(const char* string, size_t len);
   virtual Type getType() const override;
   virtual bool equal(const Object* target) const override;
   virtual unsigned int calcHash(State* state) const override;
 
   const char* c_str() const  { return string_; }
-  int len() const  { return len_; }
+  size_t len() const  { return len_; }
 
   virtual void output(State* state, Stream* o, bool inspect) const override;
 
@@ -114,11 +97,12 @@ private:
   virtual void destruct(Allocator* allocator) override;
 
   const char* string_;
-  int len_;
+  size_t len_;
 
   friend class State;
 };
 
+#ifndef DISABLE_FLONUM
 // Floating point number class.
 class SFlonum : public Object {
 public:
@@ -137,6 +121,7 @@ protected:
 
   friend class State;
 };
+#endif
 
 // Vector class.
 class Vector : public Object {

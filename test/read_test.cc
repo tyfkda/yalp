@@ -10,28 +10,29 @@ class ReadTest : public ::testing::Test {
 protected:
   virtual void SetUp() override {
     state_ = State::create();
+    reader_ = NULL;
   }
 
   virtual void TearDown() override {
+    if (reader_ != NULL)
+      delete reader_;
     state_->release();
   }
 
   ErrorCode read(const char* str, Value* pValue) {
     StrStream stream(str);
-    Reader reader(state_, &stream);
-    return reader.read(pValue);
+    reader_ = new Reader(state_, &stream);
+    return reader_->read(pValue);
   }
 
   State* state_;
+  Reader* reader_;
 };
 
-TEST_F(ReadTest, LineComment) {
+TEST_F(ReadTest, Comment) {
   Value s;
-  ASSERT_EQ(SUCCESS, read(" ; Line comment\n 123", &s));
-  ASSERT_TRUE(Value(123).eq(s));
-
-  ASSERT_EQ(SUCCESS, read("(1 ; 2\n #| 3 |#)", &s));
-  ASSERT_TRUE(list(state_, Value(1)).equal(s));
+  ASSERT_EQ(SUCCESS, read("(1 #| 2 |# 3)", &s));
+  ASSERT_TRUE(list(state_, Value(1), Value(3)).equal(s));
 }
 
 TEST_F(ReadTest, BlockComment) {
@@ -130,7 +131,8 @@ TEST_F(ReadTest, String) {
   ASSERT_FALSE(state_->string("null").equal(s));
 }
 
-TEST_F(ReadTest, Float) {
+#ifndef DISABLE_FLONUM
+TEST_F(ReadTest, Flonum) {
   Value s;
   Flonum f = static_cast<Flonum>(1.23);
   ASSERT_EQ(SUCCESS, read("1.23", &s));
@@ -140,6 +142,7 @@ TEST_F(ReadTest, Float) {
   ASSERT_EQ(SUCCESS, read("-1.23", &s));
   ASSERT_TRUE(state_->flonum(-f).equal(s));
 }
+#endif
 
 TEST_F(ReadTest, Char) {
   Value s;
@@ -190,9 +193,14 @@ TEST_F(ReadTest, Vector) {
 
 TEST_F(ReadTest, Error) {
   Value s;
-  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 (2) 3", &s));
-  ASSERT_EQ(EXTRA_CLOSE_PAREN, read(")", &s));
+  ASSERT_EQ(NO_CLOSE_PAREN, read("(1\n (2\n (3)", &s));
+  ASSERT_EQ(2, reader_->getLineNumber());
+  ASSERT_EQ(EXTRA_CLOSE_PAREN, read("\n\n)", &s));
+  ASSERT_EQ(3, reader_->getLineNumber());
   ASSERT_EQ(ILLEGAL_CHAR, read("(. 1)", &s));
-  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 . 2 3)", &s));
+  ASSERT_EQ(1, reader_->getLineNumber());
+  ASSERT_EQ(NO_CLOSE_PAREN, read("(1 . 2\n 3)", &s));
+  ASSERT_EQ(2, reader_->getLineNumber());
   ASSERT_EQ(NO_CLOSE_STRING, read("\"string", &s));
+  ASSERT_EQ(1, reader_->getLineNumber());
 }

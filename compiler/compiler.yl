@@ -44,6 +44,7 @@
 (def VAR-CALL-IN-BASE1 16)   ; is used for function in base position.
 (def VAR-CALL-IN-BASE2 32)   ; is used for function in base position, more than 1 time.
 (def VAR-CALL-OTHER 64)      ; is used for function.
+(def VAR-CONTI 128)          ; is continuation.
 
 ;; Traverses lisp code and generate intermediate AST.
 ;;   x : code to be compiled.
@@ -70,9 +71,9 @@
                (if (test then &rest rest)
                    (traverse-if test then rest scope tail))
                (set! (var val)
-                     (traverse-set! var val scope))
+                     (traverse-set! ':SET var val scope))
                (def (var val)
-                    (traverse-def var val scope))
+                    (traverse-set! ':DEF var val scope))
                (call/cc (func)
                         (traverse-call/cc func scope tail))
                (defmacro (name vars &body body)
@@ -87,7 +88,7 @@
                     (cond ((direct-invoke? func)
                            (traverse-apply-direct (cadr func) (cddr func) args scope tail))
                           ((inline-function? func)
-                           (traverse-inline-apply func args scope))
+                           (traverse-inline-apply func args scope tail))
                           (t (traverse-apply func args scope tail)))))))
 
 (defun traverse-refer (x scope)
@@ -96,7 +97,7 @@
     (register-fref scope x))
   (list ':REF x))
 
-(defun traverse-set! (var val scope)
+(defun traverse-set! (op var val scope)
   (unless (symbol? var)
     (compile-error "`set!` requires symbol, but `%@`" var))
   (let ((is-local (scope-local-has? scope var))
@@ -110,25 +111,18 @@
         (let ((vars (cadr val))
               (body (cddr val)))
           (let1 lambda-node (prepare-lambda-node vars body scope)
-            (when (or is-local is-free)
-              (register-set! scope var lambda-node))
-            (traverse-lambda-exec lambda-node body scope)
-            (list ':SET var lambda-node)))
+            (cond ((eq? op ':DEF)
+                   (do-register-set! scope var lambda-node))
+                  ((or is-local is-free)
+                   (register-set! scope var lambda-node)))
+            (traverse-lambda-exec lambda-node body)
+            (list op var lambda-node)))
       ;; Otherwise, do normal registration.
       (let ((val-node (traverse val scope nil)))
-        (when (or is-local is-free)
+        (when (and (eq? op ':SET)
+                   (or is-local is-free))
           (register-set! scope var val-node))
-        (list ':SET var val-node)))))
-
-(defun traverse-def (var val scope)
-  (unless (symbol? var)
-    (compile-error "`def` requires symbol, but `%@`" var))
-  (when (and (inline-function? var)
-             (lambda-expression? val))
-    (register-inline-function var val))
-  (let1 val-node (traverse val scope nil)
-    (register-set! scope var val-node)
-    (list ':DEF var val-node)))
+        (list op var val-node)))))
 
 (defun traverse-if (test then rest scope tail)
   (when (and rest (cdr rest))
@@ -140,11 +134,28 @@
           '(:VOID))))
 
 (defun traverse-call/cc (func scope tail)
-  (list ':CONTI (traverse func scope tail)))
+  (if (direct-invoke? func)
+      (let ((vars (cadr func))
+            (body (cddr func)))
+        (when (not (eq? (check-parameters vars) vars))
+          (compile-error "Not implemented: rest param for call/cc"))
+        (unless (eq? (length vars) 1)
+          (compile-error "Illegal parameters, call/cc requires 1 parameter function, but `%@`"
+                         vars))
+        (let* ((expanded-scope (expand-scope vars scope))
+               (body-node (traverse-body body expanded-scope tail)))
+          ;; Set the parameter is continuation.
+          (add-var-info expanded-scope (car vars) VAR-CONTI)
+          ;; Returns CONTI node
+          (list ':CONTI-DIRECT
+                expanded-scope body-node)))
+    (list ':CONTI (traverse func scope tail))))
 
 (defun prepare-lambda-node (vars body scope)
   (let ((proper-vars (check-parameters vars))
-        (body-node (cons nil nil)))
+        (body-node (if body
+                       (cons nil nil)
+                     nil)))
     (let ((inner-scope (create-scope proper-vars scope))
           (varnum (if (eq? vars proper-vars)
                       (length vars)
@@ -152,33 +163,26 @@
                           -1))))
       (create-lambda-node inner-scope proper-vars varnum body-node))))
 
-(defun traverse-lambda-exec (lambda-node body scope)
+(defun traverse-lambda-exec (lambda-node body)
   (let ((inner-scope (lambda-scope-get lambda-node))
-        (proper-vars (lambda-vars-get lambda-node))
         (tmp-body-node (lambda-body-node-get lambda-node)))
-    (copy-pair! tmp-body-node (traverse-body body inner-scope t))
-    ;; Propagate to upper scope
-    (propagate-scope-to-upper scope inner-scope proper-vars)
+    (when body
+      (copy-pair! tmp-body-node (traverse-body body inner-scope t)))
     lambda-node))
 
 (defun traverse-lambda (vars body scope)
   (traverse-lambda-exec (prepare-lambda-node vars body scope)
-                        body scope))
+                        body))
 
 (defun traverse-body (body scope tail)
   (maplist [traverse (car _) scope (and (not (cdr _))
                                         tail)]
            body))
 
-(defun upper-scope-id-is? (scope expected-id)
-  (let1 id (scope-id scope)
-    (alet ((pscope scope))
-      (if pscope
-          (let1 pid (scope-id pscope)
-            (if (eq? pid id)
-                (loop (scope-outer-scope pscope))
-              (eq? pid expected-id)))
-        nil))))
+(defun upper-scope-is? (scope expected-scope)
+  (let ((upper (scope-upper-block-top-get scope))
+        (expected (scope-block-top-get expected-scope)))
+    (eq? upper expected)))
 
 (defun detect-call-type (func-name calling-scope tail)
   (let1 sets (var-is-set? calling-scope func-name)
@@ -192,8 +196,10 @@
               (tail
                (receive (_ defined-scope)
                         (get-var-info calling-scope func-name)
-                 (if (upper-scope-id-is? calling-scope
-                                         (scope-id defined-scope))
+                 (if (if defined-scope
+                         (upper-scope-is? calling-scope defined-scope)
+                       ;; Calling global function as self recursion.
+                       (eq? (lambda-scope-get (car sets)) (scope-block-top-get calling-scope)))
                      VAR-SELF-TAIL-RECUR
                    VAR-CALL-OTHER)))
               (t VAR-CALL-OTHER))
@@ -238,11 +244,9 @@
                                  args)
               (let* ((expanded-scope (expand-scope proper-vars scope))
                      (body-node (traverse-body body expanded-scope tail)))
-                (propagate-scope-to-upper scope expanded-scope proper-vars)
                 ;; Returns lambda node
                 (list ':INVOKE
                       expanded-scope
-                      proper-vars
                       args-node
                       body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
@@ -256,7 +260,6 @@
                      (length vars)
                    (list (- (length proper-vars) 1)
                          -1))
-      (propagate-scope-to-upper scope inner-scope (scope-local inner-scope))
       ;; Returns macro node
       (list ':MACRO
             inner-scope
@@ -278,11 +281,9 @@
           (val-node (traverse vals scope nil)))
       (let* ((expanded-scope (expand-scope proper-vars scope))
              (body-node (traverse-body body expanded-scope tail)))
-        (propagate-scope-to-upper scope expanded-scope proper-vars)
         ;; Returns receive node
         (list ':RECV
               expanded-scope
-              proper-vars
               varnum
               val-node
               body-node)))))
@@ -291,7 +292,7 @@
 (defun check-parameters (vars)
   (unless (list? vars)
     (compile-error "parameters must be list, but %@" vars))
-  (let1 proper-vars (aif (position-if [or (eq? _ '&rest) (eq? _ '&body)] vars)
+  (let1 proper-vars (aif (position-if [member _ '(&rest &body)] vars)
                          (let ((required (take it vars))
                                (rest (drop (+ it 1) vars)))
                            (unless (single? rest)
@@ -327,61 +328,107 @@
 
 ;;;;
 ;; Scope
-;;   var-info: #0=var-info, #1=set-value
+;;   var-info: #0=var-info
 
-(defun create-scope (local-vars outer-scope)
-  (let ((scope-id (gensym))
-        (infos (map (^(_) (vector 0 nil)) local-vars)))
-    (vector local-vars
-            infos
-            '()
-            scope-id
-            outer-scope)))
+(defun create-scope (local outer-scope)
+  (vector (map [cons _ 0] local)
+          '()              ; Free variables.
+          t                ; Scope block top.
+          '()              ; alist containing set variables.
+          outer-scope
+          0))              ; Scope work size.
 
-(defun expand-scope (local oscope)
-  (expand-scope2 local
-                 (map [vector 0 nil] local)
-                 oscope))
+(defun expand-scope (local outer-scope)
+  (expand-scope2 (map [cons _ 0] local)
+                 outer-scope))
+(defun expand-scope2 (local-infos outer-scope)
+  (vector local-infos
+          '()              ; Free variables.
+          nil              ; Not scope block top.
+          '()              ; alist containing set variables.
+          outer-scope
+          0))              ; Scope work size.
 
-(defun expand-scope2 (local infos oscope)
-  (let ((expanded-vars (append local (scope-local oscope)))
-        (expanded-var-infos (append infos (scope-local-info oscope))))
-    (vector expanded-vars
-            expanded-var-infos
-            (scope-frees oscope)
-            (scope-id oscope)
-            oscope)))
-
-(defun scope-local (scope)        (vector-get scope 0))
-(defun scope-local-info (scope)   (vector-get scope 1))
-(defun scope-frees (scope)        (vector-get scope 2))
-(defun scope-id (scope)           (vector-get scope 3))
+(defun scope-local-infos (scope)  (vector-get scope 0))
+(defun scope-frees (scope)        (vector-get scope 1))
+(defun scope-block-top? (scope)   (vector-get scope 2))
+(defun scope-sets (scope)         (vector-get scope 3))
 (defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-work-size (scope)    (vector-get scope 5))
 
-(defun scope-frees-set! (scope v) (vector-set! scope 2 v))
+(defun scope-frees-set! (scope v) (vector-set! scope 1 v))
+(defun scope-sets-set! (scope v)  (vector-set! scope 3 v))
+(defun scope-work-size-set! (scope v)  (vector-set! scope 5 v))
+
+(defun scope-outer-scope-set! (scope outer-scope)
+  (vector-set! scope 4 outer-scope))
 
 ;; Returns index if the scope has the symbol.
-(defun scope-local-has? (scope sym)  (position sym (scope-local scope)))
-(defun scope-upper-vars-has? (scope sym)
-  (alet ((pscope (scope-outer-scope scope)))
-    (if pscope
-        (aif (scope-local-has? pscope sym)
+(defun scope-upper-work-size (scope)
+  (alet ((pscope (scope-outer-scope scope))
+         (size 0))
+    (if (scope-block-top? pscope)
+        size
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
+;; Returns local offset if the scope has the symbol.
+(defun scope-local-has? (scope sym)
+  (alet ((pscope scope))
+    (aif (scope-local-only-has? pscope sym)
+         (if (scope-block-top? pscope)
              it
-          (loop (scope-outer-scope pscope)))
+           ;; Work index starts from -2 and grows negative (-1 = argnum)
+           (- -2 (+ it (scope-upper-work-size pscope))))
+      (unless (scope-block-top? pscope)
+        (loop (scope-outer-scope pscope))))))
+(defun scope-local-only-has? (scope sym)
+  (position-if [eq? (car _) sym] (scope-local-infos scope)))
+
+;; Returns scope block top for the given scope.
+(defun scope-block-top-get (scope)
+  (alet ((pscope scope))
+    (if (scope-block-top? pscope)
+        pscope
+      (loop (scope-outer-scope pscope)))))
+
+(defun scope-upper-block-top-get (scope)
+  (scope-block-top-get (scope-outer-scope (scope-block-top-get scope))))
+
+(defun same-scope-block? (scope1 scope2)
+  (eq? (scope-block-top-get scope1)
+       (scope-block-top-get scope2)))
+
+;; Returns free var index if the symbol is free in the scope.
+(defun scope-frees-has? (scope sym)
+  (position sym (scope-frees (scope-block-top-get scope))))
+
+(defun scope-upper-vars-has? (scope sym)
+  (alet ((pscope (scope-block-top-get scope)))
+    (aif (scope-outer-scope pscope)
+         (if (scope-local-only-has? it sym)
+             it
+           (loop it))
       nil)))
 
-(defun propagate-scope-to-upper (scope inner-scope vars)
-  (when scope
-    (scope-frees-set! scope
-                      (union (scope-frees scope)
-                             (set-minus (scope-frees inner-scope) (scope-local scope))))))
+(defun scope-local-count (scope)
+  (alet ((pscope scope)
+         (count 0))
+    (let1 count2 (+ count (length (scope-local-infos pscope)))
+      (if (scope-block-top? pscope)
+          count2
+        (loop (scope-outer-scope pscope)
+              count2)))))
+
+(defun var-info-flag-get (info) (cdr info))
+(defun var-info-flag-set! (info v) (set-cdr! info v))
 
 (defun get-var-info (scope var)
   (if (symbol? var)
       (alet ((pscope scope))
         (if pscope
-            (aif (scope-local-has? pscope var)
-                 (values (elt (scope-local-info pscope) it)
+            (aif (scope-local-only-has? pscope var)
+                 (values (elt (scope-local-infos pscope) it)
                          pscope)
               (loop (scope-outer-scope pscope)))
           (values nil nil)))
@@ -391,7 +438,8 @@
   (receive (info _)
            (get-var-info scope var)
     (when info
-      (vector-set! info 0 (logior (vector-get info 0)
+      (var-info-flag-set! info
+                          (logior (var-info-flag-get info)
                                   val))
       info)))
 
@@ -399,37 +447,53 @@
   (receive (info _)
            (get-var-info scope var)
     (and info
-         (bit? (vector-get info 0) flag)
+         (bit? (var-info-flag-get info) flag)
          info)))
 
 (defun var-is-set? (scope sym)
-  (aif (var-has-attr? scope sym VAR-SET)
-       (vector-get it 1)
-    nil))
+  (alet ((pscope scope))
+    (when pscope
+      (aif (assoc sym (scope-sets pscope))
+           (cdr it)
+        (loop (scope-outer-scope pscope))))))
 
-;; Registers free variable into scope and returns its index number.
+;; Registers free variable into scope block.
 (defun register-fref (scope x)
   (add-var-info scope x VAR-FREE)
-  (let1 frees (scope-frees scope)
-    (if frees
-        (aif (position x frees)
-             it
-          (let1 index (length frees)
-            (set-cdr! (last frees) (cons x nil))
-            index))
-      (do (scope-frees-set! scope (cons x nil))
-          0))))
+  (alet ((pscope scope))
+    (when pscope
+        (unless (scope-local-has? pscope x)
+          (let* ((scope-block (scope-block-top-get pscope))
+                 (frees (scope-frees scope-block)))
+            (if frees
+                (unless (member x frees)
+                  (set-cdr! (last frees) (cons x nil)))
+              (scope-frees-set! scope-block (cons x nil)))
+            (loop (scope-outer-scope scope-block)))))))
 
 (defun register-set! (scope x v)
   (add-var-info scope x VAR-SET)
   (receive (info defined-scope)
            (get-var-info scope x)
-    (if info
-        (let1 val (if (eq? (scope-id defined-scope)
-                           (scope-id scope))
-                      v   ;; Keep value only when set! is on same scope with variable defined scope.
-                    nil)  ;; Otherwise, use dummy value.
-          (vector-set! info 1 (cons val (vector-get info 1)))))))
+    (when info
+      (let1 val (if (same-scope-block? defined-scope scope)
+                    v   ;; Keep value only when set! is on same scope with variable defined scope.
+                  nil)  ;; Otherwise, use dummy value.
+        (do-register-set! defined-scope x val)))))
+(defun do-register-set! (scope x val)
+  (let1 sets (scope-sets scope)
+    (aif (assoc x sets)
+         (set-cdr! it (cons val (cdr it)))
+      (scope-sets-set! scope (acons x (list val) sets)))))
+
+(defun calc-scope-work-size (scope)
+  (alet ((pscope scope)
+         (size 0))
+    (if (scope-block-top? pscope)
+        (when (> size (scope-work-size pscope))
+          (scope-work-size-set! pscope size))
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
 
 ;;;;
 ;; Lambda node
@@ -438,7 +502,6 @@
   (list ':LAMBDA
         scope
         (cons nil nil)  ; body-slot
-        proper-vars
         varnum
         body-node))
 
@@ -447,9 +510,8 @@
 
 (def lambda-scope-get      cadr)
 (def lambda-body-slot-get  caddr)
-(def lambda-vars-get       cadddr)
-(def lambda-varnum-get     caddddr)
-(defun lambda-body-node-get (node)  (elt node 5))
+(def lambda-varnum-get     cadddr)
+(defun lambda-body-node-get (node)  (elt node 4))
 
 (defun lambda-scope-set! (node scope)
   (set-car! (cdr node) scope))
@@ -466,7 +528,7 @@
                      (receive (op i)
                               (acond ((scope-local-has? scope sym)
                                       (values 'LREF it))
-                                     ((position sym (scope-frees scope))
+                                     ((scope-frees-has? scope sym)
                                       (values 'FREF it))
                                      (t (values 'GREF sym)))
                        (list* op i
@@ -484,109 +546,81 @@
                                    (list* 'TEST
                                           (compile-recur then scope next)
                                           (compile-recur else scope next))))
-               (:LAMBDA (inner-scope body-slot proper-vars varnum body)
+               (:LAMBDA (inner-scope body-slot varnum body)
                         (let ((frees (scope-frees inner-scope)))
                           ;; Set compiled body code to body-slot.
                           (copy-pair! body-slot
-                                      (compile-body (scope-local inner-scope) body inner-scope (list 'RET)))
-                          (collect-free frees scope
-                                        (list* 'CLOSE varnum (length frees)
-                                               body-slot
-                                               next))))
-               (:INVOKE (expanded-scope proper-vars args-node body)
+                                      (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET)))
+                          (let1 work-size (scope-work-size inner-scope)
+                            (collect-free frees scope
+                                          (list* 'CLOSE varnum (length frees)
+                                                 (if (eq? work-size 0)
+                                                     body-slot
+                                                   (list* 'ADDSP work-size
+                                                          body-slot))
+                                                 next)))))
+               (:INVOKE (expanded-scope args-node body)
                         (let ((tail (tail? next))
-                              (vars (scope-local expanded-scope))
+                              (proper-vars (scope-local-infos expanded-scope))
                               (frees (scope-frees expanded-scope)))
-                          (compile-args args-node scope
-                                        (if proper-vars
-                                            (let1 varnum (length proper-vars)
-                                              (list* 'EXPND varnum
-                                                     (compile-body proper-vars body expanded-scope
-                                                                   (if tail
-                                                                       next
-                                                                     (list* 'SHRNK varnum next)))))
-                                          (compile-body '() body expanded-scope next)))))
+                          (calc-scope-work-size expanded-scope)
+                          (compile-args-for-local args-node scope expanded-scope
+                                                  (compile-body proper-vars body expanded-scope next))))
                (:MACRO (inner-scope name varnum body)
-                       (let ((vars (scope-local inner-scope))
-                             (frees (scope-frees inner-scope)))
-                         (collect-free frees scope
-                                       (list* 'MACRO name varnum (length frees)
-                                              (compile-body (scope-local inner-scope) body inner-scope (list 'RET))
-                                              next))))
+                       (let ((vars (scope-local-infos inner-scope))
+                             (frees (scope-frees inner-scope))
+                             (code (compile-body (scope-local-infos inner-scope) body inner-scope (list 'RET))))
+                         (let1 work-size (scope-work-size inner-scope)
+                           (collect-free frees scope
+                                         (list* 'MACRO name varnum (length frees)
+                                                (if (eq? work-size 0)
+                                                    code
+                                                  (list* 'ADDSP work-size
+                                                         code))
+                                                next)))))
                (:APPLY (call-type f args)
                        (compile-apply f args call-type scope next))
                (:CONTI (func)
-                       (let* ((tail (tail? next))
-                              (c (list* 'CONTI tail
-                                        'PUSH
-                                        (compile-recur func scope
-                                                       (if tail
-                                                           '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
-                                                         '(APPLY 1))))))
-                         (if tail
-                             c
-                           (list* 'FRAME c next))))
+                       (compile-conti func scope next))
+               (:CONTI-DIRECT (expanded-scope body)
+                              (calc-scope-work-size expanded-scope)
+                              (compile-conti-direct expanded-scope body scope next))
                (:VALS (args)
                       (let1 argnum (length args)
                         (if (eq? argnum 0)
                             (list* 'VOID next)
                           (compile-args args scope
                                         (list* 'VALS argnum next)))))
-               (:RECV (expanded-scope proper-vars varnum vals body)
+               (:RECV (expanded-scope varnum vals body)
+                      (calc-scope-work-size expanded-scope)
                       (let ((tail (tail? next))
                             (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
-                                       (list* 'RECV varnum
-                                              (compile-body (scope-local expanded-scope) body expanded-scope
-                                                            (if tail
-                                                                next
-                                                              (list* 'SHRNK (if (pair? varnum)
-                                                                                (+ (car varnum) 1)
-                                                                              varnum)
-                                                                     next)))))))
+                                       (list* 'RECV (scope-upper-work-size expanded-scope) varnum
+                                              (compile-body (scope-local-infos expanded-scope) body expanded-scope
+                                                            next)))))
                (t (compile-error "Unknown [%@]" node))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
   (receive (info _)
            (get-var-info scope func-name)
     (and info
-         (let1 type (vector-get info 0)
+         (let1 type (var-info-flag-get info)
            (and (not (bit? type (logior VAR-ARG
                                         VAR-CALL-OTHER
                                         VAR-CALL-IN-BASE2)))
                 (bit? type VAR-CALL-IN-BASE1))))))
-
-(defun reexpand-scope! (expanded-scope proper-vars outer-scope)
-  (let ((expanded-vars (append proper-vars (scope-local outer-scope)))
-        (expanded-var-infos (append (take (length proper-vars) (scope-local-info expanded-scope))
-                                    (scope-local-info outer-scope)))
-        (frees (scope-frees expanded-scope)))
-    (copy-pair! (scope-local expanded-scope) expanded-vars)
-    (copy-pair! (scope-local-info expanded-scope) expanded-var-infos)
-    ;; Free variables are not shared with outer or inner scope,
-    ;; so it can be safely modified.
-    (scope-frees-set! expanded-scope (scope-frees outer-scope))
-    (vector-set! expanded-scope 4 outer-scope)))
 
 (defun replace-outer-scope! (node scope)
   (record-case node
                (:LAMBDA (inner-scope body-slot proper-vars varnum body)
                         ;; Scope replacement is just 1 level, and no need to replace body nodes,
                         ;; because this scope replacement is destructive.
-                        (vector-set! inner-scope 4 scope))
-               (:INVOKE (expanded-scope proper-vars args-node body)
-                        ;; Proper-vars might be shared with scope local
-                        ;; variables, and local variables are modified in
-                        ;; reexpand-scope! function, so it is needed to copy.
-                        (let1 copied-proper-vars (copy-list proper-vars)
-                          (set-car! (cddr node) copied-proper-vars)
-                          (reexpand-scope! expanded-scope proper-vars scope)
-                          (replace-body-scope! body expanded-scope)))
-               (:RECV (expanded-scope proper-vars varnum vals body)
-                      (let1 copied-proper-vars (copy-list proper-vars)
-                        (set-car! (cddr node) copied-proper-vars)
-                        (reexpand-scope! expanded-scope proper-vars scope)
-                        (replace-body-scope! body expanded-scope)))
+                        (scope-outer-scope-set! inner-scope scope))
+               (:INVOKE (expanded-scope args-node body)
+                        (scope-outer-scope-set! expanded-scope scope))
+               (:RECV (expanded-scope varnum vals body)
+                      (scope-outer-scope-set! expanded-scope scope))
                (:SET (var val)
                     (replace-outer-scope! val scope))
                (:DEF (var val)
@@ -600,6 +634,8 @@
                        (replace-body-scope! args scope))
                (:CONTI (func)
                        (replace-outer-scope! func scope))
+               (:CONTI-DIRECT (expanded-scope body)
+                       (replace-body-scope! body scope))
                (:VALS (args)
                       (replace-body-scope! args scope))
                ))
@@ -623,8 +659,30 @@
            (and lambda-node
                 (bit? call-type VAR-SELF-TAIL-RECUR))
            (compile-apply-self-recur lambda-node f args scope))
-          ;; Normal function call.
-          (t (compile-apply-normal f args scope next)))))
+          (t
+           ;; Longjmp?
+           (aif (and (eq? ':REF (car f))
+                     (receive (info defined-scope)
+                              (get-var-info scope (cadr f))
+                       (and info
+                            (let1 flag (var-info-flag-get info)
+                              (and (bit? flag VAR-CONTI)
+                                   (not (bit? flag (logior VAR-ARG VAR-SET)))
+                                   ;(var-is-set? defined-scope (cadr f))
+                                   )))))
+                (compile-apply-conti f args #|(car it|# scope)
+             ;; Normal function call.
+             (compile-apply-normal f args scope next))))))
+
+(defun compile-apply-conti (f args scope)
+  (let1 argnum (length args)
+    (when (> argnum 1)
+      (compile-error "Too many argument for `%@`" (cadr f)))
+    (let1 c (compile-recur f scope
+                           (list 'LONGJMP))
+      (if (eq? argnum 0)
+          (list* 'NIL 'PUSH c)
+        (compile-args args scope c)))))
 
 (defun compile-apply-normal (f args scope next)
   (let ((tail (tail? next))
@@ -641,9 +699,8 @@
 ;; Beginning of loop using self-recursion function.
 (defun compile-apply-loop (lambda-node f args scope next)
   (let1 lambda-scope (lambda-scope-get lambda-node)
-    (let ((lambda-local-vars (scope-local lambda-scope))
-          (lambda-local-infos (scope-local-info lambda-scope)))
-      (let ((expanded-scope (expand-scope2 lambda-local-vars lambda-local-infos scope))
+    (let ((lambda-local-vars (scope-local-infos lambda-scope)))
+      (let ((expanded-scope (expand-scope2 lambda-local-vars scope))
             (varnum (lambda-varnum-get lambda-node))
             (body-slot (lambda-body-slot-get lambda-node))
             (next-tail (tail? next))
@@ -658,22 +715,17 @@
                     (compile-body lambda-local-vars
                                   (lambda-body-node-get lambda-node)
                                   expanded-scope
-                                  (if (or next-tail
-                                          (eq? varnum 0))
-                                      next
-                                    (list* 'SHRNK varnum next))))
-        (compile-args args scope
-                      (if (eq? varnum 0)
-                          body-slot
-                        (list* 'EXPND varnum
-                               body-slot)))))))
+                                  next))
+        (calc-scope-work-size expanded-scope)
+        (compile-args-for-local args scope expanded-scope
+                                body-slot)))))
 
 ;; Output direct jump for self tail call.
 (defun compile-apply-self-recur (lambda-node f args scope)
   (let ((argnum (length args))
         (varnum (lambda-varnum-get lambda-node))
         (outer-varnum (if (can-eliminate-lambda-node? scope (cadr f))
-                          (length (scope-local (scope-outer-scope (lambda-scope-get lambda-node))))
+                          (scope-upper-work-size (lambda-scope-get lambda-node))
                         0)))
     (when (pair? varnum)
       (compile-error "Not implemented: rest param for loop"))
@@ -681,7 +733,7 @@
       (compile-error "Illegal argnum, `%@` requires %@, but %@"
                      (cadr f) varnum argnum))
     (compile-args args scope
-                  (list* 'LOOP argnum outer-varnum
+                  (list* 'LOOP outer-varnum argnum
                          (lambda-body-slot-get lambda-node)))))
 
 (defun compile-set! (var val scope next)
@@ -694,12 +746,66 @@
     (receive (op i)
              (acond ((scope-local-has? scope var)
                      (values 'LSET it))
-                    ((position var (scope-frees scope))
+                    ((scope-frees-has? scope var)
                      (values 'FSET it))
                     (t (values 'GSET var)))
       (compile-recur val scope
                      (list* op i
                             next)))))
+
+(defun compile-conti (func scope next)
+  (let* ((tail (tail? next))
+         (c (list* 'CONTI tail
+                   'PUSH
+                   (compile-recur func scope
+                                  (if tail
+                                      '(TAPPLY 1)  ;(SHIFT 1 APPLY 1)
+                                    '(APPLY 1))))))
+    (if tail
+        c
+      (list* 'FRAME c next))))
+
+(defun compile-conti-direct (expanded-scope body scope next)
+  (let1 vars (scope-local-infos expanded-scope)
+    (let ((tail (tail? next))
+          (flag (receive (info _)
+                         (get-var-info expanded-scope (caar vars))
+                  (var-info-flag-get info))))
+      (cond ((bit? flag (logior VAR-ARG VAR-SET))
+             ;; Normal continuation.
+             (let1 c (list* 'CONTI tail
+                            'LOCAL (scope-local-has? expanded-scope (caar vars))
+                            (compile-body vars body expanded-scope
+                                          (if tail
+                                              next
+                                            (list 'UNFRAME))))
+               (if tail
+                   c
+                 (list* 'FRAME c next))))
+            ((bit? flag (logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+             ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
+             ;; Re-expand scope to store frame pointer and and closure to stack.
+             (let* ((dummy-symbol (gensym))
+                    ;; Add 3 extra local variables.
+                    (modified-vars (append (scope-local-infos expanded-scope)
+                                           (list (cons dummy-symbol VAR-ARG)
+                                                 (cons dummy-symbol VAR-ARG)
+                                                 (cons dummy-symbol VAR-ARG))))
+                    (expanded-scope (expand-scope2 modified-vars
+                                                   scope)))
+               (replace-body-scope! body expanded-scope)
+               (calc-scope-work-size expanded-scope)
+               ;; Set next code to enable longjmp to refer it.
+                                        ;(register-set2! expanded-scope (caar (scope-local-infos expanded-scope))
+                                        ;                next)
+               (list* 'SETJMP (scope-upper-work-size expanded-scope)
+                      (compile-body vars body expanded-scope
+                                    next)
+                      next)))
+            (t ;; Continuation is not used, omit creating it.
+             (replace-body-scope! body scope)
+             (compile-body vars body scope
+                           next))))))
 
 (defun compile-body (vars body scope next)
   (if body
@@ -712,17 +818,16 @@
     (list* 'VOID next)))
 
 (defun make-boxes (scope locals next)
-  (alet ((vars locals)
-         (n 0))
+  (alet ((vars locals))
     (if vars
-        (let ((var (car vars))
+        (let ((var (caar vars))
               (tail (cdr vars)))
           (if (and (var-is-set? scope var)
                    (not (and (symbol-can-be-loop? var scope)
                              (can-eliminate-lambda-node? scope var))))
-              (list* 'BOX n
-                     (loop tail (+ n 1)))
-            (loop tail (+ n 1))))
+              (list* 'BOX (scope-local-has? scope var)
+                     (loop tail))
+            (loop tail)))
       next)))
 
 (defun compile-args (args scope next)
@@ -731,6 +836,16 @@
                     (compile-recur (car args) scope
                                    (list* 'PUSH next)))
     next))
+(defun compile-args-for-local (args scope expanded-scope next)
+  (alet ((args args)
+         (vars (scope-local-infos expanded-scope))
+         (i (scope-upper-work-size expanded-scope))
+         (next next))
+    (if args
+        (loop (cdr args) (cdr vars) (+ i 1)
+              (compile-recur (car args) scope
+                             (list* 'LOCAL (scope-local-has? expanded-scope (caar vars)) next)))
+      next)))
 
 (defun collect-free (vars scope next)
   (if vars
@@ -738,7 +853,7 @@
                     (let1 x (car vars)
                       (aif (scope-local-has? scope x)
                            (list* 'LREF it 'PUSH next)
-                        (aif (position x (scope-frees scope))
+                        (aif (scope-frees-has? scope x)
                              (list* 'FREF it 'PUSH next)
                           (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
     next))
@@ -793,9 +908,11 @@
 
 (let1 exit-compile nil
   (defun compile-error (&rest args)
-    (apply format *stderr* args)
-    (display "\n" *stderr*)
-    (exit-compile nil))
+    (if exit-compile
+        (do (apply format *stderr* args)
+            (display "\n" *stderr*)
+            (exit-compile nil))
+      (error (apply format nil args))))
 
   (defun compile (x)
     (call/cc
@@ -803,7 +920,22 @@
        (set! exit-compile cc)
        (let* ((scope (create-scope '() nil))
               (tree (traverse x scope nil)))
-         (compile-recur tree scope (list 'HALT)))))))
+         (let* ((eoc (list 'HALT))
+                (result (compile-recur tree scope eoc))
+                (work-size (scope-work-size scope)))
+           (set! exit-compile nil)
+           (if (eq? work-size 0)
+               result
+             ;; Tweak stack layout for base level.
+             (do (copy-pair! eoc (list 'ADDSP (- -1 work-size) 'HALT))
+                 (list* 'CONST 0 'PUSH  ; argnum
+                        'ADDSP work-size
+                        result)))))))))
 
 (defun eval (x)
   (run-binary (compile x)))
+
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*))

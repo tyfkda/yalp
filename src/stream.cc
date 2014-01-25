@@ -14,9 +14,26 @@ const int NO_UNGETC = -1;
 
 //=============================================================================
 // Stream
-Stream::Stream()  {}
+Stream::Stream() : lineNo_(1), ungetc_(NO_UNGETC)  {}
 Stream::~Stream()  { close(); }
 bool Stream::close()  { return true; }
+
+int Stream::get() {
+  if (ungetc_ != NO_UNGETC) {
+    int c = ungetc_;
+    ungetc_ = NO_UNGETC;
+    return c;
+  }
+
+  int c = doGet();
+  if (c == '\n')
+    ++lineNo_;
+  return c;
+}
+
+void Stream::ungetc(int c) {
+  ungetc_ = c;
+}
 
 bool Stream::write(char c)  { return write(&c, sizeof(c)); }
 bool Stream::write(const char* s)  {return write(s, strlen(s)); }
@@ -42,21 +59,17 @@ bool FileStream::close() {
   return true;
 }
 
-int FileStream::get() {
+int FileStream::doGet() {
   return fgetc(fp_);
 }
 
-void FileStream::ungetc(int c) {
-  ::ungetc(c, fp_);
-}
-
-bool FileStream::write(const char* s, int len) {
-  return static_cast<int>(fwrite(s, 1, len, fp_)) == len;
+bool FileStream::write(const char* s, size_t len) {
+  return fwrite(s, 1, len, fp_) == len;
 }
 
 //=============================================================================
 StrStream::StrStream(const char* string)
-  : Stream(), p_(string), ungetc_(NO_UNGETC) {
+  : Stream(), p_(string) {
 }
 
 StrStream::~StrStream() {
@@ -66,12 +79,7 @@ bool StrStream::close() {
   return true;
 }
 
-int StrStream::get() {
-  if (ungetc_ != NO_UNGETC) {
-    int c = ungetc_;
-    ungetc_ = NO_UNGETC;
-    return c;
-  }
+int StrStream::doGet() {
   int c = *p_++;
   if (c == '\0') {
     --p_;
@@ -80,11 +88,7 @@ int StrStream::get() {
   return c;
 }
 
-void StrStream::ungetc(int c) {
-  ungetc_ = c;
-}
-
-bool StrStream::write(const char*, int) {
+bool StrStream::write(const char*, size_t) {
   return false;
 }
 
@@ -101,9 +105,8 @@ StrOStream::~StrOStream() {
 
 bool StrOStream::close()  { return true; }
 
-int StrOStream::get()  { return EOF; }
-void StrOStream::ungetc(int)  {}
-bool StrOStream::write(const char* s, int len) {
+int StrOStream::doGet()  { return EOF; }
+bool StrOStream::write(const char* s, size_t len) {
   size_t newLen = len_ + len;
   if (newLen >= bufferSize_) {
     size_t newSize = newLen + (BUFFER_BLOCK_SIZE - 1);

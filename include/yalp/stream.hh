@@ -15,15 +15,22 @@ namespace yalp {
 class Stream {
 public:
   virtual bool close();
-  virtual int get() = 0;
-  virtual void ungetc(int c) = 0;
+  int get();
+  void ungetc(int c);
   virtual bool write(char c);
   virtual bool write(const char* s);
-  virtual bool write(const char* s, int len) = 0;
+  virtual bool write(const char* s, size_t len) = 0;
+
+  inline int getLineNumber() const  { return lineNo_; }
 
 protected:
   Stream();
   virtual ~Stream();
+
+  virtual int doGet() = 0;
+
+  int lineNo_;
+  int ungetc_;
 };
 
 // File stream class.
@@ -36,12 +43,12 @@ public:
   inline bool isOpened() const  { return fp_ != NULL; }
 
   virtual bool close() override;
-  virtual int get() override;
-  virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
+  virtual int doGet() override;
+
   FILE* fp_;
   bool hasFileOwnership_;
 };
@@ -53,14 +60,13 @@ public:
   ~StrStream();
 
   virtual bool close() override;
-  virtual int get() override;
-  virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
+  virtual int doGet() override;
+
   const char* p_;
-  int ungetc_;
 };
 
 // String output stream class.
@@ -73,12 +79,12 @@ public:
   inline int getLength() const  { return len_; }
 
   virtual bool close() override;
-  virtual int get() override;
-  virtual void ungetc(int c) override;
   using Stream::write;
-  virtual bool write(const char* s, int len) override;
+  virtual bool write(const char* s, size_t len) override;
 
 private:
+  virtual int doGet() override;
+
   Allocator* allocator_;
   char* buffer_;
   size_t bufferSize_;
