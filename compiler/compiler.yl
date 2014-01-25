@@ -476,8 +476,8 @@
                   nil)  ;; Otherwise, use dummy value.
         (let1 sets (scope-sets defined-scope)
           (aif (assoc x sets)
-               (set-cdr! it (cons v (cdr it)))
-            (scope-sets-set! defined-scope (acons x (list v) sets))))))))
+               (set-cdr! it (cons val (cdr it)))
+            (scope-sets-set! defined-scope (acons x (list val) sets))))))))
 
 (defun calc-scope-work-size (scope)
   (alet ((pscope scope)
