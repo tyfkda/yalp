@@ -48,7 +48,9 @@ unsigned int Cell::calcHash(State* state) const {
   queue[w++] = this;
   while (r < w) {
     const Cell* p = queue[r++];
-    for (auto v : { p->car(), p->cdr() }) {
+    Value vals[] = { p->car(), p->cdr() };
+    for (int i = 0; i < 2; ++i) {
+      Value v = vals[i];
       if (v.getType() == TT_CELL) {
         if (w < N)
           queue[w++] = static_cast<Cell*>(v.toObject());

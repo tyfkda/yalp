@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{00F53D3E-37A7-4FFF-AD4D-7FBE688518FF}</ProjectGuid>
+    <ProjectGuid>{837E2EC5-7AAF-497C-8582-24E14A1C8904}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>yalp</RootNamespace>
   </PropertyGroup>
@@ -20,14 +20,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v120_CTP_Nov2012</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v120_CTP_Nov2012</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -41,12 +41,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IntDir>obj\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)obj\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IntDir>obj/$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -54,9 +51,9 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -71,9 +68,9 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -83,25 +80,38 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\allocator.cc" />
-    <ClCompile Include="..\src\basic.cc" />
-    <ClCompile Include="..\src\binder.cc" />
-    <ClCompile Include="..\src\object.cc" />
-    <ClCompile Include="..\src\read.cc" />
-    <ClCompile Include="..\src\state.cc" />
-    <ClCompile Include="..\src\stream.cc" />
-    <ClCompile Include="..\src\symbol_manager.cc" />
-    <ClCompile Include="..\src\util.cc" />
-    <ClCompile Include="..\src\vm.cc" />
-    <ClCompile Include="..\tools\src\yalp.cc" />
+    <None Include="..\..\include\yalp.hh" />
+    <None Include="..\..\include\yalp\binder.hh" />
+    <None Include="..\..\include\yalp\binder.inc" />
+    <None Include="..\..\include\yalp\binder_types.hh" />
+    <None Include="..\..\include\yalp\config.hh" />
+    <None Include="..\..\include\yalp\error_code.hh" />
+    <None Include="..\..\include\yalp\gc_object.hh" />
+    <None Include="..\..\include\yalp\object.hh" />
+    <None Include="..\..\include\yalp\read.hh" />
+    <None Include="..\..\include\yalp\stream.hh" />
+    <None Include="..\..\include\yalp\util.hh" />
+    <None Include="..\..\src\allocator.hh" />
+    <None Include="..\..\src\basic.hh" />
+    <None Include="..\..\src\build_env.hh" />
+    <None Include="..\..\src\flonum.hh" />
+    <None Include="..\..\src\hash_table.hh" />
+    <None Include="..\..\src\symbol_manager.hh" />
+    <None Include="..\..\src\vm.hh" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\src\allocator.hh" />
-    <None Include="..\src\basic.hh" />
-    <None Include="..\src\build_env.hh" />
-    <None Include="..\src\hash_table.hh" />
-    <None Include="..\src\symbol_manager.hh" />
-    <None Include="..\src\vm.hh" />
+    <ClCompile Include="..\..\src\allocator.cc" />
+    <ClCompile Include="..\..\src\basic.cc" />
+    <ClCompile Include="..\..\src\binder.cc" />
+    <ClCompile Include="..\..\src\flonum.cc" />
+    <ClCompile Include="..\..\src\object.cc" />
+    <ClCompile Include="..\..\src\read.cc" />
+    <ClCompile Include="..\..\src\state.cc" />
+    <ClCompile Include="..\..\src\stream.cc" />
+    <ClCompile Include="..\..\src\symbol_manager.cc" />
+    <ClCompile Include="..\..\src\util.cc" />
+    <ClCompile Include="..\..\src\vm.cc" />
+    <ClCompile Include="..\..\tools\src\yalp.cc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
