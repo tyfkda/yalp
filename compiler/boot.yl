@@ -31,6 +31,7 @@
 (defun cdar (x) (cdr (car x)))
 (defun cadr (x) (car (cdr x)))
 (defun cddr (x) (cdr (cdr x)))
+(defun cadar (x) (cadr (car x)))
 (defun caddr (x) (car (cddr x)))
 (defun cdddr (x) (cdr (cddr x)))
 (defun cadddr (x) (car (cdddr x)))
@@ -50,6 +51,13 @@
           ls
         (any? f (cdr ls)))
     nil))
+
+(defun all? (fn ls)
+  (if ls
+      (if (fn (car ls))
+          (all? fn (cdr ls))
+        nil)
+    t))
 
 (defun map (f ls &rest rest)
   (if rest
@@ -309,6 +317,12 @@
 (defun single? (ls)
   (and (pair? ls)
        (not (cdr ls))))
+
+;; Reverse list and concatenate tail destructively.
+(defun nreconc (ls tail)
+  (let1 top (reverse! ls)
+    (set-cdr! ls tail)
+    top))
 
 ;; Write shared structure.
 (defun write/ss (s &rest rest)

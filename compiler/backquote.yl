@@ -9,21 +9,6 @@
 ;;; possible to test this code without interfering with normal
 ;;; Common Lisp syntax.
 
-(defun cadar (x)
-  (cadr (car x)))
-
-(defun all? (fn ls)
-  (if ls
-      (if (fn (car ls))
-          (all? fn (cdr ls))
-        nil)
-    t))
-
-(defun nreconc (ls tail)
-  (let1 top (reverse! ls)
-    (set-cdr! ls tail)
-    top))
-
 ;;; The following are unique tokens used during processing.
 ;;; They need not be symbols; they need not even be atoms.
 
