@@ -118,7 +118,7 @@ static bool runBinary(State* state, Stream* stream) {
 
 static void replaceFile(FILE* fp, int fd) {
   fflush(fp);
-  dup2(fileno(fp), fd);
+  dup2(fd, fileno(fp));
 }
 
 static FILE* duplicateFile(FILE* fp, const char* mode) {
@@ -128,7 +128,7 @@ static FILE* duplicateFile(FILE* fp, const char* mode) {
 static int reopenFile(FILE* fp, const char* fileName, const char* mode) {
   int flags = mode[0] == 'w' ? O_WRONLY : O_RDONLY;
   int fd = open(fileName, flags);
-  dup2(fileno(fp), fd);
+  dup2(fd, fileno(fp));
   return fd;
 }
 
