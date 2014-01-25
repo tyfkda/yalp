@@ -55,7 +55,7 @@ unsigned int Cell::calcHash(State* state) const {
         continue;
       }
       // TODO: Handle mutual recursive with other container type (i.e. vector).
-      hash = hash * MUL + p->car().calcHash(state) + ADD;
+      hash = hash * MUL + v.calcHash(state) + ADD;
     }
   }
   return hash;
