@@ -446,11 +446,11 @@
          info)))
 
 (defun var-is-set? (scope sym)
-  (receive (info defined-scope)
-           (get-var-info scope sym)
-    (aif (and defined-scope
-              (assoc sym (scope-sets defined-scope)))
-         (cdr it))))
+  (alet ((pscope scope))
+    (when pscope
+      (aif (assoc sym (scope-sets pscope))
+           (cdr it)
+        (loop (scope-outer-scope pscope))))))
 
 ;; Registers free variable into scope block.
 (defun register-fref (scope x)
