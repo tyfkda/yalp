@@ -16,6 +16,7 @@ Value to SomeType:   Value toSomeType(Value s);
 #include "yalp/config.hh"
 #include "yalp/error_code.hh"
 
+#include <assert.h>
 #include <setjmp.h>
 #include <stddef.h>  // for size_t, NULL
 #include <stdio.h>  // for FILE
@@ -78,12 +79,13 @@ public:
   // Gets value type.
   Type getType() const;
 
-  Fixnum toFixnum() const;
+  inline bool isFixnum() const;
+  inline Fixnum toFixnum() const;
 #ifndef DISABLE_FLONUM
   Flonum toFlonum(State* state) const;
 #endif
-  bool isObject() const;
-  Object* toObject() const;
+  inline bool isObject() const;
+  inline Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
   inline int toCharacter() const;
 
@@ -270,6 +272,36 @@ inline Value State::character(int c) const  { return Value(c); }  // Use fixnum 
 inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
 inline void State::defineGlobal(const char* sym, Value value)  { return defineGlobal(intern(sym), value); }
 inline void State::defineNative(const char* name, NativeFuncType func, int minArgNum)  { defineNative(name, func, minArgNum, minArgNum); }
+
+//=============================================================================
+/*
+  Value: tagged pointer representation.
+    XXXXXXX0 : Fixnum
+    XXXXXX01 : Object
+    XXXX0011 : Symbol
+ */
+
+const Fixnum TAG_SHIFT = 2;
+const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Fixnum TAG_FIXNUM = 0;
+const Fixnum TAG_OBJECT = 1;
+const Fixnum TAG_OTHER = 3;
+
+bool Value::isFixnum() const  { return (v_ & 1) == TAG_FIXNUM; }
+
+Fixnum Value::toFixnum() const {
+  assert(isFixnum());
+  return v_ >> 1;
+}
+
+bool Value::isObject() const {
+  return (v_ & TAG_MASK) == TAG_OBJECT;
+}
+
+Object* Value::toObject() const {
+  assert(isObject());
+  return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
+}
 
 }  // namespace yalp
 

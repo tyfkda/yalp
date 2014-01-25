@@ -26,17 +26,9 @@ namespace yalp {
     XXXX0011 : Symbol
  */
 
-const Fixnum TAG_SHIFT = 2;
-const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Fixnum TAG_FIXNUM = 0;
-const Fixnum TAG_OBJECT = 1;
-const Fixnum TAG_OTHER = 3;
-
 const Fixnum TAG2_SHIFT = 4;
 const Fixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
 const Fixnum TAG2_SYMBOL = 3;
-
-inline static bool isFixnum(Fixnum v)  { return (v & 1) == TAG_FIXNUM; }
 
 // Assumes that first symbol is nil.
 const Value Value::NIL = Value(0, TAG2_SYMBOL);
@@ -55,7 +47,7 @@ Value::Value(Fixnum i, int tag2)
   : v_((i << TAG2_SHIFT) | tag2) {}
 
 Type Value::getType() const {
-  if (isFixnum(v_))
+  if (isFixnum())
     return TT_FIXNUM;
 
   switch (v_ & TAG_MASK) {
@@ -72,7 +64,7 @@ Type Value::getType() const {
 }
 
 unsigned int Value::calcHash(State* state) const {
-  if (isFixnum(v_))
+  if (isFixnum())
     return toFixnum() * 19;
 
   switch (v_ & TAG_MASK) {
@@ -96,7 +88,7 @@ void Value::mark() {
 }
 
 void Value::output(State* state, Stream* o, bool inspect) const {
-  if (isFixnum(v_)) {
+  if (isFixnum()) {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
     o->write(buffer);
@@ -138,11 +130,6 @@ void Value::outputSymbol(State* state, Stream* o) const {
   o->write(toSymbol(state)->c_str());
 }
 
-Fixnum Value::toFixnum() const {
-  assert(isFixnum(v_));
-  return v_ >> 1;
-}
-
 #ifndef DISABLE_FLONUM
 Flonum Value::toFlonum(State* state) const {
   switch (getType()) {
@@ -157,15 +144,6 @@ Flonum Value::toFlonum(State* state) const {
 }
 #endif
 
-bool Value::isObject() const {
-  return (v_ & TAG_MASK) == TAG_OBJECT;
-}
-
-Object* Value::toObject() const {
-  assert(isObject());
-  return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
-}
-
 const Symbol* Value::toSymbol(State* state) const {
   assert((v_ & TAG2_MASK) == TAG2_SYMBOL);
   return state->getSymbol(v_ >> TAG2_SHIFT);
@@ -175,7 +153,7 @@ bool Value::equal(Value target) const {
   if (eq(target))
     return true;
 
-  if (isFixnum(v_))
+  if (isFixnum())
     return false;
 
   switch (v_ & TAG_MASK) {
