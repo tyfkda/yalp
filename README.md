@@ -36,6 +36,12 @@ Under construction.
 * Can be used for shell scripting language
 
 ## Release
+### v007
+* Optimize quasiquote expander
+* Allocate stack work space at function top
+* Avoid stack copy for continuation which executes nonlocal exit
+* Generate loop code for global function self recursion
+
 ### v006
 * Generate loop code for tail recursion
 
