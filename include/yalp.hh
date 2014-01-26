@@ -54,6 +54,7 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
+  TT_CHARACTER,
 #ifndef DISABLE_FLONUM
   TT_FLONUM,  // Floating point number
 #endif
@@ -87,7 +88,7 @@ public:
   inline bool isObject() const;
   inline Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
-  inline int toCharacter() const;
+  int toCharacter() const;
 
   // Object euality.
   inline bool eq(Value target) const;
@@ -106,6 +107,7 @@ public:
 
 private:
   void outputSymbol(State* state, Stream* o) const;
+  void outputCharacter(Stream* o) const;
 
   Fixnum v_;
 };
@@ -149,7 +151,7 @@ public:
   Value cons(Value a, Value d);
 
   // Converts character code to lisp character value.
-  inline Value character(int c) const;
+  Value character(int c) const;
 
   // Converts C string to lisp String.
   Value string(const char* str);
@@ -261,13 +263,11 @@ private:
 inline bool Value::eq(Value target) const  { return v_ == target.v_; }
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
-inline int Value::toCharacter() const  { return static_cast<int>(toFixnum()); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
-inline Value State::character(int c) const  { return Value(c); }  // Use fixnum as a character.
 
 inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
 inline void State::defineGlobal(const char* sym, Value value)  { return defineGlobal(intern(sym), value); }

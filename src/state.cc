@@ -24,11 +24,14 @@ namespace yalp {
     XXXXXXX0 : Fixnum
     XXXXXX01 : Object
     XXXX0011 : Symbol
+    XXXX0111 : Character
  */
 
+#define TAG2_TYPE(x)  (((x) << TAG_SHIFT) | TAG_OTHER)
 const Fixnum TAG2_SHIFT = 4;
 const Fixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
-const Fixnum TAG2_SYMBOL = 3;
+const Fixnum TAG2_SYMBOL = TAG2_TYPE(0);
+const Fixnum TAG2_CHARACTER = TAG2_TYPE(1);
 
 // Assumes that first symbol is nil.
 const Value Value::NIL = Value(0, TAG2_SYMBOL);
@@ -47,6 +50,8 @@ Type Value::getType() const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       return TT_SYMBOL;
+    case TAG2_CHARACTER:
+      return TT_CHARACTER;
     }
   }
   assert(!"Must not happen");
@@ -66,6 +71,8 @@ unsigned int Value::calcHash(State* state) const {
       if (v_ >= 0)
         return toSymbol(state)->getHash();
       return (v_ >> TAG2_SHIFT) * 29;
+    case TAG2_CHARACTER:
+      return (v_ >> TAG2_SHIFT) * 41;
     }
   }
   assert(!"Must not happen");
@@ -97,6 +104,9 @@ void Value::output(State* state, Stream* o, bool inspect) const {
     case TAG2_SYMBOL:
       outputSymbol(state, o);
       break;
+    case TAG2_CHARACTER:
+      outputCharacter(o);
+      break;
     }
   }
 }
@@ -120,6 +130,24 @@ void Value::outputSymbol(State* state, Stream* o) const {
   o->write(toSymbol(state)->c_str());
 }
 
+void Value::outputCharacter(Stream* o) const {
+  const char* str = NULL;
+  Fixnum c = v_ >> TAG2_SHIFT;
+  switch (c) {
+  case '\n':  str = "#\\nl"; break;
+  case '\t':  str = "#\\tab"; break;
+  case ' ':  str = "#\\space"; break;
+  case 0x1b:  str = "#\\escape"; break;
+  }
+  if (str != NULL)
+    o->write(str);
+  else {
+    char buffer[16];
+    snprintf(buffer, sizeof(buffer), "#\\%c", static_cast<int>(c));
+    o->write(buffer);
+  }
+}
+
 #ifndef DISABLE_FLONUM
 Flonum Value::toFlonum(State* state) const {
   switch (getType()) {
@@ -137,6 +165,17 @@ Flonum Value::toFlonum(State* state) const {
 const Symbol* Value::toSymbol(State* state) const {
   assert((v_ & TAG2_MASK) == TAG2_SYMBOL);
   return state->getSymbol(v_ >> TAG2_SHIFT);
+}
+
+int Value::toCharacter() const {
+  switch (getType()) {
+  case TT_FIXNUM:
+    return static_cast<int>(toFixnum());
+  case TT_CHARACTER:
+    return v_ >> TAG2_SHIFT;
+  default:
+    return -1;
+  }
 }
 
 bool Value::equal(Value target) const {
@@ -159,6 +198,7 @@ bool Value::equal(Value target) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
+    case TAG2_CHARACTER:
       return false;
     }
   }
@@ -236,7 +276,7 @@ State::State(Allocator* allocator)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "int", "symbol", "pair", "string",
+    "unknown", "int", "symbol", "pair", "string", "char",
 #ifndef DISABLE_FLONUM
     "flonum",
 #endif
@@ -395,6 +435,10 @@ const Symbol* State::getSymbol(int symbolId) const {
 
 Value State::cons(Value a, Value d) {
   return Value(allocator_->newObject<Cell>(a, d));
+}
+
+Value State::character(int c) const {
+  return Value(c, TAG2_CHARACTER);
 }
 
 SHashTable* State::createHashTable(bool equal) {
