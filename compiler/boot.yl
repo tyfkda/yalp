@@ -32,9 +32,9 @@
 (defun not (x) (if x nil t))
 
 ;; Macro definitions needed only compile time.
-#.(do (defmacro def-cxxr (sym)
-        `(defun ,sym (x)
-           ,(let1 s (string sym)
+#.(do (defmacro def-cxxr (cxxr)
+        `(defun ,cxxr (x)
+           ,(let1 s (string cxxr)
               (alet ((i (- (length s) 2))
                      (acc 'x))
                 (if (>= i 1)
@@ -43,10 +43,10 @@
                       (#\d (loop (- i 1) (list 'cdr acc))))
                   acc)))))
 
-      (defmacro def-cxxrs (&rest syms)
-        `(do ,@(map (^(sym)
-                      `(def-cxxr ,sym))
-                    syms)))
+      (defmacro def-cxxrs (&rest cxxrs)
+        `(do ,@(map (^(cxxr)
+                      `(def-cxxr ,cxxr))
+                    cxxrs)))
       (values))  ; Empty result.
 
 (def-cxxrs
