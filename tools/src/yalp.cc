@@ -337,6 +337,8 @@ int main(int argc, char* argv[]) {
       if (!compile(state, &stream, bNoRun, outFp))
         exit(1);
     }
+  } else if (bBinary) {
+    exitIfError(state->runBinaryFromFile(argv[ii++]));
   } else {
     exitIfError(state->runFromFile(argv[ii++]));
   }
