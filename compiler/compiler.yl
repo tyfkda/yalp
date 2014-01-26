@@ -900,9 +900,9 @@
   `(do ,@(map (^(sentence)
                 (when (pair? sentence)
                   (case (car sentence)
-                    (inline (do (dolist (sym (cdr sentence))
-                                  (declaim-inline sym))
-                                '(values)))
+                    (inline (dolist (sym (cdr sentence))
+                              (declaim-inline sym))
+                            '(values))
                     )))
               defs)))
 
