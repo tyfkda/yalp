@@ -31,7 +31,7 @@ namespace yalp {
 const Fixnum TAG2_SHIFT = 4;
 const Fixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
 const Fixnum TAG2_SYMBOL = TAG2_TYPE(0);
-const Fixnum TAG2_CHARACTER = TAG2_TYPE(1);
+const Fixnum TAG2_CHAR = TAG2_TYPE(1);
 
 // Assumes that first symbol is nil.
 const Value Value::NIL = Value(0, TAG2_SYMBOL);
@@ -50,8 +50,8 @@ Type Value::getType() const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       return TT_SYMBOL;
-    case TAG2_CHARACTER:
-      return TT_CHARACTER;
+    case TAG2_CHAR:
+      return TT_CHAR;
     }
   }
   assert(!"Must not happen");
@@ -71,7 +71,7 @@ unsigned int Value::calcHash(State* state) const {
       if (v_ >= 0)
         return toSymbol(state)->getHash();
       return (v_ >> TAG2_SHIFT) * 29;
-    case TAG2_CHARACTER:
+    case TAG2_CHAR:
       return (v_ >> TAG2_SHIFT) * 41;
     }
   }
@@ -104,8 +104,8 @@ void Value::output(State* state, Stream* o, bool inspect) const {
     case TAG2_SYMBOL:
       outputSymbol(state, o);
       break;
-    case TAG2_CHARACTER:
-      outputCharacter(o);
+    case TAG2_CHAR:
+      outputCharacter(o, inspect);
       break;
     }
   }
@@ -130,21 +130,26 @@ void Value::outputSymbol(State* state, Stream* o) const {
   o->write(toSymbol(state)->c_str());
 }
 
-void Value::outputCharacter(Stream* o) const {
-  const char* str = NULL;
+void Value::outputCharacter(Stream* o, bool inspect) const {
   Fixnum c = v_ >> TAG2_SHIFT;
-  switch (c) {
-  case '\n':  str = "#\\nl"; break;
-  case '\t':  str = "#\\tab"; break;
-  case ' ':  str = "#\\space"; break;
-  case 0x1b:  str = "#\\escape"; break;
-  }
-  if (str != NULL)
-    o->write(str);
-  else {
+  if (inspect) {
+    const char* str = NULL;
+    switch (c) {
+    case '\n':  str = "#\\nl"; break;
+    case '\t':  str = "#\\tab"; break;
+    case ' ':  str = "#\\space"; break;
+    case 0x1b:  str = "#\\escape"; break;
+    }
+    if (str != NULL) {
+      o->write(str);
+      return;
+    }
+
     char buffer[16];
     snprintf(buffer, sizeof(buffer), "#\\%c", static_cast<int>(c));
     o->write(buffer);
+  } else {
+    o->write(static_cast<int>(c));
   }
 }
 
@@ -171,7 +176,7 @@ int Value::toCharacter() const {
   switch (getType()) {
   case TT_FIXNUM:
     return static_cast<int>(toFixnum());
-  case TT_CHARACTER:
+  case TT_CHAR:
     return v_ >> TAG2_SHIFT;
   default:
     return -1;
@@ -198,7 +203,7 @@ bool Value::equal(Value target) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
-    case TAG2_CHARACTER:
+    case TAG2_CHAR:
       return false;
     }
   }
@@ -438,7 +443,7 @@ Value State::cons(Value a, Value d) {
 }
 
 Value State::character(int c) const {
-  return Value(c, TAG2_CHARACTER);
+  return Value(c, TAG2_CHAR);
 }
 
 SHashTable* State::createHashTable(bool equal) {

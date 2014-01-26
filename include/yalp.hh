@@ -54,7 +54,7 @@ enum Type {
   TT_SYMBOL,
   TT_CELL,
   TT_STRING,
-  TT_CHARACTER,
+  TT_CHAR,
 #ifndef DISABLE_FLONUM
   TT_FLONUM,  // Floating point number
 #endif
@@ -107,7 +107,7 @@ public:
 
 private:
   void outputSymbol(State* state, Stream* o) const;
-  void outputCharacter(Stream* o) const;
+  void outputCharacter(Stream* o, bool inspect) const;
 
   Fixnum v_;
 };

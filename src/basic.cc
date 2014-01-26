@@ -455,7 +455,7 @@ static Value s_readFromString(State* state) {
 
 static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
-  state->checkType(delimiter, TT_CHARACTER);
+  state->checkType(delimiter, TT_CHAR);
   Stream* stream = chooseStream(state, 1, State::STDIN)->getStream();
   Reader reader(state, stream);
   Value result;
@@ -473,7 +473,7 @@ static Value s_readChar(State* state) {
 
 static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
-  state->checkType(ch, TT_CHARACTER);
+  state->checkType(ch, TT_CHAR);
   SStream* sstream = chooseStream(state, 1, State::STDIN);
   sstream->getStream()->ungetc(ch.toCharacter());
   return Value(sstream);
