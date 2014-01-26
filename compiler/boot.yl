@@ -27,21 +27,23 @@
 
 (defun not (x) (if x nil t))
 
-(defmacro def-cxxr (sym)
-  `(defun ,sym (x)
-     ,(let* ((s (string sym))
-             (n (length s)))
-        (alet ((i 1))
-          (if (< i (- n 1))
-              (case (char-at s i)
-                (#\a (list 'car (loop (+ i 1))))
-                (#\d (list 'cdr (loop (+ i 1)))))
-            'x)))))
+;; Macro definitions needed only compile time.
+#.(do (defmacro def-cxxr (sym)
+        `(defun ,sym (x)
+           ,(let* ((s (string sym))
+                   (n (length s)))
+              (alet ((i 1))
+                (if (< i (- n 1))
+                    (case (char-at s i)
+                      (#\a (list 'car (loop (+ i 1))))
+                      (#\d (list 'cdr (loop (+ i 1)))))
+                  'x)))))
 
-(defmacro def-cxxrs (&rest syms)
-  `(do ,@(map (^(sym)
-                `(def-cxxr ,sym))
-              syms)))
+      (defmacro def-cxxrs (&rest syms)
+        `(do ,@(map (^(sym)
+                      `(def-cxxr ,sym))
+                    syms)))
+      (values))  ; Empty result.
 
 (def-cxxrs
   caar cdar cadr cddr
