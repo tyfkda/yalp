@@ -73,6 +73,8 @@
                (set! (var val)
                      (traverse-set! ':SET var val scope))
                (def (var val)
+                    (when (inline-function? var)
+                      (register-inline-function var val))
                     (traverse-set! ':DEF var val scope))
                (call/cc (func)
                         (traverse-call/cc func scope tail))
