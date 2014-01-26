@@ -513,7 +513,7 @@
 (def lambda-scope-get      cadr)
 (def lambda-body-slot-get  caddr)
 (def lambda-varnum-get     cadddr)
-(defun lambda-body-node-get (node)  (elt node 4))
+(def lambda-body-node-get  caddddr)
 
 (defun lambda-scope-set! (node scope)
   (set-car! (cdr node) scope))
