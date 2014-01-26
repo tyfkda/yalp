@@ -455,7 +455,7 @@ static Value s_readFromString(State* state) {
 
 static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
-  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
+  state->checkType(delimiter, TT_CHAR);
   Stream* stream = chooseStream(state, 1, State::STDIN)->getStream();
   Reader reader(state, stream);
   Value result;
@@ -473,7 +473,7 @@ static Value s_readChar(State* state) {
 
 static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
-  state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
+  state->checkType(ch, TT_CHAR);
   SStream* sstream = chooseStream(state, 1, State::STDIN);
   sstream->getStream()->ungetc(ch.toCharacter());
   return Value(sstream);
@@ -762,6 +762,8 @@ static Value s_int(State* state) {
       return Value(static_cast<Fixnum>(f));
     }
 #endif
+  case TT_CHAR:
+    return Value(v.toCharacter());
   case TT_STRING:
     {
       String* string = static_cast<String*>(v.toObject());
@@ -773,6 +775,19 @@ static Value s_int(State* state) {
   }
   state->runtimeError("Cannot convert `%@` to int", &v);
   return v;
+}
+
+static Value s_char(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FIXNUM:
+    return state->character(v.toFixnum());
+  case TT_CHAR:
+    return v;
+  default:
+    state->runtimeError("Cannot convert `%@` to char", &v);
+    return v;
+  }
 }
 
 static Value s_string(State* state) {
@@ -976,6 +991,7 @@ void installBasicFunctions(State* state) {
 
     { "int", s_int, 1 },
     { "intern", s_intern, 1 },
+    { "char", s_char, 1 },
 
     { "string", s_string, 1, -1 },
     { "string-length", s_stringLength, 1 },
