@@ -289,7 +289,12 @@ ErrorCode Reader::readSpecial(Value* pValue) {
   case '\\':
     return readChar(pValue);
   case '.':
-    return readTimeEval(pValue);
+    {
+      ErrorCode err = readTimeEval(pValue);
+      if (err == SUCCESS && state_->getResultNum() == 0)
+        return read(pValue);
+      return err;
+    }
   case '|':
     if (!skipBlockComment())
       return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
