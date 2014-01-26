@@ -172,7 +172,8 @@ void String::output(State*, Stream* o, bool inspect) const {
     case '\t':  s = "\\t"; break;
     case '\0':  s = "\\0"; break;
     case '\\':  s = "\\\\"; break;
-    case '"':  s = "\\\""; break;
+    case '"':   s = "\\\""; break;
+    case 0x1b:  s = "\\x1b"; break;
     }
     if (s == NULL)
       continue;
