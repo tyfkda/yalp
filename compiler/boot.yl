@@ -1,5 +1,9 @@
-;(declaim
-; (inline not caar cdar cadr cddr))
+(declaim
+ ;(inline not)
+ (inline caar cdar cadr cddr
+         cadar caddr cdddr
+         cadddr cddddr)
+ )
 
 ;;; Basic read macros.
 
