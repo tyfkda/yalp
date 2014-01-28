@@ -727,6 +727,7 @@ void Vm::reserveStack(int n) {
 }
 
 int Vm::modifyRestParams(int argNum, int minArgNum) {
+  int arena = state_->saveArena();
   Value rest = createRestParams(argNum, minArgNum, s_);
   int ds = 0;
   if (argNum <= minArgNum) {
@@ -741,6 +742,7 @@ int Vm::modifyRestParams(int argNum, int minArgNum) {
   }
   s_ += ds;
   indexSet(s_, minArgNum, rest);
+  state_->restoreArena(arena);
   return ds;
 }
 
