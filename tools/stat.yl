@@ -7,7 +7,8 @@
     (^(c recur)
       (let1 operands (table-get *opcode-table* (car c))
         (write/ss (take (+ 1 (length operands)) c))
-        (display "\n")))))
+        (display "\n")
+        c))))
 
 (defun main (args)
   (files-or-stdin args

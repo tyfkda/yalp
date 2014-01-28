@@ -10,13 +10,13 @@
                           (when (eq? v 'nil)
                             (set-car! c 'NIL)
                             (set-cdr! c (cddr c)))
-                          t)
+                          c)
                    (GREF (sym &rest _)
                          (when (eq? sym 'nil)
                            (set-car! c 'NIL)
                            (set-cdr! c (cddr c)))
-                         t)
-                   (t t)))))
+                         c)
+                   (t c)))))
 
 (defun main (args)
   (files-or-stdin args
