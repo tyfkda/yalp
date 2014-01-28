@@ -139,7 +139,7 @@
   (if (direct-invoke? func)
       (let ((vars (cadr func))
             (body (cddr func)))
-        (when (not (eq? (check-parameters vars) vars))
+        (unless (eq? (check-parameters vars) vars)
           (compile-error "Not implemented: rest param for call/cc"))
         (unless (eq? (length vars) 1)
           (compile-error "Illegal parameters, call/cc requires 1 parameter function, but `%@`"
