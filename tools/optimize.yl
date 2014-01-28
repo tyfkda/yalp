@@ -28,9 +28,9 @@
                    (replace-pair! c 'NIL ?rest))
                   ((GREF nil . ?rest)
                    (replace-pair! c 'NIL ?rest))
-                  ((NIL TEST ?then . ?else)
+                  ((NIL TEST ?then . ?else)    ; Optimize `not` and `and` code
                    (copy-pair! c ?else))
-                  ((GREF t TEST ?then . ?else)
+                  ((GREF t TEST ?then . ?else) ; Optimize `not` code
                    (copy-pair! c ?then))
                   (t nil)))))
 
