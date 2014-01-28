@@ -32,6 +32,9 @@
                    (copy-pair! c ?else))
                   ((GREF t TEST ?then . ?else) ; Optimize `not` code
                    (copy-pair! c ?then))
+                  ((LOCAL ?i LREF ?i . ?rest)
+                   (set-cdr! (cdr c) ?rest)
+                   c)
                   (t nil)))))
 
 (defun main (args)
