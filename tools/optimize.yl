@@ -28,7 +28,7 @@
                    (replace-pair! c 'NIL ?rest))
                   ((GREF nil . ?rest)
                    (replace-pair! c 'NIL ?rest))
-                  (t c)))))
+                  (t nil)))))
 
 (defun main (args)
   (files-or-stdin args

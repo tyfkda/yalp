@@ -25,7 +25,7 @@
     (^(c recur)
       (aif (get-next-code c)
         (print (list (car c) (car it))))
-      c)))
+      nil)))
 
 (defun main (args)
   (files-or-stdin args
