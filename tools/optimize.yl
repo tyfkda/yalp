@@ -28,6 +28,9 @@
                    (replace-pair! c 'NIL ?rest))
                   ((GREF nil . ?rest)
                    (replace-pair! c 'NIL ?rest))
+                  ((GREF t . ?rest)
+                   (set-car! c 'CONST)
+                   c)
                   ((NIL TEST ?then . ?else)    ; Optimize `not` and `and` code
                    (copy-pair! c ?else))
                   ((GREF t TEST ?then . ?else) ; Optimize `not` code
