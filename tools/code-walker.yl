@@ -37,6 +37,7 @@
       (MUL (n . $next))
       (DIV (n . $next))
       (INV $next)
+      (EQ $next)
       (LT (n . $next))
       (LE (n . $next))
       (GT (n . $next))

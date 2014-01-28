@@ -99,6 +99,7 @@ namespace yalp {
   OP(MUL) \
   OP(DIV) \
   OP(INV) \
+  OP(EQ) \
   OP(LT) \
   OP(LE) \
   OP(GT) \
@@ -800,7 +801,7 @@ void Vm::replaceOpcodes(Value x) {
     case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
       return;
     case VOID: case PUSH: case UNBOX: case NIL:
-    case CAR: case CDR: case NEG: case INV:
+    case CAR: case CDR: case NEG: case INV: case EQ:
       break;
     case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
     case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
@@ -1122,6 +1123,11 @@ Value Vm::runLoop() {
     SIMPLE_EMBED_INST(LE, s_lessEqual);
     SIMPLE_EMBED_INST(GT, s_greaterThan);
     SIMPLE_EMBED_INST(GE, s_greaterEqual);
+    CASE(EQ) {
+      Value b = index(s_, 0);
+      a_ = state_->boolean(a_.eq(b));
+      --s_;
+    } NEXT;
     CASE(NEG) {
       a_ = UnaryOp<Neg>::calc(state_, a_);
     } NEXT;

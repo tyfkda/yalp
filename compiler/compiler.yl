@@ -980,6 +980,7 @@
                  (cons '- (arith-embed-func '- 'SUB nil 'NEG))
                  (cons '* (arith-embed-func '* 'MUL 1 nil))
                  (cons '/ (arith-embed-func '/ 'DIV nil 'INV))
+                 (cons 'eq? (simple-embed-func-1 'EQ))
                  (cons '< (simple-embed-func 'LT))
                  (cons '> (simple-embed-func 'GT))
                  (cons '<= (simple-embed-func 'LE))
