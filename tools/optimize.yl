@@ -1,23 +1,34 @@
 ;; Optimize VM code
 
 (load "tools/code-walker.yl")
-(load "compiler/util.yl")
+(load "tools/match.yl")
+
+(defmacro match-cond (expr &rest clauses)
+  (let-gensym val
+    `(let1 ,val ,expr
+       ,(alet ((clauses clauses))
+          (when clauses
+            (let1 clause (car clauses)
+              (if (eq? (car clause) 't)
+                  `(do ,@(cdr clause))
+                `(if-match ,(car clause) ,val
+                           (do ,@(cdr clause))
+                   ,(loop (cdr clauses))))))))))
+
+(defun replace-pair! (pair a d)
+  (set-car! pair a)
+  (set-cdr! pair d)
+  pair)
 
 (defun optimize! (code)
   (vm-walker code
     (^(c recur)
-      (record-case c
-                   (CONST (v &rest _)
-                          (when (eq? v 'nil)
-                            (set-car! c 'NIL)
-                            (set-cdr! c (cddr c)))
-                          c)
-                   (GREF (sym &rest _)
-                         (when (eq? sym 'nil)
-                           (set-car! c 'NIL)
-                           (set-cdr! c (cddr c)))
-                         c)
-                   (t c)))))
+      (match-cond c
+                  ((CONST nil . ?rest)
+                   (replace-pair! c 'NIL ?rest))
+                  ((GREF nil . ?rest)
+                   (replace-pair! c 'NIL ?rest))
+                  (t c)))))
 
 (defun main (args)
   (files-or-stdin args
