@@ -1,6 +1,7 @@
 ;; Optimize VM code
 
 (load "tools/code-walker.yl")
+(load "compiler/util.yl")
 
 (defun optimize! (code)
   (vm-walker code
@@ -22,6 +23,6 @@
   (files-or-stdin args
                   (^(stream)
                     (awhile (read stream)
-                            (optimize! it)
-                            (write/ss it)
-                            (display "\n")))))
+                      (optimize! it)
+                      (write/ss it)
+                      (display "\n")))))
