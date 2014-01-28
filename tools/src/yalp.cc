@@ -255,6 +255,13 @@ static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
 }
 
 static void exitIfError(ErrorCode err) {
+  switch (err) {
+  case FILE_NOT_FOUND:
+    cerr << "File not found\n";
+    break;
+  default:
+    break;
+  }
   if (err != SUCCESS)
     exit(1);
 }
