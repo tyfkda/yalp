@@ -38,6 +38,9 @@
                   ((LOCAL ?i LREF ?i . ?rest)
                    (set-cdr! (cdr c) ?rest)
                    c)
+                  ((LOCAL ?i TEST (LREF ?i TEST ?then . ?else) . ?else2)
+                   (set-car! (cdddr c) ?then)  ; Optimize `or` code
+                   c)
                   (t nil)))))
 
 (defun main (args)
