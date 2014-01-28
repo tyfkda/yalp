@@ -28,6 +28,10 @@
                    (replace-pair! c 'NIL ?rest))
                   ((GREF nil . ?rest)
                    (replace-pair! c 'NIL ?rest))
+                  ((NIL TEST ?then . ?else)
+                   (copy-pair! c ?else))
+                  ((GREF t TEST ?then . ?else)
+                   (copy-pair! c ?then))
                   (t nil)))))
 
 (defun main (args)

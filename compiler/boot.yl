@@ -1,5 +1,5 @@
 (declaim
- ;(inline not)
+ (inline not)
  (inline caar cdar cadr cddr
          cadar caddr cdddr
          cadddr cddddr)
