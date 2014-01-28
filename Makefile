@@ -58,9 +58,8 @@ boot.bin:	self.bin
 
 self.bin:	compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/compiler.yl
 	./yalp -L boot.bin -C $^ > _self.bin
-	#./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
-	#rm _self.bin
-	mv _self.bin self.bin
+	./yalp -L boot.bin tools/optimize.yl _self.bin > self.bin
+	rm _self.bin
 
 self-compile:	self.bin
 	diff boot.bin self.bin && rm self.bin && echo OK
