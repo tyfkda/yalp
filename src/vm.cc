@@ -682,6 +682,7 @@ Value Vm::applyFunctionClosure() {
     s_ = pushArgs(argNum, args, s_);
   }
 
+  pushCallStack(closure);
   x_ = closure->getBody();
   f_ = s_;
   c_ = fn;
