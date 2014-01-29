@@ -186,6 +186,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       break;
     // TODO: Sometimes value is broken here after reader macro executed.
     value = state_->cons(v, value);
+    state_->restoreArenaWith(arena, value);
   }
 
   switch (err) {

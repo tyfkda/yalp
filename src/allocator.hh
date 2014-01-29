@@ -40,7 +40,7 @@ public:
   }
 
 private:
-  static const int ARENA_SIZE = 200;
+  static const int ARENA_SIZE = 50;
 
   Allocator(AllocFunc allocFunc, Callback* callback);
   ~Allocator();
