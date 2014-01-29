@@ -252,7 +252,7 @@
                       args-node
                       body-node)))
           (let1 which (if (< argnum varnum) "few" "many")
-            (compile-error "Too %@ arguments, %@ for %@" which argnum varnum)))))))
+            (compile-error "Too %s arguments, %@ for %@" which argnum varnum)))))))
 
 (defun traverse-defmacro (name vars body scope)
   (let* ((proper-vars (check-parameters vars))
