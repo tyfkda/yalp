@@ -85,7 +85,7 @@ void Allocator::release() {
 
 Allocator::Allocator(AllocFunc allocFunc, Callback* callback)
   : allocFunc_(allocFunc), callback_(callback), userdata_(NULL)
-  , objectTop_(NULL), objectCount_(0), arenaIndex_(0)
+  , objectTop_(NULL), objectCount_(0), arenaIndex_(0), maxArenaIndex_(0)
   , nextGc_(DEFAULT_NEXT_GC) {}
 
 Allocator::~Allocator() {
@@ -137,6 +137,8 @@ void* Allocator::objAlloc(size_t size) {
     assert(!"Arena overflow");
   } else {
     arena_[arenaIndex_++] = gcobj;
+    if (maxArenaIndex_ < arenaIndex_)
+      maxArenaIndex_ = arenaIndex_;
   }
   return gcobj;
 }

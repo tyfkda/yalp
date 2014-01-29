@@ -621,6 +621,7 @@ void State::reportDebugInfo() const {
   vm_->reportDebugInfo();
   symbolManager_->reportDebugInfo();
   fprintf(stdout, "Total gensym: %d\n", gensymIndex_);
+  fprintf(stdout, "Max arena index: %d\n", allocator_->getMaxArenaIndex());
 }
 
 }  // namespace yalp

@@ -39,6 +39,8 @@ public:
     return new(objAlloc(sizeof(T))) T(parameters...);
   }
 
+  inline int getMaxArenaIndex() const  { return maxArenaIndex_; }
+
 private:
   static const int ARENA_SIZE = 50;
 
@@ -60,6 +62,7 @@ private:
 
   GcObject* arena_[ARENA_SIZE];
   int arenaIndex_;
+  int maxArenaIndex_;
   int nextGc_;
 };
 
