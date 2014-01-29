@@ -615,7 +615,7 @@
 
 (defun replace-outer-scope! (node scope)
   (record-case node
-               (:LAMBDA (inner-scope body-slot proper-vars varnum body)
+               (:LAMBDA (inner-scope body-slot varnum body)
                         ;; Scope replacement is just 1 level, and no need to replace body nodes,
                         ;; because this scope replacement is destructive.
                         (scope-outer-scope-set! inner-scope scope))
