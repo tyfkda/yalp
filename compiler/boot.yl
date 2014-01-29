@@ -10,7 +10,7 @@
 ;; Line comment
 (set-macro-character #\;
   (^(stream ch)
-    (until (member (read-char stream) '(#\nl -1)))
+    (until (member (read-char stream) '(#\nl nil)))
     (values)))
 
 ;; 'x => (quote x)
