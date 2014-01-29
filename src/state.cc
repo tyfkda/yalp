@@ -430,7 +430,8 @@ Value State::intern(const char* name) {
 }
 
 Value State::gensym() {
-  return Value(--gensymIndex_, TAG2_SYMBOL);
+  // Gensym'ed symbol has negative index for symbol.
+  return Value(-(++gensymIndex_), TAG2_SYMBOL);
 }
 
 const Symbol* State::getSymbol(int symbolId) const {
