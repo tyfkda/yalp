@@ -689,7 +689,10 @@
                                    )))))
                 (compile-apply-conti f args #|(car it|# scope)
              (aif (and (eq? (car f) ':REF)
-                       (compiler-embed-func? (cadr f)))
+                       (let1 name (cadr f)
+                         (and (not (scope-local-has? scope name))
+                              (not (scope-frees-has? scope name))
+                              (compiler-embed-func? name))))
                   ;; Embeded function.
                   (it args scope next)
                ;; Normal function call.

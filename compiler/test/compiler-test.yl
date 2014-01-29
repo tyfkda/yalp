@@ -31,6 +31,15 @@
            (get-var-info scope3 'a)
     (test-eq "expanded scope" scope1 found-scope)))
 
+(test-section "embed function")
+(test "shadow embed function with local" '(1 . 2)
+      (let1 + (^(x y) (cons x y))
+        (+ 1 2)))
+(test "shadow embed function with free" '((1 2))
+      (let1 car [list _]
+        (let1 f (^(x) (car x))
+          (f '(1 2)))))
+
 (test-section "loop")
 (test "tail recursion is loop" 55
       (let1 n 10
