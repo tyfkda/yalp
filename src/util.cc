@@ -116,9 +116,10 @@ static void format(State* state, Stream* out, const char* fmt, FormatParams* par
       }
       break;
     case 's':
-      if (params->valueOnly())
-        goto L_default;
-      {
+      if (params->valueOnly()) {
+        const Value* p = params->getValue();
+        p->output(state, out, false);
+      } else {
         const char* p = params->getString();
         out->write(p);
       }

@@ -1,7 +1,7 @@
 ;; Test framework
 
 (defmacro test-exec (name expected actual compare)
-  `(do (format *stdout* "Testing %@ ... " ',name)
+  `(do (format *stdout* "Testing %s ... " ',name)
        (print-test-result ,expected ,actual ,compare)))
 
 (defmacro test (name expected actual)
