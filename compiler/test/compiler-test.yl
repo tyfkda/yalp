@@ -103,6 +103,26 @@
                            acc)))
             0 0))
          nil)))
+(test "replace scope for receive values" '((+ 456) (+ 456))
+      (let1 exp '(123 + 456)
+        (alet ((subexp (cdr exp)))  ;; <= Needed alet, not let
+          (receive (subexp2)
+                   (when t  ;; <= Needed
+                     (values subexp))
+            (list subexp2 subexp)))))
+(test "replace scope for invoke args" '(+ -)
+      ((let ((ops '(+ -))
+             (func 999))
+         (^(exp)
+           func
+           (receive (lval subexp)
+                    (values (car exp) (cdr exp))
+             (alet ((subexp2 subexp))
+               (aif (let1 op (car subexp2)
+                      ops)
+                    it
+                 nil)))))
+       '(123 + 456)))
 
 (test-section "call/cc")
 (test "free variable" 123
