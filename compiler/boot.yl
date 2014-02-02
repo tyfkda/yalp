@@ -392,11 +392,11 @@
                        (do (display (cdr it) stream)
                            (write (cadr obj) stream))
                     (do (alet ((c "(")
-                               (obj obj))
-                          (when obj
+                               (ls obj))
+                          (when ls
                             (display c stream)
-                            (write/ss-print (car obj) h stream)
-                            (let1 ds (cdr obj)
+                            (write/ss-print (car ls) h stream)
+                            (let1 ds (cdr ls)
                               (if (or (and ds
                                            (not (pair? ds)))
                                       (table-get h ds))
