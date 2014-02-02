@@ -1,0 +1,73 @@
+;; Generalized variable
+
+(let1 %setf-expander-table% (table)
+  (defun register-setf-expander (sym fn)
+    (table-put! %setf-expander-table% sym fn))
+
+  ;; Returns multiple values (dummies, vals, new, setter, getter)
+  (defun get-setf-expansion (place)
+    (if (symbol? place)
+        (let-gensym g
+          (values nil nil (list g)
+                  `(set! ,place ,g)
+                  place))
+      (aif (and (pair? place)
+                (table-get %setf-expander-table% (car place)))
+           (it place)
+        (error "not registered setf expander for `%@`" place)))))
+
+(defun replace-tree (tree alist)
+  (if (pair? tree)
+      (cons (replace-tree (car tree) alist)
+            (replace-tree (cdr tree) alist))
+    (aif (assoc tree alist)
+         (cdr it)
+      tree)))
+
+;; Sets value to generalized variable.
+(defmacro setf (place obj)
+  (receive (dummies vals new setter getter)
+           (get-setf-expansion place)
+    ;; Assumes that dummies, vals, new and obj are appeared at most once.
+    (replace-tree setter
+                  (cons (cons (car new) obj)
+                        (map cons dummies vals)))))
+
+;; (car ls) => (set-car! ls val)
+(register-setf-expander 'car
+                        (^(place)
+                          (let-gensym (p1 val)
+                            (values (list p1)
+                                    (list (cadr place))
+                                    (list val)
+                                    `(set-car! ,p1 ,val)
+                                    `(car ,p1)))))
+;; (cdr ls) => (set-cdr! ls val)
+(register-setf-expander 'cdr
+                        (^(place)
+                          (let-gensym (p1 val)
+                            (values (list p1)
+                                    (list (cadr place))
+                                    (list val)
+                                    `(set-cdr! ,p1 ,val)
+                                    `(cdr ,p1)))))
+
+;; (table-get tbl key) => (table-put! tbl key val)
+(register-setf-expander 'table-get
+                        (^(place)
+                          (let-gensym (p1 p2 val)
+                            (values (list p1 p2)
+                                    (list (cadr place) (caddr place))
+                                    (list val)
+                                    `(table-put! ,p1 ,p2 ,val)
+                                    `(table-get ,p1 ,p2)))))
+
+;; (vector-get vec index) => (vector-set! vec index val)
+(register-setf-expander 'vector-get
+                        (^(place)
+                          (let-gensym (p1 p2 val)
+                            (values (list p1 p2)
+                                    (list (cadr place) (caddr place))
+                                    (list val)
+                                    `(vector-set! ,p1 ,p2 ,val)
+                                    `(vector-get ,p1 ,p2)))))
