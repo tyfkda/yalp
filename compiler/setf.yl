@@ -87,3 +87,21 @@
                 (car rest)
               1)
     `(inc! ,place (- ,add))))
+
+(defmacro push! (item place)
+  (receive (dummies vals new setter getter)
+           (get-setf-expansion place)
+    `(let ,(map list dummies vals)
+       ,(replace-tree setter
+                      `((,(car new) . (cons ,item ,getter)))))))
+
+(defmacro pop! (place)
+  (receive (dummies vals new setter getter)
+           (get-setf-expansion place)
+    (let ((newsym (car new))
+          (tmpsym (gensym)))
+      `(let (,@(map list dummies vals))
+         (let ((,tmpsym ,getter))
+           ,(replace-tree setter
+                          `((,newsym . (cdr ,tmpsym))))
+           (car ,tmpsym))))))

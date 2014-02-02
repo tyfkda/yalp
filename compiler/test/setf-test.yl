@@ -30,4 +30,17 @@
         (inc! (vector-get v (inc! i)))
         v))
 
+(test-section "push!, pop!")
+(test "push!" '((X 1 2 3))
+      (let ((ls '((1 2 3))))
+        (push! 'X (car ls))
+        ls))
+(test "pop!" '((2 3))
+      (let ((ls '((1 2 3))))
+        (pop! (car ls))
+        ls))
+(test "popped value" 1
+      (let ((ls '((1 2 3))))
+        (pop! (car ls))))
+
 (test-complete)
