@@ -71,3 +71,19 @@
                                     (list val)
                                     `(vector-set! ,p1 ,p2 ,val)
                                     `(vector-get ,p1 ,p2)))))
+
+(defmacro inc! (place &rest rest)
+  (let1 add (if rest
+                (car rest)
+              1)
+    (receive (dummies vals new setter getter)
+             (get-setf-expansion place)
+      `(let ,(map list dummies vals)
+         ,(replace-tree setter
+                        `((,(car new) . (+ ,getter ,add))))))))
+
+(defmacro dec! (place &rest rest)
+  (let1 add (if rest
+                (car rest)
+              1)
+    `(inc! ,place (- ,add))))

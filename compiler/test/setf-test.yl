@@ -23,4 +23,11 @@
         (setf (table-get x 'foo) 'X)
         (table-get x 'foo)))
 
+(test-section "inc!")
+(test "inc!" #(1 2 4)
+      (let ((v #(1 2 3))
+            (i 1))
+        (inc! (vector-get v (inc! i)))
+        v))
+
 (test-complete)
