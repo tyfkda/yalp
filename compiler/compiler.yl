@@ -622,6 +622,7 @@
                (:INVOKE (expanded-scope args-node body)
                         (scope-outer-scope-set! expanded-scope scope))
                (:RECV (expanded-scope varnum vals body)
+                      (replace-outer-scope! vals scope)
                       (scope-outer-scope-set! expanded-scope scope))
                (:SET (var val)
                     (replace-outer-scope! val scope))
