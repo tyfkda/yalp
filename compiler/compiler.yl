@@ -620,6 +620,7 @@
                         ;; because this scope replacement is destructive.
                         (scope-outer-scope-set! inner-scope scope))
                (:INVOKE (expanded-scope args-node body)
+                        (replace-body-scope! args-node scope)
                         (scope-outer-scope-set! expanded-scope scope))
                (:RECV (expanded-scope varnum vals body)
                       (replace-outer-scope! vals scope)
