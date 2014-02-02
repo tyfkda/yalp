@@ -467,10 +467,8 @@
       (unless (scope-local-has? pscope x)
         (let* ((scope-block (scope-block-top-get pscope))
                (frees (scope-frees scope-block)))
-          (if frees
-              (unless (member x frees)
-                (set-cdr! (last frees) (cons x nil)))
-            (scope-frees-set! scope-block (cons x nil)))
+          (unless (member x frees)
+            (scope-frees-set! scope-block (cons x frees)))
           (loop (scope-outer-scope scope-block)))))))
 
 (defun register-set! (scope x v)
