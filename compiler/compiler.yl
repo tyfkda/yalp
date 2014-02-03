@@ -391,6 +391,9 @@
 (defun scope-local-only-has? (scope sym)
   (position-if [eq? (car _) sym] (scope-local-infos scope)))
 
+(defun get-scope-local-offset (scope)
+  (scope-local-has? scope (caar (scope-local-infos scope))))
+
 ;; Returns scope block top for the given scope.
 (defun scope-block-top-get (scope)
   (alet ((pscope scope))
@@ -600,7 +603,9 @@
                       (let ((tail (tail? next))
                             (frees (scope-frees expanded-scope)))
                         (compile-recur vals scope
-                                       (list* '#.RECV (scope-upper-work-size expanded-scope) varnum
+                                       (list* '#.RECV
+                                              (get-scope-local-offset expanded-scope)
+                                              varnum
                                               (compile-body (scope-local-infos expanded-scope) body expanded-scope
                                                             next)))))
                (t (compile-error "Unknown [%@]" node))))
@@ -802,7 +807,7 @@
       (cond ((bit? flag (logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* '#.CONTI tail
-                            '#.LOCAL (scope-local-has? expanded-scope (caar vars))
+                            '#.LOCAL (get-scope-local-offset expanded-scope)
                             (compile-body vars body expanded-scope
                                           (if tail
                                               next
@@ -866,12 +871,12 @@
     next))
 (defun compile-args-for-local (args scope expanded-scope next)
   (alet ((args args)
-         (vars (scope-local-infos expanded-scope))
+         (offset (get-scope-local-offset expanded-scope))
          (next next))
     (if args
-        (loop (cdr args) (cdr vars)
+        (loop (cdr args) (- offset 1)
               (compile-recur (car args) scope
-                             (list* '#.LOCAL (scope-local-has? expanded-scope (caar vars)) next)))
+                             (list* '#.LOCAL offset next)))
       next)))
 
 (defun collect-free (vars scope next)

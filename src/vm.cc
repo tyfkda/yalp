@@ -986,7 +986,7 @@ Value Vm::runLoop() {
       }
       int n = restoreValues(min, max);
       for (int i = 0; i < n; ++i)
-        indexSet(f_, -(offset + i) - 2, index(s_, i));
+        indexSet(f_, offset - i, index(s_, i));
       s_ -= n;
       valueCount_ = 1;
     } NEXT;
