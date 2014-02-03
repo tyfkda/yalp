@@ -2,6 +2,7 @@
 /// Vm - Yet Another List Processor VM.
 //=============================================================================
 
+#include "build_env.hh"
 #include "vm.hh"
 #include "allocator.hh"
 #include "yalp/object.hh"
