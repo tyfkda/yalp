@@ -5,6 +5,7 @@
 /lib/*
 
 /yalp
+/dump_obj_size
 
 /test/hash_table_test
 /test/object_test

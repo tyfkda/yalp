@@ -380,8 +380,8 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 //=============================================================================
 Continuation::Continuation(State* state, const Value* stack, int size,
                            const CallStack* callStack, int callStackSize)
-  : Callable(), copiedStack_(NULL), stackSize_(0)
-  , callStack_(NULL), callStackSize_(0) {
+  : Callable(), copiedStack_(NULL), callStack_(NULL)
+  , stackSize_(0), callStackSize_(0) {
   if (size > 0) {
     copiedStack_ = static_cast<Value*>(state->alloc(sizeof(Value) * size));
     stackSize_ = size;

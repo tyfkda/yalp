@@ -72,3 +72,6 @@ self-compile:	self.bin
 
 include/yalp/binder.inc:	tools/gen_template.rb
 	ruby $< > $@
+
+dump_obj_size:	tools/src/dump_obj_size.cc $(OBJS)
+	g++ $(CXXFLAGS) -o $@ $< $(LIBNAME)

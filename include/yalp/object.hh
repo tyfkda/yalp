@@ -284,8 +284,8 @@ protected:
   virtual void mark() override;
 
   Value* copiedStack_;
-  int stackSize_;
   CallStack* callStack_;
+  int stackSize_;
   int callStackSize_;
 };
 
