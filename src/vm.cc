@@ -106,21 +106,16 @@ static bool checkArgNum(State* state, Value fn, int argNum, int min, int max) {
 // Box class.
 class Box : public Object {
 public:
-  Box(Value x)
-    : Object()
-    , x_(x) {}
+  Box(Value x) : Object(), x_(x) {}
   virtual Type getType() const override  { return TT_BOX; }
-
   void set(Value x)  { x_ = x; }
   Value get()  { return x_; }
-
   virtual void output(State* state, Stream* o, bool inspect) const override {
     // This should not be output, but debug purpose.
     o->write("#<box ");
     x_.output(state, o, inspect);
     o->write('>');
   }
-
 protected:
   Value x_;
 };
