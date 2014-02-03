@@ -24,21 +24,25 @@
   (vm-walker code
     (^(c recur)
       (match-cond c
-                  ((CONST nil . ?rest)
-                   (replace-pair! c 'NIL ?rest))
-                  ((GREF nil . ?rest)
-                   (replace-pair! c 'NIL ?rest))
-                  ((GREF t . ?rest)
-                   (set-car! c 'CONST)
+                  ((#.CONST nil . ?rest)
+                   (replace-pair! c NIL ?rest)
                    c)
-                  ((NIL TEST ?then . ?else)    ; Optimize `not` and `and` code
-                   (copy-pair! c ?else))
-                  ((GREF t TEST ?then . ?else) ; Optimize `not` code
-                   (copy-pair! c ?then))
-                  ((LOCAL ?i LREF ?i . ?rest)
+                  ((#.GREF nil . ?rest)
+                   (replace-pair! c NIL ?rest)
+                   c)
+                  ((#.GREF t . ?rest)
+                   (set-car! c CONST)
+                   c)
+                  ((#.NIL #.TEST ?then . ?else)    ; Optimize `not` and `and` code
+                   (copy-pair! c ?else)
+                   c)
+                  ((#.CONST t #.TEST ?then . ?else) ; Optimize `not` code
+                   (copy-pair! c ?then)
+                   c)
+                  ((#.LOCAL ?i #.LREF ?i . ?rest)
                    (set-cdr! (cdr c) ?rest)
                    c)
-                  ((LOCAL ?i TEST (LREF ?i TEST ?then . ?else) . ?else2)
+                  ((#.LOCAL ?i #.TEST (#.LREF ?i #.TEST ?then . ?else) . ?else2)
                    (set-car! (cdddr c) ?then)  ; Optimize `or` code
                    c)
                   (t nil)))))
