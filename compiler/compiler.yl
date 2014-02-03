@@ -37,13 +37,8 @@
 
 ;;;;
 
-#.(do (with-open-file (f "compiler/opcodes.txt")
-        (let1 g (global-variable-table)
-          (alet ((i 0))
-            (awhen (read f)
-              (table-put! g it i)
-              ;(table-put! g it it)
-              (loop (+ i 1))))))
+#.(do (load "compiler/opcodes.yl")
+      (define-opcode-symbols)
       (values))
 
 (def VAR-ARG 1)              ; is used for argument (or return value).
