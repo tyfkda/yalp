@@ -43,20 +43,24 @@
                       (#\d (loop (- i 1) (list 'cdr acc))))
                   acc)))))
 
-      (defmacro gen-cxxrs (&rest cxxrs)
-        `(do ,@(map (^(cxxr)
-                      `(gen-cxxr ,cxxr))
-                    cxxrs)))
-
       ;; Generates `type-name?` function which checks type.
       (defmacro gen-type-checker (type-name)
         `(def ,(intern (string type-name #\?))
               [eq? (type _) ',type-name]))
 
-      (defmacro gen-type-checkers (&rest type-names)
-        `(do ,@(map (^(type-name)
-                      `(gen-type-checker ,type-name))
-                    type-names)))
+      ;; Generates macro which converts
+      ;;   (FOOs args...) => (do (FOO arg1) (FOO arg2) ...)
+      (defmacro gen-multiple-definitions (macro-name &rest args)
+        `(defmacro ,(intern (string macro-name #\s)) (&rest args)
+           `(do ,@(map (^(arg)
+                         `(,',macro-name ,arg))
+                       args))))
+
+      (values))  ; Empty result.
+;; Need to split, because any expressions are evaluted from tail to top...
+;; TODO: Evaluate macro definition from top to tail.
+#.(do (gen-multiple-definitions gen-cxxr)
+      (gen-multiple-definitions gen-type-checker)
 
       (values))  ; Empty result.
 
