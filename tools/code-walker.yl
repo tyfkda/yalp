@@ -56,16 +56,17 @@
       (let1 index (table-get h code)
         (when (or (not index) (>= index 0))
           (table-put! h code -1)
-          (aif (f code recur)
-               (recur it)
-            (alet ((p (table-get *opcode-table* (car code)))
-                   (c (cdr code)))
-              (if (pair? p)
-                  (do (when (car p)
-                        (recur (car c)))
-                      (loop (cdr p) (cdr c)))
-                (when p
-                  (recur c))))))))))
+          (let1 op (car code)
+            (aif (f code recur)
+                 (recur it)
+              (alet ((p (table-get *opcode-table* op))
+                     (c (cdr code)))
+                (if (pair? p)
+                    (do (when (car p)
+                          (recur (car c)))
+                        (loop (cdr p) (cdr c)))
+                  (when p
+                    (recur c)))))))))))
 
 (defun files-or-stdin (args f)
   (if args

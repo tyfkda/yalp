@@ -16,7 +16,7 @@
     (^(c recur)
       (aif (table-get *optbl* (car c))
         (set-car! c it))
-      t)))
+      nil)))
 
 (defun main (args)
   (files-or-stdin args
