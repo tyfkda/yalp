@@ -39,16 +39,17 @@
 
 #.(do (load "compiler/opcodes.yl")
       (define-opcode-symbols)
-      (values))
 
-(def VAR-ARG 1)              ; is used for argument (or return value).
-(def VAR-FREE 2)             ; is captured for free variable.
-(def VAR-SET 4)              ; is set.
-(def VAR-SELF-TAIL-RECUR 8)  ; is used for function for self tail recursion.
-(def VAR-CALL-IN-BASE1 16)   ; is used for function in base position.
-(def VAR-CALL-IN-BASE2 32)   ; is used for function in base position, more than 1 time.
-(def VAR-CALL-OTHER 64)      ; is used for function.
-(def VAR-CONTI 128)          ; is continuation.
+      (def VAR-ARG 1)              ; is used for argument (or return value).
+      (def VAR-FREE 2)             ; is captured for free variable.
+      (def VAR-SET 4)              ; is set.
+      (def VAR-SELF-TAIL-RECUR 8)  ; is used for function for self tail recursion.
+      (def VAR-CALL-IN-BASE1 16)   ; is used for function in base position.
+      (def VAR-CALL-IN-BASE2 32)   ; is used for function in base position, more than 1 time.
+      (def VAR-CALL-OTHER 64)      ; is used for function.
+      (def VAR-CONTI 128)          ; is continuation.
+
+      (values))
 
 ;; Traverses lisp code and generate intermediate AST.
 ;;   x : code to be compiled.
@@ -57,7 +58,7 @@
 ;;   @result : AST.
 (defun traverse (x scope tail)
   (cond ((symbol? x)
-         (add-var-info scope x VAR-ARG)
+         (add-var-info scope x '#.VAR-ARG)
          (traverse-refer x scope))
         ((pair? x)
          (let1 expanded (expand-macro x scope)
@@ -151,7 +152,7 @@
         (let* ((expanded-scope (expand-scope vars scope))
                (body-node (traverse-body body expanded-scope tail)))
           ;; Set the parameter is continuation.
-          (add-var-info expanded-scope (car vars) VAR-CONTI)
+          (add-var-info expanded-scope (car vars) '#.VAR-CONTI)
           ;; Returns CONTI node
           (list ':CONTI-DIRECT
                 expanded-scope body-node)))
@@ -196,9 +197,9 @@
              (single? sets)
              (lambda-node? (car sets)))
         (cond ((scope-local-has? calling-scope func-name)
-               (if (var-has-attr? calling-scope func-name VAR-CALL-IN-BASE1)
-                   VAR-CALL-IN-BASE2
-                 VAR-CALL-IN-BASE1))
+               (if (var-has-attr? calling-scope func-name '#.VAR-CALL-IN-BASE1)
+                   '#.VAR-CALL-IN-BASE2
+                 '#.VAR-CALL-IN-BASE1))
               (tail
                (receive (_ defined-scope)
                         (get-var-info calling-scope func-name)
@@ -206,10 +207,10 @@
                          (upper-scope-is? calling-scope defined-scope)
                        ;; Calling global function as self recursion.
                        (eq? (lambda-scope-get (car sets)) (scope-block-top-get calling-scope)))
-                     VAR-SELF-TAIL-RECUR
-                   VAR-CALL-OTHER)))
-              (t VAR-CALL-OTHER))
-      VAR-CALL-OTHER)))
+                     '#.VAR-SELF-TAIL-RECUR
+                   '#.VAR-CALL-OTHER)))
+              (t '#.VAR-CALL-OTHER))
+      '#.VAR-CALL-OTHER)))
 
 (defun traverse-apply (func args scope tail)
   (let ((call-type (detect-call-type func scope tail))
@@ -468,7 +469,7 @@
 
 ;; Registers free variable into scope block.
 (defun register-fref (scope x)
-  (add-var-info scope x VAR-FREE)
+  (add-var-info scope x '#.VAR-FREE)
   (alet ((pscope scope))
     (when pscope
       (unless (scope-local-has? pscope x)
@@ -479,7 +480,7 @@
           (loop (scope-outer-scope scope-block)))))))
 
 (defun register-set! (scope x v)
-  (add-var-info scope x VAR-SET)
+  (add-var-info scope x '#.VAR-SET)
   (receive (info defined-scope)
            (get-var-info scope x)
     (when info
@@ -615,10 +616,10 @@
            (get-var-info scope func-name)
     (and info
          (let1 type (var-info-flag-get info)
-           (and (not (bit? type (logior VAR-ARG
-                                        VAR-CALL-OTHER
-                                        VAR-CALL-IN-BASE2)))
-                (bit? type VAR-CALL-IN-BASE1))))))
+           (and (not (bit? type '#.(logior VAR-ARG
+                                           VAR-CALL-OTHER
+                                           VAR-CALL-IN-BASE2)))
+                (bit? type '#.VAR-CALL-IN-BASE1))))))
 
 (defun replace-outer-scope! (node scope)
   (record-case node
@@ -678,12 +679,12 @@
   (let1 lambda-node (apply-func-can-be-loop? f scope)
     (cond (;; Start loop?
            (and lambda-node
-                (bit? call-type VAR-CALL-IN-BASE1)
+                (bit? call-type '#.VAR-CALL-IN-BASE1)
                 (can-eliminate-lambda-node? scope (cadr f)))
            (compile-apply-loop lambda-node f args scope next))
           (;; Self tail recursion?
            (and lambda-node
-                (bit? call-type VAR-SELF-TAIL-RECUR))
+                (bit? call-type '#.VAR-SELF-TAIL-RECUR))
            (compile-apply-self-recur lambda-node f args scope))
           (t
            ;; Longjmp?
@@ -692,8 +693,8 @@
                               (get-var-info scope (cadr f))
                        (and info
                             (let1 flag (var-info-flag-get info)
-                              (and (bit? flag VAR-CONTI)
-                                   (not (bit? flag (logior VAR-ARG VAR-SET)))
+                              (and (bit? flag '#.VAR-CONTI)
+                                   (not (bit? flag '#.(logior VAR-ARG VAR-SET)))
                                    ;(var-is-set? defined-scope (cadr f))
                                    )))))
                 (compile-apply-conti f args #|(car it|# scope)
@@ -804,7 +805,7 @@
           (flag (receive (info _)
                          (get-var-info expanded-scope (caar vars))
                   (var-info-flag-get info))))
-      (cond ((bit? flag (logior VAR-ARG VAR-SET))
+      (cond ((bit? flag '#.(logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* '#.CONTI tail
                             '#.LOCAL (get-scope-local-offset expanded-scope)
@@ -815,15 +816,15 @@
                (if tail
                    c
                  (list* '#.FRAME c next))))
-            ((bit? flag (logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+            ((bit? flag '#.(logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
              ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
              ;; Re-expand scope to store frame pointer and and closure to stack.
              (let* ((dummy-symbol (gensym))
                     ;; Add 3 extra local variables.
                     (modified-vars (append (scope-local-infos expanded-scope)
-                                           (list (cons dummy-symbol VAR-ARG)
-                                                 (cons dummy-symbol VAR-ARG)
-                                                 (cons dummy-symbol VAR-ARG))))
+                                           (list (cons dummy-symbol '#.VAR-ARG)
+                                                 (cons dummy-symbol '#.VAR-ARG)
+                                                 (cons dummy-symbol '#.VAR-ARG))))
                     (expanded-scope (expand-scope2 modified-vars
                                                    scope)))
                (replace-body-scope! body expanded-scope)
