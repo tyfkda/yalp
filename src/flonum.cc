@@ -181,7 +181,7 @@ struct CompareOp {
           Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
             return state->boolean(false);
-          acc = xx;
+          acc = static_cast<Flonum>(xx);
         }
         break;
       case TT_FLONUM:
