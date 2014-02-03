@@ -5,6 +5,7 @@
 #ifndef _YALP_UTIL_HH_
 #define _YALP_UTIL_HH_
 
+#include "yalp.hh"
 #include "yalp/config.hh"
 #include "yalp/error_code.hh"
 #include <stdarg.h>
@@ -32,6 +33,9 @@ void format(State* state, Stream* out, const char* fmt, va_list ap);
 void format(State* state, Stream* out, const char* fmt, const Value* values);
 
 void raiseReadError(State* state, ErrorCode err, Reader* reader);
+
+// Returns x ^ n in Fixnum.
+Fixnum iexpt(Fixnum x, Fixnum n);
 
 }  // namespace yalp
 

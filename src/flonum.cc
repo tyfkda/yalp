@@ -7,6 +7,7 @@
 #include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "yalp/util.hh"
 #include "allocator.hh"
 
 #ifdef _MSC_VER
@@ -302,6 +303,44 @@ Value s_modFlonum(State* state) {
   }
   return Value::NIL;
 }
+
+Value s_exptFlonum(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  Type ta = a.getType();
+  Type tb = b.getType();
+  if (ta == TT_FIXNUM && tb == TT_FIXNUM)
+    return Value(iexpt(a.toFixnum(), b.toFixnum()));
+
+  switch (a.getType()) {
+  case TT_FIXNUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(pow(a.toFixnum(), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(pow(a.toFixnum(), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  case TT_FLONUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(pow(a.toFlonum(state), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(pow(a.toFlonum(state), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  default:
+    state->runtimeError("Number expected, but `%@`", &a);
+    break;
+  }
+  return Value::NIL;
+}
 #endif
 
 void installFlonumFunctions(State* state) {
@@ -322,6 +361,7 @@ void installFlonumFunctions(State* state) {
     { ">", s_greaterThanFlonum, 2, -1 },
     { "<=", s_lessEqualFlonum, 2, -1 },
     { ">=", s_greaterEqualFlonum, 2, -1 },
+    { "expt", s_exptFlonum, 2 },
   };
 
   for (auto it : FuncTable) {
@@ -339,7 +379,6 @@ void installFlonumFunctions(State* state) {
     b.bind("floor", (Flonum (*)(Flonum)) floor);
     b.bind("ceil", (Flonum (*)(Flonum)) ceil);
     b.bind("atan2", (Flonum (*)(Flonum, Flonum)) atan2);
-    b.bind("expt", (Flonum (*)(Flonum, Flonum)) pow);
   }
 #else
   (void)state;  // To avoid warning.

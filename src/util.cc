@@ -184,4 +184,23 @@ void raiseReadError(State* state, ErrorCode err, Reader* reader) {
   }
 }
 
+Fixnum iexpt(Fixnum x, Fixnum n) {
+  Fixnum v = 1;
+  if (n >= 0) {
+    while (n > 0) {
+      if ((n & 1) != 0)
+        v *= x;
+      x *= x;
+      n >>= 1;
+    }
+  } else {
+    switch (x) {
+    case 1:  v = 1; break;
+    case -1: v = (n & 1) == 0 ? 1 : -1; break;
+    default: v = 0; break;
+    }
+  }
+  return v;
+}
+
 }  // namespace yalp

@@ -292,6 +292,14 @@ static Value s_mod(State* state) {
   return Value(a.toFixnum() % b.toFixnum());
 }
 
+Value s_expt(State* state) {
+  Value a = state->getArg(0);
+  state->checkType(a, TT_FIXNUM);
+  Value b = state->getArg(1);
+  state->checkType(b, TT_FIXNUM);
+  return Value(iexpt(a.toFixnum(), b.toFixnum()));
+}
+
 Value s_lessThan(State* state) {
   return CompareOp<LessThan>::calc(state);
 }
@@ -933,6 +941,7 @@ void installBasicFunctions(State* state) {
     { "*", s_mul, 0, -1 },
     { "/", s_div, 0, -1 },
     { "mod", s_mod, 2 },
+    { "expt", s_expt, 2 },
 
     { "eq?", s_eq, 2 },
     { "equal?", s_equal, 2 },
