@@ -122,16 +122,7 @@ protected:
 
 //=============================================================================
 
-#ifdef DISABLE_FLONUM
-extern Value s_add(State*);
-extern Value s_sub(State*);
-extern Value s_mul(State*);
-extern Value s_div(State*);
-extern Value s_lessThan(State*);
-extern Value s_lessEqual(State*);
-extern Value s_greaterThan(State*);
-extern Value s_greaterEqual(State*);
-#else
+#ifndef DISABLE_FLONUM
 #define s_add  s_addFlonum
 #define s_sub  s_subFlonum
 #define s_mul  s_mulFlonum
