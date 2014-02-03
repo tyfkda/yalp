@@ -332,12 +332,6 @@
         x
       (macroexpand x))))
 
-(defun macroexpand (exp)
-  (let1 expanded (macroexpand-1 exp)
-    (if (equal? expanded exp)
-        exp
-      (macroexpand expanded))))
-
 ;;;;
 ;; Scope
 ;;   var-info: #0=var-info

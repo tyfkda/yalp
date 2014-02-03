@@ -26,6 +26,12 @@
 
 ;;; Basic functions and macros.
 
+(defun macroexpand (exp)
+  (let1 expanded (macroexpand-1 exp)
+    (if (equal? expanded exp)
+        exp
+      (macroexpand expanded))))
+
 (defmacro defun (name vars &body body)
   `(def ,name (^ ,vars ,@body)))
 
