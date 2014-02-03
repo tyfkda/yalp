@@ -1,9 +1,10 @@
 //=============================================================================
-/// Read S-Expression
+/// flonum - flonum functions
 //=============================================================================
 
 #include "build_env.hh"
-
+#include "flonum.hh"
+#include "yalp.hh"
 #include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"

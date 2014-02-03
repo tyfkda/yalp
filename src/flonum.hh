@@ -8,6 +8,7 @@
 namespace yalp {
 
 class State;
+class Value;
 
 void installFlonumFunctions(State* state);
 
