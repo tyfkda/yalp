@@ -113,9 +113,6 @@ private:
   int valuesSize_;
   int valueCount_;
 
-  // Symbols
-  Value* opcodes_;
-
   // Global variables
   SHashTable* globalVariableTable_;
 

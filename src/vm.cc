@@ -45,7 +45,7 @@
     FileStream out(stdout);                                             \
     Value op = car(x_), d = car(cdr(x_));                               \
     if (d.getType() == TT_CELL) d = Value::NIL;                         \
-    format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+    format(state_, &out, "run: s=%d, f=%d, x=%s %@\n", s_, f_, OpcodeNameTable[op.toFixnum()], &d); \
   }                                                                     \
 
 namespace yalp {
@@ -58,6 +58,14 @@ enum Opcode {
 #undef OP
   NUMBER_OF_OPCODE
 };
+
+#ifndef DIRECT_THREADED
+static const char* OpcodeNameTable[NUMBER_OF_OPCODE] = {
+#define OP(name)  #name,
+# include "opcodes.hh"
+#undef OP
+};
+#endif
 
 #define CELL(x)  (static_cast<Cell*>(x.toObject()))
 #define CAR(x)  (CELL(x)->car())
@@ -263,7 +271,6 @@ Vm::~Vm() {
     state_->free(values_);
   if (stack_ != NULL)
     state_->free(stack_);
-  state_->free(opcodes_);
 }
 
 Vm::Vm(State* state)
@@ -273,18 +280,6 @@ Vm::Vm(State* state)
   , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
   int arena = state_->saveArena();
-  {
-    static const char* NameTable[NUMBER_OF_OPCODE] = {
-#define OP(name)  #name,
-# include "opcodes.hh"
-#undef OP
-    };
-
-    void* memory = state_->alloc(sizeof(Value) * NUMBER_OF_OPCODE);
-    opcodes_ = new(memory) Value[NUMBER_OF_OPCODE];
-    for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-      opcodes_[i] = state_->intern(NameTable[i]);
-  }
 
   globalVariableTable_ = state_->createHashTable(false);
 
@@ -715,7 +710,7 @@ void Vm::storeValues(int n, int s) {
 
 int Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
-  checkArgNum(state_, opcodes_[RECV], argNum, min, max);
+  checkArgNum(state_, Value::NIL, argNum, min, max);
   reserveStack(s_ + argNum);
   moveValuesToStack(&stack_[s_], values_, a_, argNum);
   s_ += argNum;
