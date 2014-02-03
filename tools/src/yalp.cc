@@ -276,6 +276,7 @@ int main(int argc, char* argv[]) {
   bool bBinary = false;
   bool bCompile = false;
   bool bNoRun = false;
+  const char* oneLinear = NULL;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
@@ -293,6 +294,13 @@ int main(int argc, char* argv[]) {
       break;
     case 'c':
       bCompile = true;
+      break;
+    case 'e':
+      if (++ii >= argc) {
+        cerr << "'-e' takes parameter" << endl;
+        exit(1);
+      }
+      oneLinear = argv[ii];
       break;
     case 'C':  // Compile, and not run the code.
       bCompile = true;
@@ -321,7 +329,10 @@ int main(int argc, char* argv[]) {
   if (bCompile)
     tmpFd = reopenFile(stdout, "/dev/null", "w");
 
-  if (ii >= argc) {
+  if (oneLinear != NULL) {
+    StrStream stream(oneLinear);
+    repl(state, &stream, false);
+  } else if (ii >= argc) {
   L_noScriptFiles:
     FileStream stream(stdin);
     bool result;
