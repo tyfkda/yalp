@@ -481,7 +481,7 @@ bool Reader::isDelimiter(int c) {
   switch (c) {
   case ' ': case '\t': case '\n': case '\0': case -1:
   case '(': case ')': case '[': case ']': case '{': case '}':
-  case ';':
+  case ';': case ',':
     return true;
   default:
     return false;
