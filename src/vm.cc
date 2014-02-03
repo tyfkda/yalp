@@ -16,7 +16,7 @@
 
 #include <assert.h>
 #include <iostream>
-#include <string.h>  // for memmove
+#include <string.h>  // for memcpy, memmove
 
 #ifdef __GNUC__
 #define DIRECT_THREADED
@@ -51,6 +51,8 @@
 
 namespace yalp {
 
+const int STACK_EXPAND_SIZE = 16;
+
 //=============================================================================
 
 enum Opcode {
@@ -78,8 +80,6 @@ static const char* OpcodeNameTable[NUMBER_OF_OPCODE] = {
 #define CADDDR(x)  (CAR(CDDDR(x)))
 #define CDDDDR(x)  (CDR(CDDDR(x)))
 
-//=============================================================================
-
 static inline void moveStackElems(Value* stack, int dst, int src, int n) {
   if (n > 0)
     memmove(&stack[dst], &stack[src], sizeof(Value) * n);
@@ -104,7 +104,6 @@ static bool checkArgNum(State* state, Value fn, int argNum, int min, int max) {
   return true;
 }
 
-// Box class.
 class Box : public Object {
 public:
   Box(Value x) : Object(), x_(x) {}
@@ -122,6 +121,7 @@ protected:
 };
 
 //=============================================================================
+// Embedded opcode.
 
 #ifndef DISABLE_FLONUM
 #define s_add  s_addFlonum
@@ -248,10 +248,9 @@ void Vm::setTrace(bool b) {
 }
 
 void Vm::resetError() {
-  Value nil = Value::NIL;
-  a_ = nil;
+  a_ = Value::NIL;
   x_ = endOfCode_;
-  c_ = nil;
+  c_ = Value::NIL;
   f_ = s_ = 0;
   callStack_.clear();
 }
@@ -264,7 +263,7 @@ void Vm::markRoot() {
   // Mark values.
   for (int n = valueCount_ - 1, i = 0; i < n; ++i)
     values_[i].mark();
-  // Mark a registers.
+  // Mark registers.
   a_.mark();
   c_.mark();
   x_.mark();
@@ -301,7 +300,6 @@ bool Vm::assignGlobal(Value sym, Value value) {
   state_->checkType(sym, TT_SYMBOL);
   if (globalVariableTable_->get(sym) == NULL)
     return false;
-
   globalVariableTable_->put(sym, value);
   return true;
 }
@@ -320,10 +318,7 @@ int Vm::pushArgs(int argNum, const Value* args, int s) {
 }
 
 void Vm::pushCallStack(Callable* callable) {
-  CallStack s = {
-    callable,
-    false,
-  };
+  CallStack s = { callable, false };
   callStack_.push_back(s);
 }
 
@@ -579,7 +574,8 @@ Value Vm::applyFunctionClosure() {
 }
 
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree,
+                                                                minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
@@ -605,7 +601,7 @@ void Vm::reserveStack(int n) {
   if (n <= stackSize_)
     return;
 
-  int newSize = n + 16;
+  int newSize = n + STACK_EXPAND_SIZE;
   void* memory = state_->realloc(stack_, sizeof(Value) * newSize);
   Value* newStack = static_cast<Value*>(memory);
   stack_ = newStack;
@@ -640,13 +636,13 @@ Value Vm::createRestParams(int argNum, int minArgNum, int s) {
 }
 
 void Vm::reserveValuesBuffer(int n) {
-  if (n - 1 > valuesSize_) {
-    // Allocation size is n - 1, because values[0] is stored in a_ register.
-    void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
-    Value* newBuffer = static_cast<Value*>(memory);
-    values_ = newBuffer;
-    valuesSize_ = n - 1;
-  }
+  if (n - 1 <= valuesSize_)
+    return;
+  // Allocation size is n - 1, because values[0] is stored in a_ register.
+  void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
+  Value* newBuffer = static_cast<Value*>(memory);
+  values_ = newBuffer;
+  valuesSize_ = n - 1;
 }
 
 void Vm::storeValues(int n, int s) {
