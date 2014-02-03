@@ -17,21 +17,13 @@
 #include <iostream>
 #include <string.h>  // for memmove
 
-#define REPLACE_OPCODE
-
 #ifdef __GNUC__
 #define DIRECT_THREADED
 #endif
 
-#ifdef REPLACE_OPCODE
 #define OPCVAL(op)  (Value(op))
-#define OPIDX(op)  ((op).toFixnum())
-#else
-#define OPCVAL(op)  (opcodes_[op])
-#define OPIDX(op)  (findOpcode(op))
-#endif
 
-#define FETCH_OP  (prex = x_, x_ = CDR(prex), OPIDX(CAR(prex)))
+#define FETCH_OP  (prex = x_, x_ = CDR(prex), CAR(prex).toFixnum())
 
 #ifdef DIRECT_THREADED
 #define INIT_DISPATCH  NEXT;
@@ -292,13 +284,6 @@ int Vm::popCallFrame(int s) {
   f_ = index(s, 1).toFixnum();
   c_ = index(s, 2);
   return s - 3;
-}
-
-int Vm::findOpcode(Value op) {
-  for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-    if (op.eq(opcodes_[i]))
-      return i;
-  return NUMBER_OF_OPCODE;
 }
 
 Value Vm::box(Value x) {
@@ -789,64 +774,7 @@ int Vm::restoreValues(int min, int max) {
   return n;
 }
 
-void Vm::replaceOpcodes(Value x) {
-#ifdef REPLACE_OPCODE
-  for (;;) {
-    Value op = CAR(x);
-    if (op.getType() != TT_SYMBOL) {
-      assert(op.getType() == TT_FIXNUM);
-      return;
-    }
-    int opidx = findOpcode(op);
-    static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
-    x = CDR(x);
-    switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
-      return;
-    case VOID: case PUSH: case UNBOX: case NIL:
-    case CAR: case CDR: case NEG: case INV: case EQ:
-      break;
-    case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
-    case LOCAL:
-    case ADD: case SUB: case MUL: case DIV: case LT: case GT: case LE: case GE:
-      x = CDR(x);
-      break;
-    case LOOP: case RECV:
-      x = CDDR(x);
-      break;
-    case SETJMP:
-      replaceOpcodes(CADR(x));
-      x = CDDR(x);
-      break;
-    case TEST: case FRAME:
-      replaceOpcodes(CAR(x));
-      x = CDR(x);
-      break;
-    case CLOSE:
-      replaceOpcodes(CADDR(x));
-      x = CDDDR(x);
-      break;
-    case MACRO:
-      {
-        Value tmp = CDDDR(x);
-        replaceOpcodes(CAR(tmp));
-        x = CDR(tmp);
-      }
-      break;
-    default:
-      state_->runtimeError("Unknown op `%@`", &op);
-      return;
-    }
-  }
-#else
-  (void)x;
-#endif
-}
-
 Value Vm::run(Value code) {
-  replaceOpcodes(code);
-
   Value oldX = x_;
   a_ = c_ = Value::NIL;
   x_ = code;

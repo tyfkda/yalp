@@ -104,9 +104,6 @@ private:
   inline int popCallFrame(int s);
   inline Value box(Value x);
 
-  inline int findOpcode(Value op);
-  void replaceOpcodes(Value code);
-
   State* state_;
   Value* stack_;
   int stackSize_;
