@@ -32,7 +32,7 @@
 (defun not (x) (if x nil t))
 
 ;; Macro definitions needed only compile time.
-#.(do (defmacro def-cxxr (cxxr)
+#.(do (defmacro gen-cxxr (cxxr)
         `(defun ,cxxr (x)
            ,(let1 s (string cxxr)
               (alet ((i (- (length s) 2))
@@ -43,13 +43,13 @@
                       (#\d (loop (- i 1) (list 'cdr acc))))
                   acc)))))
 
-      (defmacro def-cxxrs (&rest cxxrs)
+      (defmacro gen-cxxrs (&rest cxxrs)
         `(do ,@(map (^(cxxr)
-                      `(def-cxxr ,cxxr))
+                      `(gen-cxxr ,cxxr))
                     cxxrs)))
       (values))  ; Empty result.
 
-(def-cxxrs
+(gen-cxxrs
   caar cdar cadr cddr
   cadar caddr cdddr
   cadddr cddddr
