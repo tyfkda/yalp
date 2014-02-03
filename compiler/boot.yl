@@ -487,3 +487,11 @@
 (defun bit? (x flag)
   (not (eq? (logand x flag)
             0)))
+
+(defmacro with-open-file (params &rest body)
+  (let ((var (car params))
+        (file-name (cadr params)))
+    `(let1 ,var (open ,file-name)
+       (let1 result ,@body
+         (close ,var)
+         result))))
