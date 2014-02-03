@@ -49,11 +49,10 @@
                     cxxrs)))
       (values))  ; Empty result.
 
-(gen-cxxrs
-  caar cdar cadr cddr
-  cadar caddr cdddr
-  cadddr cddddr
-  caddddr cdddddr)
+(gen-cxxrs caar cdar cadr cddr
+           cadar caddr cdddr
+           cadddr cddddr
+           caddddr cdddddr)
 
 (defun int? (x) (eq? (type x) 'int))
 (defun pair? (x) (eq? (type x) 'pair))
