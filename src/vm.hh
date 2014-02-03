@@ -6,6 +6,7 @@
 #define _VM_HH_
 
 #include "yalp.hh"
+#include <assert.h>
 #include <vector>
 
 namespace yalp {
@@ -30,9 +31,9 @@ public:
 
   inline Object* getFunc() const;
   // Gets argument number for current native function.
-  int getArgNum() const;
+  inline int getArgNum() const;
   // Gets argument value for the index.
-  Value getArg(int index) const;
+  inline Value getArg(int index) const;
 
   inline Value multiValues();
   inline Value multiValues(Value v0);
@@ -127,6 +128,19 @@ private:
 
   std::vector<CallStack> callStack_;
 };
+
+Value Vm::index(int s, int i) const {
+  assert(s - i - 1 >= 0);
+  return stack_[s - i - 1];
+}
+
+void Vm::indexSet(int s, int i, Value v) {
+  assert(s - i - 1 >= 0);
+  stack_[s - i - 1] = v;
+}
+
+int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
+Value Vm::getArg(int index) const  { return this->index(f_, index); }
 
 Object* Vm::getFunc() const  { return c_.toObject(); }
 

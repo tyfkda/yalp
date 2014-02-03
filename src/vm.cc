@@ -204,19 +204,6 @@ struct Inv {
 //=============================================================================
 // Inline methods
 
-Value Vm::index(int s, int i) const {
-  assert(s - i - 1 >= 0);
-  return stack_[s - i - 1];
-}
-
-void Vm::indexSet(int s, int i, Value v) {
-  assert(s - i - 1 >= 0);
-  stack_[s - i - 1] = v;
-}
-
-int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
-Value Vm::getArg(int index) const  { return this->index(f_, index); }
-
 Value Vm::callEmbedFunction(NativeFuncType func, Fixnum n) {
   int oldF = f_;
   f_ = s_;
