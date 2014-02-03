@@ -24,7 +24,7 @@
 
 #define OPCVAL(op)  (Value(op))
 
-#define FETCH_OP  (CAR(x_).toFixnum())
+#define FETCH_OP  (x = CDR(x_), CAR(x_).toFixnum())
 
 #ifdef DIRECT_THREADED
 #define INIT_DISPATCH  NEXT;
@@ -72,16 +72,11 @@ static const char* OpcodeNameTable[NUMBER_OF_OPCODE] = {
 
 #define CELL(x)  (static_cast<Cell*>(x.toObject()))
 #define CAR(x)  (CELL(x)->car())
-#define CAR(x)  (CELL(x)->car())
 #define CDR(x)  (CELL(x)->cdr())
 #define CADR(x)  (CAR(CDR(x)))
-#define CDDR(x)  (CDR(CDR(x)))
-#define CADDR(x)  (CAR(CDDR(x)))
-#define CDDDR(x)  (CDR(CDDR(x)))
-#define CADDDR(x)  (CAR(CDDDR(x)))
-#define CDDDDR(x)  (CDR(CDDDR(x)))
-#define CADDDDR(x)  (CAR(CDDDDR(x)))
-#define CDDDDDR(x)  (CDR(CDDDDR(x)))
+
+// Watch out! You must use in form: `Value n = POP(x);`
+#define POP(x)  CELL(x)->car(); x = CELL(x)->cdr()
 
 static inline void moveStackElems(Value* stack, int dst, int src, int n) {
   if (n > 0)
@@ -139,9 +134,9 @@ protected:
 
 #define SIMPLE_EMBED_INST(OP, func)             \
   CASE(OP) {                                    \
-    Fixnum n = CADR(x_).toFixnum();             \
-    x_ = CDDR(x_);                              \
-    a_ = callEmbedFunction(func, n);            \
+    Value n = POP(x);                           \
+    x_ = x;                                     \
+    a_ = callEmbedFunction(func, n.toFixnum()); \
   } NEXT
 
 template <class Op>
@@ -694,40 +689,41 @@ Value Vm::runLoop() {
   };
 #endif
 
+  Value x;
   INIT_DISPATCH {
     CASE(HALT) {
       x_ = endOfCode_;
       return a_;
     }
     CASE(VOID) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = Value::NIL;
       valueCount_ = 0;
     } NEXT;
     CASE(NIL) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = Value::NIL;
     } NEXT;
     CASE(CONST) {
-      a_ = CADR(x_);
-      x_ = CDDR(x_);
+      a_ = POP(x);
+      x_ = x;
     } NEXT;
     CASE(LREF) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
-      a_ = index(f_, n);
+      Value n = POP(x);
+      x_ = x;
+      a_ = index(f_, n.toFixnum());
       valueCount_ = 1;
     } NEXT;
     CASE(FREF) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
+      Value n = POP(x);
+      x_ = x;
       assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
-      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
+      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n.toFixnum());
       valueCount_ = 1;
     } NEXT;
     CASE(GREF) {
-      Value sym = CADR(x_);
-      x_ = CDDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Value aa = referGlobal(sym, &exist);
@@ -737,49 +733,50 @@ Value Vm::runLoop() {
       valueCount_ = 1;
     } NEXT;
     CASE(LSET) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
-      Value box = index(f_, n);
+      Value n = POP(x);
+      x_ = x;
+      Value box = index(f_, n.toFixnum());
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
     } NEXT;
     CASE(FSET) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
+      Value n = POP(x);
+      x_ = x;
       assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
-      Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
+      Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n.toFixnum());
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
     } NEXT;
     CASE(GSET) {
-      Value sym = CADR(x_);
-      x_ = CDDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       if (!assignGlobal(sym, a_))
         state_->runtimeError("Global variable `%@` not defined", &sym);
     } NEXT;
     CASE(DEF) {
-      Value sym = CADR(x_);
-      x_ = CDDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       defineGlobal(sym, a_);
     } NEXT;
     CASE(PUSH) {
-      x_ = CDR(x_);
+      x_ = x;
       s_ = push(a_, s_);
     } NEXT;
     CASE(TEST) {
-      Value thn = CADR(x_);
-      Value els = CDDR(x_);
+      Value thn = POP(x);
+      Value els = x;
       x_ = a_.isTrue() ? thn : els;
     } NEXT;
     CASE(CLOSE) {
       Value prex = x_;
       int arena = state_->saveArena();
-      Value nparam = CADR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      int nfree = CADDR(x_).toFixnum();
-      Value body = CADDDR(x_);
-      x_ = CDDDDR(x_);
+      Value nparam = POP(x);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      Value snfree = POP(x);
+      Value body = POP(x);
+      x_ = x;
+      int nfree = snfree.toFixnum();
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -801,13 +798,13 @@ Value Vm::runLoop() {
       state_->restoreArena(arena);
     } NEXT;
     CASE(FRAME) {
-      Value ret = CDDR(x_);
-      x_ = CADR(x_);
+      x_ = POP(x);
+      Value ret = x;
       s_ = pushCallFrame(ret, s_);
     } NEXT;
     CASE(APPLY) {
-      int argNum = CADR(x_).toFixnum();
-      apply(a_, argNum);
+      Value argNum = POP(x);
+      apply(a_, argNum.toFixnum());
     } NEXT;
     CASE(RET) {
       int argNum = index(f_, -1).toFixnum();
@@ -819,9 +816,10 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
-      int offset = CADR(x_).toFixnum();
-      int n = CADDR(x_).toFixnum();
-      x_ = CDDDR(x_);
+      Value soffset = POP(x);
+      Value sn = POP(x);
+      x_ = x;
+      int offset = soffset.toFixnum(), n = sn.toFixnum();
       // TODO: Remove this conditional.
       if (offset > 0) {
         for (int i = 0; i < n; ++i)
@@ -834,7 +832,8 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
-      int n = CADR(x_).toFixnum();
+      Value sn = POP(x);
+      int n = sn.toFixnum();
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_, f_);
       shiftCallStack();
@@ -843,20 +842,21 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(BOX) {
       int arena = state_->saveArena();
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
+      Value sn = POP(x);
+      int n = sn.toFixnum();
+      x_ = x;
       indexSet(f_, n, box(index(f_, n)));
       state_->restoreArena(arena);
     } NEXT;
     CASE(UNBOX) {
-      x_ = CDR(x_);
+      x_ = x;
       assert(a_.getType() == TT_BOX);
       a_ = static_cast<Box*>(a_.toObject())->get();
     } NEXT;
     CASE(CONTI) {
       int arena = state_->saveArena();
-      Value tail = CADR(x_);
-      x_ = CDDR(x_);
+      Value tail = POP(x);
+      x_ = x;
       int s = s_;
       if (tail.isTrue()) {
         int calleeArgNum = index(f_, -1).toFixnum();
@@ -867,13 +867,14 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(SETJMP) {
       // Setjmp stores current closure and stack/frame pointer onto stack.
-      int offset = CADR(x_).toFixnum();
-      Value ret = CDDDR(x_);
-      x_ = CADDR(x_);
+      Value soffset = POP(x);
+      x_ = POP(x);
+      Value ret = x;
       // Encode frame pointer and stack pointer value into single integer
       // for setjmp continuation.
       const int shiftBits = sizeof(Fixnum) / 2 * 8;
       Fixnum v = s_ | (static_cast<Fixnum>(f_) << shiftBits);
+      int offset = soffset.toFixnum();
       indexSet(f_, -offset - 2, Value(f_ + offset + 1));  // Pointer.
       indexSet(f_, -offset - 3, Value(v));
       indexSet(f_, -offset - 4, c_);
@@ -892,11 +893,12 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(MACRO) {
       int arena = state_->saveArena();
-      Value name = CADR(x_);
-      Value nparam = CADDR(x_);
-      int nfree = CADDDR(x_).toFixnum();
-      Value body = CADDDDR(x_);
-      x_ = CDDDDDR(x_);
+      Value name = POP(x);
+      Value nparam = POP(x);
+      Value snfree = POP(x);
+      Value body = POP(x);
+      x_ = x;
+      int nfree = snfree.toFixnum();
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -910,26 +912,27 @@ Value Vm::runLoop() {
       valueCount_ = 0;
     } NEXT;
     CASE(ADDSP) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
-      s_ += n;
+      Value n = POP(x);
+      x_ = x;
+      s_ += n.toFixnum();
       reserveStack(s_);
     } NEXT;
     CASE(LOCAL) {
-      int offset = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
-      indexSet(f_, offset, a_);
+      Value offset = POP(x);
+      x_ = x;
+      indexSet(f_, offset.toFixnum(), a_);
     } NEXT;
     CASE(VALS) {
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
+      Value sn = POP(x);
+      x_ = x;
+      int n = sn.toFixnum();
       storeValues(n, s_);
       s_ -= n;
     } NEXT;
     CASE(RECV) {
-      int offset = CADR(x_).toFixnum();
-      Value nparam = CADDR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      x_ = CDDDR(x_);
+      Value offset = POP(x);
+      Value nparam = POP(x);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      x_ = x;
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -939,16 +942,16 @@ Value Vm::runLoop() {
       }
       int n = restoreValues(min, max);
       for (int i = 0; i < n; ++i)
-        indexSet(f_, offset - i, index(s_, i));
+        indexSet(f_, offset.toFixnum() - i, index(s_, i));
       s_ -= n;
       valueCount_ = 1;
     } NEXT;
     CASE(CAR) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = car(a_);
     } NEXT;
     CASE(CDR) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = cdr(a_);
     } NEXT;
     SIMPLE_EMBED_INST(ADD, s_add);
@@ -960,17 +963,17 @@ Value Vm::runLoop() {
     SIMPLE_EMBED_INST(GT, s_greaterThan);
     SIMPLE_EMBED_INST(GE, s_greaterEqual);
     CASE(EQ) {
-      x_ = CDR(x_);
+      x_ = x;
       Value b = index(s_, 0);
       a_ = state_->boolean(a_.eq(b));
       --s_;
     } NEXT;
     CASE(NEG) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = UnaryOp<Neg>::calc(state_, a_);
     } NEXT;
     CASE(INV) {
-      x_ = CDR(x_);
+      x_ = x;
       a_ = UnaryOp<Inv>::calc(state_, a_);
     } NEXT;
     OTHERWISE {
