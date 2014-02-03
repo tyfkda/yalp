@@ -47,6 +47,17 @@
         `(do ,@(map (^(cxxr)
                       `(gen-cxxr ,cxxr))
                     cxxrs)))
+
+      ;; Generates `type-name?` function which checks type.
+      (defmacro gen-type-checker (type-name)
+        `(def ,(intern (string type-name #\?))
+              [eq? (type _) ',type-name]))
+
+      (defmacro gen-type-checkers (&rest type-names)
+        `(do ,@(map (^(type-name)
+                      `(gen-type-checker ,type-name))
+                    type-names)))
+
       (values))  ; Empty result.
 
 (gen-cxxrs caar cdar cadr cddr
@@ -54,11 +65,7 @@
            cadddr cddddr
            caddddr cdddddr)
 
-(defun int? (x) (eq? (type x) 'int))
-(defun pair? (x) (eq? (type x) 'pair))
-(defun symbol? (x) (eq? (type x) 'symbol))
-(defun string? (x) (eq? (type x) 'string))
-(defun flonum? (x) (eq? (type x) 'flonum))
+(gen-type-checkers int pair symbol string flonum)
 
 (defun any? (f ls)
   (if (pair? ls)
