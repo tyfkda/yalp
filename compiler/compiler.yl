@@ -867,10 +867,9 @@
 (defun compile-args-for-local (args scope expanded-scope next)
   (alet ((args args)
          (vars (scope-local-infos expanded-scope))
-         (i (scope-upper-work-size expanded-scope))
          (next next))
     (if args
-        (loop (cdr args) (cdr vars) (+ i 1)
+        (loop (cdr args) (cdr vars)
               (compile-recur (car args) scope
                              (list* '#.LOCAL (scope-local-has? expanded-scope (caar vars)) next)))
       next)))
