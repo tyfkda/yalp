@@ -61,24 +61,25 @@ namespace yalp {
 //=============================================================================
 
 #define OPS \
+  OP(PUSH) \
+  OP(LREF) \
+  OP(GREF) \
+  OP(FRAME) \
+  OP(APPLY) \
+  OP(CONST) \
+  OP(LOCAL) \
+  OP(TEST) \
+  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
+  OP(CLOSE) \
   OP(HALT) \
   OP(VOID) \
-  OP(CONST) \
-  OP(LREF) \
   OP(FREF) \
-  OP(GREF) \
   OP(LSET) \
   OP(FSET) \
   OP(GSET) \
   OP(DEF) \
-  OP(PUSH) \
-  OP(TEST) \
-  OP(CLOSE) \
-  OP(FRAME) \
-  OP(APPLY) \
   OP(RET) \
   OP(UNFRAME) \
-  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
   OP(LOOP) \
   OP(BOX) \
   OP(UNBOX) \
@@ -87,7 +88,6 @@ namespace yalp {
   OP(LONGJMP) \
   OP(MACRO) \
   OP(ADDSP) \
-  OP(LOCAL) \
   OP(VALS) \
   OP(RECV) \
   OP(NIL) \
