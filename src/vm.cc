@@ -52,54 +52,9 @@ namespace yalp {
 
 //=============================================================================
 
-#define OPS \
-  OP(PUSH) \
-  OP(LREF) \
-  OP(GREF) \
-  OP(FRAME) \
-  OP(APPLY) \
-  OP(CONST) \
-  OP(LOCAL) \
-  OP(TEST) \
-  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
-  OP(CLOSE) \
-  OP(HALT) \
-  OP(VOID) \
-  OP(FREF) \
-  OP(LSET) \
-  OP(FSET) \
-  OP(GSET) \
-  OP(DEF) \
-  OP(RET) \
-  OP(UNFRAME) \
-  OP(LOOP) \
-  OP(BOX) \
-  OP(UNBOX) \
-  OP(CONTI) \
-  OP(SETJMP) \
-  OP(LONGJMP) \
-  OP(MACRO) \
-  OP(ADDSP) \
-  OP(VALS) \
-  OP(RECV) \
-  OP(NIL) \
-  OP(CAR) \
-  OP(CDR) \
-  OP(ADD) \
-  OP(SUB) \
-  OP(NEG) \
-  OP(MUL) \
-  OP(DIV) \
-  OP(INV) \
-  OP(EQ) \
-  OP(LT) \
-  OP(LE) \
-  OP(GT) \
-  OP(GE) \
-
 enum Opcode {
 #define OP(name)  name,
-  OPS
+# include "opcodes.hh"
 #undef OP
   NUMBER_OF_OPCODE
 };
@@ -321,7 +276,7 @@ Vm::Vm(State* state)
   {
     static const char* NameTable[NUMBER_OF_OPCODE] = {
 #define OP(name)  #name,
-      OPS
+# include "opcodes.hh"
 #undef OP
     };
 
@@ -788,7 +743,7 @@ Value Vm::runLoop() {
 #ifdef DIRECT_THREADED
   static const void *JumpTable[] = {
 #define OP(name)  &&L_ ## name ,
-    OPS
+# include "opcodes.hh"
 #undef OP
     &&L_otherwise
   };

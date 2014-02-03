@@ -44,6 +44,13 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cc
 	g++ $(CXXFLAGS) -o $@ -c $<
 	ar r $(LIBNAME) $@
 
+$(OBJDIR)/vm.o:	$(SRCDIR)/opcodes.hh
+$(SRCDIR)/opcodes.hh:	compiler/opcodes.txt
+	echo "// Do not edit!\n\
+// This file is generated from $<\n\
+" > $@
+	ruby -ne 'puts "OP(#{$$_.chomp})"' < $< >> $@
+
 test:	$(PROJECT)
 	make -C compiler test
 	make -C test test
