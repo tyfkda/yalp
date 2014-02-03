@@ -1,0 +1,46 @@
+;;;; Opcodes
+;;;; Must add definition when new opcode is added.
+
+PUSH     ; next
+LREF     ; (index . next)
+GREF     ; (symbol . next)
+FRAME    ; next
+APPLY    ; (argNum)
+CONST    ; (val . next)
+LOCAL    ; (index . next)
+TEST     ; ((then...) else...)
+TAPPLY   ; (argNum)
+CLOSE    ; (nparam nfree body . next)
+HALT     ; ()
+VOID     ; next
+FREF     ; (index . next)
+LSET     ; (index . next)
+FSET     ; (index . next)
+GSET     ; (symbol . next)
+DEF      ; (symbol . next)
+RET      ; ()
+UNFRAME  ; ()
+LOOP     ; (offset n . next)
+BOX      ; (n . next)
+UNBOX    ; next
+CONTI    ; (tail . next)
+SETJMP   ; (offset (next...) . ret...)
+LONGJMP  ; ()
+MACRO    ; (name nparam nfree body . next...)
+ADDSP    ; (n . next)
+VALS     ; (n . next)
+RECV     ; (offset n . next)
+NIL      ; next
+CAR      ; next
+CDR      ; next
+ADD      ; (n . next)
+SUB      ; (n . next)
+NEG      ; next
+MUL      ; (n . next)
+DIV      ; (n . next)
+INV      ; next
+EQ       ; next
+LT       ; (n . next)
+LE       ; (n . next)
+GT       ; (n . next)
+GE       ; (n . next)

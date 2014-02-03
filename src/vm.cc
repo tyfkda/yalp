@@ -17,21 +17,13 @@
 #include <iostream>
 #include <string.h>  // for memmove
 
-#define REPLACE_OPCODE
-
 #ifdef __GNUC__
 #define DIRECT_THREADED
 #endif
 
-#ifdef REPLACE_OPCODE
 #define OPCVAL(op)  (Value(op))
-#define OPIDX(op)  ((op).toFixnum())
-#else
-#define OPCVAL(op)  (opcodes_[op])
-#define OPIDX(op)  (findOpcode(op))
-#endif
 
-#define FETCH_OP  (prex = x_, x_ = CDR(prex), OPIDX(CAR(prex)))
+#define FETCH_OP  (prex = x_, x_ = CDR(prex), CAR(prex).toFixnum())
 
 #ifdef DIRECT_THREADED
 #define INIT_DISPATCH  NEXT;
@@ -53,64 +45,27 @@
     FileStream out(stdout);                                             \
     Value op = car(x_), d = car(cdr(x_));                               \
     if (d.getType() == TT_CELL) d = Value::NIL;                         \
-    format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+    format(state_, &out, "run: s=%d, f=%d, x=%s %@\n", s_, f_, OpcodeNameTable[op.toFixnum()], &d); \
   }                                                                     \
 
 namespace yalp {
 
 //=============================================================================
 
-#define OPS \
-  OP(PUSH) \
-  OP(LREF) \
-  OP(GREF) \
-  OP(FRAME) \
-  OP(APPLY) \
-  OP(CONST) \
-  OP(LOCAL) \
-  OP(TEST) \
-  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
-  OP(CLOSE) \
-  OP(HALT) \
-  OP(VOID) \
-  OP(FREF) \
-  OP(LSET) \
-  OP(FSET) \
-  OP(GSET) \
-  OP(DEF) \
-  OP(RET) \
-  OP(UNFRAME) \
-  OP(LOOP) \
-  OP(BOX) \
-  OP(UNBOX) \
-  OP(CONTI) \
-  OP(SETJMP) \
-  OP(LONGJMP) \
-  OP(MACRO) \
-  OP(ADDSP) \
-  OP(VALS) \
-  OP(RECV) \
-  OP(NIL) \
-  OP(CAR) \
-  OP(CDR) \
-  OP(ADD) \
-  OP(SUB) \
-  OP(NEG) \
-  OP(MUL) \
-  OP(DIV) \
-  OP(INV) \
-  OP(EQ) \
-  OP(LT) \
-  OP(LE) \
-  OP(GT) \
-  OP(GE) \
-
 enum Opcode {
 #define OP(name)  name,
-  OPS
+# include "opcodes.hh"
 #undef OP
   NUMBER_OF_OPCODE
 };
+
+#ifndef DIRECT_THREADED
+static const char* OpcodeNameTable[NUMBER_OF_OPCODE] = {
+#define OP(name)  #name,
+# include "opcodes.hh"
+#undef OP
+};
+#endif
 
 #define CELL(x)  (static_cast<Cell*>(x.toObject()))
 #define CAR(x)  (CELL(x)->car())
@@ -294,13 +249,6 @@ int Vm::popCallFrame(int s) {
   return s - 3;
 }
 
-int Vm::findOpcode(Value op) {
-  for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-    if (op.eq(opcodes_[i]))
-      return i;
-  return NUMBER_OF_OPCODE;
-}
-
 Value Vm::box(Value x) {
   return Value(state_->getAllocator()->newObject<Box>(x));
 }
@@ -323,7 +271,6 @@ Vm::~Vm() {
     state_->free(values_);
   if (stack_ != NULL)
     state_->free(stack_);
-  state_->free(opcodes_);
 }
 
 Vm::Vm(State* state)
@@ -333,18 +280,6 @@ Vm::Vm(State* state)
   , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
   int arena = state_->saveArena();
-  {
-    static const char* NameTable[NUMBER_OF_OPCODE] = {
-#define OP(name)  #name,
-      OPS
-#undef OP
-    };
-
-    void* memory = state_->alloc(sizeof(Value) * NUMBER_OF_OPCODE);
-    opcodes_ = new(memory) Value[NUMBER_OF_OPCODE];
-    for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-      opcodes_[i] = state_->intern(NameTable[i]);
-  }
 
   globalVariableTable_ = state_->createHashTable(false);
 
@@ -775,7 +710,7 @@ void Vm::storeValues(int n, int s) {
 
 int Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
-  checkArgNum(state_, opcodes_[RECV], argNum, min, max);
+  checkArgNum(state_, Value::NIL, argNum, min, max);
   reserveStack(s_ + argNum);
   moveValuesToStack(&stack_[s_], values_, a_, argNum);
   s_ += argNum;
@@ -789,64 +724,7 @@ int Vm::restoreValues(int min, int max) {
   return n;
 }
 
-void Vm::replaceOpcodes(Value x) {
-#ifdef REPLACE_OPCODE
-  for (;;) {
-    Value op = CAR(x);
-    if (op.getType() != TT_SYMBOL) {
-      assert(op.getType() == TT_FIXNUM);
-      return;
-    }
-    int opidx = findOpcode(op);
-    static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
-    x = CDR(x);
-    switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
-      return;
-    case VOID: case PUSH: case UNBOX: case NIL:
-    case CAR: case CDR: case NEG: case INV: case EQ:
-      break;
-    case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
-    case LOCAL:
-    case ADD: case SUB: case MUL: case DIV: case LT: case GT: case LE: case GE:
-      x = CDR(x);
-      break;
-    case LOOP: case RECV:
-      x = CDDR(x);
-      break;
-    case SETJMP:
-      replaceOpcodes(CADR(x));
-      x = CDDR(x);
-      break;
-    case TEST: case FRAME:
-      replaceOpcodes(CAR(x));
-      x = CDR(x);
-      break;
-    case CLOSE:
-      replaceOpcodes(CADDR(x));
-      x = CDDDR(x);
-      break;
-    case MACRO:
-      {
-        Value tmp = CDDDR(x);
-        replaceOpcodes(CAR(tmp));
-        x = CDR(tmp);
-      }
-      break;
-    default:
-      state_->runtimeError("Unknown op `%@`", &op);
-      return;
-    }
-  }
-#else
-  (void)x;
-#endif
-}
-
 Value Vm::run(Value code) {
-  replaceOpcodes(code);
-
   Value oldX = x_;
   a_ = c_ = Value::NIL;
   x_ = code;
@@ -860,7 +738,7 @@ Value Vm::runLoop() {
 #ifdef DIRECT_THREADED
   static const void *JumpTable[] = {
 #define OP(name)  &&L_ ## name ,
-    OPS
+# include "opcodes.hh"
 #undef OP
     &&L_otherwise
   };

@@ -1,0 +1,15 @@
+(defun load-opcodes ()
+  (with-open-file (f "compiler/opcodes.txt")
+    (alet ((acc '()))
+      (aif (read f)
+           (loop (cons it acc))
+        (reverse! acc)))))
+
+(defun define-opcode-symbols ()
+  (let1 g (global-variable-table)
+    (alet ((ops (load-opcodes))
+           (i 0))
+      (awhen ops
+        (table-put! g (car ops) i)  ; Define opcode symbol as int
+        ;(table-put! g (car ops) (car ops))  ; Define opcode symbol as symbol
+        (loop (cdr ops) (+ i 1))))))

@@ -1,20 +1,21 @@
 ;; Encode opcode from symbol to integer value
 
+(load "compiler/opcodes.yl")
 (load "tools/code-walker.yl")
 
 (def *optbl*
   (let1 h (table)
-    (alet ((ls instructions)
+    (alet ((ls (load-opcodes))
            (i 0))
       (when ls
-        (table-put! h (car (car ls)) i)
+        (table-put! h i (car ls))
         (loop (cdr ls) (+ i 1))))
     h))
 
-(defun encode! (code)
+(defun decode! (code)
   (vm-walker code
     (^(c recur)
-      (aif (table-get *optbl* (car c))
+      (awhen (table-get *optbl* (car c))
         (set-car! c it))
       nil)))
 
@@ -22,6 +23,6 @@
   (files-or-stdin args
                   (^(stream)
                     (awhile (read stream)
-                      (encode! it)
+                      (decode! it)
                       (write/ss it)
                       (display "\n")))))
