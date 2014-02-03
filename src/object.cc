@@ -343,6 +343,23 @@ void Closure::mark() {
 
 //=============================================================================
 
+Macro::Macro(State* state, Value name, Value body, int freeVarCount,
+      int minArgNum, int maxArgNum)
+  : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
+  setName(name.toSymbol(state));
+}
+
+void Macro::output(State*, Stream* o, bool) const {
+  const char* name = "(noname)";
+  if (name_ != NULL)
+    name = name_->c_str();
+  o->write("#<macro ");
+  o->write(name);
+  o->write('>');
+}
+
+//=============================================================================
+
 NativeFunc::NativeFunc(NativeFuncType func, int minArgNum, int maxArgNum)
   : Callable()
   , func_(func)

@@ -231,6 +231,19 @@ protected:
   int maxArgNum_;
 };
 
+// Macro class.
+class Macro : public Closure {
+public:
+  Macro(State* state, Value name, Value body, int freeVarCount,
+        int minArgNum, int maxArgNum);
+  virtual Type getType() const override  { return TT_MACRO; }
+
+  virtual void output(State*, Stream* o, bool) const override;
+
+protected:
+  ~Macro()  {}
+};
+
 // Native function class.
 class NativeFunc : public Callable {
 public:

@@ -125,29 +125,6 @@ protected:
   Value x_;
 };
 
-// Macro class.
-class Macro : public Closure {
-public:
-  Macro(State* state, Value name, Value body, int freeVarCount,
-        int minArgNum, int maxArgNum)
-    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
-    setName(name.toSymbol(state));
-  }
-  virtual Type getType() const override  { return TT_MACRO; }
-
-  virtual void output(State*, Stream* o, bool) const override {
-    const char* name = "(noname)";
-    if (name_ != NULL)
-      name = name_->c_str();
-    o->write("#<macro ");
-    o->write(name);
-    o->write('>');
-  }
-
-protected:
-  ~Macro()  {}
-};
-
 //=============================================================================
 
 #ifdef DISABLE_FLONUM
