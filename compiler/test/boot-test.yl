@@ -93,9 +93,13 @@
 (test "reverse" '(3 2 1) (reverse '(1 2 3)))
 (test "reverse dotted" '(3 2 1) (reverse '(1 2 3 . 4)))
 
-;; any?
-(test "any?" '(x 3) (any? symbol? '(1 x 3)))
-(test "any? fail" nil (any? symbol? '(1 2 3)))
+;; some?
+(test "some?" '(x 3) (some? symbol? '(1 x 3)))
+(test "some? fail" nil (some? symbol? '(1 2 3)))
+
+;; every?
+(test "every?" t (every? int? '(1 2 3)))
+(test "every? fail" nil (every? int? '(1 x 3)))
 
 ;; assoc
 (test "assoc" '(b . 2) (assoc 'b '((a . 1) (b . 2) (c . 3))))

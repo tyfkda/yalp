@@ -184,10 +184,10 @@
               (cond ((not (pair? (car args)))
                      (bq-attach-append 'append (car args) result))
                     ((and (eq? (caar args) 'list)
-                          (not (any? bq-splicing-frob (cdar args))))
+                          (not (some? bq-splicing-frob (cdar args))))
                      (bq-attach-conses (cdar args) result))
                     ((and (eq? (caar args) 'list*)
-                          (not (any? bq-splicing-frob (cdar args))))
+                          (not (some? bq-splicing-frob (cdar args))))
                      (bq-attach-conses
                       (reverse (cdr (reverse (cdar args))))
                       (bq-attach-append 'append
@@ -238,7 +238,7 @@
 ;;; (LIST* a b c (list d e f g)) U> (LIST a b c d e f g)
 
 (defun bq-attach-conses (items result)
-  (cond ((and (all? null-or-quoted items)
+  (cond ((and (every? null-or-quoted items)
               (null-or-quoted result))
          (list 'quote
                (append (map cadr items) (cadr result))))

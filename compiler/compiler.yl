@@ -57,7 +57,7 @@
                              (compile-error "&rest requires only 1 name, but %@" rest))
                            (append! required rest))
                       vars)
-    (awhen (any? [not (symbol? _)] vars)
+    (awhen (some? [not (symbol? _)] vars)
       (compile-error "parameter must be symbol, but `%@`" (car it)))
     (alet ((p proper-vars))
       (when p

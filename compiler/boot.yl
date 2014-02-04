@@ -75,26 +75,42 @@
 
 (gen-type-checkers int pair symbol string flonum char)
 
-(defun any? (f ls)
-  (if (pair? ls)
-      (if (f (car ls))
-          ls
-        (any? f (cdr ls)))
-    nil))
+(defun some? (f ls &rest rest)
+  (if rest
+      (alet ((lss (cons ls rest)))
+        (if (some? not lss)
+            nil
+          (aif (apply f (map car lss))
+               it
+            (loop (map cdr lss)))))
+    (alet ((ls ls))
+      (if ls
+          (aif (f (car ls))
+               (values ls it)
+            (loop (cdr ls)))
+        (values nil nil)))))
 
-(defun all? (fn ls)
-  (if ls
-      (if (fn (car ls))
-          (all? fn (cdr ls))
-        nil)
-    t))
+(defun every? (fn ls &rest rest)
+  (if rest
+      (alet ((lss (cons ls rest)))
+        (if (some? not lss)
+            t
+          (if (apply fn (map car lss))
+              (loop (map cdr lss))
+            nil)))
+    (alet ((ls ls))
+      (if ls
+          (if (fn (car ls))
+              (loop (cdr ls))
+            nil)
+        t))))
 
 (defun map (f ls &rest rest)
   (if rest
       ;; mapn
       (alet ((lss (cons ls rest))
              (acc '()))
-        (if (any? not lss)
+        (if (some? not lss)
             (reverse! acc)
           (loop (map cdr lss)
                 (cons (apply f (map car lss))
@@ -316,7 +332,7 @@
           result)))))
 
 (defun member (x ls)
-  (any? [eq? x _] ls))
+  (some? [eq? x _] ls))
 
 (defun assoc (key alist)
   (if alist
