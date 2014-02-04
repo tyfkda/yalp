@@ -14,5 +14,6 @@
     (for0-n i (length 文字列)
             (format *stdout* "%@  %@\n" i (char-at 文字列 i)))))
 
+(print 'シンボル)
 (文字テスト)
 (文字列テスト)
