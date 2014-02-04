@@ -73,7 +73,7 @@
            cadddr cddddr
            caddddr cdddddr)
 
-(gen-type-checkers int pair symbol string flonum)
+(gen-type-checkers int pair symbol string flonum char)
 
 (defun any? (f ls)
   (if (pair? ls)
