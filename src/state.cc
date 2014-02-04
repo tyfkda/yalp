@@ -406,8 +406,16 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
   FileStream stream(filename, "r");
   if (!stream.isOpened())
     return FILE_NOT_FOUND;
+  return runBinary(&stream, pResult);
+}
 
-  Reader reader(this, &stream);
+ErrorCode State::runBinaryFromString(const char* string, Value* pResult) {
+  StrStream stream(string);
+  return runBinary(&stream, pResult);
+}
+
+ErrorCode State::runBinary(Stream* stream, Value* pResult) {
+  Reader reader(this, stream);
   for (;;) {
     int arena = allocator_->saveArena();
     Value bin;

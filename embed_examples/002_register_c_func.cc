@@ -3,6 +3,7 @@
 using yalp::Fixnum;
 using yalp::State;
 using yalp::Value;
+using yalp::bootBinaryData;
 
 Value square(State* state) {
   Fixnum x = state->getArg(0).toFixnum();
@@ -11,7 +12,7 @@ Value square(State* state) {
 
 int main() {
   State* state = State::create();
-  state->runBinaryFromFile("../boot.bin");
+  state->runBinaryFromString(bootBinaryData);
 
   state->defineNative("square", square, 1);
   state->runFromString("(print (square 1111))");

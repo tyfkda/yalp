@@ -60,15 +60,8 @@ test:	$(PROJECT)
 check-length:
 	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr
 
-boot.bin:	self.bin
-	mv self.bin boot.bin
-
-self.bin:	compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/setf.yl compiler/node.yl compiler/compiler.yl
-	./yalp -L boot.bin -C $^ | \
-	   ./yalp -L boot.bin tools/optimize.yl > self.bin
-
 self-compile:	self.bin
-	diff boot.bin self.bin && rm self.bin && echo OK
+	diff $(OBJDIR)/boot.bin $(OBJDIR)/self.bin && rm $(OBJDIR)/self.bin && echo OK
 
 include/yalp/binder.inc:	tools/gen_template.rb
 	ruby $< > $@

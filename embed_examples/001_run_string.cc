@@ -1,10 +1,11 @@
 #include "yalp.hh"
 
 using yalp::State;
+using yalp::bootBinaryData;
 
 int main() {
   State* state = State::create();
-  state->runBinaryFromFile("../boot.bin");
+  state->runBinaryFromString(bootBinaryData);
 
   state->runFromString("(print \"Hello, Yalp!\")");
 

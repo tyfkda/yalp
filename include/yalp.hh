@@ -34,6 +34,8 @@ class SymbolManager;
 class Vector;
 class Vm;
 
+extern const char bootBinaryData[];
+
 typedef long Fixnum;
 static_assert(sizeof(Fixnum) >= sizeof(void*),
               "Fixnum must have enough size to store pointer value");
@@ -125,6 +127,7 @@ public:
   ErrorCode runFromFile(const char* filename, Value* pResult = NULL);
   ErrorCode runFromString(const char* string, Value* pResult = NULL);
   ErrorCode runBinaryFromFile(const char* filename, Value* pResult = NULL);
+  ErrorCode runBinaryFromString(const char* string, Value* pResult = NULL);
 
   bool funcall(Value fn, int argNum, const Value* args, Value* pResult);
   Value tailcall(Value fn, int argNum, const Value* args);
@@ -240,6 +243,7 @@ private:
 
   void installBasicObjects();
   ErrorCode run(Stream* stream, Value* pResult);
+  ErrorCode runBinary(Stream* stream, Value* pResult);
   void markRoot();
   void allocFailed(void* p, size_t size);
 

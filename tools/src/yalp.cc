@@ -271,6 +271,7 @@ int main(int argc, char* argv[]) {
 
   FILE* outFp = duplicateFile(stdout, "w");
   int tmpFd = -1;
+  bool bLibraryLoaded = false;
 
   bool bDebug = false;
   bool bBinary = false;
@@ -304,6 +305,10 @@ int main(int argc, char* argv[]) {
       bNoRun = true;
       break;
     case 'l':  // Library.
+      if (!bLibraryLoaded) {
+        bLibraryLoaded = true;
+        state->runBinaryFromString(bootBinaryData);
+      }
       if (++ii >= argc) {
         cerr << "'-l' takes parameter" << endl;
         exit(1);
@@ -315,13 +320,18 @@ int main(int argc, char* argv[]) {
         cerr << "'-L' takes parameter" << endl;
         exit(1);
       }
-      exitIfError(state->runBinaryFromFile(argv[ii]));
+      if (argv[ii][0] != '\0')
+        exitIfError(state->runBinaryFromFile(argv[ii]));
+      bLibraryLoaded = true;
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
       exit(1);
     }
   }
+
+  if (!bLibraryLoaded)
+    state->runBinaryFromString(bootBinaryData);
 
   if (bCompile)
     tmpFd = reopenFile(stdout, "/dev/null", "w");
