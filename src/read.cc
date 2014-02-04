@@ -394,6 +394,18 @@ ErrorCode Reader::readChar(Value* pValue) {
       return SUCCESS;
     }
   }
+  // "\xhhhh" notation.
+  if (buffer[0] == 'x') {
+    Fixnum x = 0;
+    for (char* p = buffer; *++p != '\0';) {
+      int h = hexChar(*p);
+      if (h < 0)
+        return ILLEGAL_CHAR;
+      x = (x << 4) | h;
+    }
+    *pValue = state_->character(x);
+    return SUCCESS;
+  }
   return ILLEGAL_CHAR;
 }
 

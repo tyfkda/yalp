@@ -132,6 +132,7 @@ void Value::outputSymbol(State* state, Stream* o) const {
 
 void Value::outputCharacter(Stream* o, bool inspect) const {
   Fixnum c = v_ >> TAG2_SHIFT;
+  char buffer[16];
   if (inspect) {
     const char* str = NULL;
     switch (c) {
@@ -139,18 +140,20 @@ void Value::outputCharacter(Stream* o, bool inspect) const {
     case '\t':  str = "#\\tab"; break;
     case ' ':  str = "#\\space"; break;
     case 0x1b:  str = "#\\escape"; break;
+    default:
+      if (0x20 <= c && c < 0x80) {
+        snprintf(buffer, sizeof(buffer), "#\\%c", static_cast<int>(c));
+        o->write(buffer);
+        return;
+      }
+      snprintf(buffer, sizeof(buffer), "#\\x%x", (int)c);
+      str = buffer;
+      break;
     }
-    if (str != NULL) {
-      o->write(str);
-      return;
-    }
-
-    char buffer[16];
-    snprintf(buffer, sizeof(buffer), "#\\%c", static_cast<int>(c));
-    o->write(buffer);
-  } else {
-    o->write(static_cast<int>(c));
+    o->write(str);
+    return;
   }
+  o->write(static_cast<int>(c));
 }
 
 #ifndef DISABLE_FLONUM

@@ -758,7 +758,7 @@ static Value s_charAt(State* state) {
   String* str = static_cast<String*>(v.toObject());
   if (index < 0 || static_cast<size_t>(index) >= str->len())
     return Value::NIL;
-  return state->character(str->c_str()[i.toFixnum()]);
+  return state->character(reinterpret_cast<const unsigned char*>(str->c_str())[i.toFixnum()]);
 }
 
 static Value s_substr(State* state) {

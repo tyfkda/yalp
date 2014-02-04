@@ -160,6 +160,9 @@ TEST_F(ReadTest, Char) {
 
   ASSERT_EQ(SUCCESS, read("#\\tab", &s));
   ASSERT_EQ('\t', s.toCharacter());
+
+  ASSERT_EQ(SUCCESS, read("#\\x80", &s));
+  ASSERT_EQ(0x80, s.toCharacter());
 }
 
 TEST_F(ReadTest, HexLiteral) {
