@@ -37,6 +37,9 @@ void raiseReadError(State* state, ErrorCode err, Reader* reader);
 // Returns x ^ n in Fixnum.
 Fixnum iexpt(Fixnum x, Fixnum n);
 
+int utf8ToUnicode(unsigned char** pp);
+int unicodeToUtf8(unsigned int c, unsigned char* buffer);
+
 }  // namespace yalp
 
 #endif

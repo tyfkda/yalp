@@ -371,11 +371,16 @@ ErrorCode Reader::readChar(Value* pValue) {
   }
 
   BUFFER(buffer, size);
-  int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
+  readToBufferWhile(&buffer, &size, isNotDelimiter);
 
-  if (p == 1) {
-    *pValue = state_->character(reinterpret_cast<unsigned char*>(buffer)[0]);
-    return SUCCESS;
+  // 1 character?
+  {
+    unsigned char* q = reinterpret_cast<unsigned char*>(buffer);
+    int c = utf8ToUnicode(&q);
+    if (c >= 0 && *q == '\0') {
+      *pValue = state_->character(c);
+      return SUCCESS;
+    }
   }
 
   struct {

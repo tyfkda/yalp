@@ -141,10 +141,15 @@ void Value::outputCharacter(Stream* o, bool inspect) const {
     case ' ':  str = "#\\space"; break;
     case 0x1b:  str = "#\\escape"; break;
     default:
-      if (0x20 <= c && c < 0x80) {
-        snprintf(buffer, sizeof(buffer), "#\\%c", static_cast<int>(c));
-        o->write(buffer);
-        return;
+      {
+        int n = unicodeToUtf8(c, reinterpret_cast<unsigned char*>(buffer + 2));
+        if (n > 0) {
+          buffer[0] = '#';
+          buffer[1] = '\\';
+          buffer[2 + n] = '\0';
+          o->write(buffer);
+          return;
+        }
       }
       snprintf(buffer, sizeof(buffer), "#\\x%x", (int)c);
       str = buffer;
@@ -153,7 +158,18 @@ void Value::outputCharacter(Stream* o, bool inspect) const {
     o->write(str);
     return;
   }
-  o->write(static_cast<int>(c));
+
+  if (c <= 0x80) {
+    o->write(static_cast<int>(c));
+    return;
+  }
+  int n = unicodeToUtf8(c, reinterpret_cast<unsigned char*>(buffer));
+  if (n > 0) {
+    buffer[n] = '\0';
+    o->write(buffer);
+    return;
+  }
+  o->write("#\???");
 }
 
 #ifndef DISABLE_FLONUM

@@ -163,6 +163,9 @@ TEST_F(ReadTest, Char) {
 
   ASSERT_EQ(SUCCESS, read("#\\x80", &s));
   ASSERT_EQ(0x80, s.toCharacter());
+
+  ASSERT_EQ(SUCCESS, read("#\\あ", &s));  // "あ" = [0xe3, 0x81, 0x82] = [0b11100011, 0b10000001, 0b10000010] = 0b0011_0000_0100_0010
+  ASSERT_EQ(0x3042, s.toCharacter());
 }
 
 TEST_F(ReadTest, HexLiteral) {
