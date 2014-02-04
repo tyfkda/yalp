@@ -66,9 +66,9 @@
         (loop (cdr p))))
     proper-vars))
 
-(defun direct-invoke? (func)
-  (and (pair? func)
-       (eq? '^ (car func))))
+(defun lambda-expression? (exp)
+  (and (pair? exp)
+       (eq? (car exp) '^)))
 
 (defun expand-macro (x scope)
   (let1 f (car x)
@@ -120,7 +120,7 @@
                ;; Other: normal forms.
                (t (let ((func (car x))
                         (args (cdr x)))
-                    (cond ((direct-invoke? func)
+                    (cond ((lambda-expression? func)
                            (traverse-apply-direct (cadr func) (cddr func) args scope tail))
                           ((inline-function? func)
                            (traverse-inline-apply func args scope tail))
@@ -169,7 +169,7 @@
           '(:VOID))))
 
 (defun traverse-call/cc (func scope tail)
-  (if (direct-invoke? func)
+  (if (lambda-expression? func)
       (let ((vars (cadr func))
             (body (cddr func)))
         (unless (eq? (check-parameters vars) vars)
@@ -715,10 +715,6 @@
   (defun get-inline-function-body (sym)
     (table-get *inline-functions* sym))
   )
-
-(defun lambda-expression? (exp)
-  (and (pair? exp)
-       (eq? (car exp) '^)))
 
 ;;;;
 

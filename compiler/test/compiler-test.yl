@@ -19,9 +19,9 @@
 (test-section "macroexpand")
 (test "macroexpand-1" '(x y . z) (macroexpand-1 '(x y . z)))
 
-(test-section "direct-invoke?")
-(test "direct-invoke?" t (direct-invoke? '(^(x y))))
-(test "direct-invoke?-false" nil (direct-invoke? 'func))
+(test-section "lambda-expression?")
+(test "lambda-expression?" t (lambda-expression? '(^(x y))))
+(test "lambda-expression?-false" nil (lambda-expression? 'func))
 
 (test-section "embed function")
 (test "shadow embed function with local" '(1 . 2)
