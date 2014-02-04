@@ -100,7 +100,7 @@
                  (cons 'append
                        (nreconc q (list (list 'quote p))))
                (do (if (eq? (car p) 'unquote)
-                       (do (when (cddr p) (error "Malformed ,~S" p))
+                       (do (unless (null? (cddr p)) (error "Malformed ,~S" p))
                            (cons 'append
                                  (nreconc q (list (cadr p)))))
                      (do (when (eq? (car p) 'unquote-splicing)
@@ -208,7 +208,7 @@
       result)))
 
 (defun null-or-quoted (x)
-  (or (not x) (and (pair? x) (eq? (car x) 'quote))))
+  (or (null? x) (and (pair? x) (eq? (car x) 'quote))))
 
 ;;; When BQ-ATTACH-APPEND is called, the OP should be #:BQ-APPEND
 ;;; or #:BQ-NCONC. This produces a form (op item result) but
@@ -222,7 +222,7 @@
 (defun bq-attach-append (op item result)
   (cond ((and (null-or-quoted item) (null-or-quoted result))
          (list 'quote (append (cadr item) (cadr result))))
-        ((or (not result) (equal? result *bq-quote-nil*))
+        ((or (null? result) (equal? result *bq-quote-nil*))
          (if (bq-splicing-frob item) (list op item) item))
         ((and (pair? result) (eq? (car result) op))
          (list* (car result) item (cdr result)))
@@ -242,7 +242,7 @@
               (null-or-quoted result))
          (list 'quote
                (append (map cadr items) (cadr result))))
-        ((or (not result) (equal? result *bq-quote-nil*))
+        ((or (null? result) (equal? result *bq-quote-nil*))
          (cons 'list items))
         ((and (pair? result)
               (or (eq? (car result) 'list)

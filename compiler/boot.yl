@@ -1,5 +1,5 @@
 (declaim
- (inline not)
+ (inline not null?)
  (inline caar cdar cadr cddr
          cadar caddr cdddr
          cadddr cddddr)
@@ -36,6 +36,7 @@
   `(def ,name (^ ,vars ,@body)))
 
 (defun not (x) (if x nil t))
+(defun null? (x) (if x nil t))
 
 ;; Macro definitions needed only compile time.
 #.(do (defmacro gen-cxxr (cxxr)
@@ -78,7 +79,7 @@
 (defun some? (f ls &rest rest)
   (if rest
       (alet ((lss (cons ls rest)))
-        (if (some? not lss)
+        (if (some? null? lss)
             nil
           (aif (apply f (map car lss))
                it
@@ -93,7 +94,7 @@
 (defun every? (fn ls &rest rest)
   (if rest
       (alet ((lss (cons ls rest)))
-        (if (some? not lss)
+        (if (some? null? lss)
             t
           (if (apply fn (map car lss))
               (loop (map cdr lss))
@@ -110,7 +111,7 @@
       ;; mapn
       (alet ((lss (cons ls rest))
              (acc '()))
-        (if (some? not lss)
+        (if (some? null? lss)
             (reverse! acc)
           (loop (map cdr lss)
                 (cons (apply f (map car lss))
@@ -477,9 +478,9 @@
 
 (defun list? (ls)
   ;; Nil, or not dotted list
-  (or (not ls)
+  (or (null? ls)
       (and (pair? ls)
-           (not (cdr (last ls))))))
+           (null? (cdr (last ls))))))
 
 (defun copy-pair! (dst src)
   (set-car! dst (car src))
