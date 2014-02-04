@@ -23,7 +23,7 @@ Value cdr(Value s);
 Value list(State* state, Value v1);
 Value list(State* state, Value v1, Value v2);
 Value list(State* state, Value v1, Value v2, Value v3);
-Value nreverse(Value v);
+Value reverseBang(Value v);
 int length(Value v);
 Value listToVector(State* state, Value ls);
 

@@ -109,7 +109,7 @@ static Value s_append(State* state) {
   if (copied.eq(Value::NIL))
     return last;
 
-  Value fin = nreverse(copied);
+  Value fin = reverseBang(copied);
   static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
 }
@@ -145,7 +145,7 @@ static Value s_appendBang(State* state) {
 }
 
 static Value s_reverseBang(State* state) {
-  return nreverse(state->getArg(0));
+  return reverseBang(state->getArg(0));
 }
 
 static Value s_eq(State* state) {
@@ -814,7 +814,7 @@ static Value s_split(State* state) {
     Value s = state->string(p);
     result = state->cons(s, result);
   }
-  return nreverse(result);
+  return reverseBang(result);
 }
 
 static Value s_join(State* state) {

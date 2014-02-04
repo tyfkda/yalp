@@ -191,7 +191,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
 
   switch (err) {
   case END_OF_FILE:
-    *pValue = nreverse(value);
+    *pValue = reverseBang(value);
     state_->restoreArenaWith(arena, *pValue);
     lineNo_ = lineNo;
     return NO_CLOSE_PAREN;
@@ -202,7 +202,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
         ungetc(c);
         return err;
       }
-      *pValue = nreverse(value);
+      *pValue = reverseBang(value);
       state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;
     }
@@ -226,7 +226,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       }
 
       Value lastPair = value;
-      *pValue = nreverse(value);
+      *pValue = reverseBang(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;

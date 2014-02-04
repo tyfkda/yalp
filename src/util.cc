@@ -34,7 +34,7 @@ Value list(State* state, Value v1, Value v2, Value v3) {
   return state->cons(v1, state->cons(v2, state->cons(v3, Value::NIL)));
 }
 
-Value nreverse(Value v) {
+Value reverseBang(Value v) {
   if (v.getType() != TT_CELL)
     return v;
 
