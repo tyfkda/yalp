@@ -63,7 +63,7 @@ check-length:
 boot.bin:	self.bin
 	mv self.bin boot.bin
 
-self.bin:	compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/setf.yl compiler/compiler.yl
+self.bin:	compiler/boot.yl compiler/backquote.yl compiler/util.yl compiler/setf.yl compiler/node.yl compiler/compiler.yl
 	./yalp -L boot.bin -C $^ | \
 	   ./yalp -L boot.bin tools/optimize.yl > self.bin
 

@@ -1,0 +1,219 @@
+;;;; AST Node for Yalp compiler.
+
+#.(do (def VAR-ARG 1)              ; is used for argument (or return value).
+      (def VAR-FREE 2)             ; is captured for free variable.
+      (def VAR-SET 4)              ; is set.
+      (def VAR-SELF-TAIL-RECUR 8)  ; is used for function for self tail recursion.
+      (def VAR-CALL-IN-BASE1 16)   ; is used for function in base position.
+      (def VAR-CALL-IN-BASE2 32)   ; is used for function in base position, more than 1 time.
+      (def VAR-CALL-OTHER 64)      ; is used for function.
+      (def VAR-CONTI 128)          ; is continuation.
+      (values))
+
+;;;;
+;; Scope
+;;   var-info: #0=var-info
+
+(defun create-scope (local outer-scope)
+  (vector (map [cons _ 0] local)
+          '()              ; Free variables.
+          t                ; Scope block top.
+          '()              ; alist containing set variables.
+          outer-scope
+          0))              ; Scope work size.
+
+(defun expand-scope (local outer-scope)
+  (expand-scope2 (map [cons _ 0] local)
+                 outer-scope))
+(defun expand-scope2 (local-infos outer-scope)
+  (vector local-infos
+          '()              ; Free variables.
+          nil              ; Not scope block top.
+          '()              ; alist containing set variables.
+          outer-scope
+          0))              ; Scope work size.
+
+(defun scope-local-infos (scope)  (vector-get scope 0))
+(defun scope-frees (scope)        (vector-get scope 1))
+(defun scope-block-top? (scope)   (vector-get scope 2))
+(defun scope-sets (scope)         (vector-get scope 3))
+(defun scope-outer-scope (scope)  (vector-get scope 4))
+(defun scope-work-size (scope)    (vector-get scope 5))
+
+(defun scope-frees-set! (scope v) (vector-set! scope 1 v))
+(defun scope-sets-set! (scope v)  (vector-set! scope 3 v))
+(defun scope-work-size-set! (scope v)  (vector-set! scope 5 v))
+
+(defun scope-outer-scope-set! (scope outer-scope)
+  (vector-set! scope 4 outer-scope))
+
+;; Returns index if the scope has the symbol.
+(defun scope-upper-work-size (scope)
+  (alet ((pscope (scope-outer-scope scope))
+         (size 0))
+    (if (scope-block-top? pscope)
+        size
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
+;; Returns local offset if the scope has the symbol.
+(defun scope-local-has? (scope sym)
+  (alet ((pscope scope))
+    (aif (scope-local-only-has? pscope sym)
+         (if (scope-block-top? pscope)
+             it
+           ;; Work index starts from -2 and grows negative (-1 = argnum)
+           (- -2 (+ it (scope-upper-work-size pscope))))
+      (unless (scope-block-top? pscope)
+        (loop (scope-outer-scope pscope))))))
+(defun scope-local-only-has? (scope sym)
+  (position-if [eq? (car _) sym] (scope-local-infos scope)))
+
+(defun get-scope-local-offset (scope)
+  (scope-local-has? scope (caar (scope-local-infos scope))))
+
+;; Returns scope block top for the given scope.
+(defun scope-block-top-get (scope)
+  (alet ((pscope scope))
+    (if (scope-block-top? pscope)
+        pscope
+      (loop (scope-outer-scope pscope)))))
+
+(defun scope-upper-block-top-get (scope)
+  (scope-block-top-get (scope-outer-scope (scope-block-top-get scope))))
+
+(defun same-scope-block? (scope1 scope2)
+  (eq? (scope-block-top-get scope1)
+       (scope-block-top-get scope2)))
+
+;; Returns free var index if the symbol is free in the scope.
+(defun scope-frees-has? (scope sym)
+  (position sym (scope-frees (scope-block-top-get scope))))
+
+(defun scope-upper-vars-has? (scope sym)
+  (alet ((pscope (scope-block-top-get scope)))
+    (aif (scope-outer-scope pscope)
+         (if (scope-local-only-has? it sym)
+             it
+           (loop it))
+      nil)))
+
+(defun scope-local-count (scope)
+  (alet ((pscope scope)
+         (count 0))
+    (let1 count2 (+ count (length (scope-local-infos pscope)))
+      (if (scope-block-top? pscope)
+          count2
+        (loop (scope-outer-scope pscope)
+              count2)))))
+
+(defun var-info-flag-get (info) (cdr info))
+(defun var-info-flag-set! (info v) (set-cdr! info v))
+
+(defun get-var-info (scope var)
+  (if (symbol? var)
+      (alet ((pscope scope))
+        (if pscope
+            (aif (scope-local-only-has? pscope var)
+                 (values (elt (scope-local-infos pscope) it)
+                         pscope)
+              (loop (scope-outer-scope pscope)))
+          (values nil nil)))
+    (values nil nil)))
+
+(defun add-var-info (scope var val)
+  (receive (info _)
+           (get-var-info scope var)
+    (when info
+      (var-info-flag-set! info
+                          (logior (var-info-flag-get info)
+                                  val))
+      info)))
+
+(defun var-has-attr? (scope var flag)
+  (receive (info _)
+           (get-var-info scope var)
+    (and info
+         (bit? (var-info-flag-get info) flag)
+         info)))
+
+(defun var-is-set? (scope sym)
+  (alet ((pscope scope))
+    (when pscope
+      (aif (assoc sym (scope-sets pscope))
+           (cdr it)
+        (loop (scope-outer-scope pscope))))))
+
+;; Registers free variable into scope block.
+(defun register-fref (scope x)
+  (add-var-info scope x '#.VAR-FREE)
+  (alet ((pscope scope))
+    (when pscope
+      (unless (scope-local-has? pscope x)
+        (let* ((scope-block (scope-block-top-get pscope))
+               (frees (scope-frees scope-block)))
+          (unless (member x frees)
+            (scope-frees-set! scope-block (cons x frees)))
+          (loop (scope-outer-scope scope-block)))))))
+
+(defun register-set! (scope x v)
+  (add-var-info scope x '#.VAR-SET)
+  (receive (info defined-scope)
+           (get-var-info scope x)
+    (when info
+      (let1 val (if (same-scope-block? defined-scope scope)
+                    v   ;; Keep value only when set! is on same scope with variable defined scope.
+                  nil)  ;; Otherwise, use dummy value.
+        (do-register-set! defined-scope x val)))))
+(defun do-register-set! (scope x val)
+  (let1 sets (scope-sets scope)
+    (aif (assoc x sets)
+         (set-cdr! it (cons val (cdr it)))
+      (scope-sets-set! scope (acons x (list val) sets)))))
+
+(defun calc-scope-work-size (scope)
+  (alet ((pscope scope)
+         (size 0))
+    (if (scope-block-top? pscope)
+        (when (> size (scope-work-size pscope))
+          (scope-work-size-set! pscope size))
+      (loop (scope-outer-scope pscope)
+            (+ size (length (scope-local-infos pscope)))))))
+
+(defun upper-scope-is? (scope expected-scope)
+  (let ((upper (scope-upper-block-top-get scope))
+        (expected (scope-block-top-get expected-scope)))
+    (eq? upper expected)))
+
+;;;;
+;; Lambda node
+
+(defun prepare-lambda-node (vars body scope)
+  (let ((proper-vars (check-parameters vars))
+        (body-node (if body
+                       (cons nil nil)
+                     nil)))
+    (let ((inner-scope (create-scope proper-vars scope))
+          (varnum (if (eq? vars proper-vars)
+                      (length vars)
+                    (list (- (length proper-vars) 1)
+                          -1))))
+      (create-lambda-node inner-scope proper-vars varnum body-node))))
+
+(defun create-lambda-node (scope proper-vars varnum body-node)
+  (list ':LAMBDA
+        scope
+        (cons nil nil)  ; body-slot
+        varnum
+        body-node))
+
+(defun lambda-node? (node)
+  (eq? (car node) ':LAMBDA))
+
+(def lambda-scope-get      cadr)
+(def lambda-body-slot-get  caddr)
+(def lambda-varnum-get     cadddr)
+(def lambda-body-node-get  caddddr)
+
+(defun lambda-scope-set! (node scope)
+  (set-car! (cdr node) scope))

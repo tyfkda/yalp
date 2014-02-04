@@ -17,3 +17,7 @@
                               (record (cdr ,value) ,@(cdr e))))))
                       args)))))
       (values))  ; Empty result.
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*))
