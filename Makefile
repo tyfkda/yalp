@@ -52,7 +52,7 @@ $(SRCDIR)/opcodes.hh:	compiler/opcodes.txt
 	ruby -ne 'line = $$_.chomp; if !line.empty? && line[0] != ";" then op = line.split(" ")[0]; puts "OP(#{op})"; end' < $< >> $@
 
 test:	$(PROJECT)
-	make -C compiler test
+	make -C compiler/test test
 	make -C test test
 	cd examples && ./test.sh
 	make -C embed_examples test
