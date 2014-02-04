@@ -166,6 +166,7 @@ void String::output(State*, Stream* o, bool inspect) const {
   for (size_t n = len_, i = 0; i < n; ++i) {
     unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
     const char* s = NULL;
+    char buffer[8];
     switch (c) {
     case '\n':  s = "\\n"; break;
     case '\r':  s = "\\r"; break;
@@ -174,9 +175,13 @@ void String::output(State*, Stream* o, bool inspect) const {
     case '\\':  s = "\\\\"; break;
     case '"':   s = "\\\""; break;
     case 0x1b:  s = "\\x1b"; break;
+    default:
+      if (0x20 <= c && c < 0x80)
+        continue;
+      snprintf(buffer, sizeof(buffer), "\\x%02x", c);
+      s = buffer;
+      break;
     }
-    if (s == NULL)
-      continue;
 
     if (prev != i)
       o->write(&string_[prev], i - prev);
