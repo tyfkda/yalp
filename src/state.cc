@@ -112,16 +112,16 @@ void Value::output(State* state, Stream* o, bool inspect) const {
 }
 
 void Value::outputSymbol(State* state, Stream* o) const {
-  char buffer[64];
-  if (state == NULL) {
-    snprintf(buffer, sizeof(buffer), "#<symbol:%ld>", v_ >> TAG2_SHIFT);
+  char buffer[12 + sizeof(Fixnum) * 3];
+
+  if (v_ < 0) {  // gensym-ed symbol.
+    snprintf(buffer, sizeof(buffer), "#:G%ld", -(v_ >> TAG2_SHIFT));
     o->write(buffer);
     return;
   }
 
-  if (v_ < 0) {  // gensym-ed symbol.
-    int id = -(v_ >> TAG2_SHIFT);
-    snprintf(buffer, sizeof(buffer), "G:%d", id);
+  if (state == NULL) {
+    snprintf(buffer, sizeof(buffer), "#<symbol %ld>", v_ >> TAG2_SHIFT);
     o->write(buffer);
     return;
   }

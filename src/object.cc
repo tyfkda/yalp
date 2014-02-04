@@ -267,8 +267,8 @@ void SHashTable::destruct(Allocator* allocator) {
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
 void SHashTable::output(State*, Stream* o, bool) const {
-  char buffer[64];
-  snprintf(buffer, sizeof(buffer), "#<table:%p>", this);
+  char buffer[16 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<table %p>", this);
   o->write(buffer);
 }
 
@@ -412,7 +412,9 @@ void Continuation::destruct(Allocator* allocator) {
 Type Continuation::getType() const  { return TT_CONTINUATION; }
 
 void Continuation::output(State*, Stream* o, bool) const {
-  o->write("#<continuation>");
+  char buffer[20 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<continuation %p>", this);
+  o->write(buffer);
 }
 
 void Continuation::mark() {
@@ -434,8 +436,9 @@ void SStream::destruct(Allocator* allocator) {
 Type SStream::getType() const  { return TT_STREAM; }
 
 void SStream::output(State*, Stream* o, bool) const {
-  o->write("#<stream:");
-  o->write('>');
+  char buffer[16 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<stream %p>", this);
+  o->write(buffer);
 }
 
 //=============================================================================
