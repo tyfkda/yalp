@@ -63,11 +63,9 @@
                        args))))
 
       (values))  ; Empty result.
-;; Need to split, because any expressions are evaluted from tail to top...
-;; TODO: Evaluate macro definition from top to tail.
+
 #.(do (gen-multiple-definitions gen-cxxr)
       (gen-multiple-definitions gen-type-checker)
-
       (values))  ; Empty result.
 
 (gen-cxxrs caar cdar cadr cddr
