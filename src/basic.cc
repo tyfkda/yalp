@@ -23,16 +23,6 @@ namespace yalp {
 
 // Expand macro if the given expression is macro expression,
 // otherwise return itself.
-/*
-(def (macroexpand-1 exp)
-  (if (and (pair? exp)
-           (macro? (car exp)))
-      (with (name (car exp)
-             args (cdr exp))
-        (let closure (table-get *macro-table* name)
-          (apply closure args)))
-    exp))
-*/
 static Value s_macroexpand_1(State* state) {
   Value exp = state->getArg(0);
   if (exp.getType() != TT_CELL)
