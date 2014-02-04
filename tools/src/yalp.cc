@@ -283,9 +283,6 @@ int main(int argc, char* argv[]) {
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
-    case '-':  // "--" is splitter.
-      ++ii;
-      goto L_noScriptFiles;
     case 'd':
       bDebug = true;
       break;
@@ -333,7 +330,6 @@ int main(int argc, char* argv[]) {
     StrStream stream(oneLinear);
     repl(state, &stream, false);
   } else if (ii >= argc) {
-  L_noScriptFiles:
     FileStream stream(stdin);
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
