@@ -1,16 +1,6 @@
 ;(load-binary "../../boot.bin")
 (load "./test.yl")
 
-(defun alist->table (alist)
-  (let1 ht (table)
-    (dolist (kv alist)
-      (table-put! ht (car kv) (cdr kv)))
-    ht))
-
-(defun table->alist (ht)
-  (map (^(key) (cons key (table-get ht key)))
-       (table-keys ht)))
-
 (test-section "find-free")
 (test "check-parameters" '(x y z) (check-parameters '(x y z)))
 (test "check-parameters-rest" '(x y z) (check-parameters '(x y &rest z)))
