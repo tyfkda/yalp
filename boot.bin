@@ -58,6 +58,7 @@
 (9 1 0 (3 (1 0 0 2 pair? 4 1) 7 (3 (1 0 31 0 2 copy-list 4 1) 0 3 (1 0 30 0 2 copy-list 4 1) 0 2 cons 8 2) 1 0 17) 16 copy-list 10)
 (9 2 0 (26 1 5 0 0 3 (1 1 0 1 0 0 2 logand 4 2) 38 6 -2 7 (29 . #0=(17)) 5 t . #0#) 16 bit? 10)
 (25 with-open-file (1 -1) 0 (26 2 1 0 6 -2 31 30 6 -3 1 0 30 6 -2 3 (3 (3 (5 (result) 0 3 (1 -2 0 5 close 0 2 list 4 2) 0 2 list* 4 2) 0 1 1 0 2 append 4 2) 0 5 result 0 5 let1 0 2 list* 4 3) 0 3 (1 -3 0 5 open 0 2 list 4 2) 0 1 -2 0 5 let1 0 2 list 8 4) 10)
+(9 1 0 (26 3 29 6 -2 29 6 -3 . #0=(3 (1 0 0 2 read 4 1) 6 -4 7 (3 (1 -3 0 1 -4 0 2 cons 4 2) 0 19 1 1 . #0#) 1 -3 0 2 reverse! 8 1)) 16 stream->list 10)
 (3 (2 gensym 4 0) 16 *bq-clobberable* 10)
 (3 (29 0 5 quote 0 2 list 4 2) 16 *bq-quote-nil* 10)
 (3 (9 2 0 (3 (1 0 0 2 read 4 1) 0 5 quasiquote 0 2 list 8 2) 0 5 #\` 0 2 set-macro-character 4 2) 10)

@@ -501,3 +501,9 @@
        (let1 result ,@body
          (close ,var)
          result))))
+
+(defun stream->list (stream)
+  (alet ((acc '()))
+    (aif (read stream)
+         (loop (cons it acc))
+      (reverse! acc))))
