@@ -300,7 +300,7 @@ State::State(Allocator* allocator)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "int", "symbol", "pair", "string", "char",
+    "unknown", "int", "symbol", "char", "pair", "string",
 #ifndef DISABLE_FLONUM
     "flonum",
 #endif

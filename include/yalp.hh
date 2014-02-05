@@ -54,9 +54,10 @@ enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,
   TT_SYMBOL,
+  TT_CHAR,
+  // Below is object.
   TT_CELL,
   TT_STRING,
-  TT_CHAR,
 #ifndef DISABLE_FLONUM
   TT_FLONUM,  // Floating point number
 #endif
