@@ -60,6 +60,9 @@ test:	$(PROJECT)
 check-length:
 	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr
 
+update-compier:
+	./tools/build-boot-data.sh
+
 self-compile:	self.bin
 	diff $(OBJDIR)/boot.bin $(OBJDIR)/self.bin && rm $(OBJDIR)/self.bin && echo OK
 
