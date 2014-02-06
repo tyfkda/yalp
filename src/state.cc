@@ -294,7 +294,6 @@ State::State(Allocator* allocator)
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
     "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile",
-    "*stdin*", "*stdout*",
   };
   for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
     constants_[i] = intern(constSymbols[i]);
@@ -343,6 +342,15 @@ void State::installBasicObjects() {
   for (auto e : Table)
     defineGlobal(intern(e.name), Value(createFileStream(e.fp)));
   restoreArena(arena);
+}
+
+Value State::getStandardStream(StandardStream type) const {
+  static const char* table[] = {
+    "*stdin*",
+    "*stdout*",
+    "*stderr*",
+  };
+  return referGlobal(intern(table[type]));
 }
 
 bool State::compile(Value exp, Value* pValue) {

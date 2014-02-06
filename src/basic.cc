@@ -306,10 +306,10 @@ static Value s_ash(State* state) {
     return Value(x.toFixnum() >> -s);
 }
 
-static SStream* chooseStream(State* state, int argIndex, State::Constant defaultStream) {
+static SStream* chooseStream(State* state, int argIndex, State::StandardStream defaultStream) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(state->getConstant(defaultStream));
+    state->getStandardStream(defaultStream);
   state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject());
 }

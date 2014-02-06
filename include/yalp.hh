@@ -204,12 +204,18 @@ public:
     UNQUOTE,
     UNQUOTE_SPLICING,
     COMPILE,
-    STDIN,
-    STDOUT,
     NUMBER_OF_CONSTANTS
   };
   inline Value getConstant(Constant c) const;
   inline Value getTypeSymbol(Type type) const;
+
+  // Constant
+  enum StandardStream {
+    STDIN,
+    STDOUT,
+    STDERR,
+  };
+  Value getStandardStream(StandardStream type) const;
 
   void* alloc(size_t size) const;
   void* realloc(void* ptr, size_t size) const;
