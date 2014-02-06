@@ -333,7 +333,7 @@ int main(int argc, char* argv[]) {
   if (!bLibraryLoaded)
     state->runBinaryFromString(bootBinaryData);
 
-  if (bCompile)
+  if (bCompile && !bDebug)
     tmpFd = reopenFile(stdout, "/dev/null", "w");
 
   if (oneLinear != NULL) {
