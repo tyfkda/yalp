@@ -277,7 +277,7 @@ void Vm::reportDebugInfo() const {
   std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
 }
 
-Value Vm::referGlobal(Value sym, bool* pExist) {
+Value Vm::referGlobal(Value sym, bool* pExist) const {
   const Value* result = globalVariableTable_->get(sym);
   if (pExist != NULL)
     *pExist = result != NULL;

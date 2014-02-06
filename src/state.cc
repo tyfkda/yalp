@@ -451,7 +451,7 @@ void State::free(void* ptr) const {
   allocator_->free(ptr);
 }
 
-Value State::intern(const char* name) {
+Value State::intern(const char* name) const {
   SymbolId symbolId = symbolManager_->intern(name);
   return Value(symbolId, TAG2_SYMBOL);
 }
@@ -558,7 +558,7 @@ void State::runtimeError(const char* msg, ...) {
   longJmp();
 }
 
-Value State::referGlobal(Value sym, bool* pExist) {
+Value State::referGlobal(Value sym, bool* pExist) const {
   return vm_->referGlobal(sym, pExist);
 }
 

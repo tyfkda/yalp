@@ -45,7 +45,7 @@ public:
   // Gets result value for the index.
   inline Value getResult(int index) const;
 
-  Value referGlobal(Value sym, bool* pExist);
+  Value referGlobal(Value sym, bool* pExist) const;
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
   Value getMacro(Value name);

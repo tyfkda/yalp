@@ -134,10 +134,10 @@ public:
   Value tailcall(Value fn, int argNum, const Value* args);
   Value applyFunction();
 
-  inline Value referGlobal(const char* sym, bool* pExist = NULL);
+  inline Value referGlobal(const char* sym, bool* pExist = NULL) const;
   inline void defineGlobal(const char* sym, Value value);
   inline void defineNative(const char* name, NativeFuncType func, int minArgNum);
-  Value referGlobal(Value sym, bool* pExist = NULL);
+  Value referGlobal(Value sym, bool* pExist = NULL) const;
   void defineGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   SHashTable* getGlobalVariableTable() const;
@@ -146,7 +146,7 @@ public:
   inline Value boolean(bool b) const;
 
   // Returns symbol value.
-  Value intern(const char* name);
+  Value intern(const char* name) const;
   // Generate unique symbol.
   Value gensym();
   const Symbol* getSymbol(int symbolId) const;
@@ -274,7 +274,7 @@ inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type];
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
 
-inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
+inline Value State::referGlobal(const char* sym, bool* pExist) const  { return referGlobal(intern(sym), pExist); }
 inline void State::defineGlobal(const char* sym, Value value)  { return defineGlobal(intern(sym), value); }
 inline void State::defineNative(const char* name, NativeFuncType func, int minArgNum)  { defineNative(name, func, minArgNum, minArgNum); }
 
