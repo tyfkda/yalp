@@ -90,8 +90,6 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
 }
 
 void Cell::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   car_.mark();
   cdr_.mark();
@@ -233,8 +231,6 @@ void Vector::output(State* state, Stream* o, bool inspect) const {
 }
 
 void Vector::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   for (int n = size_, i = 0; i < n; ++i)
     buffer_[i].mark();
@@ -273,8 +269,6 @@ void SHashTable::output(State*, Stream* o, bool) const {
 }
 
 void SHashTable::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   TableType& table = *table_;
   for (auto kv : table)
@@ -338,8 +332,6 @@ void Closure::output(State*, Stream* o, bool) const {
 }
 
 void Closure::mark() {
-  if (isMarked())
-    return;
   Callable::mark();
   body_.mark();
   for (int n = freeVarCount_, i = 0; i < n; ++i)
@@ -418,8 +410,6 @@ void Continuation::output(State*, Stream* o, bool) const {
 }
 
 void Continuation::mark() {
-  if (isMarked())
-    return;
   Callable::mark();
   for (int n = stackSize_, i = 0; i < n; ++i)
     copiedStack_[i].mark();

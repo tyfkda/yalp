@@ -80,8 +80,10 @@ unsigned int Value::calcHash(State* state) const {
 }
 
 void Value::mark() {
-  if (isObject())
-    toObject()->mark();
+  Object* obj;
+  if (!isObject() || (obj = toObject())->isMarked())
+    return;
+  obj->mark();
 }
 
 void Value::output(State* state, Stream* o, bool inspect) const {
