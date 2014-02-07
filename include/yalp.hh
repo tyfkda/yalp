@@ -195,6 +195,7 @@ public:
 
   // Raises runtime error.
   void runtimeError(const char* msg, ...);
+  void printCallStack(FILE* fp);
 
   // Constant
   enum Constant {

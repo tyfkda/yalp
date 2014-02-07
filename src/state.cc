@@ -557,15 +557,23 @@ void State::runtimeError(const char* msg, ...) {
   errout.write('\n');
   va_end(ap);
 
-  int n = vm_->getCallStackDepth();
-  if (n > 0) {
-    const CallStack* callStack = vm_->getCallStack();
-    for (int i = n; --i >= 0; ) {
-      const Symbol* name = callStack[i].callable->getName();
-      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
-    }
-  }
+  printCallStack(stderr);
   longJmp();
+}
+
+void State::printCallStack(FILE* fp) {
+  int n = vm_->getCallStackDepth();
+  if (n <= 0) {
+    fprintf(fp, "Empty callstack\n");
+    return;
+  }
+
+  FileStream errout(fp);
+  const CallStack* callStack = vm_->getCallStack();
+  for (int i = n; --i >= 0; ) {
+    const Symbol* name = callStack[i].callable->getName();
+    format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
+  }
 }
 
 Value State::referGlobal(Value sym, bool* pExist) const {
