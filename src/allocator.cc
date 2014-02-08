@@ -124,10 +124,8 @@ void Allocator::free(void* p) {
 }
 
 void* Allocator::objAlloc(size_t size) {
-  if (objectCount_ >= nextGc_) {
+  if (objectCount_ >= nextGc_)
     collectGarbage();
-    nextGc_ = objectCount_ * 2;
-  }
 
   GcObject* gcobj = static_cast<GcObject*>(this->alloc(size));
   gcobj->next_ = objectTop_;
@@ -160,6 +158,7 @@ void Allocator::collectGarbage() {
 #ifndef NDEBUG
   std::cerr << "  After  #" << objectCount_ << "\n\n";
 #endif
+  nextGc_ = objectCount_ * 2;
 }
 
 void Allocator::sweep() {
