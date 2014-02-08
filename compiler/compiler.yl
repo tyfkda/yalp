@@ -716,37 +716,7 @@
     (table-get *inline-functions* sym))
   )
 
-;;;;
-
-(let1 exit-compile nil
-  (defun compile-error (&rest args)
-    (if exit-compile
-        (do (apply format *stderr* args)
-            (display "\n" *stderr*)
-            (exit-compile nil))
-      (error (apply format nil args))))
-
-  (defun compile (x)
-    (call/cc
-     (^(cc)
-       (set! exit-compile cc)
-       (let* ((scope (create-scope '() nil))
-              (tree (traverse x scope nil)))
-         (let* ((eoc (list '#.HALT))
-                (result (compile-recur tree scope eoc))
-                (work-size (scope-work-size scope)))
-           (set! exit-compile nil)
-           (if (eq? work-size 0)
-               result
-             ;; Tweak stack layout for base level.
-             (do (copy-pair! eoc (list '#.ADDSP (- -1 work-size) '#.HALT))
-                 (list* '#.CONST 0 '#.PUSH  ; argnum
-                        '#.ADDSP work-size
-                        result)))))))))
-
-(defun eval (x)
-  (run-binary (compile x)))
-
+;; Register embedded functions.
 (let ((simple-embed-func (^(op)
                            (^ (args scope next)
                               (compile-embed-op op args scope next))))
@@ -779,3 +749,34 @@
                    (cons 'cdr (simple-embed-func-1 '#.CDR))
                    ))
     (register-embed-func (car p) (cdr p))))
+
+;;;;
+
+(let1 exit-compile nil
+  (defun compile-error (&rest args)
+    (if exit-compile
+        (do (apply format *stderr* args)
+            (display "\n" *stderr*)
+            (exit-compile nil))
+      (error (apply format nil args))))
+
+  (defun compile (x)
+    (call/cc
+     (^(cc)
+       (set! exit-compile cc)
+       (let* ((scope (create-scope '() nil))
+              (tree (traverse x scope nil)))
+         (let* ((eoc (list '#.HALT))
+                (result (compile-recur tree scope eoc))
+                (work-size (scope-work-size scope)))
+           (set! exit-compile nil)
+           (if (eq? work-size 0)
+               result
+             ;; Tweak stack layout for base level.
+             (do (copy-pair! eoc (list '#.ADDSP (- -1 work-size) '#.HALT))
+                 (list* '#.CONST 0 '#.PUSH  ; argnum
+                        '#.ADDSP work-size
+                        result)))))))))
+
+(defun eval (x)
+  (run-binary (compile x)))
