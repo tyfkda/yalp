@@ -57,7 +57,7 @@
 
       ;; Generates macro which converts
       ;;   (FOOs args...) => (do (FOO arg1) (FOO arg2) ...)
-      (defmacro gen-multiple-definitions (macro-name &rest args)
+      (defmacro gen-multiple-definitions (macro-name)
         `(defmacro ,(intern (string macro-name #\s)) (&rest args)
            `(do ,@(map (^(arg)
                          `(,',macro-name ,arg))
