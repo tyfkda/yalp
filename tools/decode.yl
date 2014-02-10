@@ -1,4 +1,4 @@
-;; Encode opcode from symbol to integer value
+;; Decode opcode from symbol to integer value
 
 (load "compiler/opcodes.yl")
 (load "tools/code-walker.yl")
