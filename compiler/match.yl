@@ -26,7 +26,7 @@
 ;; http://www.bookshelf.jp/texi/onlisp/onlisp_19.html#SEC117
 (defun match (x y binds)
   (acond2
-   ((or (equal? x y) (equal? x '_) (equal? y '_)) (values binds t))
+   ((equal? x y) (values binds t))
    ((binding x binds) (match it y binds))
    ((binding y binds) (match x it binds))
    ((varsym? x) (values (cons (cons x y) binds) t))

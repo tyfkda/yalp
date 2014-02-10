@@ -1,8 +1,5 @@
 ;; Optimize VM code
 
-(load "tools/code-walker.yl")
-(load "tools/match.yl")
-
 (defmacro match-cond (expr &rest clauses)
   (let-gensym val
     `(let1 ,val ,expr
@@ -25,13 +22,17 @@
     (^(c recur)
       (match-cond c
                   ((#.CONST nil . ?rest)
-                   (replace-pair! c NIL ?rest)
-                   c)
+                   ;; There is a "(CONST ?xxxx ...)" sequence in compiled code
+                   ;; and matcher matches such a pattern, so excludes them.
+                   (if (cadr c)
+                       nil
+                     (do (replace-pair! c #.NIL ?rest)
+                         c)))
                   ((#.GREF nil . ?rest)
-                   (replace-pair! c NIL ?rest)
+                   (replace-pair! c #.NIL ?rest)
                    c)
                   ((#.GREF t . ?rest)
-                   (set-car! c CONST)
+                   (set-car! c #.CONST)
                    c)
                   ((#.NIL #.TEST ?then . ?else)    ; Optimize `not` and `and` code
                    (copy-pair! c ?else)
@@ -46,11 +47,3 @@
                    (set-car! (cdddr c) ?then)  ; Optimize `or` code
                    c)
                   (t nil)))))
-
-(defun main (args)
-  (files-or-stdin args
-                  (^(stream)
-                    (awhile (read stream)
-                      (optimize! it)
-                      (write/ss it)
-                      (display "\n")))))

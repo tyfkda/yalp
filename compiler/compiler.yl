@@ -37,9 +37,9 @@
 
 ;;;;
 
-#.(do (load "compiler/opcodes.yl")
-      (define-opcode-symbols)
-      (values))
+;#.(do (load "compiler/opcodes.yl")
+;      (define-opcode-symbols)
+;      (values))
 
 #.(do (declaim (inline tail?))
       (defun tail? (next)
@@ -769,6 +769,7 @@
          (let* ((eoc (list '#.HALT))
                 (result (compile-recur tree scope eoc))
                 (work-size (scope-work-size scope)))
+           (optimize! result)
            (set! exit-compile nil)
            (if (eq? work-size 0)
                result
