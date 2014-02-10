@@ -201,19 +201,30 @@
       (create-lambda-node inner-scope proper-vars varnum body-node))))
 
 (defun create-lambda-node (scope proper-vars varnum body-node)
-  (list ':LAMBDA
-        scope
-        (cons nil nil)  ; body-slot
-        varnum
-        body-node))
+  (vector ':LAMBDA
+          scope
+          (cons nil nil)  ; body-slot
+          varnum
+          body-node))
 
 (defun lambda-node? (node)
-  (eq? (car node) ':LAMBDA))
+  (and (vector? node)
+       (eq? (vector-get node 0) ':LAMBDA)))
 
-(def lambda-scope-get      cadr)
-(def lambda-body-slot-get  caddr)
-(def lambda-varnum-get     cadddr)
-(def lambda-body-node-get  caddddr)
+(defun lambda-scope-get (node)      (vector-get node 1))
+(defun lambda-body-slot-get (node)  (vector-get node 2))
+(defun lambda-varnum-get (node)     (vector-get node 3))
+(defun lambda-body-node-get (node)  (vector-get node 4))
 
 (defun lambda-scope-set! (node scope)
-  (set-car! (cdr node) scope))
+  (vector-set! node 1 scope))
+
+;;;;
+;; Refer node
+
+(defun refer-node? (node)
+  (and (vector? node)
+       (eq? (vector-get node 0)  ':REF)))
+
+(defun refer-node-name (node)
+  (vector-get node 1))
