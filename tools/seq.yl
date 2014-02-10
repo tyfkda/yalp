@@ -4,7 +4,6 @@
 ;;   $ cat ../boot.bin | ../yalp -L ../boot.bin seq.yl | sort | uniq -c | sort -nr
 
 (load "compiler/opcodes.yl")
-(load "tools/code-walker.yl")
 
 (def *optbl*
   (let1 h (table)
@@ -37,6 +36,14 @@
         (print (list (table-get *optbl* (car c))
                      (table-get *optbl* (car it)))))
       nil)))
+
+(defun files-or-stdin (args f)
+  (if args
+      (dolist (filename args)
+        (let1 ss (open filename)
+          (f ss)
+          (close ss)))
+    (f *stdin*)))
 
 (defun main (args)
   (files-or-stdin args

@@ -1,7 +1,6 @@
 ;; Decode opcode from symbol to integer value
 
 (load "compiler/opcodes.yl")
-(load "tools/code-walker.yl")
 
 (def *optbl*
   (let1 h (table)
@@ -18,6 +17,14 @@
       (awhen (table-get *optbl* (car c))
         (set-car! c it))
       nil)))
+
+(defun files-or-stdin (args f)
+  (if args
+      (dolist (filename args)
+        (let1 ss (open filename)
+          (f ss)
+          (close ss)))
+    (f *stdin*)))
 
 (defun main (args)
   (files-or-stdin args
