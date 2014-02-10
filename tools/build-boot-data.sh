@@ -6,6 +6,9 @@ TMP=boot.cc
 BOOT_BIN=obj/boot.bin
 
 ./tools/build-compiler.sh > ${BOOT_BIN}
+if [ $? -ne 0 ]; then
+  exit 1
+fi
 
 echo "// This file is generated from ${BOOT_BIN}
 namespace yalp {
