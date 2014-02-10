@@ -57,11 +57,10 @@
        ,else)))
 
 (defun vars-in (expr)
-  (if (symbol? expr)
-      (if (var? expr) (list expr))
-    (union (vars-in (car expr))
-           (vars-in (cdr expr)))))
+  (cond ((var? expr)
+         (list expr))
+        ((pair? expr)
+         (union (vars-in (car expr))
+                (vars-in (cdr expr))))))
 
-;; Is this same as varsym?
-(defun var? (x)
-  (and (symbol? x) (eq? (char-at (string x) 0) #\?)))
+(defun var? (x)  (varsym? x))
