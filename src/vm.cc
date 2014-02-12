@@ -912,10 +912,14 @@ Value Vm::runLoop() {
       valueCount_ = 0;
     } NEXT;
     CASE(ADDSP) {
-      Value n = POP(x);
+      Value sn = POP(x);
       x_ = x;
-      s_ += n.toFixnum();
-      reserveStack(s_);
+      int n = sn.toFixnum();
+      int s = s_;
+      reserveStack(s + n);
+      for (int i = 0; i < n; ++i)
+        stack_[s + i] = Value::NIL;
+      s_ += n;
     } NEXT;
     CASE(LOCAL) {
       Value offset = POP(x);
