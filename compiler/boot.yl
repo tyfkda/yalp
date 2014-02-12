@@ -74,7 +74,7 @@
            cadddr cddddr
            caddddr cdddddr)
 
-(gen-type-checkers int pair symbol string flonum char)
+(gen-type-checkers int pair symbol string flonum char vector table)
 
 (defun some? (f ls &rest rest)
   (if rest
