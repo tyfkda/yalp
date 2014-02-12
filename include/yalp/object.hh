@@ -289,6 +289,13 @@ protected:
   int callStackSize_;
 };
 
+/**
+ * SStream class
+ *   SStream class has a ownership for the given Stream instance,
+ *   only when SStream is created in heap (using Allocator#newObject method).
+ *   Otherwise (the case what SStream is created in stack),
+ *   SStream class does not have a ownership for it.
+ */
 class SStream : public Object {
 public:
   explicit SStream(Stream* stream);
