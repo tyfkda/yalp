@@ -15,7 +15,7 @@
 ;;   var-info: #0=var-info
 
 (defun create-scope (local outer-scope)
-  (vector (map [var-info _ 0] local)
+  (vector (map [var-info (gensym) 0 _] local)
           '()              ; Free variables.
           t                ; Scope block top.
           '()              ; alist containing set variables.
@@ -23,7 +23,7 @@
           0))              ; Scope work size.
 
 (defun expand-scope (local outer-scope)
-  (expand-scope2 (map [var-info _ 0] local)
+  (expand-scope2 (map [var-info (gensym) 0 _] local)
                  outer-scope))
 (defun expand-scope2 (local-infos outer-scope)
   (vector local-infos
@@ -55,6 +55,14 @@
         size
       (loop (scope-outer-scope pscope)
             (+ size (length (scope-local-infos pscope)))))))
+
+;; Convert bound or free variable into unique symbol.
+(defun alpha-conversion (scope sym)
+  (alet ((pscope scope))
+    (when pscope
+      (aif (some? [eq? (var-info-orig-name-get _) sym] (scope-local-infos pscope))
+           (var-info-name-get (car it))
+        (loop (scope-outer-scope pscope))))))
 
 ;; Returns local offset if the scope has the symbol.
 (defun scope-local-has? (scope sym)
@@ -110,9 +118,10 @@
         (loop (scope-outer-scope pscope)
               count2)))))
 
-(defun var-info (var flag)  (vector var flag))
+(defun var-info (var flag name)  (vector var flag name))
 (defun var-info-name-get (info) (vector-get info 0))
 (defun var-info-flag-get (info) (vector-get info 1))
+(defun var-info-orig-name-get (info) (vector-get info 2))
 (defun var-info-flag-set! (info v) (vector-set! info 1 v))
 
 (defun get-var-info (scope var)
