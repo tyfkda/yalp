@@ -15,7 +15,7 @@
 ;;   var-info: #0=var-info
 
 (defun create-scope (local outer-scope)
-  (vector (map [cons _ 0] local)
+  (vector (map [var-info _ 0] local)
           '()              ; Free variables.
           t                ; Scope block top.
           '()              ; alist containing set variables.
@@ -23,7 +23,7 @@
           0))              ; Scope work size.
 
 (defun expand-scope (local outer-scope)
-  (expand-scope2 (map [cons _ 0] local)
+  (expand-scope2 (map [var-info _ 0] local)
                  outer-scope))
 (defun expand-scope2 (local-infos outer-scope)
   (vector local-infos
@@ -67,10 +67,13 @@
       (unless (scope-block-top? pscope)
         (loop (scope-outer-scope pscope))))))
 (defun scope-local-only-has? (scope sym)
-  (position-if [eq? (car _) sym] (scope-local-infos scope)))
+  (position-if [eq? (var-info-name-get _) sym] (scope-local-infos scope)))
 
 (defun get-scope-local-offset (scope)
-  (scope-local-has? scope (caar (scope-local-infos scope))))
+  (let1 local-infos (scope-local-infos scope)
+    (if local-infos
+        (scope-local-has? scope (var-info-name-get (car local-infos)))
+      0)))  ; No parameters: returns dummy value.
 
 ;; Returns scope block top for the given scope.
 (defun scope-block-top-get (scope)
@@ -107,8 +110,10 @@
         (loop (scope-outer-scope pscope)
               count2)))))
 
-(defun var-info-flag-get (info) (cdr info))
-(defun var-info-flag-set! (info v) (set-cdr! info v))
+(defun var-info (var flag)  (vector var flag))
+(defun var-info-name-get (info) (vector-get info 0))
+(defun var-info-flag-get (info) (vector-get info 1))
+(defun var-info-flag-set! (info v) (vector-set! info 1 v))
 
 (defun get-var-info (scope var)
   (if (symbol? var)

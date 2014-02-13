@@ -589,7 +589,7 @@
   (let1 vars (scope-local-infos expanded-scope)
     (let ((tail (tail? next))
           (flag (receive (info _)
-                         (get-var-info expanded-scope (caar vars))
+                         (get-var-info expanded-scope (var-info-name-get (car vars)))
                   (var-info-flag-get info))))
       (cond ((bit? flag '#.(logior VAR-ARG VAR-SET))
              ;; Normal continuation.
@@ -606,11 +606,12 @@
              ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
              ;; Re-expand scope to store frame pointer and and closure to stack.
              (let* ((dummy-symbol (gensym))
+                    (vinfo (var-info dummy-symbol '#.VAR-ARG))
                     ;; Add 3 extra local variables.
                     (modified-vars (append (scope-local-infos expanded-scope)
-                                           (list (cons dummy-symbol '#.VAR-ARG)
-                                                 (cons dummy-symbol '#.VAR-ARG)
-                                                 (cons dummy-symbol '#.VAR-ARG))))
+                                           (list vinfo
+                                                 vinfo
+                                                 vinfo)))
                     (expanded-scope (expand-scope2 modified-vars
                                                    scope)))
                (replace-body-scope! body expanded-scope)
@@ -640,7 +641,7 @@
 (defun make-boxes (scope locals next)
   (alet ((vars locals))
     (if vars
-        (let ((var (caar vars))
+        (let ((var (var-info-name-get (car vars)))
               (tail (cdr vars)))
           (if (and (var-is-set? scope var)
                    (not (and (symbol-can-be-loop? var scope)
