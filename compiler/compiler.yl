@@ -591,9 +591,7 @@
 (defun compile-conti-direct (expanded-scope body scope next)
   (let1 vars (scope-local-infos expanded-scope)
     (let ((tail (tail? next))
-          (flag (receive (info _)
-                         (get-var-info expanded-scope (var-info-name-get (car vars)))
-                  (var-info-flag-get info))))
+          (flag (var-info-flag-get (car vars))))
       (cond ((bit? flag '#.(logior VAR-ARG VAR-SET))
              ;; Normal continuation.
              (let1 c (list* '#.CONTI tail
