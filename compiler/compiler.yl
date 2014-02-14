@@ -236,9 +236,10 @@
             (map [traverse _ scope nil] args))))
 
 (defun traverse-inline-apply (sym args scope tail)
-  (let1 lambda (get-inline-function-body sym)
-    (traverse `(,lambda ,@args)
-              scope tail)))
+  (let ((lambda (get-inline-function-body sym)))
+    (traverse-apply-direct (cadr lambda)  ; vars
+                           (cddr lambda)  ; body
+                           args scope tail)))
 
 (defun traverse-apply-direct (vars body args scope tail)
   (let1 proper-vars (check-parameters vars)
