@@ -508,10 +508,8 @@
 (defun compile-apply-conti (f args scope)
   (let1 argnum (length args)
     (when (> argnum 1)
-      (receive (info _)
-               (get-var-info scope (refer-node-name f))
-        (compile-error "Too many argument for continuation `%@`"
-                       (var-info-name-get info))))
+      (compile-error "Too many argument for continuation `%@`"
+                     (get-var-orig-name scope (refer-node-name f))))
     (let1 c (compile-recur f scope
                            (list '#.LONGJMP))
       (if (eq? argnum 0)
@@ -543,7 +541,8 @@
           (compile-error "Not implemented: rest param for loop"))
         (unless (eq? argnum varnum)
           (compile-error "Illegal argnum, `%@` requires %@, but %@"
-                         (refer-node-name f) varnum argnum))
+                         (get-var-orig-name scope (refer-node-name f))
+                         varnum argnum))
         (replace-lambda-scope! lambda-node expanded-scope)
         (copy-pair! body-slot
                     (compile-body lambda-local-vars
@@ -565,7 +564,8 @@
       (compile-error "Not implemented: rest param for loop"))
     (unless (eq? argnum varnum)
       (compile-error "Illegal argnum, `%@` requires %@, but %@"
-                     (refer-node-name f) varnum argnum))
+                     (get-var-orig-name scope (refer-node-name f))
+                     varnum argnum))
     (compile-args args scope
                   (list* '#.LOOP outer-varnum argnum
                          (lambda-body-slot-get lambda-node)))))

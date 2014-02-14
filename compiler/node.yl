@@ -124,6 +124,13 @@
 (defun var-info-orig-name-get (info) (vector-get info 2))
 (defun var-info-flag-set! (info v) (vector-set! info 1 v))
 
+(defun get-var-orig-name (scope var)
+  (receive (info _)
+           (get-var-info scope var)
+    (if info
+        (var-info-orig-name-get info)
+      nil)))
+
 (defun get-var-info (scope var)
   (if (symbol? var)
       (alet ((pscope scope))
