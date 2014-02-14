@@ -497,7 +497,10 @@
 (defun compile-apply-conti (f args scope)
   (let1 argnum (length args)
     (when (> argnum 1)
-      (compile-error "Too many argument for `%@`" f))
+      (receive (info _)
+               (get-var-info scope (refer-node-name f))
+        (compile-error "Too many argument for continuation `%@`"
+                       (var-info-name-get info))))
     (let1 c (compile-recur f scope
                            (list '#.LONGJMP))
       (if (eq? argnum 0)
