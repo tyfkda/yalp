@@ -51,6 +51,9 @@
 ;; let without parameter
 (test "let empty" 123 (let () 123))
 
+;; let with symbol
+(test "let" nil (let (x) x))
+
 ;; bracket
 (test "[...]" '(1 4 9) (map [* _ _] '(1 2 3)))
 
