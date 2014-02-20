@@ -33,7 +33,10 @@
       (macroexpand expanded))))
 
 (defmacro defun (name vars &body body)
-  `(def ,name (^ ,vars ,@body)))
+  `(def ,name (^ ,vars
+                 (call/cc
+                  (^(return)
+                    ,@body)))))
 
 (defun not (x) (if x nil t))
 (defun null? (x) (if x nil t))

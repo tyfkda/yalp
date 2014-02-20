@@ -394,7 +394,6 @@
                 (:CONTI (func)
                         (compile-conti func scope next))
                 (:CONTI-DIRECT (expanded-scope body)
-                               (calc-scope-work-size expanded-scope)
                                (compile-conti-direct expanded-scope body scope next))
                 (:VALS (args)
                        (let1 argnum (length args)
@@ -611,6 +610,7 @@
           (flag (var-info-flag-get (car vars))))
       (cond ((bit? flag '#.(logior VAR-ARG VAR-SET))
              ;; Normal continuation.
+             (calc-scope-work-size expanded-scope)
              (let1 c (list* '#.CONTI tail
                             '#.LOCAL (get-scope-local-offset expanded-scope)
                             (compile-body vars body expanded-scope
@@ -641,7 +641,7 @@
                       (compile-body vars body expanded-scope
                                     next)
                       next)))
-            (t ;; Continuation is not used, omit creating it.
+            (t ;; Continuation is not used, omit creating it and use outer scope for body.
              (replace-body-scope! body scope)
              (compile-body vars body scope
                            next))))))
