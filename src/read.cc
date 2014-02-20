@@ -317,21 +317,10 @@ ErrorCode Reader::readSpecial(Value* pValue) {
   switch (c) {
   case '\\':
     return readChar(pValue);
-  case '.':
-    {
-      ErrorCode err = readTimeEval(pValue);
-      if (err == SUCCESS && state_->getResultNum() == 0)
-        return read(pValue);
-      return err;
-    }
   case '|':
     if (!skipBlockComment())
       return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
     return read(pValue);
-  case 'x':
-    return readNumLiteral(pValue, 16);
-  case 'b':
-    return readNumLiteral(pValue, 2);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -438,41 +427,6 @@ ErrorCode Reader::readChar(Value* pValue) {
     return SUCCESS;
   }
   return ILLEGAL_CHAR;
-}
-
-ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
-  Fixnum x = 0;
-  for (;;) {
-    int c = getc();
-    if (isDelimiter(c)) {
-      ungetc(c);
-      *pValue = Value(x);
-      return SUCCESS;
-    }
-
-    if (c == '_')
-      continue;
-    int h = hexChar(c);
-    if (h < 0 || h >= base) {
-      ungetc(c);
-      return ILLEGAL_CHAR;
-    }
-    x = (x * base) + h;
-  }
-}
-
-ErrorCode Reader::readTimeEval(Value* pValue) {
-  Value exp;
-  ErrorCode err = read(&exp);
-  if (err != SUCCESS)
-    return err;
-
-  Value code;
-  if (!state_->compile(exp, &code))
-    return COMPILE_ERROR;
-  if (!state_->runBinary(code, pValue))
-    return RUNTIME_ERROR;
-  return SUCCESS;
 }
 
 void Reader::storeShared(int id, Value value) {

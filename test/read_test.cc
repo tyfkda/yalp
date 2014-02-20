@@ -168,24 +168,6 @@ TEST_F(ReadTest, Char) {
   ASSERT_EQ(0x3042, s.toCharacter());
 }
 
-TEST_F(ReadTest, HexLiteral) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#x1234_abCD", &s));
-  ASSERT_EQ(TT_FIXNUM, s.getType());
-  ASSERT_EQ(0x1234abcd, s.toFixnum());
-
-  ASSERT_EQ(ILLEGAL_CHAR, read("#x0123456789abcdefg", &s));
-}
-
-TEST_F(ReadTest, BinLiteral) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#b1101_1110_1010_1101_1011_1110_1110_1111", &s));
-  ASSERT_EQ(TT_FIXNUM, s.getType());
-  ASSERT_EQ(0xdeadbeef, s.toFixnum());
-
-  ASSERT_EQ(ILLEGAL_CHAR, read("#b0123456789abcdefg", &s));
-}
-
 TEST_F(ReadTest, Error) {
   Value s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1\n (2\n (3)", &s));

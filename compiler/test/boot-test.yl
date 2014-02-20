@@ -152,6 +152,12 @@
 ;; remove-if-not
 (test "remove-if-not" '(two four) (remove-if-not symbol? '(1 two 3 four 5)))
 
+;; HexLiteral
+(test "hex literal" 305441741 #x1234_abCD)
+
+;; BinLiteral
+(test "bin literal" 305441741 #b0001_0010_0011_0100_1010_1011_1100_1101)
+
 ;; Vector literal
 (test "vector literal" (vector 1 '(2 3) 'x) #(1 (2 3) x))
 
