@@ -193,6 +193,12 @@ run eval "x" "(eval (eval '(quote (quote x))))"
 run '() is false' 3 '(if () 2 3)'
 run '() is nil' t '(eq? () nil)'
 
+# Inline function
+run_raw shadow-inlined-function '3' '(declaim (inline add))
+                                     (defun add (x y) (+ x y))
+                                     (print (let1 + cons
+                                              (add 1 2)))'
+
 # Fail cases
 fail unbound 'abc'
 fail no-global '((^(x) y) 123)'

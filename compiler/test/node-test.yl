@@ -6,7 +6,7 @@
        (scope2 (expand-scope '(b) scope1))
        (scope3 (create-scope '(c) scope2)))
   (receive (info found-scope)
-           (get-var-info scope3 'a)
+           (get-var-info scope3 (alpha-conversion scope3 'a))
     (test-eq "expanded scope" scope1 found-scope)))
 
 (test-complete)
