@@ -109,7 +109,7 @@
                      (traverse-set! ':SET! var val scope))
                (def (var val)
                     (when (inline-function? var)
-                      (register-inline-function var val))
+                      (register-inline-function var val scope))
                     (traverse-set! ':DEF var val scope))
                (call/cc (func)
                         (traverse-call/cc func scope tail))
@@ -123,7 +123,7 @@
                (t (let ((func (car x))
                         (args (cdr x)))
                     (cond ((lambda-expression? func)
-                           (traverse-apply-direct (cadr func) (cddr func) args scope tail))
+                           (traverse-apply-direct (cadr func) (cddr func) args scope scope tail))
                           ((inline-function? func)
                            (traverse-inline-apply func args scope tail))
                           (t (traverse-apply func args scope tail)))))))
@@ -246,12 +246,13 @@
             (map [traverse _ scope nil] args))))
 
 (defun traverse-inline-apply (sym args scope tail)
-  (let ((lambda (get-inline-function-body sym)))
+  (let ((lambda (get-inline-function-body sym))
+        (original-scope (get-inline-function-scope sym)))
     (traverse-apply-direct (cadr lambda)  ; vars
                            (cddr lambda)  ; body
-                           args scope tail)))
+                           args scope original-scope tail)))
 
-(defun traverse-apply-direct (vars body args scope tail)
+(defun traverse-apply-direct (vars body args calling-scope defined-scope tail)
   (let1 proper-vars (check-parameters vars)
     (let ((argnum (length args))
           (varnum (- (length proper-vars)
@@ -259,20 +260,25 @@
       (if (not (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
           (cond ((< argnum varnum)  ;; Error handled in the below.
-                 (traverse-apply-direct proper-vars body args scope tail))
+                 (traverse-apply-direct proper-vars body args calling-scope defined-scope tail))
                 ;; ((^(x y &rest z) ...) 1 2 3 4) => ((^(x y z) ...) 1 2 (list 3 4))
                 ((> argnum varnum)
                  (let1 modified-args (append! (take varnum args)
                                               (list `(list ,@(drop varnum args))))
-                   (traverse-apply-direct proper-vars body modified-args scope tail)))
+                   (traverse-apply-direct proper-vars body modified-args calling-scope defined-scope tail)))
                 ;; ((^(x y &rest z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
                 (t (traverse-apply-direct proper-vars body (append args '(()))
-                                          scope tail)))
+                                          calling-scope defined-scope tail)))
         (if (eq? argnum varnum)
-            (let1 args-node (map [traverse _ scope nil]
+            (let1 args-node (map [traverse _ calling-scope nil]
                                  args)
-              (let* ((expanded-scope (expand-scope proper-vars scope))
-                     (body-node (traverse-body body expanded-scope tail)))
+              (let* ((expanded-scope (expand-scope proper-vars calling-scope))
+                     (expanded-body-scope (if (eq? calling-scope defined-scope)
+                                              expanded-scope
+                                            (expand-scope2 (scope-local-infos expanded-scope)
+                                                           defined-scope)))
+                     ;; Compiles body node in a scope expanded from defined scope.
+                     (body-node (traverse-body body expanded-body-scope tail)))
                 ;; Returns lambda node
                 (vector ':INVOKE
                         expanded-scope
@@ -722,11 +728,14 @@
     (and (symbol? sym)
          (table-exists? *inline-functions* sym)))
 
-  (defun register-inline-function (sym func)
-    (table-put! *inline-functions* sym func))
+  (defun register-inline-function (sym func scope)
+    (table-put! *inline-functions* sym (cons func scope)))
 
   (defun get-inline-function-body (sym)
-    (table-get *inline-functions* sym))
+    (car (table-get *inline-functions* sym)))
+
+  (defun get-inline-function-scope (sym)
+    (cdr (table-get *inline-functions* sym)))
   )
 
 ;; Register embedded functions.
