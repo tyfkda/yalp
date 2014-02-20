@@ -417,10 +417,18 @@ void Continuation::mark() {
 
 //=============================================================================
 SStream::SStream(Stream* stream)
-  : Object(), stream_(stream)  {}
+  : Object(), stream_(stream), save_(Value::NIL)  {}
+
+SStream::SStream(Stream* stream, Value save)
+  : Object(), stream_(stream), save_(save)  {}
 
 void SStream::destruct(Allocator* allocator) {
   allocator->free(stream_);
+}
+
+void SStream::mark() {
+  Object::mark();
+  save_.mark();
 }
 
 Type SStream::getType() const  { return TT_STREAM; }

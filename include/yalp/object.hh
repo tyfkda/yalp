@@ -299,6 +299,7 @@ protected:
 class SStream : public Object {
 public:
   explicit SStream(Stream* stream);
+  explicit SStream(Stream* stream, Value save);
   virtual Type getType() const override;
 
   virtual void output(State*, Stream* o, bool) const override;
@@ -308,8 +309,10 @@ public:
 protected:
   ~SStream()  {}
   virtual void destruct(Allocator* allocator) override;
+  virtual void mark() override;
 
   Stream* stream_;
+  Value save_;
 
   friend class Reader;
   friend class State;

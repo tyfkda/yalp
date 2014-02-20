@@ -680,6 +680,11 @@ static Value s_close(State* state) {
   return state->boolean(stream->close());
 }
 
+static Value s_strStream(State* state) {
+  Value str = state->getArg(0);
+  return state->createStrStream(str);
+}
+
 static Value s_int(State* state) {
   Value v = state->getArg(0);
   switch (v.getType()) {
@@ -916,6 +921,7 @@ void installBasicFunctions(State* state) {
 
     { "open", s_open, 1, 2 },
     { "close", s_close, 1 },
+    { "str-stream", s_strStream, 1 },
 
     { "int", s_int, 1 },
     { "intern", s_intern, 1 },

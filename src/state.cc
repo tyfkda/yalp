@@ -515,6 +515,14 @@ Value State::createFileStream(FILE* fp) {
   return Value(allocator_->newObject<SStream>(stream));
 }
 
+Value State::createStrStream(Value str) {
+  checkType(str, TT_STRING);
+  const char* cstr = static_cast<String*>(str.toObject())->c_str();
+  void* memory = allocator_->alloc(sizeof(StrStream));
+  StrStream* stream = new(memory) StrStream(cstr);
+  return Value(allocator_->newObject<SStream>(stream, str));
+}
+
 Object* State::getFunc() const {
   return vm_->getFunc();
 }

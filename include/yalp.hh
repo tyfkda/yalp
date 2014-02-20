@@ -171,6 +171,7 @@ public:
 
   // File stream.
   Value createFileStream(FILE* fp);
+  Value createStrStream(Value str);
 
   Object* getFunc() const;
   // Gets argument number for current native function.
