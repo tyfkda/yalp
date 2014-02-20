@@ -152,4 +152,7 @@
 ;; remove-if-not
 (test "remove-if-not" '(two four) (remove-if-not symbol? '(1 two 3 four 5)))
 
+;; Vector literal
+(test "vector literal" (vector 1 '(2 3) 'x) #(1 (2 3) x))
+
 (test-complete)

@@ -76,7 +76,16 @@ Reader::~Reader() {
 ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
   lineNo_ = stream_->getLineNumber();
+
   int c = getc();
+  // "#dd=" and "#dd#" is shared structure (hard wired).
+  if (c == '#') {
+    int c2 = getc();
+    ungetc(c2);
+    if (isdigit(c2))
+      return readSharedStructure(pValue);
+  }
+
   Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
     if (fn.getType() != TT_HASH_TABLE) {  // Single macro character.
@@ -99,6 +108,11 @@ ErrorCode Reader::read(Value* pValue) {
           return read(pValue);
         return SUCCESS;
       }
+    }
+
+    if (c == '#') {  // Fall back for temp.
+      ungetc(c2);
+      return readSpecial(pValue);
     }
     return ILLEGAL_CHAR;
   }
@@ -318,8 +332,6 @@ ErrorCode Reader::readSpecial(Value* pValue) {
     return readNumLiteral(pValue, 16);
   case 'b':
     return readNumLiteral(pValue, 2);
-  case '(':
-    return readVector(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -447,15 +459,6 @@ ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
     }
     x = (x * base) + h;
   }
-}
-
-ErrorCode Reader::readVector(Value* pValue) {
-  Value ls;
-  ErrorCode err = readDelimitedList(')', &ls);
-  if (err != SUCCESS)
-    return err;
-  *pValue = listToVector(state_, ls);
-  return SUCCESS;
 }
 
 ErrorCode Reader::readTimeEval(Value* pValue) {

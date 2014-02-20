@@ -38,7 +38,6 @@ private:
   ErrorCode readSharedStructure(Value* pValue);
   ErrorCode readChar(Value* pValue);
   ErrorCode readNumLiteral(Value* pValue, int base);
-  ErrorCode readVector(Value* pValue);
   ErrorCode readTimeEval(Value* pValue);
   void storeShared(int id, Value value);
   void skipSpaces();

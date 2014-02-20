@@ -24,6 +24,11 @@
   (^(stream ch)
     `(^ (_) ,(read-delimited-list #\] stream))))
 
+;; Vector literal: #(elem1 elem2 ...)
+(set-dispatch-macro-character #\# #\(
+  (^(stream c1 c2)
+    (list->vector (read-delimited-list #\) stream))))
+
 ;;; Basic functions and macros.
 
 (defun macroexpand (exp)
@@ -511,6 +516,16 @@
 (defun bit? (x flag)
   (not (eq? (logand x flag)
             0)))
+
+(defun list->vector (ls)
+  (let* ((n (length ls))
+         (vec (make-vector n)))
+    (alet ((i 0)
+           (p ls))
+      (if (< i n)
+          (do (vector-set! vec i (car p))
+              (loop (+ i 1) (cdr p)))
+        vec))))
 
 (defmacro with-open-file (params &rest body)
   (let ((var (car params))

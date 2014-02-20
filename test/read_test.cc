@@ -186,17 +186,6 @@ TEST_F(ReadTest, BinLiteral) {
   ASSERT_EQ(ILLEGAL_CHAR, read("#b0123456789abcdefg", &s));
 }
 
-TEST_F(ReadTest, Vector) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#(1 2 3)", &s));
-  ASSERT_EQ(TT_VECTOR, s.getType());
-  Vector* v = static_cast<Vector*>(s.toObject());
-  ASSERT_EQ(3, v->size());
-  ASSERT_TRUE(Value(1).eq(v->get(0)));
-  ASSERT_TRUE(Value(2).eq(v->get(1)));
-  ASSERT_TRUE(Value(3).eq(v->get(2)));
-}
-
 TEST_F(ReadTest, Error) {
   Value s;
   ASSERT_EQ(NO_CLOSE_PAREN, read("(1\n (2\n (3)", &s));
