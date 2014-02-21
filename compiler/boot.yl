@@ -13,6 +13,24 @@
     (until (member (read-char stream) '(#\nl nil)))
     (values)))
 
+;; Block comment
+(set-dispatch-macro-character #\# #\|
+  (^(stream c1 c2)
+    (alet ((nest 1))
+      (case (read-char stream)
+        (#\# (if (eq? (read-char stream) #\|)
+                 (loop (+ nest 1))
+               (loop nest)))
+        (#\| (if (eq? (read-char stream) #\#)
+                 (if (> nest 1)
+                     (loop (- nest 1))
+                   ;; Exit block comment : Do not care about return value.
+                   )
+               (loop nest)))
+        (nil (error "Block comment not closed"))
+        (t (loop nest))))
+    (values)))
+
 ;; 'x => (quote x)
 (set-macro-character #\'
   (^(stream ch)

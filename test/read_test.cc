@@ -29,20 +29,6 @@ protected:
   Reader* reader_;
 };
 
-TEST_F(ReadTest, Comment) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(1 #| 2 |# 3)", &s));
-  ASSERT_TRUE(list(state_, Value(1), Value(3)).equal(s));
-}
-
-TEST_F(ReadTest, BlockComment) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(1 #| 2 #| 3 |# 4 |# 5)", &s));
-  ASSERT_TRUE(list(state_, Value(1), Value(5)).equal(s));
-
-  ASSERT_EQ(ILLEGAL_CHAR, read("(1 #| unterminated block comment", &s));
-}
-
 TEST_F(ReadTest, Eof) {
   Value s;
   ASSERT_EQ(END_OF_FILE, read("", &s));

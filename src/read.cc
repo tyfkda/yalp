@@ -317,10 +317,6 @@ ErrorCode Reader::readSpecial(Value* pValue) {
   switch (c) {
   case '\\':
     return readChar(pValue);
-  case '|':
-    if (!skipBlockComment())
-      return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
-    return read(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -443,26 +439,6 @@ void Reader::skipSpaces() {
   while (isSpace(c = getc()))
     ;
   ungetc(c);
-}
-
-bool Reader::skipBlockComment() {
-  int nest = 1;
-  for (;;) {
-    int c = getc();
-    switch (c) {
-    case EOF:
-      return false;
-    case '#':
-      if (getc() == '|')
-        ++nest;
-      break;
-    case '|':
-      if (getc() == '#')
-        if (--nest <= 0)
-          return true;
-      break;
-    }
-  }
 }
 
 bool Reader::isDelimiter(int c) {

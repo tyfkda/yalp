@@ -4,6 +4,7 @@ extern const char bootBinaryData[];
 const char bootBinaryData[] = 
 "(11 11 10)\n"
 "(3 (9 2 0 (26 1 29 6 -2 . #0=(3 (5 (#\\nl nil) 0 3 (1 0 0 2 read-char 4 1) 0 2 member 4 2) 7 (11 11 17) 19 1 0 . #0#)) 0 5 #\\; 0 2 set-macro-character 4 2) 10)\n"
+"(3 (9 3 0 (26 3 29 6 -2 5 1 6 -3 . #0=(3 (1 0 0 2 read-char 4 1) 6 -4 5 #\\# 0 1 -4 38 7 (5 #\\| 0 3 (1 0 0 2 read-char 4 1) 38 7 (5 1 0 1 -3 0 32 2 0 19 1 1 . #0#) 1 -3 0 19 1 1 . #0#) 5 #\\| 0 1 -4 38 7 (5 #\\# 0 3 (1 0 0 2 read-char 4 1) 38 7 (5 1 0 1 -3 0 41 2 7 (5 1 0 1 -3 0 33 2 0 19 1 1 . #0#) 11 . #1=(11 17)) 1 -3 0 19 1 1 . #0#) 29 0 1 -4 38 7 (3 (5 \"Block comment not closed\" 0 2 error 4 1) . #1#) 1 -3 0 19 1 1 . #0#)) 0 5 #\\| 0 5 #\\# 0 2 set-dispatch-macro-character 4 3) 10)\n"
 "(3 (9 2 0 (3 (1 0 0 2 read 4 1) 0 5 quote 0 2 list 8 2) 0 5 #\\' 0 2 set-macro-character 4 2) 10)\n"
 "(3 (9 2 0 (3 (1 0 0 5 #\\] 0 2 read-delimited-list 4 2) 0 5 (_) 0 5 ^ 0 2 list 8 3) 0 5 #\\[ 0 2 set-macro-character 4 2) 10)\n"
 "(3 (9 3 0 (5 16 0 1 0 0 2 read-num-literal 8 2) 0 5 #\\x 0 5 #\\# 0 2 set-dispatch-macro-character 4 3) 10)\n"
