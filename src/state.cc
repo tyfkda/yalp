@@ -612,6 +612,30 @@ Value State::getMacroCharacter(int c) {
   return (p != NULL) ? *p : Value::NIL;
 }
 
+void State::setDispatchMacroCharacter(int c1, int c2, Value func) {
+  SHashTable* table;
+  const Value* p = readTable_->get(character(c1));
+  if (p != NULL && p->getType() == TT_HASH_TABLE) {
+    table = static_cast<SHashTable*>(p->toObject());
+  } else {
+    table = createHashTable(false);
+    readTable_->put(character(c1), Value(table));
+  }
+  table->put(character(c2), func);
+}
+
+Value State::getDispatchMacroCharacter(int c1, int c2) {
+  SHashTable* table;
+  const Value* p = readTable_->get(character(c1));
+  if (p != NULL && p->getType() == TT_HASH_TABLE) {
+    table = static_cast<SHashTable*>(p->toObject());
+    const Value* q = table->get(character(c2));
+    if (q != NULL)
+      return *q;
+  }
+  return Value::NIL;
+}
+
 Value State::getMacro(Value name) {
   return vm_->getMacro(name);
 }

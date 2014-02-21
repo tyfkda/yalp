@@ -13,6 +13,24 @@
     (until (member (read-char stream) '(#\nl nil)))
     (values)))
 
+;; Block comment
+(set-dispatch-macro-character #\# #\|
+  (^(stream c1 c2)
+    (alet ((nest 1))
+      (case (read-char stream)
+        (#\# (if (eq? (read-char stream) #\|)
+                 (loop (+ nest 1))
+               (loop nest)))
+        (#\| (if (eq? (read-char stream) #\#)
+                 (if (> nest 1)
+                     (loop (- nest 1))
+                   ;; Exit block comment : Do not care about return value.
+                   )
+               (loop nest)))
+        (nil (error "Block comment not closed"))
+        (t (loop nest))))
+    (values)))
+
 ;; 'x => (quote x)
 (set-macro-character #\'
   (^(stream ch)
@@ -23,6 +41,26 @@
 (set-macro-character #\[
   (^(stream ch)
     `(^ (_) ,(read-delimited-list #\] stream))))
+
+;; Hexadecimal literal
+(set-dispatch-macro-character #\# #\x
+  (^(stream c1 c2)
+    (read-num-literal stream 16)))
+
+;; Binary literal
+(set-dispatch-macro-character #\# #\b
+  (^(stream c1 c2)
+    (read-num-literal stream 2)))
+
+;; Vector literal: #(elem1 elem2 ...)
+(set-dispatch-macro-character #\# #\(
+  (^(stream c1 c2)
+    (list->vector (read-delimited-list #\) stream))))
+
+;; Read time eval.
+(set-dispatch-macro-character #\# #\.
+  (^(stream c1 c2)
+    (eval (read stream))))
 
 ;;; Basic functions and macros.
 
@@ -511,6 +549,44 @@
 (defun bit? (x flag)
   (not (eq? (logand x flag)
             0)))
+
+(defun list->vector (ls)
+  (let* ((n (length ls))
+         (vec (make-vector n)))
+    (alet ((i 0)
+           (p ls))
+      (if (< i n)
+          (do (vector-set! vec i (car p))
+              (loop (+ i 1) (cdr p)))
+        vec))))
+
+(defun delimiter? (c)
+  (member c '(#\space #\tab #\newline nil
+              #\( #\) #\[ #\] #\{ #\} #\; #\,)))
+
+;; Convert lower letter into upper letter.
+(defun upcase (c)
+  (let1 v (int c)
+    (if (<= #.(int #\a) v #.(int #\z))
+        (char (+ v #.(- (int #\A) (int #\a))))
+      c)))
+
+(defun numeral-char? (c)
+  (let1 v (int (upcase c))
+    (cond ((<= #.(int #\0) v #.(int #\9)) (- v #.(int #\0)))
+          ((<= #.(int #\A) v #.(int #\Z)) (- v (- #.(int #\A) 10)))
+          (t nil))))
+
+(defun read-num-literal (stream base)
+  (alet ((x 0)
+         (c (read-char stream)))
+    (cond ((delimiter? c)  (do (unread-char c stream)
+                               x))
+          ((eq? c #\_)  (loop x (read-char stream)))
+          (t (let1 v (numeral-char? c)
+               (unless (and v (< v base))
+                 (error "Illegal char for number literal [%@]" c))
+               (loop (+ (* x base) v) (read-char stream)))))))
 
 (defmacro with-open-file (params &rest body)
   (let ((var (car params))

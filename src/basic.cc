@@ -634,6 +634,7 @@ static Value s_vectorSet(State* state) {
 
 static Value s_setMacroCharacter(State* state) {
   Value chr = state->getArg(0);
+  state->checkType(chr, TT_CHAR);
   Value fn = state->getArg(1);
   state->setMacroCharacter(chr.toCharacter(), fn);
   return fn;
@@ -643,6 +644,24 @@ static Value s_getMacroCharacter(State* state) {
   Value chr = state->getArg(0);
   state->checkType(chr, TT_CHAR);
   return state->getMacroCharacter(chr.toCharacter());
+}
+
+static Value s_setDispatchMacroCharacter(State* state) {
+  Value c1 = state->getArg(0);
+  state->checkType(c1, TT_CHAR);
+  Value c2 = state->getArg(1);
+  state->checkType(c2, TT_CHAR);
+  Value fn = state->getArg(2);
+  state->setDispatchMacroCharacter(c1.toCharacter(), c2.toCharacter(), fn);
+  return fn;
+}
+
+static Value s_getDispatchMacroCharacter(State* state) {
+  Value c1 = state->getArg(0);
+  state->checkType(c1, TT_CHAR);
+  Value c2 = state->getArg(1);
+  state->checkType(c2, TT_CHAR);
+  return state->getDispatchMacroCharacter(c1.toCharacter(), c2.toCharacter());
 }
 
 static Value s_collectGarbage(State* state)  { state->collectGarbage(); return state->getConstant(State::T); }
@@ -914,6 +933,8 @@ void installBasicFunctions(State* state) {
 
     { "set-macro-character", s_setMacroCharacter, 2 },
     { "get-macro-character", s_getMacroCharacter, 1 },
+    { "set-dispatch-macro-character", s_setDispatchMacroCharacter, 3 },
+    { "get-dispatch-macro-character", s_getDispatchMacroCharacter, 2 },
 
     { "collect-garbage", s_collectGarbage, 0 },
     { "exit", s_exit, 1 },

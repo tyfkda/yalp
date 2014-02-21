@@ -37,12 +37,8 @@ private:
   ErrorCode readSpecial(Value* pValue);
   ErrorCode readSharedStructure(Value* pValue);
   ErrorCode readChar(Value* pValue);
-  ErrorCode readNumLiteral(Value* pValue, int base);
-  ErrorCode readVector(Value* pValue);
-  ErrorCode readTimeEval(Value* pValue);
   void storeShared(int id, Value value);
   void skipSpaces();
-  bool skipBlockComment();
   static bool isDelimiter(int c);
   static inline int isNotDelimiter(int c)  { return !isDelimiter(c); }
 
