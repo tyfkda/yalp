@@ -310,10 +310,6 @@ ErrorCode Reader::readString(char closeChar, Value* pValue) {
 
 ErrorCode Reader::readSpecial(Value* pValue) {
   int c = getc();
-  if (isdigit(c)) {
-    ungetc(c);
-    return readSharedStructure(pValue);
-  }
   switch (c) {
   case '\\':
     return readChar(pValue);
