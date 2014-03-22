@@ -103,6 +103,7 @@
     <ClCompile Include="..\..\src\allocator.cc" />
     <ClCompile Include="..\..\src\basic.cc" />
     <ClCompile Include="..\..\src\binder.cc" />
+    <ClCompile Include="..\..\src\boot.cc" />
     <ClCompile Include="..\..\src\flonum.cc" />
     <ClCompile Include="..\..\src\object.cc" />
     <ClCompile Include="..\..\src\read.cc" />
