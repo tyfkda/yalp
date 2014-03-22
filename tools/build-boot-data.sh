@@ -5,7 +5,7 @@ DST=src/boot.cc
 TMP=boot.cc
 BOOT_BIN=obj/boot.bin
 
-./tools/build-compiler.sh > ${BOOT_BIN}
+./compiler/build-compiler.sh > ${BOOT_BIN}
 if [ $? -ne 0 ]; then
   exit 1
 fi

@@ -5,12 +5,12 @@ using namespace yalp;
 
 class SymbolManagerTest : public ::testing::Test {
 protected:
-  virtual void SetUp() override {
+  virtual void SetUp() {
     allocator_ = Allocator::create(getDefaultAllocFunc(), NULL);
     symbolManager_ = SymbolManager::create(allocator_);
   }
 
-  virtual void TearDown() override {
+  virtual void TearDown() {
     symbolManager_->release();
     allocator_->release();
   }

@@ -12,6 +12,10 @@ function error_exit() {
 function run() {
   echo -n "Testing $1 ... "
   result=$(./$1)
+  code=$?
+  if [ $code -ne 0 ]; then
+    error_exit "exit status is not 0 [$code]"
+  fi
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi
