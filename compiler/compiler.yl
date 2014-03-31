@@ -537,17 +537,18 @@
   (alet ((args-node args-node)
          (params params))
     (when args-node
-      (let1 param (var-info-name-get (car params))
+      (let ((param (var-info-name-get (car params)))
+            (arg-node (car args-node)))
         (unless (var-is-set? expanded-scope param)
-          (when (or (const-node? (car args-node))       ; constant.
-                    (and (refer-node? (car args-node))  ; variable reference.
-                         (let1 arg (refer-node-name (car args-node))
+          (when (or (const-node? arg-node)       ; constant.
+                    (and (refer-node? arg-node)  ; variable reference.
+                         (let1 arg (refer-node-name arg-node)
                            (and (or ;; Local or free variable, not global.
                                  (scope-local-has? defined-scope arg)
                                  (scope-upper-vars-has? defined-scope arg))
                                 (not (var-is-set? defined-scope arg))))))
             ;; Replace variable reference.
-            (replace-var-ref-body! body param (car args-node))
+            (replace-var-ref-body! body param arg-node)
             ;; Clear var-info for the param, so that we can remove it later.
             (var-info-flag-set! (car params) 0))))
       (loop (cdr args-node) (cdr params)))))
@@ -564,6 +565,7 @@
                 (:LAMBDA (inner-scope body-slot varnum body)
                          (replace-var-ref-body! body orig target))
                 (:INVOKE (expanded-scope args-node body)
+                         (replace-var-ref-body! args-node orig target)
                          (replace-var-ref-body! body orig target))
                 (:RECV (expanded-scope varnum vals body)
                        (replace-var-ref-body! body orig target))
