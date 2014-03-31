@@ -528,6 +528,13 @@
   (set-car! dst (car src))
   (set-cdr! dst (cdr src)))
 
+(defun copy-vector! (dst src)
+  (let1 n (vector-length dst)
+    (alet ((i 0))
+      (when (< i n)
+        (vector-set! dst i (vector-get src i))
+        (loop (+ i 1))))))
+
 (defun remove-if (test seq)
   (alet ((p seq)
          (acc '()))

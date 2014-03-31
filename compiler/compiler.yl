@@ -524,10 +524,63 @@
                            next)))))
 
 (defun compile-invoke (expanded-scope args-node body scope next)
+  (propagate-constant args-node (scope-local-infos expanded-scope) scope
+                      expanded-scope body)
   (let ((proper-vars (scope-local-infos expanded-scope)))
     (calc-scope-work-size expanded-scope)
     (compile-args-for-local args-node scope expanded-scope
                             (compile-body proper-vars body expanded-scope next))))
+
+;; Replace variable reference if the variable is constant value or other
+;; variable.
+(defun propagate-constant (args-node params defined-scope expanded-scope body)
+  (alet ((args-node args-node)
+         (params params))
+    (when args-node
+      (let1 param (var-info-name-get (car params))
+        (unless (var-is-set? expanded-scope param)
+          (when (and (refer-node? (car args-node))
+                     (let1 arg (refer-node-name (car args-node))
+                       (and (or ;; Local or free variable, not global.
+                             (scope-local-has? defined-scope arg)
+                             (scope-upper-vars-has? defined-scope arg))
+                            (not (or (var-is-set? defined-scope arg))))))
+            (replace-var-ref-body! body param (car args-node)))))
+      (loop (cdr args-node) (cdr params)))))
+
+(defun replace-var-ref-body! (body orig target)
+  (dolist (node body)
+    (replace-var-ref! node orig target)))
+
+(defun replace-var-ref! (node orig target)
+  (vrecord-case node
+                (:REF (sym)
+                      (when (eq? sym orig)
+                        (copy-vector! node target)))  ;; Assumes that both have same length.
+                (:LAMBDA (inner-scope body-slot varnum body)
+                         (replace-var-ref-body! body orig target))
+                (:INVOKE (expanded-scope args-node body)
+                         (replace-var-ref-body! body orig target))
+                (:RECV (expanded-scope varnum vals body)
+                       (replace-var-ref-body! body orig target))
+                (:SET! (var val)
+                       (replace-var-ref! val orig target))
+                (:DEF (var val)
+                      (replace-var-ref! val orig target))
+                (:IF (test then else)
+                     (replace-var-ref! test orig target)
+                     (replace-var-ref! then orig target)
+                     (replace-var-ref! else orig target))
+                (:APPLY (call-type f args)
+                        (replace-var-ref! f orig target)
+                        (replace-var-ref-body! args orig target))
+                (:CONTI (func)
+                        (replace-var-ref! func orig target))
+                (:CONTI-DIRECT (expanded-scope body)
+                               (replace-var-ref-body! body orig target))
+                (:VALS (args)
+                       (replace-var-ref-body! args orig target))
+                ))
 
 (defun compile-ref (sym scope next)
   (receive (op i)
