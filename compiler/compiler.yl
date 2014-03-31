@@ -474,7 +474,6 @@
                                            scope))
             (varnum (lambda-varnum-get lambda-node))
             (body-slot (lambda-body-slot-get lambda-node))
-            (next-tail (tail? next))
             (argnum (length args)))
         (when (pair? varnum)
           (compile-error "Not implemented: rest param for loop"))
@@ -525,8 +524,7 @@
                            next)))))
 
 (defun compile-invoke (expanded-scope args-node body scope next)
-  (let ((tail (tail? next))
-        (proper-vars (scope-local-infos expanded-scope)))
+  (let ((proper-vars (scope-local-infos expanded-scope)))
     (calc-scope-work-size expanded-scope)
     (compile-args-for-local args-node scope expanded-scope
                             (compile-body proper-vars body expanded-scope next))))
@@ -628,19 +626,16 @@
 
 (defun compile-recv (expanded-scope varnum vals body scope next)
   (calc-scope-work-size expanded-scope)
-  (let ((tail (tail? next))
-        (frees (scope-frees expanded-scope)))
-    (compile-recur vals scope
-                   (list* '#.RECV
-                          (get-scope-local-offset expanded-scope)
-                          varnum
-                          (compile-body (scope-local-infos expanded-scope) body
-                                        expanded-scope
-                                        next)))))
+  (compile-recur vals scope
+                 (list* '#.RECV
+                        (get-scope-local-offset expanded-scope)
+                        varnum
+                        (compile-body (scope-local-infos expanded-scope) body
+                                      expanded-scope
+                                      next))))
 
 (defun compile-macro (inner-scope name varnum body scope next)
-  (let ((vars (scope-local-infos inner-scope))
-        (frees (scope-frees inner-scope))
+  (let ((frees (scope-frees inner-scope))
         (code (compile-body (scope-local-infos inner-scope) body inner-scope
                             (list '#.RET))))
     (let1 work-size (scope-work-size inner-scope)
