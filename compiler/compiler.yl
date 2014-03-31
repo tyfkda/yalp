@@ -242,6 +242,7 @@
                      (expanded-body-scope (if (eq? calling-scope defined-scope)
                                               expanded-scope
                                             (expand-scope2 (scope-local-infos expanded-scope)
+                                                           (scope-sets expanded-scope)
                                                            defined-scope)))
                      ;; Compiles body node in a scope expanded from defined scope.
                      (body-node (traverse-body body expanded-body-scope tail)))
@@ -503,7 +504,9 @@
 (defun compile-apply-loop (lambda-node f args scope next)
   (let1 lambda-scope (lambda-scope-get lambda-node)
     (let ((lambda-local-vars (scope-local-infos lambda-scope)))
-      (let ((expanded-scope (expand-scope2 lambda-local-vars scope))
+      (let ((expanded-scope (expand-scope2 lambda-local-vars
+                                           (scope-sets lambda-scope)
+                                           scope))
             (varnum (lambda-varnum-get lambda-node))
             (body-slot (lambda-body-slot-get lambda-node))
             (next-tail (tail? next))
@@ -597,6 +600,7 @@
                                                  vinfo
                                                  vinfo)))
                     (expanded-scope (expand-scope2 modified-vars
+                                                   (scope-sets expanded-scope)
                                                    scope)))
                (replace-body-scope! body expanded-scope)
                (calc-scope-work-size expanded-scope)

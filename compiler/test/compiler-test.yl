@@ -105,6 +105,14 @@
                     it
                  nil)))))
        '(123 + 456)))
+(test "set loop var" 55
+      (alet ((i 0)
+             (acc 0))
+        (if (<= i 10)
+            (do (set! acc (+ acc i))
+                (set! i (+ i 1))
+                (loop i acc))
+          acc)))
 
 (test-section "call/cc")
 (test "free variable" 123

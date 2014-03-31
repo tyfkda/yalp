@@ -24,12 +24,13 @@
 
 (defun expand-scope (local outer-scope)
   (expand-scope2 (map [var-info (gensym) 0 _] local)
+                 '()
                  outer-scope))
-(defun expand-scope2 (local-infos outer-scope)
+(defun expand-scope2 (local-infos set-vars outer-scope)
   (vector local-infos
           '()              ; Free variables.
           nil              ; Not scope block top.
-          '()              ; alist containing set variables.
+          set-vars         ; alist containing set variables.
           outer-scope
           0))              ; Scope work size.
 
