@@ -526,8 +526,7 @@
 
 (defun compile-invoke (expanded-scope args-node body scope next)
   (let ((tail (tail? next))
-        (proper-vars (scope-local-infos expanded-scope))
-        (frees (scope-frees expanded-scope)))
+        (proper-vars (scope-local-infos expanded-scope)))
     (calc-scope-work-size expanded-scope)
     (compile-args-for-local args-node scope expanded-scope
                             (compile-body proper-vars body expanded-scope next))))
