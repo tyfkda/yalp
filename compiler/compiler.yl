@@ -312,17 +312,7 @@
                 (:VOID ()
                        (list* '#.VOID next))
                 (:REF (sym)
-                      (receive (op i)
-                               (acond ((scope-local-has? scope sym)
-                                       (values '#.LREF it))
-                                      ((scope-frees-has? scope sym)
-                                       (values '#.FREF it))
-                                      (t (values '#.GREF sym)))
-                        (list* op i
-                               (if (and (not (eq? op '#.GREF))
-                                        (var-is-set? scope sym))
-                                   (list* '#.UNBOX next)
-                                 next))))
+                      (compile-ref sym scope next))
                 (:SET! (var val)
                       (compile-set! var val scope next))
                 (:DEF (var val)
@@ -334,37 +324,13 @@
                                            (compile-recur then scope next)
                                            (compile-recur else scope next))))
                 (:LAMBDA (inner-scope body-slot varnum body)
-                         (let ((frees (scope-frees inner-scope)))
-                           ;; Set compiled body code to body-slot.
-                           (copy-pair! body-slot
-                                       (compile-body (scope-local-infos inner-scope) body inner-scope (list '#.RET)))
-                           (let1 work-size (scope-work-size inner-scope)
-                             (collect-free frees scope
-                                           (list* '#.CLOSE varnum (length frees)
-                                                  (if (eq? work-size 0)
-                                                      body-slot
-                                                    (list* '#.ADDSP work-size
-                                                           body-slot))
-                                                  next)))))
+                         (compile-lambda inner-scope body-slot varnum body
+                                         scope next))
                 (:INVOKE (expanded-scope args-node body)
-                         (let ((tail (tail? next))
-                               (proper-vars (scope-local-infos expanded-scope))
-                               (frees (scope-frees expanded-scope)))
-                           (calc-scope-work-size expanded-scope)
-                           (compile-args-for-local args-node scope expanded-scope
-                                                   (compile-body proper-vars body expanded-scope next))))
+                         (compile-invoke expanded-scope args-node body
+                                         scope next))
                 (:MACRO (inner-scope name varnum body)
-                        (let ((vars (scope-local-infos inner-scope))
-                              (frees (scope-frees inner-scope))
-                              (code (compile-body (scope-local-infos inner-scope) body inner-scope (list '#.RET))))
-                          (let1 work-size (scope-work-size inner-scope)
-                            (collect-free frees scope
-                                          (list* '#.MACRO name varnum (length frees)
-                                                 (if (eq? work-size 0)
-                                                     code
-                                                   (list* '#.ADDSP work-size
-                                                          code))
-                                                 next)))))
+                        (compile-macro inner-scope name varnum body scope next))
                 (:APPLY (call-type f args)
                         (compile-apply f args call-type scope next))
                 (:CONTI (func)
@@ -372,21 +338,10 @@
                 (:CONTI-DIRECT (expanded-scope body)
                                (compile-conti-direct expanded-scope body scope next))
                 (:VALS (args)
-                       (let1 argnum (length args)
-                         (if (eq? argnum 0)
-                             (list* '#.VOID next)
-                           (compile-args args scope
-                                         (list* '#.VALS argnum next)))))
+                       (compile-vals args scope next))
                 (:RECV (expanded-scope varnum vals body)
-                       (calc-scope-work-size expanded-scope)
-                       (let ((tail (tail? next))
-                             (frees (scope-frees expanded-scope)))
-                         (compile-recur vals scope
-                                        (list* '#.RECV
-                                               (get-scope-local-offset expanded-scope)
-                                               varnum
-                                               (compile-body (scope-local-infos expanded-scope) body expanded-scope
-                                                             next)))))
+                       (compile-recv expanded-scope varnum vals body
+                                     scope next))
                 (t (compile-error "Unknown [%@]" node))))
 
 (defun can-eliminate-lambda-node? (scope func-name)
@@ -555,6 +510,41 @@
                   (list* '#.LOOP outer-varnum argnum
                          (lambda-body-slot-get lambda-node)))))
 
+(defun compile-lambda (inner-scope body-slot varnum body scope next)
+  (let ((frees (scope-frees inner-scope)))
+    ;; Set compiled body code to body-slot.
+    (copy-pair! body-slot
+                (compile-body (scope-local-infos inner-scope) body inner-scope (list '#.RET)))
+    (let1 work-size (scope-work-size inner-scope)
+      (collect-free frees scope
+                    (list* '#.CLOSE varnum (length frees)
+                           (if (eq? work-size 0)
+                               body-slot
+                             (list* '#.ADDSP work-size
+                                    body-slot))
+                           next)))))
+
+(defun compile-invoke (expanded-scope args-node body scope next)
+  (let ((tail (tail? next))
+        (proper-vars (scope-local-infos expanded-scope))
+        (frees (scope-frees expanded-scope)))
+    (calc-scope-work-size expanded-scope)
+    (compile-args-for-local args-node scope expanded-scope
+                            (compile-body proper-vars body expanded-scope next))))
+
+(defun compile-ref (sym scope next)
+  (receive (op i)
+           (acond ((scope-local-has? scope sym)
+                   (values '#.LREF it))
+                  ((scope-frees-has? scope sym)
+                   (values '#.FREF it))
+                  (t (values '#.GREF sym)))
+    (list* op i
+           (if (and (not (eq? op '#.GREF))
+                    (var-is-set? scope sym))
+               (list* '#.UNBOX next)
+             next))))
+
 (defun compile-set! (var val scope next)
   ;; Check whether the set! value is lambda and it is used for local loop.
   (if (and (lambda-node? val)
@@ -629,6 +619,39 @@
              (replace-body-scope! body scope)
              (compile-body vars body scope
                            next))))))
+
+(defun compile-vals (args scope next)
+  (let1 argnum (length args)
+    (if (eq? argnum 0)
+        (list* '#.VOID next)
+      (compile-args args scope
+                    (list* '#.VALS argnum next)))))
+
+(defun compile-recv (expanded-scope varnum vals body scope next)
+  (calc-scope-work-size expanded-scope)
+  (let ((tail (tail? next))
+        (frees (scope-frees expanded-scope)))
+    (compile-recur vals scope
+                   (list* '#.RECV
+                          (get-scope-local-offset expanded-scope)
+                          varnum
+                          (compile-body (scope-local-infos expanded-scope) body
+                                        expanded-scope
+                                        next)))))
+
+(defun compile-macro (inner-scope name varnum body scope next)
+  (let ((vars (scope-local-infos inner-scope))
+        (frees (scope-frees inner-scope))
+        (code (compile-body (scope-local-infos inner-scope) body inner-scope
+                            (list '#.RET))))
+    (let1 work-size (scope-work-size inner-scope)
+      (collect-free frees scope
+                    (list* '#.MACRO name varnum (length frees)
+                           (if (eq? work-size 0)
+                               code
+                             (list* '#.ADDSP work-size
+                                    code))
+                           next)))))
 
 (defun compile-body (vars body scope next)
   (if body
