@@ -539,12 +539,14 @@
     (when args-node
       (let1 param (var-info-name-get (car params))
         (unless (var-is-set? expanded-scope param)
-          (when (and (refer-node? (car args-node))
-                     (let1 arg (refer-node-name (car args-node))
-                       (and (or ;; Local or free variable, not global.
-                             (scope-local-has? defined-scope arg)
-                             (scope-upper-vars-has? defined-scope arg))
-                            (not (or (var-is-set? defined-scope arg))))))
+          (when (or (const-node? (car args-node))       ; constant.
+                    (and (refer-node? (car args-node))  ; variable reference.
+                         (let1 arg (refer-node-name (car args-node))
+                           (and (or ;; Local or free variable, not global.
+                                 (scope-local-has? defined-scope arg)
+                                 (scope-upper-vars-has? defined-scope arg))
+                                (not (var-is-set? defined-scope arg))))))
+            ;; Replace variable reference.
             (replace-var-ref-body! body param (car args-node)))))
       (loop (cdr args-node) (cdr params)))))
 

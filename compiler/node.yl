@@ -250,3 +250,10 @@
 
 (defun refer-node-name (node)
   (vector-get node 1))
+
+;;;;
+;; Const node
+
+(defun const-node? (node)
+  (and (vector? node)
+       (eq? (vector-get node 0)  ':CONST)))
