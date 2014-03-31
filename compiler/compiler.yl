@@ -547,7 +547,9 @@
                                  (scope-upper-vars-has? defined-scope arg))
                                 (not (var-is-set? defined-scope arg))))))
             ;; Replace variable reference.
-            (replace-var-ref-body! body param (car args-node)))))
+            (replace-var-ref-body! body param (car args-node))
+            ;; Clear var-info for the param, so that we can remove it later.
+            (var-info-flag-set! (car params) 0))))
       (loop (cdr args-node) (cdr params)))))
 
 (defun replace-var-ref-body! (body orig target)
