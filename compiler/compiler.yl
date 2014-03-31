@@ -20,7 +20,8 @@
                          (let ((required (take it vars))
                                (rest (drop (+ it 1) vars)))
                            (unless (single? rest)
-                             (compile-error "&rest requires only 1 name, but %@" rest))
+                             (compile-error "&rest requires only 1 name, but %@"
+                                            rest))
                            (append! required rest))
                       vars)
     (awhen (some? [not (symbol? _)] vars)
@@ -39,7 +40,8 @@
 (defun expand-macro (x scope)
   (let1 f (car x)
     (if (or (not (symbol? f))
-            (alpha-conversion scope f))  ; Alpha conversion returns non nil value for  bound or free variable.
+            (alpha-conversion scope f)) ; Alpha conversion returns non nil value
+                                        ; for bound or free variable.
         x
       (macroexpand x))))
 
@@ -89,7 +91,8 @@
                (t (let ((func (car x))
                         (args (cdr x)))
                     (cond ((lambda-expression? func)
-                           (traverse-apply-direct (cadr func) (cddr func) args scope scope tail))
+                           (traverse-apply-direct (cadr func) (cddr func)
+                                                  args scope scope tail))
                           ((inline-function? func)
                            (traverse-inline-apply func args scope tail))
                           (t (traverse-apply func args scope tail)))))))
@@ -113,8 +116,8 @@
         (register-fref scope var))
 
       (if (lambda-expression? val)
-          ;; Set lambda expression: Need to register lambda node before compiling
-          ;; its body to detect self recursion.
+          ;; Set lambda expression: Need to register lambda node before
+          ;; compiling its body to detect self recursion.
           (let ((vars (cadr val))
                 (body (cddr val)))
             (let1 lambda-node (prepare-lambda-node vars body scope)
@@ -190,7 +193,8 @@
                  (if (if defined-scope
                          (upper-scope-is? calling-scope defined-scope)
                        ;; Calling global function as self recursion.
-                       (eq? (lambda-scope-get (car sets)) (scope-block-top-get calling-scope)))
+                       (eq? (lambda-scope-get (car sets))
+                            (scope-block-top-get calling-scope)))
                      '#.VAR-SELF-TAIL-RECUR
                    '#.VAR-CALL-OTHER)))
               (t '#.VAR-CALL-OTHER))
@@ -204,7 +208,8 @@
          (call-type (detect-call-type afunc scope tail))
          (func-node (if (symbol? func)
                         (do (add-var-info scope afunc call-type)
-                            (traverse-refer afunc scope))  ; Refer without flag updates.
+                            ;; Refer without flag updates.
+                            (traverse-refer afunc scope))
                       (traverse func scope nil))))
     (vector ':APPLY
             call-type
@@ -226,12 +231,15 @@
       (if (not (eq? vars proper-vars))  ;; Has rest param.
           ;; Tweak arguments.
           (cond ((< argnum varnum)  ;; Error handled in the below.
-                 (traverse-apply-direct proper-vars body args calling-scope defined-scope tail))
-                ;; ((^(x y &rest z) ...) 1 2 3 4) => ((^(x y z) ...) 1 2 (list 3 4))
+                 (traverse-apply-direct proper-vars body args calling-scope
+                                        defined-scope tail))
+                ;; ((^(x y &rest z) ...) 1 2 3 4)
+                ;;   => ((^(x y z) ...) 1 2 (list 3 4))
                 ((> argnum varnum)
                  (let1 modified-args (append! (take varnum args)
                                               (list `(list ,@(drop varnum args))))
-                   (traverse-apply-direct proper-vars body modified-args calling-scope defined-scope tail)))
+                   (traverse-apply-direct proper-vars body modified-args
+                                          calling-scope defined-scope tail)))
                 ;; ((^(x y &rest z) ...) 1 2) => ((^(x y z) ...) 1 2 '())
                 (t (traverse-apply-direct proper-vars body (append args '(()))
                                           calling-scope defined-scope tail)))
@@ -244,7 +252,8 @@
                                             (expand-scope2 (scope-local-infos expanded-scope)
                                                            (scope-sets expanded-scope)
                                                            defined-scope)))
-                     ;; Compiles body node in a scope expanded from defined scope.
+                     ;; Compiles body node in a scope expanded from defined
+                     ;; scope.
                      (body-node (traverse-body body expanded-body-scope tail)))
                 ;; Returns lambda node
                 (vector ':INVOKE
@@ -393,8 +402,9 @@
 (defun replace-outer-scope! (node scope)
   (vrecord-case node
                 (:LAMBDA (inner-scope body-slot varnum body)
-                         ;; Scope replacement is just 1 level, and no need to replace body nodes,
-                         ;; because this scope replacement is destructive.
+                         ;; Scope replacement is just 1 level, and no need to
+                         ;; replace body nodes, because this scope replacement
+                         ;; is destructive.
                          (scope-outer-scope-set! inner-scope scope))
                 (:INVOKE (expanded-scope args-node body)
                          (replace-body-scope! args-node scope)
@@ -531,7 +541,8 @@
 (defun compile-apply-self-recur (lambda-node f args scope)
   (let ((argnum (length args))
         (varnum (lambda-varnum-get lambda-node))
-        (outer-varnum (if (can-eliminate-lambda-node? scope (refer-node-name f))
+        (outer-varnum (if (can-eliminate-lambda-node? scope
+                                                      (refer-node-name f))
                           (scope-upper-work-size (lambda-scope-get lambda-node))
                         0)))
     (when (pair? varnum)
@@ -589,7 +600,8 @@
                (if tail
                    c
                  (list* '#.FRAME c next))))
-            ((bit? flag '#.(logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER VAR-SELF-TAIL-RECUR))
+            ((bit? flag '#.(logior VAR-CALL-IN-BASE1 VAR-CALL-OTHER
+                                   VAR-SELF-TAIL-RECUR))
              ;; Nonlocal exit: Use SETJMP ~ LONGJMP.
              ;; Re-expand scope to store frame pointer and and closure to stack.
              (let* ((dummy-symbol (gensym))
@@ -605,13 +617,15 @@
                (replace-body-scope! body expanded-scope)
                (calc-scope-work-size expanded-scope)
                ;; Set next code to enable longjmp to refer it.
-                                        ;(register-set2! expanded-scope (caar (scope-local-infos expanded-scope))
-                                        ;                next)
+               ;;(register-set2! expanded-scope (caar (scope-local-infos expanded-scope))
+               ;;                next)
                (list* '#.SETJMP (scope-upper-work-size expanded-scope)
                       (compile-body vars body expanded-scope
                                     next)
                       next)))
-            (t ;; Continuation is not used, omit creating it and use outer scope for body.
+            (t
+             ;; Continuation is not used, omit creating it and use outer scope
+             ;; for body.
              (replace-body-scope! body scope)
              (compile-body vars body scope
                            next))))))
@@ -663,7 +677,8 @@
                            (list* '#.LREF it '#.PUSH next)
                         (aif (scope-frees-has? scope x)
                              (list* '#.FREF it '#.PUSH next)
-                          (compile-error "something wrong in collect-free [%@](%@)" x scope)))))
+                          (compile-error "something wrong in collect-free [%@](%@)"
+                                         x scope)))))
     next))
 
 ;; If a function call can be loop, returns the loop lambda node.
@@ -726,7 +741,8 @@
                                    (compile-embed-op op args scope next))
                                (if base
                                    (list* '#.CONST base next)
-                                 (compile-error "`%@` requires at least 1 parameter" sym)))))))
+                                 (compile-error "`%@` requires at least 1 parameter"
+                                                sym)))))))
   ;; Install embed functions.
   (dolist (p (list (cons '+ (arith-embed-func '+ '#.ADD 0 nil))
                    (cons '- (arith-embed-func '- '#.SUB nil '#.NEG))

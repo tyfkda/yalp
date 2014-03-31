@@ -267,7 +267,8 @@
 
 (defmacro let-gensym (names &body body)
   (if (pair? names)
-      ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
+      ;; (let-gensym (a b c) ...)
+      ;;   => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
       `(let ,(map [list _ '(gensym)]
                   names)
          ,@body)
