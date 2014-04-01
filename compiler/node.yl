@@ -110,6 +110,12 @@
            (loop it))
       nil)))
 
+(defun scope-frees-remove! (scope var)
+  (let1 frees (scope-frees scope)
+    (when (member var frees)
+      (scope-frees-set! scope
+                        (remove-if [eq? var _] frees)))))
+
 (defun scope-local-count (scope)
   (alet ((pscope scope)
          (count 0))
