@@ -524,10 +524,101 @@
                            next)))))
 
 (defun compile-invoke (expanded-scope args-node body scope next)
-  (let ((proper-vars (scope-local-infos expanded-scope)))
-    (calc-scope-work-size expanded-scope)
-    (compile-args-for-local args-node scope expanded-scope
-                            (compile-body proper-vars body expanded-scope next))))
+  (let1 proper-vars (scope-local-infos expanded-scope)
+    (propagate-constant args-node proper-vars scope expanded-scope body)
+    (receive (params args)
+             (remove-unused-params-args proper-vars args-node)
+      (if (equal? proper-vars params)
+          (compile-invoke-sub expanded-scope args-node body scope next)
+        ;; Remove unused parameters.
+        (let ((expanded-scope2 (expand-scope2 params
+                                              (scope-sets expanded-scope)
+                                              (scope-outer-scope expanded-scope))))
+          (replace-body-scope! body expanded-scope2)
+          (compile-invoke-sub expanded-scope2 args body scope next))))))
+
+(defun compile-invoke-sub (expanded-scope args-node body scope next)
+  (calc-scope-work-size expanded-scope)
+  (compile-args-for-local args-node scope expanded-scope
+                          (compile-body (scope-local-infos expanded-scope)
+                                        body expanded-scope next)))
+
+(defun remove-unused-params-args (params args)
+  (alet ((params params)
+         (args args)
+         (result-params '())
+         (result-args '()))
+    (if params
+        (if (eq? (var-info-flag-get (car params)) 0)
+            (loop (cdr params) (cdr args)
+                  result-params result-args)
+          (loop (cdr params) (cdr args)
+                (cons (car params) result-params)
+                (cons (car args) result-args)))
+      (values (reverse! result-params)
+              (reverse! result-args)))))
+
+;; Replace variable reference if the variable is constant value or other
+;; variable.
+(defun propagate-constant (args-node params defined-scope expanded-scope body)
+  (alet ((args-node args-node)
+         (params params))
+    (when args-node
+      (let ((param (var-info-name-get (car params)))
+            (arg-node (car args-node)))
+        (unless (var-is-set? expanded-scope param)
+          (when (or (const-node? arg-node)       ; constant.
+                    (and (refer-node? arg-node)  ; variable reference.
+                         (let1 arg (refer-node-name arg-node)
+                           (and (or ;; Local or free variable, not global.
+                                 (scope-local-has? defined-scope arg)
+                                 (scope-upper-vars-has? defined-scope arg))
+                                (not (var-is-set? defined-scope arg))))))
+            ;; Replace variable reference.
+            (replace-var-ref-body! body param arg-node)
+            ;; Clear var-info for the param, so that we can remove it later.
+            (var-info-flag-set! (car params) 0))))
+      (loop (cdr args-node) (cdr params)))))
+
+(defun replace-var-ref-body! (body orig target)
+  (dolist (node body)
+    (replace-var-ref! node orig target)))
+
+(defun replace-var-ref! (node orig target)
+  (vrecord-case node
+                (:REF (sym)
+                      (when (eq? sym orig)
+                        (copy-vector! node target)))  ;; Assumes that both have same length.
+                (:LAMBDA (inner-scope body-slot varnum body)
+                         (scope-frees-remove! inner-scope orig)
+                         (replace-var-ref-body! body orig target))
+                (:MACRO (inner-scope name varnum body)
+                        (scope-frees-remove! inner-scope orig)
+                        (replace-var-ref-body! body orig target))
+                (:INVOKE (expanded-scope args-node body)
+                         (replace-var-ref-body! args-node orig target)
+                         (replace-var-ref-body! body orig target))
+                (:RECV (expanded-scope varnum vals body)
+                       (replace-var-ref! vals orig target)
+                       (replace-var-ref-body! body orig target))
+                (:SET! (var val)
+                       (replace-var-ref! val orig target))
+                (:DEF (var val)
+                      (replace-var-ref! val orig target))
+                (:IF (test then else)
+                     (replace-var-ref! test orig target)
+                     (replace-var-ref! then orig target)
+                     (replace-var-ref! else orig target))
+                (:APPLY (call-type f args)
+                        (replace-var-ref! f orig target)
+                        (replace-var-ref-body! args orig target))
+                (:CONTI (func)
+                        (replace-var-ref! func orig target))
+                (:CONTI-DIRECT (expanded-scope body)
+                               (replace-var-ref-body! body orig target))
+                (:VALS (args)
+                       (replace-var-ref-body! args orig target))
+                ))
 
 (defun compile-ref (sym scope next)
   (receive (op i)
