@@ -1,3 +1,53 @@
+;; Optimize AST
+
+;; Constant propagation and constant folding.
+(defun optimize-ast (tree scope)
+  (traverse-ast tree scope
+                (^(node before scope)
+                  (vrecord-case node
+                                (:INVOKE (expanded-scope args-node body)
+                                         (when (eq? before 1)
+                                           (let1 proper-vars (scope-local-infos expanded-scope)
+                                             (propagate-constant args-node proper-vars scope expanded-scope body)
+                                             (receive (params args)
+                                                      (remove-unused-params-args proper-vars args-node)
+                                               (unless (equal? proper-vars params)
+                                                 ;; Remove unused parameters.
+                                                 (let ((expanded-scope2 (expand-scope2 params
+                                                                                       (scope-sets expanded-scope)
+                                                                                       (scope-outer-scope expanded-scope))))
+                                                   (replace-body-scope! body expanded-scope2)
+                                                   (invoke-node-scope-set! node expanded-scope2)
+                                                   (invoke-node-args-set! node args)))))))
+                                (:APPLY (call-type f args)
+                                        (when (eq? before 1)
+                                          (when (and (refer-node? f)
+                                                     (pure-function? (refer-node-name f))
+                                                     ;; TODO: Check whether the function is shadowed.
+                                                     (all-constant? args))
+                                            ;; Replace node.
+                                            (copy-vector! node (vector ':CONST (fold-constant f args call-type scope))))))
+                                (:IF (test then else)
+                                     (when (eq? before 1)
+                                       (when (const-node? test)
+                                         (copy-vector! node
+                                                       (if (const-node-value test)
+                                                           then
+                                                         else)))))
+                                ))))
+
+(defun pure-function? (sym)
+  (member sym '(+ - * / < > <= >=
+                int char
+                ash logand logior logxor)))
+
+(defun all-constant? (args)
+  (every? const-node? args))
+
+(defun fold-constant (f args call-type scope)
+  ;; scope is not really needed.
+  (run-binary (compile-apply2 f args call-type scope '(#.HALT))))
+
 ;; Optimize VM code
 
 (defmacro match-cond (expr &rest clauses)
@@ -47,3 +97,44 @@
                    (set-car! (cdddr c) ?then)  ; Optimize `or` code
                    c)
                   (t nil)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Traverse AST
+
+(defun traverse-ast (node scope callback)
+  (callback node 0 scope)  ; Before callback.
+  (let1 info (case (vector-get node 0)
+               ;; Return a list of node or node list.
+               (:CONST '())
+               (:VOID '())
+               (:REF '())
+               (:SET! '(2))
+               (:DEF '(2))
+               (:IF '(1 2 3))
+               (:LAMBDA '((-4 . 1)))
+               (:INVOKE '(-2 (-3 . 1)))
+               (:MACRO '((-4 . 1)))
+               (:APPLY '(2 -3))
+               (:CONTI '(1))
+               (:CONTI-DIRECT '((-2 . 1)))
+               (:VALS '(-1))
+               (:RECV '(3 (-4 . 1)))
+               (t (compile-error "Unknown [%@]" node)))
+    (dolist (ii info)
+      (when (int? ii)
+        (let1 i ii
+          (if (>= i 0)
+              (traverse-ast (vector-get node i) scope callback)
+            (dolist (subnode (vector-get node (- i)))
+              (traverse-ast subnode scope callback))))))
+    (callback node 1 scope)  ; After callback.
+    (dolist (ii info)
+      (unless (int? ii)
+        (let ((i (if (int? ii) ii (car ii)))
+              (subscope (if (int? ii) scope (vector-get node (cdr ii)))))
+          (if (>= i 0)
+              (traverse-ast (vector-get node i) subscope callback)
+            (dolist (subnode (vector-get node (- i)))
+              (traverse-ast subnode subscope callback)))))))
+  (callback node 2 scope))  ; After callback.

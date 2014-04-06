@@ -263,3 +263,14 @@
 (defun const-node? (node)
   (and (vector? node)
        (eq? (vector-get node 0)  ':CONST)))
+
+(defun const-node-value (node)
+  (vector-get node 1))
+
+;;;;
+;; Invoke node
+
+(defun invoke-node-scope-set! (node scope)
+  (vector-set! node 1 scope))
+(defun invoke-node-args-set! (node args)
+  (vector-set! node 2 args))
