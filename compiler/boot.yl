@@ -524,12 +524,21 @@
       (and (pair? ls)
            (null? (cdr (last ls))))))
 
+(defun min (&rest args)
+  (alet ((args (cdr args))
+         (val (car args)))
+    (if args
+        (loop (cdr args)
+              (let1 a (car args)
+                (if (< a val) a val)))
+      val)))
+
 (defun copy-pair! (dst src)
   (set-car! dst (car src))
   (set-cdr! dst (cdr src)))
 
 (defun copy-vector! (dst src)
-  (let1 n (vector-length dst)
+  (let1 n (min (vector-length dst) (vector-length src))
     (alet ((i 0))
       (when (< i n)
         (vector-set! dst i (vector-get src i))
@@ -575,14 +584,14 @@
 ;; Convert lower letter into upper letter.
 (defun upcase (c)
   (let1 v (int c)
-    (if (<= #.(int #\a) v #.(int #\z))
-        (char (+ v #.(- (int #\A) (int #\a))))
+    (if (<= (int #\a) v (int #\z))
+        (char (+ v (- (int #\A) (int #\a))))
       c)))
 
 (defun numeral-char? (c)
   (let1 v (int (upcase c))
-    (cond ((<= #.(int #\0) v #.(int #\9)) (- v #.(int #\0)))
-          ((<= #.(int #\A) v #.(int #\Z)) (- v (- #.(int #\A) 10)))
+    (cond ((<= (int #\0) v (int #\9)) (- v (int #\0)))
+          ((<= (int #\A) v (int #\Z)) (- v (- (int #\A) 10)))
           (t nil))))
 
 (defun read-num-literal (stream base)
