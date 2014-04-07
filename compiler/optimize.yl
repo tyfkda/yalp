@@ -36,10 +36,14 @@
                                                          else)))))
                                 ))))
 
-(defun pure-function? (sym)
-  (member sym '(+ - * / < > <= >=
-                int char
-                ash logand logior logxor)))
+(let1 pure-functions (table)
+  (dolist (sym '(+ - * / < > <= >=
+                 int char
+                 ash logand logior logxor))
+    (table-put! pure-functions sym t))
+
+  (defun pure-function? (sym)
+    (table-exists? pure-functions sym)))
 
 (defun all-constant? (args)
   (every? const-node? args))
