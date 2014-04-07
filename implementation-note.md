@@ -1,6 +1,18 @@
 Implementation note
 ===================
 
+## Compiler
+* Compiler generates byte code (S-expression)
+* Stack based compiler
+* AST construction, byte code generation
+
+## VM
+* Stack machine method
+
+## Garbage collection
+Mark and sweep
+
+
 ## Runtime stack usage
 ### states
 * c   ... closure
