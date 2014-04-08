@@ -291,16 +291,17 @@ inline void State::defineNative(const char* name, NativeFuncType func, int minAr
 //=============================================================================
 /*
   Value: tagged pointer representation.
-    XXXXXXX0 : Fixnum
-    XXXXXX01 : Object
-    XXXX0011 : Symbol
+    XXXXXXX1 : Fixnum
+    XXXXXX00 : Object
+    XXXX0010 : Symbol
+    XXXX0110 : Character
  */
 
 const Fixnum TAG_SHIFT = 2;
 const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Fixnum TAG_FIXNUM = 0;
-const Fixnum TAG_OBJECT = 1;
-const Fixnum TAG_OTHER = 3;
+const Fixnum TAG_FIXNUM = 1;
+const Fixnum TAG_OBJECT = 0;
+const Fixnum TAG_OTHER = 2;
 
 Value::Value() : v_(TAG_OBJECT) {
   // Initialized to illegal value.
@@ -325,7 +326,11 @@ bool Value::isObject() const {
 
 Object* Value::toObject() const {
   assert(isObject());
-  return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
+  if (TAG_OBJECT == 0) {
+    return reinterpret_cast<Object*>(v_);
+  } else {
+    return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
+  }
 }
 
 }  // namespace yalp

@@ -21,10 +21,10 @@ namespace yalp {
 //=============================================================================
 /*
   Value: tagged pointer representation.
-    XXXXXXX0 : Fixnum
-    XXXXXX01 : Object
-    XXXX0011 : Symbol
-    XXXX0111 : Character
+    XXXXXXX1 : Fixnum
+    XXXXXX00 : Object
+    XXXX0010 : Symbol
+    XXXX0110 : Character
  */
 
 #define TAG2_TYPE(x)  (((x) << TAG_SHIFT) | TAG_OTHER)
