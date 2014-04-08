@@ -11,6 +11,7 @@
 #include "basic.hh"
 #include "flonum.hh"
 #include "symbol_manager.hh"
+#include "sys.hh"
 #include "vm.hh"
 
 #include <assert.h>
@@ -313,6 +314,7 @@ State::State(Allocator* allocator)
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+  installSystemFunctions(this);
 #ifndef DISABLE_FLONUM
   installFlonumFunctions(this);
 #endif
