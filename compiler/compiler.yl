@@ -435,10 +435,7 @@
              (compile-apply2 f args call-type scope next))))))
 (defun compile-apply2 (f args call-type scope next)
   (aif (and (refer-node? f)
-            (let1 name (refer-node-name f)
-              (and (not (scope-local-has? scope name))
-                   (not (scope-frees-has? scope name))
-                   (compiler-embed-func? name))))
+            (compiler-embed-func? (refer-node-name f)))
        ;; Embeded function.
        (it args scope next)
     ;; Normal function call.
