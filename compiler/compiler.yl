@@ -76,7 +76,7 @@
                (set! (var val)
                      (traverse-set! ':SET! var val scope))
                (def (var val)
-                    (when (inline-function? var)
+                    (when (inline-function-name? var)
                       (register-inline-function var val scope))
                     (traverse-set! ':DEF var val scope))
                (call/cc (func)
@@ -93,7 +93,7 @@
                     (cond ((lambda-expression? func)
                            (traverse-apply-direct (cadr func) (cddr func)
                                                   args scope scope tail))
-                          ((inline-function? func)
+                          ((inline-function-name? func)
                            (traverse-inline-apply func args scope tail))
                           (t (traverse-apply func args scope tail)))))))
 
@@ -798,16 +798,22 @@
                     )))
               defs)))
 
+;; Inline function
 (let1 *inline-functions* (table)
   (defun declaim-inline (sym)
     (table-put! *inline-functions* sym t))
 
-  (defun inline-function? (sym)
+  (defun inline-function-name? (sym)
     (and (symbol? sym)
          (table-exists? *inline-functions* sym)))
 
   (defun register-inline-function (sym func scope)
-    (table-put! *inline-functions* sym (cons func scope)))
+    (let1 node (traverse func scope nil)
+      (if (and (lambda-node? node)
+               (null? (scope-frees (lambda-scope-get node))))
+          (table-put! *inline-functions* sym (cons func scope))
+        (do (table-delete! *inline-functions* sym)
+            nil))))
 
   (defun get-inline-function-body (sym)
     (car (table-get *inline-functions* sym)))
