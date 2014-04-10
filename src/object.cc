@@ -198,6 +198,8 @@ Vector::Vector(Allocator* allocator, int size)
   , size_(size) {
   void* memory = allocator->alloc(sizeof(Value) * size_);
   buffer_ = new(memory) Value[size_];
+  for (int i = 0; i < size_; ++i)
+    buffer_[i] = Value::NIL;
 }
 
 void Vector::destruct(Allocator* allocator) {
