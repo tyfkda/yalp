@@ -20,6 +20,7 @@ GTEST_DIR = /usr/local/gtest
 SRC_DIR = ../src
 INC_DIR = ../include
 OBJ_DIR = ../obj
+LIB_DIR = ../lib
 
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
@@ -30,6 +31,7 @@ CPPFLAGS += -isystem $(GTEST_DIR)/include -I$(INC_DIR) -I$(SRC_DIR)
 CXXFLAGS += -g -Wall -Wextra -DGTEST_USE_OWN_TR1_TUPLE=1 -std=c++0x -MMD  # -Werror
 
 SRCS=$(wildcard $(SRCPATH)/*.cc)
+LIBS=$(LIB_DIR)/libyalp.a
 
 DEPS:=$(SRCS:%.cc=%.d)
 
@@ -95,37 +97,37 @@ RUN_TESTS = $(addprefix run-,$(TESTS))
 
 run-tests:	$(RUN_TESTS)
 
-hash_table_test:	hash_table_test.o $(OBJ_DIR)/allocator.o gtest_main.a
+hash_table_test:	hash_table_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-hash_table_test:	hash_table_test
 	./hash_table_test
 
-symbol_manager_test:	symbol_manager_test.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/allocator.o gtest_main.a
+symbol_manager_test:	symbol_manager_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-symbol_manager_test:	symbol_manager_test
 	./symbol_manager_test
 
-stream_test:	stream_test.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/allocator.o gtest_main.a
+stream_test:	stream_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-stream_test:	stream_test
 	./stream_test
 
-object_test:	object_test.o $(OBJ_DIR)/object.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
+object_test:	object_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-object_test:	object_test
 	./object_test
 
-read_test:	read_test.o $(OBJ_DIR)/read.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
+read_test:	read_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-read_test:	read_test
 	./read_test
 
-state_test:	state_test.o $(OBJ_DIR)/state.o $(OBJ_DIR)/util.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
+state_test:	state_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-state_test:	state_test
 	./state_test
 
-util_test:	util_test.o $(OBJ_DIR)/util.o $(OBJ_DIR)/state.o $(OBJ_DIR)/allocator.o $(OBJ_DIR)/symbol_manager.o $(OBJ_DIR)/object.o $(OBJ_DIR)/stream.o $(OBJ_DIR)/read.o $(OBJ_DIR)/vm.o $(OBJ_DIR)/basic.o $(OBJ_DIR)/flonum.o $(OBJ_DIR)/binder.o gtest_main.a
+util_test:	util_test.o $(LIBS) gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread -o $@ $^
 run-util_test:	util_test
 	./util_test
