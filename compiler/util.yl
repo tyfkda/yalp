@@ -1,17 +1,51 @@
 ;;;; Utility functions for compiler
 
-(defmacro record (args parm &body body)
-  `(apply (^ ,parm ,@body)
-          ,args))
+;; Macro definitions needed only compile time.
+#.(do (defmacro record (args parm &body body)
+        `(apply (^ ,parm ,@body)
+                ,args))
 
-(defmacro record-case (x &rest args)
-  (let-gensym value
-    `(let1 ,value ,x
-       (case (car ,value)
-         ,@(map (^(e)
-                  (let1 key (car e)
-                    (if (eq? key 't)
-                        e
-                      `(,key
-                        (record (cdr ,value) ,@(cdr e))))))
-                args)))))
+      (defmacro record-case (x &rest args)
+        (let-gensym value
+          `(let1 ,value ,x
+             (case (car ,value)
+               ,@(map (^(e)
+                        (let1 key (car e)
+                          (if (eq? key 't)
+                              e
+                            `(,key
+                              (record (cdr ,value) ,@(cdr e))))))
+                      args)))))
+
+      (defun iota (n)
+        (alet ((i 0)
+               (acc '()))
+          (if (< i n)
+              (loop (+ i 1)
+                    (cons i acc))
+            (reverse! acc))))
+
+      (defmacro vrecord (vec parm &body body)
+        (let-gensym v
+          `(let1 ,v ,vec
+             ((^ ,parm ,@body)
+              ,@(map (^(i) `(vector-get ,v ,(+ i 1)))
+                     (iota (length parm)))))))
+
+      (defmacro vrecord-case (x &rest clauses)
+        (let-gensym value
+          `(let1 ,value ,x
+             (case (vector-get ,value 0)
+               ,@(map (^(clause)
+                        (let1 key (car clause)
+                          (if (eq? key 't)
+                              clause
+                            `(,key
+                              (vrecord ,value ,@(cdr clause))))))
+                      clauses)))))
+
+      (values))  ; Empty result.
+
+(defun debug/ss (&rest all)
+  (write/ss all *stderr*)
+  (display "\n" *stderr*))

@@ -11,7 +11,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(echo "(write ((^() $3)))" | ../yalp -L ../boot.bin)
+  result=$(echo "(write ((^() $3)))" | ../yalp)
   code=$?
   if [ $code -ne 0 ]; then
     error_exit "exit status is not 0 [$code]"
@@ -24,7 +24,7 @@ function run() {
 
 function run_raw() {
   echo -n "Testing $1 ... "
-  result=$(echo "$3" | ../yalp -L ../boot.bin)
+  result=$(echo "$3" | ../yalp)
   code=$?
   if [ $code -ne 0 ]; then
     error_exit "exit status is not 0 [$code]"
@@ -37,7 +37,7 @@ function run_raw() {
 
 function fail() {
   echo -n "Testing $1 ... "
-  echo "$2" | ../yalp -L ../boot.bin 1>/dev/null 2>/dev/null
+  echo "$2" | ../yalp 1>/dev/null 2>/dev/null
   if [ $? -eq 0 ]; then
     error_exit "Failure expected, but succeeded!"
   fi
@@ -192,6 +192,12 @@ run eval "x" "(eval (eval '(quote (quote x))))"
 # Scheme - yalp value differences
 run '() is false' 3 '(if () 2 3)'
 run '() is nil' t '(eq? () nil)'
+
+# Inline function
+run_raw shadow-inlined-function '3' '(declaim (inline add))
+                                     (defun add (x y) (+ x y))
+                                     (print (let1 + cons
+                                              (add 1 2)))'
 
 # Fail cases
 fail unbound 'abc'

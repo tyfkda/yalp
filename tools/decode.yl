@@ -1,0 +1,35 @@
+;; Decode opcode from symbol to integer value
+
+(load "compiler/opcodes.yl")
+
+(def *optbl*
+  (let1 h (table)
+    (alet ((ls (load-opcodes))
+           (i 0))
+      (when ls
+        (table-put! h i (car ls))
+        (loop (cdr ls) (+ i 1))))
+    h))
+
+(defun decode! (code)
+  (vm-walker code
+    (^(c recur)
+      (awhen (table-get *optbl* (car c))
+        (set-car! c it))
+      nil)))
+
+(defun files-or-stdin (args f)
+  (if args
+      (dolist (filename args)
+        (let1 ss (open filename)
+          (f ss)
+          (close ss)))
+    (f *stdin*)))
+
+(defun main (args)
+  (files-or-stdin args
+                  (^(stream)
+                    (awhile (read stream)
+                      (decode! it)
+                      (write/ss it)
+                      (display "\n")))))

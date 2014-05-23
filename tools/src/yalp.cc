@@ -255,6 +255,13 @@ static bool runMain(State* state, int argc, char** const argv, Value* pResult) {
 }
 
 static void exitIfError(ErrorCode err) {
+  switch (err) {
+  case FILE_NOT_FOUND:
+    cerr << "File not found\n";
+    break;
+  default:
+    break;
+  }
   if (err != SUCCESS)
     exit(1);
 }
@@ -264,20 +271,19 @@ int main(int argc, char* argv[]) {
 
   FILE* outFp = duplicateFile(stdout, "w");
   int tmpFd = -1;
+  bool bLibraryLoaded = false;
 
   bool bDebug = false;
   bool bBinary = false;
   bool bCompile = false;
   bool bNoRun = false;
+  const char* oneLinear = NULL;
   int ii;
   for (ii = 1; ii < argc; ++ii) {
     char* arg = argv[ii];
     if (arg[0] != '-')
       break;
     switch (arg[1]) {
-    case '-':  // "--" is splitter.
-      ++ii;
-      goto L_noScriptFiles;
     case 'd':
       bDebug = true;
       break;
@@ -287,11 +293,22 @@ int main(int argc, char* argv[]) {
     case 'c':
       bCompile = true;
       break;
+    case 'e':
+      if (++ii >= argc) {
+        cerr << "'-e' takes parameter" << endl;
+        exit(1);
+      }
+      oneLinear = argv[ii];
+      break;
     case 'C':  // Compile, and not run the code.
       bCompile = true;
       bNoRun = true;
       break;
     case 'l':  // Library.
+      if (!bLibraryLoaded) {
+        bLibraryLoaded = true;
+        state->runBinaryFromString(bootBinaryData);
+      }
       if (++ii >= argc) {
         cerr << "'-l' takes parameter" << endl;
         exit(1);
@@ -303,7 +320,9 @@ int main(int argc, char* argv[]) {
         cerr << "'-L' takes parameter" << endl;
         exit(1);
       }
-      exitIfError(state->runBinaryFromFile(argv[ii]));
+      if (argv[ii][0] != '\0')
+        exitIfError(state->runBinaryFromFile(argv[ii]));
+      bLibraryLoaded = true;
       break;
     default:
       cerr << "Unknown option: " << arg << endl;
@@ -311,11 +330,16 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  if (bCompile)
+  if (!bLibraryLoaded)
+    state->runBinaryFromString(bootBinaryData);
+
+  if (bCompile && !bDebug)
     tmpFd = reopenFile(stdout, "/dev/null", "w");
 
-  if (ii >= argc) {
-  L_noScriptFiles:
+  if (oneLinear != NULL) {
+    StrStream stream(oneLinear);
+    repl(state, &stream, false);
+  } else if (ii >= argc) {
     FileStream stream(stdin);
     bool result;
     if (bBinary)        result = runBinary(state, &stream);
@@ -337,6 +361,8 @@ int main(int argc, char* argv[]) {
       if (!compile(state, &stream, bNoRun, outFp))
         exit(1);
     }
+  } else if (bBinary) {
+    exitIfError(state->runBinaryFromFile(argv[ii++]));
   } else {
     exitIfError(state->runFromFile(argv[ii++]));
   }

@@ -51,6 +51,9 @@
 ;; let without parameter
 (test "let empty" 123 (let () 123))
 
+;; let with symbol
+(test "let" nil (let (x) x))
+
 ;; bracket
 (test "[...]" '(1 4 9) (map [* _ _] '(1 2 3)))
 
@@ -93,9 +96,13 @@
 (test "reverse" '(3 2 1) (reverse '(1 2 3)))
 (test "reverse dotted" '(3 2 1) (reverse '(1 2 3 . 4)))
 
-;; any?
-(test "any?" '(x 3) (any? symbol? '(1 x 3)))
-(test "any? fail" nil (any? symbol? '(1 2 3)))
+;; some?
+(test "some?" '(x 3) (some? symbol? '(1 x 3)))
+(test "some? fail" nil (some? symbol? '(1 2 3)))
+
+;; every?
+(test "every?" t (every? int? '(1 2 3)))
+(test "every? fail" nil (every? int? '(1 x 3)))
 
 ;; assoc
 (test "assoc" '(b . 2) (assoc 'b '((a . 1) (b . 2) (c . 3))))
@@ -144,5 +151,17 @@
 
 ;; remove-if-not
 (test "remove-if-not" '(two four) (remove-if-not symbol? '(1 two 3 four 5)))
+
+;; Block comment
+(test "block comment" '(a f) '(a #| b #| c | d |# e |# f))
+
+;; HexLiteral
+(test "hex literal" 305441741 #x1234_abCD)
+
+;; BinLiteral
+(test "bin literal" 305441741 #b0001_0010_0011_0100_1010_1011_1100_1101)
+
+;; Vector literal
+(test "vector literal" (vector 1 '(2 3) 'x) #(1 (2 3) x))
 
 (test-complete)

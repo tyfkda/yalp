@@ -6,6 +6,7 @@
 #define _VM_HH_
 
 #include "yalp.hh"
+#include <assert.h>
 #include <vector>
 
 namespace yalp {
@@ -30,9 +31,9 @@ public:
 
   inline Object* getFunc() const;
   // Gets argument number for current native function.
-  int getArgNum() const;
+  inline int getArgNum() const;
   // Gets argument value for the index.
-  Value getArg(int index) const;
+  inline Value getArg(int index) const;
 
   inline Value multiValues();
   inline Value multiValues(Value v0);
@@ -44,7 +45,7 @@ public:
   // Gets result value for the index.
   inline Value getResult(int index) const;
 
-  Value referGlobal(Value sym, bool* pExist);
+  Value referGlobal(Value sym, bool* pExist) const;
   void defineGlobal(Value sym, Value value);
   bool assignGlobal(Value sym, Value value);
   Value getMacro(Value name);
@@ -89,6 +90,7 @@ private:
   void storeValues(int n, int s);  // Move arguments from stack to values buffer.
   int restoreValues(int min, int max);
   int pushArgs(int argNum, const Value* args, int s);
+  inline Value callEmbedFunction(NativeFuncType func, Fixnum n);
 
   void pushCallStack(Callable* callable);
   void popCallStack();
@@ -103,9 +105,6 @@ private:
   inline int popCallFrame(int s);
   inline Value box(Value x);
 
-  inline int findOpcode(Value op);
-  void replaceOpcodes(Value code);
-
   State* state_;
   Value* stack_;
   int stackSize_;
@@ -114,9 +113,6 @@ private:
   Value* values_;
   int valuesSize_;
   int valueCount_;
-
-  // Symbols
-  Value* opcodes_;
 
   // Global variables
   SHashTable* globalVariableTable_;
@@ -132,6 +128,19 @@ private:
 
   std::vector<CallStack> callStack_;
 };
+
+Value Vm::index(int s, int i) const {
+  assert(s - i - 1 >= 0);
+  return stack_[s - i - 1];
+}
+
+void Vm::indexSet(int s, int i, Value v) {
+  assert(s - i - 1 >= 0);
+  stack_[s - i - 1] = v;
+}
+
+int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
+Value Vm::getArg(int index) const  { return this->index(f_, index); }
 
 Object* Vm::getFunc() const  { return c_.toObject(); }
 

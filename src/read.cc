@@ -76,15 +76,43 @@ Reader::~Reader() {
 ErrorCode Reader::read(Value* pValue) {
   skipSpaces();
   lineNo_ = stream_->getLineNumber();
+
   int c = getc();
+  // "#dd=" and "#dd#" is shared structure (hard wired).
+  if (c == '#') {
+    int c2 = getc();
+    ungetc(c2);
+    if (isdigit(c2))
+      return readSharedStructure(pValue);
+  }
+
   Value fn = state_->getMacroCharacter(c);
   if (fn.isTrue()) {
-    SStream ss(stream_);
-    Value args[] = { Value(&ss), state_->character(c) };
-    if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+    if (fn.getType() != TT_HASH_TABLE) {  // Single macro character.
+      SStream ss(stream_);
+      Value args[] = { Value(&ss), state_->character(c) };
+      if (!state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue))
+        return ILLEGAL_CHAR;
       if (state_->getResultNum() == 0)
         return read(pValue);
       return SUCCESS;
+    }
+    // Dispatch macro character.
+    int c2 = getc();
+    fn = state_->getDispatchMacroCharacter(c, c2);
+    if (fn.isTrue()) {
+      SStream ss(stream_);
+      Value args[] = { Value(&ss), state_->character(c), state_->character(c2) };
+      if (state_->funcall(fn, sizeof(args) / sizeof(*args), args, pValue)) {
+        if (state_->getResultNum() == 0)
+          return read(pValue);
+        return SUCCESS;
+      }
+    }
+
+    if (c == '#') {  // Fall back for temp.
+      ungetc(c2);
+      return readSpecial(pValue);
     }
     return ILLEGAL_CHAR;
   }
@@ -186,11 +214,12 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       break;
     // TODO: Sometimes value is broken here after reader macro executed.
     value = state_->cons(v, value);
+    state_->restoreArenaWith(arena, value);
   }
 
   switch (err) {
   case END_OF_FILE:
-    *pValue = nreverse(value);
+    *pValue = reverseBang(value);
     state_->restoreArenaWith(arena, *pValue);
     lineNo_ = lineNo;
     return NO_CLOSE_PAREN;
@@ -201,7 +230,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
         ungetc(c);
         return err;
       }
-      *pValue = nreverse(value);
+      *pValue = reverseBang(value);
       state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;
     }
@@ -225,7 +254,7 @@ ErrorCode Reader::readDelimitedList(int terminator, Value* pValue) {
       }
 
       Value lastPair = value;
-      *pValue = nreverse(value);
+      *pValue = reverseBang(value);
       static_cast<Cell*>(lastPair.toObject())->setCdr(tail);
       state_->restoreArenaWith(arena, *pValue);
       return SUCCESS;
@@ -281,25 +310,9 @@ ErrorCode Reader::readString(char closeChar, Value* pValue) {
 
 ErrorCode Reader::readSpecial(Value* pValue) {
   int c = getc();
-  if (isdigit(c)) {
-    ungetc(c);
-    return readSharedStructure(pValue);
-  }
   switch (c) {
   case '\\':
     return readChar(pValue);
-  case '.':
-    return readTimeEval(pValue);
-  case '|':
-    if (!skipBlockComment())
-      return ILLEGAL_CHAR;  // TODO: Return unexpected EOF.
-    return read(pValue);
-  case 'x':
-    return readNumLiteral(pValue, 16);
-  case 'b':
-    return readNumLiteral(pValue, 2);
-  case '(':
-    return readVector(pValue);
   default:
     ungetc(c);
     return ILLEGAL_CHAR;
@@ -365,11 +378,16 @@ ErrorCode Reader::readChar(Value* pValue) {
   }
 
   BUFFER(buffer, size);
-  int p = readToBufferWhile(&buffer, &size, isNotDelimiter);
+  readToBufferWhile(&buffer, &size, isNotDelimiter);
 
-  if (p == 1) {
-    *pValue = state_->character(reinterpret_cast<unsigned char*>(buffer)[0]);
-    return SUCCESS;
+  // 1 character?
+  {
+    unsigned char* q = reinterpret_cast<unsigned char*>(buffer);
+    int c = utf8ToUnicode(&q);
+    if (c >= 0 && *q == '\0') {
+      *pValue = state_->character(c);
+      return SUCCESS;
+    }
   }
 
   struct {
@@ -388,51 +406,19 @@ ErrorCode Reader::readChar(Value* pValue) {
       return SUCCESS;
     }
   }
-  return ILLEGAL_CHAR;
-}
-
-ErrorCode Reader::readNumLiteral(Value* pValue, int base) {
-  Fixnum x = 0;
-  for (;;) {
-    int c = getc();
-    if (isDelimiter(c)) {
-      ungetc(c);
-      *pValue = Value(x);
-      return SUCCESS;
+  // "\xhhhh" notation.
+  if (buffer[0] == 'x') {
+    Fixnum x = 0;
+    for (char* p = buffer; *++p != '\0';) {
+      int h = hexChar(*p);
+      if (h < 0)
+        return ILLEGAL_CHAR;
+      x = (x << 4) | h;
     }
-
-    if (c == '_')
-      continue;
-    int h = hexChar(c);
-    if (h < 0 || h >= base) {
-      ungetc(c);
-      return ILLEGAL_CHAR;
-    }
-    x = (x * base) + h;
+    *pValue = state_->character(x);
+    return SUCCESS;
   }
-}
-
-ErrorCode Reader::readVector(Value* pValue) {
-  Value ls;
-  ErrorCode err = readDelimitedList(')', &ls);
-  if (err != SUCCESS)
-    return err;
-  *pValue = listToVector(state_, ls);
-  return SUCCESS;
-}
-
-ErrorCode Reader::readTimeEval(Value* pValue) {
-  Value exp;
-  ErrorCode err = read(&exp);
-  if (err != SUCCESS)
-    return err;
-
-  Value code;
-  if (!state_->compile(exp, &code))
-    return COMPILE_ERROR;
-  if (!state_->runBinary(code, pValue))
-    return RUNTIME_ERROR;
-  return SUCCESS;
+  return ILLEGAL_CHAR;
 }
 
 void Reader::storeShared(int id, Value value) {
@@ -451,31 +437,11 @@ void Reader::skipSpaces() {
   ungetc(c);
 }
 
-bool Reader::skipBlockComment() {
-  int nest = 1;
-  for (;;) {
-    int c = getc();
-    switch (c) {
-    case EOF:
-      return false;
-    case '#':
-      if (getc() == '|')
-        ++nest;
-      break;
-    case '|':
-      if (getc() == '#')
-        if (--nest <= 0)
-          return true;
-      break;
-    }
-  }
-}
-
 bool Reader::isDelimiter(int c) {
   switch (c) {
   case ' ': case '\t': case '\n': case '\0': case -1:
   case '(': case ')': case '[': case ']': case '{': case '}':
-  case ';':
+  case ';': case ',':
     return true;
   default:
     return false;

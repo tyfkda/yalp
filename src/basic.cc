@@ -23,16 +23,6 @@ namespace yalp {
 
 // Expand macro if the given expression is macro expression,
 // otherwise return itself.
-/*
-(def (macroexpand-1 exp)
-  (if (and (pair? exp)
-           (macro? (car exp)))
-      (with (name (car exp)
-             args (cdr exp))
-        (let closure (table-get *macro-table* name)
-          (apply closure args)))
-    exp))
-*/
 static Value s_macroexpand_1(State* state) {
   Value exp = state->getArg(0);
   if (exp.getType() != TT_CELL)
@@ -55,25 +45,15 @@ static Value s_globalVariableTable(State* state) {
 }
 
 static Value s_type(State* state) {
-  Value v = state->getArg(0);
-  return state->getTypeSymbol(v.getType());
+  return state->getTypeSymbol(state->getArg(0).getType());
 }
 
 static Value s_cons(State* state) {
-  Value a = state->getArg(0);
-  Value d = state->getArg(1);
-  return state->cons(a, d);
+  return state->cons(state->getArg(0), state->getArg(1));
 }
 
-static Value s_car(State* state) {
-  Value cell = state->getArg(0);
-  return car(cell);
-}
-
-static Value s_cdr(State* state) {
-  Value cell = state->getArg(0);
-  return cdr(cell);
-}
+static Value s_car(State* state)  { return car(state->getArg(0)); }
+static Value s_cdr(State* state)  { return cdr(state->getArg(0)); }
 
 static Value s_setCar(State* state) {
   Value s = state->getArg(0);
@@ -92,27 +72,19 @@ static Value s_setCdr(State* state) {
 }
 
 static Value s_list(State* state) {
-  int n = state->getArgNum();
   Value res = Value::NIL;
-  for (int i = n; --i >= 0; ) {
-    Value a = state->getArg(i);
-    res = state->cons(a, res);
-  }
+  for (int i = state->getArgNum(); --i >= 0; )
+    res = state->cons(state->getArg(i), res);
   return res;
 }
 
 static Value s_listStar(State* state) {
   int n = state->getArgNum();
-  Value res;
   if (n <= 0)
-    res = Value::NIL;
-  else {
-    res = state->getArg(n - 1);
-    for (int i = n - 1; --i >= 0; ) {
-      Value a = state->getArg(i);
-      res = state->cons(a, res);
-    }
-  }
+    return Value::NIL;
+  Value res = state->getArg(n - 1);
+  for (int i = n - 1; --i >= 0; )
+    res = state->cons(state->getArg(i), res);
   return res;
 }
 
@@ -137,7 +109,7 @@ static Value s_append(State* state) {
   if (copied.eq(Value::NIL))
     return last;
 
-  Value fin = nreverse(copied);
+  Value fin = reverseBang(copied);
   static_cast<Cell*>(copied.toObject())->setCdr(last);
   return fin;
 }
@@ -173,19 +145,15 @@ static Value s_appendBang(State* state) {
 }
 
 static Value s_reverseBang(State* state) {
-  return nreverse(state->getArg(0));
+  return reverseBang(state->getArg(0));
 }
 
 static Value s_eq(State* state) {
-  Value a = state->getArg(0);
-  Value b = state->getArg(1);
-  return state->boolean(a.eq(b));
+  return state->boolean(state->getArg(0).eq(state->getArg(1)));
 }
 
 static Value s_equal(State* state) {
-  Value a = state->getArg(0);
-  Value b = state->getArg(1);
-  return state->boolean(a.equal(b));
+  return state->boolean(state->getArg(0).equal(state->getArg(1)));
 }
 
 namespace {
@@ -268,21 +236,10 @@ struct GreaterEqual {
 
 }  // namespace
 
-static Value s_add(State* state) {
-  return BinOp<Add>::calc(state);
-}
-
-static Value s_sub(State* state) {
-  return BinOp<Sub>::calc(state);
-}
-
-static Value s_mul(State* state) {
-  return BinOp<Mul>::calc(state);
-}
-
-static Value s_div(State* state) {
-  return BinOp<Div>::calc(state);
-}
+Value s_add(State* state)  { return BinOp<Add>::calc(state); }
+Value s_sub(State* state)  { return BinOp<Sub>::calc(state); }
+Value s_mul(State* state)  { return BinOp<Mul>::calc(state); }
+Value s_div(State* state)  { return BinOp<Div>::calc(state); }
 
 static Value s_mod(State* state) {
   Value a = state->getArg(0);
@@ -292,21 +249,18 @@ static Value s_mod(State* state) {
   return Value(a.toFixnum() % b.toFixnum());
 }
 
-static Value s_lessThan(State* state) {
-  return CompareOp<LessThan>::calc(state);
+Value s_expt(State* state) {
+  Value a = state->getArg(0);
+  state->checkType(a, TT_FIXNUM);
+  Value b = state->getArg(1);
+  state->checkType(b, TT_FIXNUM);
+  return Value(iexpt(a.toFixnum(), b.toFixnum()));
 }
 
-static Value s_greaterThan(State* state) {
-  return CompareOp<GreaterThan>::calc(state);
-}
-
-static Value s_lessEqual(State* state) {
-  return CompareOp<LessEqual>::calc(state);
-}
-
-static Value s_greaterEqual(State* state) {
-  return CompareOp<GreaterEqual>::calc(state);
-}
+Value s_lessThan(State* state)  { return CompareOp<LessThan>::calc(state); }
+Value s_greaterThan(State* state)  { return CompareOp<GreaterThan>::calc(state); }
+Value s_lessEqual(State* state)  { return CompareOp<LessEqual>::calc(state); }
+Value s_greaterEqual(State* state)  { return CompareOp<GreaterEqual>::calc(state); }
 
 // Logical operator: Handles fixnum value only.
 template <class Op>
@@ -335,17 +289,9 @@ struct LogicalXor {
   static Fixnum calc(Fixnum a, Fixnum b)  { return a ^ b; }
 };
 
-static Value s_logand(State* state) {
-  return LogiOp<LogicalAnd>::calc(state);
-}
-
-static Value s_logior(State* state) {
-  return LogiOp<LogicalOr>::calc(state);
-}
-
-static Value s_logxor(State* state) {
-  return LogiOp<LogicalXor>::calc(state);
-}
+static Value s_logand(State* state)  { return LogiOp<LogicalAnd>::calc(state); }
+static Value s_logior(State* state)  { return LogiOp<LogicalOr>::calc(state); }
+static Value s_logxor(State* state)  { return LogiOp<LogicalXor>::calc(state); }
 
 // Arithmetic shift.
 static Value s_ash(State* state) {
@@ -360,10 +306,10 @@ static Value s_ash(State* state) {
     return Value(x.toFixnum() >> -s);
 }
 
-static SStream* chooseStream(State* state, int argIndex, State::Constant defaultStream) {
+static SStream* chooseStream(State* state, int argIndex, State::StandardStream defaultStream) {
   Value ss = state->getArgNum() > argIndex ?
     state->getArg(argIndex) :
-    state->referGlobal(state->getConstant(defaultStream));
+    state->getStandardStream(defaultStream);
   state->checkType(ss, TT_STREAM);
   return static_cast<SStream*>(ss.toObject());
 }
@@ -375,13 +321,8 @@ static Value output(State* state, bool inspect) {
   return x;
 }
 
-static Value s_write(State* state) {
-  return output(state, true);
-}
-
-static Value s_display(State* state) {
-  return output(state, false);
-}
+static Value s_write(State* state)  { return output(state, true); }
+static Value s_display(State* state)  { return output(state, false); }
 
 static Value s_print(State* state) {
   Value x = state->getArg(0);
@@ -449,12 +390,13 @@ static Value s_readFromString(State* state) {
 
   StrStream stream(static_cast<String*>(s.toObject())->c_str());
   Reader reader(state, &stream);
-  return doRead(state, &reader, NULL);
+  Value result = doRead(state, &reader, NULL);
+  return state->multiValues(result, Value(stream.getIndex()));
 }
 
 static Value s_readDelimitedList(State* state) {
   Value delimiter = state->getArg(0);
-  state->checkType(delimiter, TT_FIXNUM);  // Actually, CHAR
+  state->checkType(delimiter, TT_CHAR);
   Stream* stream = chooseStream(state, 1, State::STDIN)->getStream();
   Reader reader(state, stream);
   Value result;
@@ -472,7 +414,7 @@ static Value s_readChar(State* state) {
 
 static Value s_unreadChar(State* state) {
   Value ch = state->getArg(0);
-  state->checkType(ch, TT_FIXNUM);  // Actually, CHAR
+  state->checkType(ch, TT_CHAR);
   SStream* sstream = chooseStream(state, 1, State::STDIN);
   sstream->getStream()->ungetc(ch.toCharacter());
   return Value(sstream);
@@ -525,13 +467,8 @@ static Value s_readLine(State* state) {
   return state->allocatedString(copiedString, len);
 }
 
-static Value s_gensym(State* state) {
-  return state->gensym();
-}
-
-static Value s_apply(State* state) {
-  return state->applyFunction();
-}
+static Value s_gensym(State* state)  { return state->gensym(); }
+static Value s_apply(State* state)  { return state->applyFunction(); }
 
 static Value s_runBinary(State* state) {
   Value bin = state->getArg(0);
@@ -697,6 +634,7 @@ static Value s_vectorSet(State* state) {
 
 static Value s_setMacroCharacter(State* state) {
   Value chr = state->getArg(0);
+  state->checkType(chr, TT_CHAR);
   Value fn = state->getArg(1);
   state->setMacroCharacter(chr.toCharacter(), fn);
   return fn;
@@ -704,13 +642,29 @@ static Value s_setMacroCharacter(State* state) {
 
 static Value s_getMacroCharacter(State* state) {
   Value chr = state->getArg(0);
+  state->checkType(chr, TT_CHAR);
   return state->getMacroCharacter(chr.toCharacter());
 }
 
-static Value s_collectGarbage(State* state) {
-  state->collectGarbage();
-  return state->getConstant(State::T);
+static Value s_setDispatchMacroCharacter(State* state) {
+  Value c1 = state->getArg(0);
+  state->checkType(c1, TT_CHAR);
+  Value c2 = state->getArg(1);
+  state->checkType(c2, TT_CHAR);
+  Value fn = state->getArg(2);
+  state->setDispatchMacroCharacter(c1.toCharacter(), c2.toCharacter(), fn);
+  return fn;
 }
+
+static Value s_getDispatchMacroCharacter(State* state) {
+  Value c1 = state->getArg(0);
+  state->checkType(c1, TT_CHAR);
+  Value c2 = state->getArg(1);
+  state->checkType(c2, TT_CHAR);
+  return state->getDispatchMacroCharacter(c1.toCharacter(), c2.toCharacter());
+}
+
+static Value s_collectGarbage(State* state)  { state->collectGarbage(); return state->getConstant(State::T); }
 
 static Value s_exit(State* state) {
   Value v = state->getArg(0);
@@ -730,10 +684,7 @@ static Value s_vmtrace(State* state) {
 static Value s_open(State* state) {
   Value filespec = state->getArg(0);
   state->checkType(filespec, TT_STRING);
-  const char* mode = "rb";
-  if (state->getArgNum() > 1 && state->getArg(1).isTrue())
-    mode = "wb";
-
+  const char* mode = (state->getArgNum() > 1 && state->getArg(1).isTrue()) ? "wb" : "rb";
   const char* path = static_cast<String*>(filespec.toObject())->c_str();
   FILE* fp = fopen(path, mode);
   if (fp == NULL)
@@ -744,9 +695,13 @@ static Value s_open(State* state) {
 static Value s_close(State* state) {
   Value v = state->getArg(0);
   state->checkType(v, TT_STREAM);
-
   Stream* stream = static_cast<SStream*>(v.toObject())->getStream();
   return state->boolean(stream->close());
+}
+
+static Value s_strStream(State* state) {
+  Value str = state->getArg(0);
+  return state->createStrStream(str);
 }
 
 static Value s_int(State* state) {
@@ -761,6 +716,8 @@ static Value s_int(State* state) {
       return Value(static_cast<Fixnum>(f));
     }
 #endif
+  case TT_CHAR:
+    return Value(v.toCharacter());
   case TT_STRING:
     {
       String* string = static_cast<String*>(v.toObject());
@@ -772,6 +729,19 @@ static Value s_int(State* state) {
   }
   state->runtimeError("Cannot convert `%@` to int", &v);
   return v;
+}
+
+static Value s_char(State* state) {
+  Value v = state->getArg(0);
+  switch (v.getType()) {
+  case TT_FIXNUM:
+    return state->character(v.toFixnum());
+  case TT_CHAR:
+    return v;
+  default:
+    state->runtimeError("Cannot convert `%@` to char", &v);
+    return v;
+  }
 }
 
 static Value s_string(State* state) {
@@ -812,7 +782,7 @@ static Value s_charAt(State* state) {
   String* str = static_cast<String*>(v.toObject());
   if (index < 0 || static_cast<size_t>(index) >= str->len())
     return Value::NIL;
-  return state->character(str->c_str()[i.toFixnum()]);
+  return state->character(reinterpret_cast<const unsigned char*>(str->c_str())[i.toFixnum()]);
 }
 
 static Value s_substr(State* state) {
@@ -830,12 +800,9 @@ static Value s_substr(State* state) {
     n = nn.toFixnum();
   }
 
-  if (s > len)
-    s = len;
-  if (n < 0)
-    n = 0;
-  if (s + n > len)
-    n = len - s;
+  if (s > len)      s = len;
+  if (n < 0)        n = 0;
+  if (s + n > len)  n = len - s;
   return state->string(str->c_str() + s, n);
 }
 
@@ -871,7 +838,7 @@ static Value s_split(State* state) {
     Value s = state->string(p);
     result = state->cons(s, result);
   }
-  return nreverse(result);
+  return reverseBang(result);
 }
 
 static Value s_join(State* state) {
@@ -917,6 +884,7 @@ void installBasicFunctions(State* state) {
     { "*", s_mul, 0, -1 },
     { "/", s_div, 0, -1 },
     { "mod", s_mod, 2 },
+    { "expt", s_expt, 2 },
 
     { "eq?", s_eq, 2 },
     { "equal?", s_equal, 2 },
@@ -965,6 +933,8 @@ void installBasicFunctions(State* state) {
 
     { "set-macro-character", s_setMacroCharacter, 2 },
     { "get-macro-character", s_getMacroCharacter, 1 },
+    { "set-dispatch-macro-character", s_setDispatchMacroCharacter, 3 },
+    { "get-dispatch-macro-character", s_getDispatchMacroCharacter, 2 },
 
     { "collect-garbage", s_collectGarbage, 0 },
     { "exit", s_exit, 1 },
@@ -972,9 +942,11 @@ void installBasicFunctions(State* state) {
 
     { "open", s_open, 1, 2 },
     { "close", s_close, 1 },
+    { "str-stream", s_strStream, 1 },
 
     { "int", s_int, 1 },
     { "intern", s_intern, 1 },
+    { "char", s_char, 1 },
 
     { "string", s_string, 1, -1 },
     { "string-length", s_stringLength, 1 },

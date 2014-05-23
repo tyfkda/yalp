@@ -3,7 +3,16 @@
 ;; Usage:
 ;;   $ cat ../boot.bin | ../yalp -L ../boot.bin seq.yl | sort | uniq -c | sort -nr
 
-(load "tools/code-walker.yl")
+(load "compiler/opcodes.yl")
+
+(def *optbl*
+  (let1 h (table)
+    (alet ((ls (load-opcodes))
+           (i 0))
+      (when ls
+        (table-put! h i (car ls))
+        (loop (cdr ls) (+ i 1))))
+    h))
 
 (def *next-table* (table))
 (dolist (inst instructions)
@@ -23,9 +32,18 @@
 (defun print-opcode-pairs (code)
   (vm-walker code
     (^(c recur)
-      (aif (get-next-code c)
-        (print (list (car c) (car it))))
-      t)))
+      (awhen (get-next-code c)
+        (print (list (table-get *optbl* (car c))
+                     (table-get *optbl* (car it)))))
+      nil)))
+
+(defun files-or-stdin (args f)
+  (if args
+      (dolist (filename args)
+        (let1 ss (open filename)
+          (f ss)
+          (close ss)))
+    (f *stdin*)))
 
 (defun main (args)
   (files-or-stdin args

@@ -3,11 +3,12 @@
 
 using yalp::State;
 using yalp::Value;
+using yalp::bootBinaryData;
 using namespace std;
 
 int main() {
   State* state = State::create();
-  state->runBinaryFromFile("../boot.bin");
+  state->runBinaryFromString(bootBinaryData);
 
   Value fn = state->referGlobal("+");
   Value args[] = { Value(1), Value(2) };

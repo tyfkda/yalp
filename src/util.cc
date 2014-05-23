@@ -34,7 +34,7 @@ Value list(State* state, Value v1, Value v2, Value v3) {
   return state->cons(v1, state->cons(v2, state->cons(v3, Value::NIL)));
 }
 
-Value nreverse(Value v) {
+Value reverseBang(Value v) {
   if (v.getType() != TT_CELL)
     return v;
 
@@ -116,9 +116,10 @@ static void format(State* state, Stream* out, const char* fmt, FormatParams* par
       }
       break;
     case 's':
-      if (params->valueOnly())
-        goto L_default;
-      {
+      if (params->valueOnly()) {
+        const Value* p = params->getValue();
+        p->output(state, out, false);
+      } else {
         const char* p = params->getString();
         out->write(p);
       }
@@ -181,6 +182,73 @@ void raiseReadError(State* state, ErrorCode err, Reader* reader) {
   default:
     break;
   }
+}
+
+Fixnum iexpt(Fixnum x, Fixnum n) {
+  Fixnum v = 1;
+  if (n >= 0) {
+    while (n > 0) {
+      if ((n & 1) != 0)
+        v *= x;
+      x *= x;
+      n >>= 1;
+    }
+  } else {
+    switch (x) {
+    case 1:  v = 1; break;
+    case -1: v = (n & 1) == 0 ? 1 : -1; break;
+    default: v = 0; break;
+    }
+  }
+  return v;
+}
+
+// Decode utf8 string into unicode.
+int utf8ToUnicode(unsigned char** pp) {
+  unsigned char* p = *pp;
+  int n = 0;
+  unsigned char c = *p;
+  for (int i = 7; i > 0; --i, ++n) {
+    if ((c & (1 << i)) == 0)
+      break;
+  }
+  if (n == 0) {
+    *pp = p + 1;
+    return c;
+  }
+  if (2 <= n && n <= 6) {
+    int x = c & ((1 << (7 - n)) - 1);
+    for (int i = 1; i < n; ++i) {
+      c = p[i];
+      if ((c & 0xc0) != 0x80)
+        return -1;
+      x = (x << 6) | (c & 0x3f);
+    }
+    *pp = p + n;
+    return x;
+  }
+  return -1;
+}
+
+// Write utf8 string to buffer, and returns its byte size.
+int unicodeToUtf8(unsigned int c, unsigned char* buffer) {
+  if (0x20 <= c && c < 0x80) {
+    buffer[0] = c;
+    return 1;
+  }
+  // To utf8: 11bit=>2bytes, 16bit=>3bytes, 21bit=>4bytes, ..., 31bit=>6bytes
+  for (int n = 2; n <= 6; ++n) {
+    if (c < (1U << (n * 5 + 1))) {
+      for (int i = n; --i > 0; ) {
+        buffer[i] = 0x80 | (c & 0x3f);
+        c >>= 6;
+      }
+      int mask = (-1 << (8 - n)) & 0xff;
+      buffer[0] = mask | ((mask ^ 0xff) & c);
+      return n;
+    }
+  }
+  return 0;
 }
 
 }  // namespace yalp

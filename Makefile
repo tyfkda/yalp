@@ -11,7 +11,7 @@ SRCS=$(wildcard $(SRCDIR)/*.cc)
 OBJS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.o))
 DEPS=$(subst $(SRCDIR),$(OBJDIR),$(SRCS:%.cc=%.d))
 
-CXXFLAGS += -Wall -Wextra -std=c++0x -MMD -I$(INCDIR)  # -Werror
+CXXFLAGS += -Wall -Wextra -std=c++0x -DNDEBUG -MMD -I$(INCDIR) -O2  # -Werror
 
 .PHONY: all clean test
 
@@ -44,8 +44,15 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cc
 	g++ $(CXXFLAGS) -o $@ -c $<
 	ar r $(LIBNAME) $@
 
+$(OBJDIR)/vm.o:	$(SRCDIR)/opcodes.hh
+$(SRCDIR)/opcodes.hh:	compiler/opcodes.txt
+	echo "// Do not edit!\n\
+// This file is generated from $<\n\
+" > $@
+	ruby -ne 'line = $$_.chomp; if !line.empty? && line[0] != ";" then op = line.split(" ")[0]; puts "OP(#{op})"; end' < $< >> $@
+
 test:	$(PROJECT)
-	make -C compiler test
+	make -C compiler/test test
 	make -C test test
 	cd examples && ./test.sh
 	make -C embed_examples test
@@ -53,17 +60,14 @@ test:	$(PROJECT)
 check-length:
 	wc -l src/* include/**/*.hh compiler/*.yl | sort -nr
 
-boot.bin:	self.bin
-	mv self.bin boot.bin
-
-self.bin:	compiler/backquote.yl compiler/boot.yl compiler/util.yl compiler/compiler.yl
-	./yalp -L boot.bin -C compiler/backquote.yl compiler/boot.yl compiler/util.yl compiler/compiler.yl > _self.bin
-	#./yalp -L boot.bin tools/code-walker.yl tools/optimize.yl < _self.bin > self.bin
-	#rm _self.bin
-	mv _self.bin self.bin
+update-compier:
+	./tools/build-boot-data.sh
 
 self-compile:	self.bin
-	diff boot.bin self.bin && rm self.bin && echo OK
+	diff $(OBJDIR)/boot.bin $(OBJDIR)/self.bin && rm $(OBJDIR)/self.bin && echo OK
 
 include/yalp/binder.inc:	tools/gen_template.rb
 	ruby $< > $@
+
+dump_obj_size:	tools/src/dump_obj_size.cc $(OBJS)
+	g++ $(CXXFLAGS) -o $@ $< $(LIBNAME)

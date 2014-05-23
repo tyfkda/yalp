@@ -1,12 +1,34 @@
-;(declaim
-; (inline not caar cdar cadr cddr))
+(declaim
+ (inline not null?)
+ (inline caar cdar cadr cddr
+         cadar caddr cdddr
+         cadddr cddddr)
+ )
 
 ;;; Basic read macros.
 
 ;; Line comment
 (set-macro-character #\;
   (^(stream ch)
-    (until (member (read-char stream) '(#\nl -1)))
+    (until (member (read-char stream) '(#\nl nil)))
+    (values)))
+
+;; Block comment
+(set-dispatch-macro-character #\# #\|
+  (^(stream c1 c2)
+    (alet ((nest 1))
+      (case (read-char stream)
+        (#\# (if (eq? (read-char stream) #\|)
+                 (loop (+ nest 1))
+               (loop nest)))
+        (#\| (if (eq? (read-char stream) #\#)
+                 (if (> nest 1)
+                     (loop (- nest 1))
+                   ;; Exit block comment : Do not care about return value.
+                   )
+               (loop nest)))
+        (nil (error "Block comment not closed"))
+        (t (loop nest))))
     (values)))
 
 ;; 'x => (quote x)
@@ -20,60 +42,134 @@
   (^(stream ch)
     `(^ (_) ,(read-delimited-list #\] stream))))
 
+;; Hexadecimal literal
+(set-dispatch-macro-character #\# #\x
+  (^(stream c1 c2)
+    (read-num-literal stream 16)))
+
+;; Binary literal
+(set-dispatch-macro-character #\# #\b
+  (^(stream c1 c2)
+    (read-num-literal stream 2)))
+
+;; Vector literal: #(elem1 elem2 ...)
+(set-dispatch-macro-character #\# #\(
+  (^(stream c1 c2)
+    (list->vector (read-delimited-list #\) stream))))
+
+;; Read time eval.
+(set-dispatch-macro-character #\# #\.
+  (^(stream c1 c2)
+    (eval (read stream))))
+
 ;;; Basic functions and macros.
 
+(defun macroexpand (exp)
+  (let1 expanded (macroexpand-1 exp)
+    (if (equal? expanded exp)
+        exp
+      (macroexpand expanded))))
+
 (defmacro defun (name vars &body body)
-  `(def ,name (^ ,vars ,@body)))
+  `(def ,name (^ ,vars
+                 (call/cc
+                  (^(return)
+                    ,@body)))))
 
 (defun not (x) (if x nil t))
+(defun null? (x) (if x nil t))
 
-(defun caar (x) (car (car x)))
-(defun cdar (x) (cdr (car x)))
-(defun cadr (x) (car (cdr x)))
-(defun cddr (x) (cdr (cdr x)))
-(defun caddr (x) (car (cddr x)))
-(defun cdddr (x) (cdr (cddr x)))
-(defun cadddr (x) (car (cdddr x)))
-(defun cddddr (x) (cdr (cdddr x)))
-(defun caddddr (x) (car (cddddr x)))
-(defun cdddddr (x) (cdr (cddddr x)))
+;; Macro definitions needed only compile time.
+#.(do (defmacro gen-cxxr (cxxr)
+        `(defun ,cxxr (x)
+           ,(let1 s (string cxxr)
+              (alet ((i (- (length s) 2))
+                     (acc 'x))
+                (if (>= i 1)
+                    (case (char-at s i)
+                      (#\a (loop (- i 1) (list 'car acc)))
+                      (#\d (loop (- i 1) (list 'cdr acc))))
+                  acc)))))
 
-(defun int? (x) (eq? (type x) 'int))
-(defun pair? (x) (eq? (type x) 'pair))
-(defun symbol? (x) (eq? (type x) 'symbol))
-(defun string? (x) (eq? (type x) 'string))
-(defun flonum? (x) (eq? (type x) 'flonum))
+      ;; Generates `type-name?` function which checks type.
+      (defmacro gen-type-checker (type-name)
+        `(def ,(intern (string type-name #\?))
+              [eq? (type _) ',type-name]))
 
-(defun any? (f ls)
-  (if (pair? ls)
-      (if (f (car ls))
-          ls
-        (any? f (cdr ls)))
-    nil))
+      ;; Generates macro which converts
+      ;;   (FOOs args...) => (do (FOO arg1) (FOO arg2) ...)
+      (defmacro gen-multiple-definitions (macro-name)
+        `(defmacro ,(intern (string macro-name #\s)) (&rest args)
+           `(do ,@(map (^(arg)
+                         `(,',macro-name ,arg))
+                       args))))
 
-(defun map1-loop (f ls acc)
-  (if (pair? ls)
-      (map1-loop f (cdr ls)
-                 (cons (f (car ls)) acc))
-    (let1 result (reverse! acc)
+      (values))  ; Empty result.
+
+#.(do (gen-multiple-definitions gen-cxxr)
+      (gen-multiple-definitions gen-type-checker)
+      (values))  ; Empty result.
+
+(gen-cxxrs caar cdar cadr cddr
+           cadar caddr cdddr
+           cadddr cddddr
+           caddddr cdddddr)
+
+(gen-type-checkers int pair symbol string flonum char vector table)
+
+(defun some? (f ls &rest rest)
+  (if rest
+      (alet ((lss (cons ls rest)))
+        (if (some? null? lss)
+            nil
+          (aif (apply f (map car lss))
+               it
+            (loop (map cdr lss)))))
+    (alet ((ls ls))
       (if ls
-          (if acc
-              (do (set-cdr! acc (f ls))
-                  result)
-            (f ls))
-        result))))
+          (aif (f (car ls))
+               (values ls it)
+            (loop (cdr ls)))
+        (values nil nil)))))
 
-(defun mapn-loop (f lss acc)
-  (if (any? not lss)
-      (reverse! acc)
-    (mapn-loop f (map1-loop cdr lss '())
-               (cons (apply f (map1-loop car lss '()))
-                     acc))))
+(defun every? (fn ls &rest rest)
+  (if rest
+      (alet ((lss (cons ls rest)))
+        (if (some? null? lss)
+            t
+          (if (apply fn (map car lss))
+              (loop (map cdr lss))
+            nil)))
+    (alet ((ls ls))
+      (if ls
+          (if (fn (car ls))
+              (loop (cdr ls))
+            nil)
+        t))))
 
 (defun map (f ls &rest rest)
   (if rest
-      (mapn-loop f (cons ls rest) '())
-    (map1-loop f ls '())))
+      ;; mapn
+      (alet ((lss (cons ls rest))
+             (acc '()))
+        (if (some? null? lss)
+            (reverse! acc)
+          (loop (map cdr lss)
+                (cons (apply f (map car lss))
+                      acc))))
+    ;; map1
+    (alet ((ls ls)
+           (acc '()))
+      (if (pair? ls)
+          (loop (cdr ls)
+                (cons (f (car ls)) acc))
+        (let1 result (reverse! acc)
+          (if ls
+              (if acc
+                  (do (set-cdr! acc (f ls))
+                      result)
+                (f ls))
+            result))))))
 
 (defmacro do (&body body)
   `((^() ,@body)))
@@ -171,7 +267,8 @@
 
 (defmacro let-gensym (names &body body)
   (if (pair? names)
-      ;; (let-gensym (a b c) ...) => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
+      ;; (let-gensym (a b c) ...)
+      ;;   => (let ((a (gensym)) (b (gensym)) (c (gensym)) ...)
       `(let ,(map [list _ '(gensym)]
                   names)
          ,@body)
@@ -278,7 +375,7 @@
           result)))))
 
 (defun member (x ls)
-  (any? [eq? x _] ls))
+  (some? [eq? x _] ls))
 
 (defun assoc (key alist)
   (if alist
@@ -310,6 +407,12 @@
   (and (pair? ls)
        (not (cdr ls))))
 
+;; Reverse list and concatenate tail destructively.
+(defun nreconc (ls tail)
+  (let1 top (reverse! ls)
+    (set-cdr! ls tail)
+    top))
+
 ;; Write shared structure.
 (defun write/ss (s &rest rest)
   (let1 stream (if rest (car rest) *stdout*)
@@ -318,55 +421,55 @@
 
 ;; Construct table which contains object appear index for more than 2 times.
 (let1 index-key (gensym)
-  (defun create-ss-table (s)
+  (defun create-ss-table (obj)
     (let ((h (table 'eq?))
           ;; Assign index for the object appeared more than 1 time.
-          (assign-index (^(h s index-key)
-                          (unless (table-get h s)
+          (assign-index (^(h key index-key)
+                          (unless (table-get h key)
                             (let1 index (table-get h index-key)
-                              (table-put! h s index)
+                              (table-put! h key index)
                               (table-put! h index-key (+ 1 index)))))))
       (table-put! h index-key 0)
-      (alet ((s s))
-        (let1 typ (type s)
+      (alet ((obj obj))
+        (let1 typ (type obj)
           (when (member typ '(pair vector))
-            (if (table-exists? h s)
-                (assign-index h s index-key)
+            (if (table-exists? h obj)
+                (assign-index h obj index-key)
               ;; Put nil for the first appeared object.
-              (do (table-put! h s nil)
+              (do (table-put! h obj nil)
                   ;; And check children recursively.
                   (case typ
-                    (pair (loop (car s))
-                          (loop (cdr s)))
-                    (vector (for0-n i (length s)
-                                    (loop (vector-get s i))))))))))
+                    (pair (loop (car obj))
+                          (loop (cdr obj)))
+                    (vector (for0-n i (length obj)
+                                    (loop (vector-get obj i))))))))))
       h)))
 
-(defun write/ss-print (s h stream)
-  (let1 index (table-get h s)
+(defun write/ss-print (obj h stream)
+  (let1 index (table-get h obj)
     (if (and index (< index 0))
         ;; Print structure after second time or later.
         (format stream "#%@#" (- -1 index))
       (do (when index
             ;; Print structure at first time.
             (format stream "#%@=" index)
-            (table-put! h s (- -1 index)))
-          (case (type s)
-            (pair (aif (and (single? (cdr s))
-                            (not (table-get h (cdr s)))
-                            (assoc (car s) '((quote . "'")
+            (table-put! h obj (- -1 index)))
+          (case (type obj)
+            (pair (aif (and (single? (cdr obj))
+                            (not (table-get h (cdr obj)))
+                            (assoc (car obj) '((quote . "'")
                                              (quasiquote . "`")
                                              (unquote . ",")
                                              (unquote-splicing . ",@"))))
                        ;; Write abbreviated form.
                        (do (display (cdr it) stream)
-                           (write (cadr s) stream))
+                           (write (cadr obj) stream))
                     (do (alet ((c "(")
-                               (s s))
-                          (when s
+                               (ls obj))
+                          (when ls
                             (display c stream)
-                            (write/ss-print (car s) h stream)
-                            (let1 ds (cdr s)
+                            (write/ss-print (car ls) h stream)
+                            (let1 ds (cdr ls)
                               (if (or (and ds
                                            (not (pair? ds)))
                                       (table-get h ds))
@@ -374,15 +477,15 @@
                                       (write/ss-print ds h stream))
                                 (loop " " ds)))))
                         (display ")" stream))))
-            (vector (let1 n (vector-length s)
+            (vector (let1 n (vector-length obj)
                       (alet ((c "#(")
                              (i 0))
                         (when (< i n)
                           (display c stream)
-                          (write/ss-print (vector-get s i) h stream)
+                          (write/ss-print (vector-get obj i) h stream)
                           (loop " " (+ i 1))))
                       (display ")" stream)))
-            (t (write s stream)))))))
+            (t (write obj stream)))))))
 
 ;; Take first n elements from the list.
 (defun take (n ls)
@@ -417,13 +520,29 @@
 
 (defun list? (ls)
   ;; Nil, or not dotted list
-  (or (not ls)
+  (or (null? ls)
       (and (pair? ls)
-           (not (cdr (last ls))))))
+           (null? (cdr (last ls))))))
+
+(defun min (&rest args)
+  (alet ((args (cdr args))
+         (val (car args)))
+    (if args
+        (loop (cdr args)
+              (let1 a (car args)
+                (if (< a val) a val)))
+      val)))
 
 (defun copy-pair! (dst src)
   (set-car! dst (car src))
   (set-cdr! dst (cdr src)))
+
+(defun copy-vector! (dst src)
+  (let1 n (min (vector-length dst) (vector-length src))
+    (alet ((i 0))
+      (when (< i n)
+        (vector-set! dst i (vector-get src i))
+        (loop (+ i 1))))))
 
 (defun remove-if (test seq)
   (alet ((p seq)
@@ -447,3 +566,55 @@
 (defun bit? (x flag)
   (not (eq? (logand x flag)
             0)))
+
+(defun list->vector (ls)
+  (let* ((n (length ls))
+         (vec (make-vector n)))
+    (alet ((i 0)
+           (p ls))
+      (if (< i n)
+          (do (vector-set! vec i (car p))
+              (loop (+ i 1) (cdr p)))
+        vec))))
+
+(defun delimiter? (c)
+  (member c '(#\space #\tab #\newline nil
+              #\( #\) #\[ #\] #\{ #\} #\; #\,)))
+
+;; Convert lower letter into upper letter.
+(defun upcase (c)
+  (let1 v (int c)
+    (if (<= (int #\a) v (int #\z))
+        (char (+ v (- (int #\A) (int #\a))))
+      c)))
+
+(defun numeral-char? (c)
+  (let1 v (int (upcase c))
+    (cond ((<= (int #\0) v (int #\9)) (- v (int #\0)))
+          ((<= (int #\A) v (int #\Z)) (- v (- (int #\A) 10)))
+          (t nil))))
+
+(defun read-num-literal (stream base)
+  (alet ((x 0)
+         (c (read-char stream)))
+    (cond ((delimiter? c)  (do (unread-char c stream)
+                               x))
+          ((eq? c #\_)  (loop x (read-char stream)))
+          (t (let1 v (numeral-char? c)
+               (unless (and v (< v base))
+                 (error "Illegal char for number literal [%@]" c))
+               (loop (+ (* x base) v) (read-char stream)))))))
+
+(defmacro with-open-file (params &rest body)
+  (let ((var (car params))
+        (file-name (cadr params)))
+    `(let1 ,var (open ,file-name)
+       (let1 result ,@body
+         (close ,var)
+         result))))
+
+(defun stream->list (stream)
+  (alet ((acc '()))
+    (aif (read stream)
+         (loop (cons it acc))
+      (reverse! acc))))

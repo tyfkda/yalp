@@ -1,13 +1,20 @@
 ;; Show opcode
 
-(load "tools/code-walker.yl")
-
 (defun print-opcodes (code)
   (vm-walker code
     (^(c recur)
       (let1 operands (table-get *opcode-table* (car c))
         (write/ss (take (+ 1 (length operands)) c))
-        (display "\n")))))
+        (display "\n")
+        nil))))
+
+(defun files-or-stdin (args f)
+  (if args
+      (dolist (filename args)
+        (let1 ss (open filename)
+          (f ss)
+          (close ss)))
+    (f *stdin*)))
 
 (defun main (args)
   (files-or-stdin args

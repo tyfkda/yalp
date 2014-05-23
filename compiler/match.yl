@@ -1,0 +1,66 @@
+(defmacro aif2 (test &rest rest)
+  (let ((then (and rest (car rest)))
+        (else (and rest (cdr rest) (cadr rest))))
+    (let-gensym win
+      `(receive (it &rest ,win) ,test
+         (if (or it (and ,win (car ,win))) ,then ,else)))))
+
+(defmacro acond2 (&rest clauses)
+  (if (not clauses)
+      nil
+    (let ((cl1 (car clauses))
+          (val (gensym))
+          (win (gensym)))
+      `(receive (,val &rest ,win) ,(car cl1)
+         (if (or ,val (and ,win (car ,win)))
+             (let1 it ,val ,@(cdr cl1))
+           (acond2 ,@(cdr clauses)))))))
+
+(defmacro labels (vars &rest body)
+  `(let ,(map [list (car _) nil] vars)
+     ,@(map (^(_) `(set! ,(car _) (^ ,(cadr _) ,@(cddr _))))
+            vars)
+     ,@body))
+
+;; On Lisp, 18.4 Matching
+;; http://www.bookshelf.jp/texi/onlisp/onlisp_19.html#SEC117
+(defun match (x y binds)
+  (acond2
+   ((equal? x y) (values binds t))
+   ((binding x binds) (match it y binds))
+   ((binding y binds) (match x it binds))
+   ((varsym? x) (values (cons (cons x y) binds) t))
+   ((varsym? y) (values (cons (cons y x) binds) t))
+   ((and (pair? x) (pair? y) (match (car x) (car y) binds))
+    (match (cdr x) (cdr y) it))
+   (t (values nil nil))))
+
+(defun varsym? (x)
+  (and (symbol? x) (eq? (char-at (string x) 0) #\?)))
+
+(defun binding (x binds)
+  (labels ((recbind (x binds)
+                    (aif (assoc x binds)
+                         (or (recbind (cdr it) binds)
+                             it))))
+    (let1 b (recbind x binds)
+      (values (cdr b) b))))
+
+
+(defmacro if-match (pat seq then &rest rest)
+  (let1 else (and rest (car rest))
+    `(aif2 (match ',pat ,seq '())
+           (let ,(map (^(v)
+                        `(,v (binding ',v it)))
+                      (vars-in then))
+             ,then)
+       ,else)))
+
+(defun vars-in (expr)
+  (cond ((var? expr)
+         (list expr))
+        ((pair? expr)
+         (union (vars-in (car expr))
+                (vars-in (cdr expr))))))
+
+(defun var? (x)  (varsym? x))

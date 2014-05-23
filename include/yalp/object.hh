@@ -231,6 +231,19 @@ protected:
   int maxArgNum_;
 };
 
+// Macro class.
+class Macro : public Closure {
+public:
+  Macro(State* state, Value name, Value body, int freeVarCount,
+        int minArgNum, int maxArgNum);
+  virtual Type getType() const override  { return TT_MACRO; }
+
+  virtual void output(State*, Stream* o, bool) const override;
+
+protected:
+  ~Macro()  {}
+};
+
 // Native function class.
 class NativeFunc : public Callable {
 public:
@@ -271,14 +284,22 @@ protected:
   virtual void mark() override;
 
   Value* copiedStack_;
-  int stackSize_;
   CallStack* callStack_;
+  int stackSize_;
   int callStackSize_;
 };
 
+/**
+ * SStream class
+ *   SStream class has a ownership for the given Stream instance,
+ *   only when SStream is created in heap (using Allocator#newObject method).
+ *   Otherwise (the case what SStream is created in stack),
+ *   SStream class does not have a ownership for it.
+ */
 class SStream : public Object {
 public:
   explicit SStream(Stream* stream);
+  explicit SStream(Stream* stream, Value save);
   virtual Type getType() const override;
 
   virtual void output(State*, Stream* o, bool) const override;
@@ -288,8 +309,10 @@ public:
 protected:
   ~SStream()  {}
   virtual void destruct(Allocator* allocator) override;
+  virtual void mark() override;
 
   Stream* stream_;
+  Value save_;
 
   friend class Reader;
   friend class State;

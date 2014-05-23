@@ -1,0 +1,46 @@
+;(load-binary "../../boot.bin")
+(load "./test.yl")
+
+(test-section "setf")
+(test "symbol" 2
+      (let1 x 1
+        (setf x 2)
+        x))
+(test "car" '(X . 2)
+      (let1 x '(1 . 2)
+        (setf (car x) 'X)
+        x))
+(test "cdr" '(1 . X)
+      (let1 x '(1 . 2)
+        (setf (cdr x) 'X)
+        x))
+(test "vector" #(1 X 3)
+      (let1 x #(1 2 3)
+        (setf (vector-get x 1) 'X)
+        x))
+(test "table" 'X
+      (let1 x (table)
+        (setf (table-get x 'foo) 'X)
+        (table-get x 'foo)))
+
+(test-section "inc!")
+(test "inc!" #(1 2 4)
+      (let ((v #(1 2 3))
+            (i 1))
+        (inc! (vector-get v (inc! i)))
+        v))
+
+(test-section "push!, pop!")
+(test "push!" '((X 1 2 3))
+      (let ((ls '((1 2 3))))
+        (push! 'X (car ls))
+        ls))
+(test "pop!" '((2 3))
+      (let ((ls '((1 2 3))))
+        (pop! (car ls))
+        ls))
+(test "popped value" 1
+      (let ((ls '((1 2 3))))
+        (pop! (car ls))))
+
+(test-complete)

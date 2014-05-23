@@ -9,6 +9,7 @@ using yalp::FileStream;
 using yalp::Fixnum;
 using yalp::State;
 using yalp::Value;
+using yalp::bootBinaryData;
 
 int square(int x) {
   return x * x;
@@ -20,7 +21,7 @@ std::string emphasis(const std::string& str) {
 
 int main() {
   State* state = State::create();
-  state->runBinaryFromFile("../boot.bin");
+  state->runBinaryFromString(bootBinaryData);
 
   {
     yalp::bind::Binder b(state);

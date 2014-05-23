@@ -1,35 +1,26 @@
 ;(load-binary "../../boot.bin")
 (load "./test.yl")
 
-(defun alist->table (alist)
-  (let1 ht (table)
-    (dolist (kv alist)
-      (table-put! ht (car kv) (cdr kv)))
-    ht))
-
-(defun table->alist (ht)
-  (map (^(key) (cons key (table-get ht key)))
-       (table-keys ht)))
-
-(test-section "find-free")
+(test-section "check-parameters")
 (test "check-parameters" '(x y z) (check-parameters '(x y z)))
 (test "check-parameters-rest" '(x y z) (check-parameters '(x y &rest z)))
 (test "check-parameters-body" '(x y z) (check-parameters '(x y &body z)))
 
-(test-section "macroexpand")
-(test "macroexpand-1" '(x y . z) (macroexpand-1 '(x y . z)))
+(test-section "macroexpand-1")
+(test "keeps dotted pair" '(x y . z) (macroexpand-1 '(x y . z)))
 
-(test-section "direct-invoke?")
-(test "direct-invoke?" t (direct-invoke? '(^(x y))))
-(test "direct-invoke?-false" nil (direct-invoke? 'func))
+(test-section "lambda-expression?")
+(test "lambda-expression?" t (lambda-expression? '(^(x y))))
+(test "not lambda-expression?" nil (lambda-expression? 'func))
 
-(test-section "get-var-info")
-(let* ((scope1 (create-scope '(a) nil))
-       (scope2 (expand-scope '(b) scope1))
-       (scope3 (create-scope '(c) scope2)))
-  (receive (info found-scope)
-           (get-var-info scope3 'a)
-    (test-eq "expanded scope" scope1 found-scope)))
+(test-section "embed function")
+(test "shadow embed function with local" '(1 . 2)
+      (let1 + (^(x y) (cons x y))
+        (+ 1 2)))
+(test "shadow embed function with free" '((1 2))
+      (let1 car [list _]
+        (let1 f (^(x) (car x))
+          (f '(1 2)))))
 
 (test-section "loop")
 (test "tail recursion is loop" 55
@@ -94,6 +85,34 @@
                            acc)))
             0 0))
          nil)))
+(test "replace scope for receive values" '((+ 456) (+ 456))
+      (let1 exp '(123 + 456)
+        (alet ((subexp (cdr exp)))  ;; <= Needed alet, not let
+          (receive (subexp2)
+                   (when t  ;; <= Needed
+                     (values subexp))
+            (list subexp2 subexp)))))
+(test "replace scope for invoke args" '(+ -)
+      ((let ((ops '(+ -))
+             (func 999))
+         (^(exp)
+           func
+           (receive (lval subexp)
+                    (values (car exp) (cdr exp))
+             (alet ((subexp2 subexp))
+               (aif (let1 op (car subexp2)
+                      ops)
+                    it
+                 nil)))))
+       '(123 + 456)))
+(test "set loop var" 55
+      (alet ((i 0)
+             (acc 0))
+        (if (<= i 10)
+            (do (set! acc (+ acc i))
+                (set! i (+ i 1))
+                (loop i acc))
+          acc)))
 
 (test-section "call/cc")
 (test "free variable" 123

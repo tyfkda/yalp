@@ -32,22 +32,22 @@ TEST_F(UtilTest, ListFunctions) {
   ASSERT_TRUE(state_->cons(a, state_->cons(b,  state_->cons(c, Value::NIL))).equal(s3));
 }
 
-TEST_F(UtilTest, Nreverse) {
+TEST_F(UtilTest, ReverseBang) {
   Value a = Value(1);
   Value b = Value(2);
   Value c = Value(3);
   Value d = Value(3);
 
   Value s = list(state_, a);
-  Value reversed = nreverse(s);
+  Value reversed = reverseBang(s);
   ASSERT_TRUE(state_->cons(a, Value::NIL).equal(reversed));
 
   Value s2 = list(state_, a, b, c);
-  Value reversed2 = nreverse(s2);
+  Value reversed2 = reverseBang(s2);
   ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, Value::NIL))).equal(reversed2));
 
   Value s3 = state_->cons(a, state_->cons(b,  state_->cons(c, d)));
-  Value reversed3 = nreverse(s3);
+  Value reversed3 = reverseBang(s3);
   ASSERT_TRUE(state_->cons(c, state_->cons(b,  state_->cons(a, Value::NIL))).equal(reversed3));
 }
 
@@ -56,4 +56,19 @@ TEST_F(UtilTest, length) {
   ASSERT_EQ(0, length(Value::NIL));
   ASSERT_EQ(3, length(list(state_, a, a, a)));
   ASSERT_EQ(1, length(state_->cons(a, a)));
+}
+
+TEST_F(UtilTest, utf8ToUnicode) {
+  unsigned char a[] = "あ";  // "あ" = [0xe3, 0x81, 0x82] = [0b11100011, 0b10000001, 0b10000010] = 0b0011_0000_0100_0010
+  unsigned char* p = a;
+  ASSERT_EQ(0x3042, utf8ToUnicode(&p));
+  ASSERT_EQ(3, p - a);
+}
+
+TEST_F(UtilTest, unicodeToUtf8) {
+  unsigned char buffer[8];
+  ASSERT_EQ(3, unicodeToUtf8(0x3042, buffer));
+  ASSERT_EQ(0xe3, buffer[0]);
+  ASSERT_EQ(0x81, buffer[1]);
+  ASSERT_EQ(0x82, buffer[2]);
 }

@@ -29,20 +29,6 @@ protected:
   Reader* reader_;
 };
 
-TEST_F(ReadTest, Comment) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(1 #| 2 |# 3)", &s));
-  ASSERT_TRUE(list(state_, Value(1), Value(3)).equal(s));
-}
-
-TEST_F(ReadTest, BlockComment) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("(1 #| 2 #| 3 |# 4 |# 5)", &s));
-  ASSERT_TRUE(list(state_, Value(1), Value(5)).equal(s));
-
-  ASSERT_EQ(ILLEGAL_CHAR, read("(1 #| unterminated block comment", &s));
-}
-
 TEST_F(ReadTest, Eof) {
   Value s;
   ASSERT_EQ(END_OF_FILE, read("", &s));
@@ -160,35 +146,12 @@ TEST_F(ReadTest, Char) {
 
   ASSERT_EQ(SUCCESS, read("#\\tab", &s));
   ASSERT_EQ('\t', s.toCharacter());
-}
 
-TEST_F(ReadTest, HexLiteral) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#x1234_abCD", &s));
-  ASSERT_EQ(TT_FIXNUM, s.getType());
-  ASSERT_EQ(0x1234abcd, s.toFixnum());
+  ASSERT_EQ(SUCCESS, read("#\\x80", &s));
+  ASSERT_EQ(0x80, s.toCharacter());
 
-  ASSERT_EQ(ILLEGAL_CHAR, read("#x0123456789abcdefg", &s));
-}
-
-TEST_F(ReadTest, BinLiteral) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#b1101_1110_1010_1101_1011_1110_1110_1111", &s));
-  ASSERT_EQ(TT_FIXNUM, s.getType());
-  ASSERT_EQ(0xdeadbeef, s.toFixnum());
-
-  ASSERT_EQ(ILLEGAL_CHAR, read("#b0123456789abcdefg", &s));
-}
-
-TEST_F(ReadTest, Vector) {
-  Value s;
-  ASSERT_EQ(SUCCESS, read("#(1 2 3)", &s));
-  ASSERT_EQ(TT_VECTOR, s.getType());
-  Vector* v = static_cast<Vector*>(s.toObject());
-  ASSERT_EQ(3, v->size());
-  ASSERT_TRUE(Value(1).eq(v->get(0)));
-  ASSERT_TRUE(Value(2).eq(v->get(1)));
-  ASSERT_TRUE(Value(3).eq(v->get(2)));
+  ASSERT_EQ(SUCCESS, read("#\\あ", &s));  // "あ" = [0xe3, 0x81, 0x82] = [0b11100011, 0b10000001, 0b10000010] = 0b0011_0000_0100_0010
+  ASSERT_EQ(0x3042, s.toCharacter());
 }
 
 TEST_F(ReadTest, Error) {

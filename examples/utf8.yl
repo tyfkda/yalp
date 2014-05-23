@@ -1,0 +1,19 @@
+(defun 文字テスト ()
+  (print "\n文字テスト")
+  (let1 文字リスト '(#\あ #\い #\う #\え #\お)
+    (write 文字リスト)
+    (display "\n")
+    (dolist (文字 文字リスト)
+      (print 文字))
+    (print (apply string 文字リスト))))
+
+(defun 文字列テスト ()
+  (print "\n文字列テスト")
+  (let1 文字列 "あいうえお"
+    (format *stdout* "length = %@\n" (length 文字列))
+    (for0-n i (length 文字列)
+            (format *stdout* "%@  %@\n" i (char-at 文字列 i)))))
+
+(print 'シンボル)
+(文字テスト)
+(文字列テスト)

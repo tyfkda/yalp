@@ -11,7 +11,7 @@ function error_exit() {
 
 function run() {
   echo -n "Testing $1 ... "
-  result=$(../yalp -L ../boot.bin $1.yl)
+  result=$(../yalp $1.yl)
   if [ "$result" != "$2" ]; then
     error_exit "$2 expected, but got '$result'"
   fi

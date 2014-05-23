@@ -2,6 +2,7 @@
 /// Vm - Yet Another List Processor VM.
 //=============================================================================
 
+#include "build_env.hh"
 #include "vm.hh"
 #include "allocator.hh"
 #include "yalp/object.hh"
@@ -9,25 +10,21 @@
 #include "yalp/util.hh"
 #include "symbol_manager.hh"
 
+#ifndef DISABLE_FLONUM
+#include "flonum.hh"
+#endif
+
 #include <assert.h>
 #include <iostream>
-#include <string.h>  // for memmove
-
-#define REPLACE_OPCODE
+#include <string.h>  // for memcpy, memmove
 
 #ifdef __GNUC__
 #define DIRECT_THREADED
 #endif
 
-#ifdef REPLACE_OPCODE
 #define OPCVAL(op)  (Value(op))
-#define OPIDX(op)  ((op).toFixnum())
-#else
-#define OPCVAL(op)  (opcodes_[op])
-#define OPIDX(op)  (findOpcode(op))
-#endif
 
-#define FETCH_OP  (prex = x_, x_ = CDR(prex), OPIDX(CAR(prex)))
+#define FETCH_OP  (x = CDR(x_), CAR(x_).toFixnum())
 
 #ifdef DIRECT_THREADED
 #define INIT_DISPATCH  NEXT;
@@ -49,63 +46,37 @@
     FileStream out(stdout);                                             \
     Value op = car(x_), d = car(cdr(x_));                               \
     if (d.getType() == TT_CELL) d = Value::NIL;                         \
-    format(state_, &out, "run: s=%d, f=%d, x=%@ %@\n", s_, f_, &op, &d); \
+    format(state_, &out, "run: s=%d, f=%d, x=%s %@\n", s_, f_, OpcodeNameTable[op.toFixnum()], &d); \
   }                                                                     \
 
 namespace yalp {
 
-//=============================================================================
+const int STACK_EXPAND_SIZE = 16;
 
-#define OPS \
-  OP(HALT) \
-  OP(VOID) \
-  OP(CONST) \
-  OP(LREF) \
-  OP(FREF) \
-  OP(GREF) \
-  OP(LSET) \
-  OP(FSET) \
-  OP(GSET) \
-  OP(DEF) \
-  OP(PUSH) \
-  OP(TEST) \
-  OP(CLOSE) \
-  OP(FRAME) \
-  OP(APPLY) \
-  OP(RET) \
-  OP(UNFRAME) \
-  OP(TAPPLY)  /* Tail apply, SHIFT & APPLY */ \
-  OP(LOOP) \
-  OP(BOX) \
-  OP(UNBOX) \
-  OP(CONTI) \
-  OP(SETJMP) \
-  OP(LONGJMP) \
-  OP(MACRO) \
-  OP(ADDSP) \
-  OP(LOCAL) \
-  OP(VALS) \
-  OP(RECV) \
-  OP(NIL) \
+//=============================================================================
 
 enum Opcode {
 #define OP(name)  name,
-  OPS
+# include "opcodes.hh"
 #undef OP
   NUMBER_OF_OPCODE
 };
+
+#ifndef DIRECT_THREADED
+static const char* OpcodeNameTable[NUMBER_OF_OPCODE] = {
+#define OP(name)  #name,
+# include "opcodes.hh"
+#undef OP
+};
+#endif
 
 #define CELL(x)  (static_cast<Cell*>(x.toObject()))
 #define CAR(x)  (CELL(x)->car())
 #define CDR(x)  (CELL(x)->cdr())
 #define CADR(x)  (CAR(CDR(x)))
-#define CDDR(x)  (CDR(CDR(x)))
-#define CADDR(x)  (CAR(CDDR(x)))
-#define CDDDR(x)  (CDR(CDDR(x)))
-#define CADDDR(x)  (CAR(CDDDR(x)))
-#define CDDDDR(x)  (CDR(CDDDR(x)))
 
-//=============================================================================
+// Watch out! You must use in form: `Value n = POP(x);`
+#define POP(x)  CELL(x)->car(); x = CELL(x)->cdr()
 
 static inline void moveStackElems(Value* stack, int dst, int src, int n) {
   if (n > 0)
@@ -131,66 +102,79 @@ static bool checkArgNum(State* state, Value fn, int argNum, int min, int max) {
   return true;
 }
 
-// Box class.
 class Box : public Object {
 public:
-  Box(Value x)
-    : Object()
-    , x_(x) {}
+  Box(Value x) : Object(), x_(x) {}
   virtual Type getType() const override  { return TT_BOX; }
-
   void set(Value x)  { x_ = x; }
   Value get()  { return x_; }
-
   virtual void output(State* state, Stream* o, bool inspect) const override {
     // This should not be output, but debug purpose.
     o->write("#<box ");
     x_.output(state, o, inspect);
     o->write('>');
   }
-
 protected:
   Value x_;
 };
 
-// Macro class.
-class Macro : public Closure {
-public:
-  Macro(State* state, Value name, Value body, int freeVarCount,
-        int minArgNum, int maxArgNum)
-    : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
-    setName(name.toSymbol(state));
-  }
-  virtual Type getType() const override  { return TT_MACRO; }
+//=============================================================================
+// Embedded opcode.
 
-  virtual void output(State*, Stream* o, bool) const override {
-    const char* name = "(noname)";
-    if (name_ != NULL)
-      name = name_->c_str();
-    o->write("#<macro ");
-    o->write(name);
-    o->write('>');
-  }
+#ifndef DISABLE_FLONUM
+#define s_add  s_addFlonum
+#define s_sub  s_subFlonum
+#define s_mul  s_mulFlonum
+#define s_div  s_divFlonum
+#define s_lessThan  s_lessThanFlonum
+#define s_lessEqual  s_lessEqualFlonum
+#define s_greaterThan  s_greaterThanFlonum
+#define s_greaterEqual  s_greaterEqualFlonum
+#endif
 
-protected:
-  ~Macro()  {}
+#define SIMPLE_EMBED_INST(OP, func)             \
+  CASE(OP) {                                    \
+    Value n = POP(x);                           \
+    x_ = x;                                     \
+    a_ = callEmbedFunction(func, n.toFixnum()); \
+  } NEXT
+
+template <class Op>
+struct UnaryOp {
+  static Value calc(State* state, Value a) {
+    switch (a.getType()) {
+    case TT_FIXNUM:
+      return Value(Op::calc(a.toFixnum()));
+#ifndef DISABLE_FLONUM
+    case TT_FLONUM:
+      return state->flonum(Op::calc(a.toFlonum(state)));
+#endif
+    default:
+      state->runtimeError("Number expected, but `%@`", &a);
+      return a;
+    }
+  }
+};
+
+struct Neg {
+  template <class X> static X calc(X x)  { return -x; }
+};
+struct Inv {
+  template <class X> static X calc(X x)  { return 1 / x; }
 };
 
 //=============================================================================
 // Inline methods
 
-Value Vm::index(int s, int i) const {
-  assert(s - i - 1 >= 0);
-  return stack_[s - i - 1];
+Value Vm::callEmbedFunction(NativeFuncType func, Fixnum n) {
+  int oldF = f_;
+  f_ = s_;
+  s_ = push(Value(n), s_);
+  Value a = (*func)(state_);
+  s_ -= n + 1;
+  f_ = oldF;
+  return a;
 }
-
-void Vm::indexSet(int s, int i, Value v) {
-  assert(s - i - 1 >= 0);
-  stack_[s - i - 1] = v;
-}
-
-int Vm::getArgNum() const  { return index(f_, -1).toFixnum(); }
-Value Vm::getArg(int index) const  { return this->index(f_, index); }
 
 int Vm::push(Value x, int s) {
   reserveStack(s + 1);
@@ -212,13 +196,6 @@ int Vm::popCallFrame(int s) {
   f_ = index(s, 1).toFixnum();
   c_ = index(s, 2);
   return s - 3;
-}
-
-int Vm::findOpcode(Value op) {
-  for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-    if (op.eq(opcodes_[i]))
-      return i;
-  return NUMBER_OF_OPCODE;
 }
 
 Value Vm::box(Value x) {
@@ -243,7 +220,6 @@ Vm::~Vm() {
     state_->free(values_);
   if (stack_ != NULL)
     state_->free(stack_);
-  state_->free(opcodes_);
 }
 
 Vm::Vm(State* state)
@@ -253,18 +229,6 @@ Vm::Vm(State* state)
   , values_(NULL), valuesSize_(0), valueCount_(0)
   , callStack_() {
   int arena = state_->saveArena();
-  {
-    static const char* NameTable[NUMBER_OF_OPCODE] = {
-#define OP(name)  #name,
-      OPS
-#undef OP
-    };
-
-    void* memory = state_->alloc(sizeof(Value) * NUMBER_OF_OPCODE);
-    opcodes_ = new(memory) Value[NUMBER_OF_OPCODE];
-    for (int i = 0; i < NUMBER_OF_OPCODE; ++i)
-      opcodes_[i] = state_->intern(NameTable[i]);
-  }
 
   globalVariableTable_ = state_->createHashTable(false);
 
@@ -282,10 +246,9 @@ void Vm::setTrace(bool b) {
 }
 
 void Vm::resetError() {
-  Value nil = Value::NIL;
-  a_ = nil;
+  a_ = Value::NIL;
   x_ = endOfCode_;
-  c_ = nil;
+  c_ = Value::NIL;
   f_ = s_ = 0;
   callStack_.clear();
 }
@@ -298,7 +261,7 @@ void Vm::markRoot() {
   // Mark values.
   for (int n = valueCount_ - 1, i = 0; i < n; ++i)
     values_[i].mark();
-  // Mark a registers.
+  // Mark registers.
   a_.mark();
   c_.mark();
   x_.mark();
@@ -314,7 +277,7 @@ void Vm::reportDebugInfo() const {
   std::cout << "  maxdepth: #" << globalVariableTable_->getMaxDepth() << std::endl;
 }
 
-Value Vm::referGlobal(Value sym, bool* pExist) {
+Value Vm::referGlobal(Value sym, bool* pExist) const {
   const Value* result = globalVariableTable_->get(sym);
   if (pExist != NULL)
     *pExist = result != NULL;
@@ -335,7 +298,6 @@ bool Vm::assignGlobal(Value sym, Value value) {
   state_->checkType(sym, TT_SYMBOL);
   if (globalVariableTable_->get(sym) == NULL)
     return false;
-
   globalVariableTable_->put(sym, value);
   return true;
 }
@@ -354,10 +316,7 @@ int Vm::pushArgs(int argNum, const Value* args, int s) {
 }
 
 void Vm::pushCallStack(Callable* callable) {
-  CallStack s = {
-    callable,
-    false,
-  };
+  CallStack s = { callable, false };
   callStack_.push_back(s);
 }
 
@@ -602,6 +561,7 @@ Value Vm::applyFunctionClosure() {
     s_ = pushArgs(argNum, args, s_);
   }
 
+  pushCallStack(closure);
   x_ = closure->getBody();
   f_ = s_;
   c_ = fn;
@@ -612,7 +572,8 @@ Value Vm::applyFunctionClosure() {
 }
 
 Value Vm::createClosure(Value body, int nfree, int s, int minArgNum, int maxArgNum) {
-  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree, minArgNum, maxArgNum);
+  Closure* closure = state_->getAllocator()->newObject<Closure>(state_, body, nfree,
+                                                                minArgNum, maxArgNum);
   for (int i = 0; i < nfree; ++i)
     closure->setFreeVariable(i, index(s, i));
   return Value(closure);
@@ -638,7 +599,7 @@ void Vm::reserveStack(int n) {
   if (n <= stackSize_)
     return;
 
-  int newSize = n + 16;
+  int newSize = n + STACK_EXPAND_SIZE;
   void* memory = state_->realloc(stack_, sizeof(Value) * newSize);
   Value* newStack = static_cast<Value*>(memory);
   stack_ = newStack;
@@ -646,6 +607,7 @@ void Vm::reserveStack(int n) {
 }
 
 int Vm::modifyRestParams(int argNum, int minArgNum) {
+  int arena = state_->saveArena();
   Value rest = createRestParams(argNum, minArgNum, s_);
   int ds = 0;
   if (argNum <= minArgNum) {
@@ -660,6 +622,7 @@ int Vm::modifyRestParams(int argNum, int minArgNum) {
   }
   s_ += ds;
   indexSet(s_, minArgNum, rest);
+  state_->restoreArena(arena);
   return ds;
 }
 
@@ -671,13 +634,13 @@ Value Vm::createRestParams(int argNum, int minArgNum, int s) {
 }
 
 void Vm::reserveValuesBuffer(int n) {
-  if (n - 1 > valuesSize_) {
-    // Allocation size is n - 1, because values[0] is stored in a_ register.
-    void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
-    Value* newBuffer = static_cast<Value*>(memory);
-    values_ = newBuffer;
-    valuesSize_ = n - 1;
-  }
+  if (n - 1 <= valuesSize_)
+    return;
+  // Allocation size is n - 1, because values[0] is stored in a_ register.
+  void* memory = state_->realloc(values_, sizeof(Value) * (n - 1));
+  Value* newBuffer = static_cast<Value*>(memory);
+  values_ = newBuffer;
+  valuesSize_ = n - 1;
 }
 
 void Vm::storeValues(int n, int s) {
@@ -692,7 +655,7 @@ void Vm::storeValues(int n, int s) {
 
 int Vm::restoreValues(int min, int max) {
   int argNum = valueCount_;
-  checkArgNum(state_, opcodes_[RECV], argNum, min, max);
+  checkArgNum(state_, Value::NIL, argNum, min, max);
   reserveStack(s_ + argNum);
   moveValuesToStack(&stack_[s_], values_, a_, argNum);
   s_ += argNum;
@@ -706,62 +669,7 @@ int Vm::restoreValues(int min, int max) {
   return n;
 }
 
-void Vm::replaceOpcodes(Value x) {
-#ifdef REPLACE_OPCODE
-  for (;;) {
-    Value op = CAR(x);
-    if (op.getType() != TT_SYMBOL) {
-      assert(op.getType() == TT_FIXNUM);
-      return;
-    }
-    int opidx = findOpcode(op);
-    static_cast<Cell*>(x.toObject())->setCar(Value(opidx));
-    x = CDR(x);
-    switch (opidx) {
-    case HALT: case APPLY: case TAPPLY: case RET: case UNFRAME: case LONGJMP:
-      return;
-    case VOID: case PUSH: case UNBOX: case NIL:
-      break;
-    case CONST: case LREF: case FREF: case GREF: case LSET: case FSET:
-    case GSET: case DEF: case BOX: case CONTI: case ADDSP: case VALS:
-    case LOCAL:
-      x = CDR(x);
-      break;
-    case LOOP: case RECV:
-      x = CDDR(x);
-      break;
-    case SETJMP:
-      replaceOpcodes(CADR(x));
-      x = CDDR(x);
-      break;
-    case TEST: case FRAME:
-      replaceOpcodes(CAR(x));
-      x = CDR(x);
-      break;
-    case CLOSE:
-      replaceOpcodes(CADDR(x));
-      x = CDDDR(x);
-      break;
-    case MACRO:
-      {
-        Value tmp = CDDDR(x);
-        replaceOpcodes(CAR(tmp));
-        x = CDR(tmp);
-      }
-      break;
-    default:
-      state_->runtimeError("Unknown op `%@`", &op);
-      return;
-    }
-  }
-#else
-  (void)x;
-#endif
-}
-
 Value Vm::run(Value code) {
-  replaceOpcodes(code);
-
   Value oldX = x_;
   a_ = c_ = Value::NIL;
   x_ = code;
@@ -775,45 +683,47 @@ Value Vm::runLoop() {
 #ifdef DIRECT_THREADED
   static const void *JumpTable[] = {
 #define OP(name)  &&L_ ## name ,
-    OPS
+# include "opcodes.hh"
 #undef OP
     &&L_otherwise
   };
 #endif
 
-  Value prex;
+  Value x;
   INIT_DISPATCH {
     CASE(HALT) {
       x_ = endOfCode_;
       return a_;
     }
     CASE(VOID) {
+      x_ = x;
       a_ = Value::NIL;
       valueCount_ = 0;
     } NEXT;
     CASE(NIL) {
+      x_ = x;
       a_ = Value::NIL;
     } NEXT;
     CASE(CONST) {
-      a_ = CAR(x_);
-      x_ = CDR(x_);
+      a_ = POP(x);
+      x_ = x;
     } NEXT;
     CASE(LREF) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
-      a_ = index(f_, n);
+      Value n = POP(x);
+      x_ = x;
+      a_ = index(f_, n.toFixnum());
       valueCount_ = 1;
     } NEXT;
     CASE(FREF) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
+      Value n = POP(x);
+      x_ = x;
       assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
-      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
+      a_ = static_cast<Closure*>(c_.toObject())->getFreeVariable(n.toFixnum());
       valueCount_ = 1;
     } NEXT;
     CASE(GREF) {
-      Value sym = CAR(x_);
-      x_ = CDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       bool exist;
       Value aa = referGlobal(sym, &exist);
@@ -823,47 +733,50 @@ Value Vm::runLoop() {
       valueCount_ = 1;
     } NEXT;
     CASE(LSET) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
-      Value box = index(f_, n);
+      Value n = POP(x);
+      x_ = x;
+      Value box = index(f_, n.toFixnum());
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
     } NEXT;
     CASE(FSET) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
+      Value n = POP(x);
+      x_ = x;
       assert(c_.getType() == TT_CLOSURE || c_.getType() == TT_MACRO);
-      Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n);
+      Value box = static_cast<Closure*>(c_.toObject())->getFreeVariable(n.toFixnum());
       assert(box.getType() == TT_BOX);
       static_cast<Box*>(box.toObject())->set(a_);
     } NEXT;
     CASE(GSET) {
-      Value sym = CAR(x_);
-      x_ = CDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       if (!assignGlobal(sym, a_))
         state_->runtimeError("Global variable `%@` not defined", &sym);
     } NEXT;
     CASE(DEF) {
-      Value sym = CAR(x_);
-      x_ = CDR(x_);
+      Value sym = POP(x);
+      x_ = x;
       assert(sym.getType() == TT_SYMBOL);
       defineGlobal(sym, a_);
     } NEXT;
     CASE(PUSH) {
+      x_ = x;
       s_ = push(a_, s_);
     } NEXT;
     CASE(TEST) {
-      Value thn = CAR(x_);
-      Value els = CDR(x_);
+      Value thn = POP(x);
+      Value els = x;
       x_ = a_.isTrue() ? thn : els;
     } NEXT;
     CASE(CLOSE) {
+      Value prex = x_;
       int arena = state_->saveArena();
-      Value nparam = CAR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      int nfree = CADR(x_).toFixnum();
-      Value body = CADDR(x_);
-      x_ = CDDDR(x_);
+      Value nparam = POP(x);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      Value snfree = POP(x);
+      Value body = POP(x);
+      x_ = x;
+      int nfree = snfree.toFixnum();
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -885,13 +798,13 @@ Value Vm::runLoop() {
       state_->restoreArena(arena);
     } NEXT;
     CASE(FRAME) {
-      Value ret = CDR(x_);
-      x_ = CAR(x_);
+      x_ = POP(x);
+      Value ret = x;
       s_ = pushCallFrame(ret, s_);
     } NEXT;
     CASE(APPLY) {
-      int argNum = CAR(x_).toFixnum();
-      apply(a_, argNum);
+      Value argNum = POP(x);
+      apply(a_, argNum.toFixnum());
     } NEXT;
     CASE(RET) {
       int argNum = index(f_, -1).toFixnum();
@@ -903,9 +816,10 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(LOOP) {
       // Tail self recursive call (goto): Like SHIFT.
-      int offset = CAR(x_).toFixnum();
-      int n = CADR(x_).toFixnum();
-      x_ = CDDR(x_);
+      Value soffset = POP(x);
+      Value sn = POP(x);
+      x_ = x;
+      int offset = soffset.toFixnum(), n = sn.toFixnum();
       // TODO: Remove this conditional.
       if (offset > 0) {
         for (int i = 0; i < n; ++i)
@@ -918,7 +832,8 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(TAPPLY) {
       // SHIFT
-      int n = CAR(x_).toFixnum();
+      Value sn = POP(x);
+      int n = sn.toFixnum();
       int calleeArgNum = index(f_, -1).toFixnum();
       s_ = shiftArgs(n, calleeArgNum, s_, f_);
       shiftCallStack();
@@ -927,19 +842,21 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(BOX) {
       int arena = state_->saveArena();
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
+      Value sn = POP(x);
+      int n = sn.toFixnum();
+      x_ = x;
       indexSet(f_, n, box(index(f_, n)));
       state_->restoreArena(arena);
     } NEXT;
     CASE(UNBOX) {
+      x_ = x;
       assert(a_.getType() == TT_BOX);
       a_ = static_cast<Box*>(a_.toObject())->get();
     } NEXT;
     CASE(CONTI) {
       int arena = state_->saveArena();
-      Value tail = CAR(x_);
-      x_ = CDR(x_);
+      Value tail = POP(x);
+      x_ = x;
       int s = s_;
       if (tail.isTrue()) {
         int calleeArgNum = index(f_, -1).toFixnum();
@@ -950,13 +867,14 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(SETJMP) {
       // Setjmp stores current closure and stack/frame pointer onto stack.
-      int offset = CAR(x_).toFixnum();
-      Value ret = CDDR(x_);
-      x_ = CADR(x_);
+      Value soffset = POP(x);
+      x_ = POP(x);
+      Value ret = x;
       // Encode frame pointer and stack pointer value into single integer
       // for setjmp continuation.
       const int shiftBits = sizeof(Fixnum) / 2 * 8;
       Fixnum v = s_ | (static_cast<Fixnum>(f_) << shiftBits);
+      int offset = soffset.toFixnum();
       indexSet(f_, -offset - 2, Value(f_ + offset + 1));  // Pointer.
       indexSet(f_, -offset - 3, Value(v));
       indexSet(f_, -offset - 4, c_);
@@ -975,12 +893,12 @@ Value Vm::runLoop() {
     } NEXT;
     CASE(MACRO) {
       int arena = state_->saveArena();
-      Value name = CAR(x_);
-      Value nparam = CADR(x_);
-      int nfree = CADDR(x_).toFixnum();
-      Value tmp = CDDDR(x_);
-      Value body = CAR(tmp);
-      x_ = CDR(tmp);
+      Value name = POP(x);
+      Value nparam = POP(x);
+      Value snfree = POP(x);
+      Value body = POP(x);
+      x_ = x;
+      int nfree = snfree.toFixnum();
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -994,26 +912,31 @@ Value Vm::runLoop() {
       valueCount_ = 0;
     } NEXT;
     CASE(ADDSP) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
+      Value sn = POP(x);
+      x_ = x;
+      int n = sn.toFixnum();
+      int s = s_;
+      reserveStack(s + n);
+      for (int i = 0; i < n; ++i)
+        stack_[s + i] = Value::NIL;
       s_ += n;
-      reserveStack(s_);
     } NEXT;
     CASE(LOCAL) {
-      int offset = CAR(x_).toFixnum();
-      x_ = CDR(x_);
-      indexSet(f_, offset, a_);
+      Value offset = POP(x);
+      x_ = x;
+      indexSet(f_, offset.toFixnum(), a_);
     } NEXT;
     CASE(VALS) {
-      int n = CAR(x_).toFixnum();
-      x_ = CDR(x_);
+      Value sn = POP(x);
+      x_ = x;
+      int n = sn.toFixnum();
       storeValues(n, s_);
       s_ -= n;
     } NEXT;
     CASE(RECV) {
-      int offset = CAR(x_).toFixnum();
-      Value nparam = CADR(x_);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
-      x_ = CDDR(x_);
+      Value offset = POP(x);
+      Value nparam = POP(x);  // Fixnum (fixed parameters function) or Cell (arbitrary number of parameters function).
+      x_ = x;
       int min, max;
       if (nparam.getType() == TT_CELL) {
         min = CAR(nparam).toFixnum();
@@ -1023,12 +946,42 @@ Value Vm::runLoop() {
       }
       int n = restoreValues(min, max);
       for (int i = 0; i < n; ++i)
-        indexSet(f_, -(offset + i) - 2, index(s_, i));
+        indexSet(f_, offset.toFixnum() - i, index(s_, i));
       s_ -= n;
       valueCount_ = 1;
     } NEXT;
+    CASE(CAR) {
+      x_ = x;
+      a_ = car(a_);
+    } NEXT;
+    CASE(CDR) {
+      x_ = x;
+      a_ = cdr(a_);
+    } NEXT;
+    SIMPLE_EMBED_INST(ADD, s_add);
+    SIMPLE_EMBED_INST(SUB, s_sub);
+    SIMPLE_EMBED_INST(MUL, s_mul);
+    SIMPLE_EMBED_INST(DIV, s_div);
+    SIMPLE_EMBED_INST(LT, s_lessThan);
+    SIMPLE_EMBED_INST(LE, s_lessEqual);
+    SIMPLE_EMBED_INST(GT, s_greaterThan);
+    SIMPLE_EMBED_INST(GE, s_greaterEqual);
+    CASE(EQ) {
+      x_ = x;
+      Value b = index(s_, 0);
+      a_ = state_->boolean(a_.eq(b));
+      --s_;
+    } NEXT;
+    CASE(NEG) {
+      x_ = x;
+      a_ = UnaryOp<Neg>::calc(state_, a_);
+    } NEXT;
+    CASE(INV) {
+      x_ = x;
+      a_ = UnaryOp<Inv>::calc(state_, a_);
+    } NEXT;
     OTHERWISE {
-      Value op = car(prex);
+      Value op = car(x_);
       state_->runtimeError("Unknown op `%@`", &op);
     } NEXT;
   } END_DISPATCH;

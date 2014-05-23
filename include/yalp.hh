@@ -16,6 +16,7 @@ Value to SomeType:   Value toSomeType(Value s);
 #include "yalp/config.hh"
 #include "yalp/error_code.hh"
 
+#include <assert.h>
 #include <setjmp.h>
 #include <stddef.h>  // for size_t, NULL
 #include <stdio.h>  // for FILE
@@ -32,6 +33,8 @@ class Symbol;
 class SymbolManager;
 class Vector;
 class Vm;
+
+extern const char bootBinaryData[];
 
 typedef long Fixnum;
 static_assert(sizeof(Fixnum) >= sizeof(void*),
@@ -51,6 +54,8 @@ enum Type {
   TT_UNKNOWN,
   TT_FIXNUM,
   TT_SYMBOL,
+  TT_CHAR,
+  // Below is object.
   TT_CELL,
   TT_STRING,
 #ifndef DISABLE_FLONUM
@@ -70,22 +75,23 @@ enum Type {
 // Variant type.
 class Value {
 public:
-  Value();
-  explicit Value(Fixnum i);
-  explicit Value(Object* object);
+  inline Value();
+  inline explicit Value(Fixnum i);
+  inline explicit Value(Object* object);
   explicit Value(Fixnum i, int tag2);
 
   // Gets value type.
   Type getType() const;
 
-  Fixnum toFixnum() const;
+  inline bool isFixnum() const;
+  inline Fixnum toFixnum() const;
 #ifndef DISABLE_FLONUM
   Flonum toFlonum(State* state) const;
 #endif
-  bool isObject() const;
-  Object* toObject() const;
+  inline bool isObject() const;
+  inline Object* toObject() const;
   const Symbol* toSymbol(State* state) const;
-  inline int toCharacter() const;
+  int toCharacter() const;
 
   // Object euality.
   inline bool eq(Value target) const;
@@ -104,6 +110,7 @@ public:
 
 private:
   void outputSymbol(State* state, Stream* o) const;
+  void outputCharacter(Stream* o, bool inspect) const;
 
   Fixnum v_;
 };
@@ -121,15 +128,16 @@ public:
   ErrorCode runFromFile(const char* filename, Value* pResult = NULL);
   ErrorCode runFromString(const char* string, Value* pResult = NULL);
   ErrorCode runBinaryFromFile(const char* filename, Value* pResult = NULL);
+  ErrorCode runBinaryFromString(const char* string, Value* pResult = NULL);
 
   bool funcall(Value fn, int argNum, const Value* args, Value* pResult);
   Value tailcall(Value fn, int argNum, const Value* args);
   Value applyFunction();
 
-  inline Value referGlobal(const char* sym, bool* pExist = NULL);
+  inline Value referGlobal(const char* sym, bool* pExist = NULL) const;
   inline void defineGlobal(const char* sym, Value value);
   inline void defineNative(const char* name, NativeFuncType func, int minArgNum);
-  Value referGlobal(Value sym, bool* pExist = NULL);
+  Value referGlobal(Value sym, bool* pExist = NULL) const;
   void defineGlobal(Value sym, Value value);
   void defineNative(const char* name, NativeFuncType func, int minArgNum, int maxArgNum);
   SHashTable* getGlobalVariableTable() const;
@@ -138,7 +146,7 @@ public:
   inline Value boolean(bool b) const;
 
   // Returns symbol value.
-  Value intern(const char* name);
+  Value intern(const char* name) const;
   // Generate unique symbol.
   Value gensym();
   const Symbol* getSymbol(int symbolId) const;
@@ -147,7 +155,7 @@ public:
   Value cons(Value a, Value d);
 
   // Converts character code to lisp character value.
-  inline Value character(int c) const;
+  Value character(int c) const;
 
   // Converts C string to lisp String.
   Value string(const char* str);
@@ -163,6 +171,7 @@ public:
 
   // File stream.
   Value createFileStream(FILE* fp);
+  Value createStrStream(Value str);
 
   Object* getFunc() const;
   // Gets argument number for current native function.
@@ -187,6 +196,7 @@ public:
 
   // Raises runtime error.
   void runtimeError(const char* msg, ...);
+  void printCallStack(FILE* fp);
 
   // Constant
   enum Constant {
@@ -196,12 +206,18 @@ public:
     UNQUOTE,
     UNQUOTE_SPLICING,
     COMPILE,
-    STDIN,
-    STDOUT,
     NUMBER_OF_CONSTANTS
   };
   inline Value getConstant(Constant c) const;
   inline Value getTypeSymbol(Type type) const;
+
+  // Constant
+  enum StandardStream {
+    STDIN,
+    STDOUT,
+    STDERR,
+  };
+  Value getStandardStream(StandardStream type) const;
 
   void* alloc(size_t size) const;
   void* realloc(void* ptr, size_t size) const;
@@ -210,6 +226,8 @@ public:
 
   void setMacroCharacter(int c, Value func);
   Value getMacroCharacter(int c);
+  void setDispatchMacroCharacter(int c1, int c2, Value func);
+  Value getDispatchMacroCharacter(int c1, int c2);
   Value getMacro(Value name);
 
   // Check value type, and raise runtime error if the value is not expected type.
@@ -236,6 +254,7 @@ private:
 
   void installBasicObjects();
   ErrorCode run(Stream* stream, Value* pResult);
+  ErrorCode runBinary(Stream* stream, Value* pResult);
   void markRoot();
   void allocFailed(void* p, size_t size);
 
@@ -259,17 +278,60 @@ private:
 inline bool Value::eq(Value target) const  { return v_ == target.v_; }
 inline bool Value::isTrue() const  { return !eq(Value::NIL); }
 inline bool Value::isFalse() const  { return eq(Value::NIL); }
-inline int Value::toCharacter() const  { return static_cast<int>(toFixnum()); }
 
 inline Value State::getConstant(State::Constant c) const  { return constants_[c]; }
 inline Value State::getTypeSymbol(Type type) const  { return typeSymbols_[type]; }
 
 inline Value State::boolean(bool b) const  { return b ? getConstant(T) : Value::NIL; }
-inline Value State::character(int c) const  { return Value(c); }  // Use fixnum as a character.
 
-inline Value State::referGlobal(const char* sym, bool* pExist)  { return referGlobal(intern(sym), pExist); }
+inline Value State::referGlobal(const char* sym, bool* pExist) const  { return referGlobal(intern(sym), pExist); }
 inline void State::defineGlobal(const char* sym, Value value)  { return defineGlobal(intern(sym), value); }
 inline void State::defineNative(const char* name, NativeFuncType func, int minArgNum)  { defineNative(name, func, minArgNum, minArgNum); }
+
+//=============================================================================
+/*
+  Value: tagged pointer representation.
+    XXXXXXX1 : Fixnum
+    XXXXXX00 : Object
+    XXXX0010 : Symbol
+    XXXX0110 : Character
+ */
+
+const Fixnum TAG_SHIFT = 2;
+const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
+const Fixnum TAG_FIXNUM = 1;
+const Fixnum TAG_OBJECT = 0;
+const Fixnum TAG_OTHER = 2;
+
+Value::Value() : v_(TAG_OBJECT) {
+  // Initialized to illegal value.
+}
+
+Value::Value(Fixnum i)
+  : v_((i << 1) | TAG_FIXNUM) {}
+
+Value::Value(class Object* object)
+  : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
+
+bool Value::isFixnum() const  { return (v_ & 1) == TAG_FIXNUM; }
+
+Fixnum Value::toFixnum() const {
+  assert(isFixnum());
+  return v_ >> 1;
+}
+
+bool Value::isObject() const {
+  return (v_ & TAG_MASK) == TAG_OBJECT;
+}
+
+Object* Value::toObject() const {
+  assert(isObject());
+  if (TAG_OBJECT == 0) {
+    return reinterpret_cast<Object*>(v_);
+  } else {
+    return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
+  }
+}
 
 }  // namespace yalp
 

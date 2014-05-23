@@ -90,8 +90,6 @@ void Cell::output(State* state, Stream* o, bool inspect) const {
 }
 
 void Cell::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   car_.mark();
   cdr_.mark();
@@ -166,16 +164,22 @@ void String::output(State*, Stream* o, bool inspect) const {
   for (size_t n = len_, i = 0; i < n; ++i) {
     unsigned char c = reinterpret_cast<const unsigned char*>(string_)[i];
     const char* s = NULL;
+    char buffer[8];
     switch (c) {
     case '\n':  s = "\\n"; break;
     case '\r':  s = "\\r"; break;
     case '\t':  s = "\\t"; break;
     case '\0':  s = "\\0"; break;
     case '\\':  s = "\\\\"; break;
-    case '"':  s = "\\\""; break;
+    case '"':   s = "\\\""; break;
+    case 0x1b:  s = "\\x1b"; break;
+    default:
+      if (0x20 <= c && c < 0x80)
+        continue;
+      snprintf(buffer, sizeof(buffer), "\\x%02x", c);
+      s = buffer;
+      break;
     }
-    if (s == NULL)
-      continue;
 
     if (prev != i)
       o->write(&string_[prev], i - prev);
@@ -194,6 +198,8 @@ Vector::Vector(Allocator* allocator, int size)
   , size_(size) {
   void* memory = allocator->alloc(sizeof(Value) * size_);
   buffer_ = new(memory) Value[size_];
+  for (int i = 0; i < size_; ++i)
+    buffer_[i] = Value::NIL;
 }
 
 void Vector::destruct(Allocator* allocator) {
@@ -227,8 +233,6 @@ void Vector::output(State* state, Stream* o, bool inspect) const {
 }
 
 void Vector::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   for (int n = size_, i = 0; i < n; ++i)
     buffer_[i].mark();
@@ -261,14 +265,12 @@ void SHashTable::destruct(Allocator* allocator) {
 Type SHashTable::getType() const  { return TT_HASH_TABLE; }
 
 void SHashTable::output(State*, Stream* o, bool) const {
-  char buffer[64];
-  snprintf(buffer, sizeof(buffer), "#<table:%p>", this);
+  char buffer[16 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<table %p>", this);
   o->write(buffer);
 }
 
 void SHashTable::mark() {
-  if (isMarked())
-    return;
   Object::mark();
   TableType& table = *table_;
   for (auto kv : table)
@@ -332,12 +334,27 @@ void Closure::output(State*, Stream* o, bool) const {
 }
 
 void Closure::mark() {
-  if (isMarked())
-    return;
   Callable::mark();
   body_.mark();
   for (int n = freeVarCount_, i = 0; i < n; ++i)
     freeVariables_[i].mark();
+}
+
+//=============================================================================
+
+Macro::Macro(State* state, Value name, Value body, int freeVarCount,
+      int minArgNum, int maxArgNum)
+  : Closure(state, body, freeVarCount, minArgNum, maxArgNum) {
+  setName(name.toSymbol(state));
+}
+
+void Macro::output(State*, Stream* o, bool) const {
+  const char* name = "(noname)";
+  if (name_ != NULL)
+    name = name_->c_str();
+  o->write("#<macro ");
+  o->write(name);
+  o->write('>');
 }
 
 //=============================================================================
@@ -362,8 +379,8 @@ void NativeFunc::output(State*, Stream* o, bool) const {
 //=============================================================================
 Continuation::Continuation(State* state, const Value* stack, int size,
                            const CallStack* callStack, int callStackSize)
-  : Callable(), copiedStack_(NULL), stackSize_(0)
-  , callStack_(NULL), callStackSize_(0) {
+  : Callable(), copiedStack_(NULL), callStack_(NULL)
+  , stackSize_(0), callStackSize_(0) {
   if (size > 0) {
     copiedStack_ = static_cast<Value*>(state->alloc(sizeof(Value) * size));
     stackSize_ = size;
@@ -389,12 +406,12 @@ void Continuation::destruct(Allocator* allocator) {
 Type Continuation::getType() const  { return TT_CONTINUATION; }
 
 void Continuation::output(State*, Stream* o, bool) const {
-  o->write("#<continuation>");
+  char buffer[20 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<continuation %p>", this);
+  o->write(buffer);
 }
 
 void Continuation::mark() {
-  if (isMarked())
-    return;
   Callable::mark();
   for (int n = stackSize_, i = 0; i < n; ++i)
     copiedStack_[i].mark();
@@ -402,17 +419,26 @@ void Continuation::mark() {
 
 //=============================================================================
 SStream::SStream(Stream* stream)
-  : Object(), stream_(stream)  {}
+  : Object(), stream_(stream), save_(Value::NIL)  {}
+
+SStream::SStream(Stream* stream, Value save)
+  : Object(), stream_(stream), save_(save)  {}
 
 void SStream::destruct(Allocator* allocator) {
   allocator->free(stream_);
 }
 
+void SStream::mark() {
+  Object::mark();
+  save_.mark();
+}
+
 Type SStream::getType() const  { return TT_STREAM; }
 
 void SStream::output(State*, Stream* o, bool) const {
-  o->write("#<stream:");
-  o->write('>');
+  char buffer[16 + sizeof(this) * 2];
+  snprintf(buffer, sizeof(buffer), "#<stream %p>", this);
+  o->write(buffer);
 }
 
 //=============================================================================

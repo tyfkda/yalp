@@ -1,12 +1,14 @@
 //=============================================================================
-/// Read S-Expression
+/// flonum - flonum functions
 //=============================================================================
 
 #include "build_env.hh"
-
+#include "flonum.hh"
+#include "yalp.hh"
 #include "yalp/binder.hh"
 #include "yalp/object.hh"
 #include "yalp/stream.hh"
+#include "yalp/util.hh"
 #include "allocator.hh"
 
 #ifdef _MSC_VER
@@ -180,7 +182,7 @@ struct CompareOp {
           Fixnum xx = x.toFixnum();
           if (!Op::satisfy(acc, xx))
             return state->boolean(false);
-          acc = xx;
+          acc = static_cast<Flonum>(xx);
         }
         break;
       case TT_FLONUM:
@@ -213,37 +215,37 @@ struct GreaterEqual {
   template <class X, class Y> static bool satisfy(X x, Y y)  { return x >= y; }
 };
 
-static Value s_add(State* state) {
+} // namespace
+
+Value s_addFlonum(State* state) {
   return BinOp<Add>::calc(state);
 }
 
-static Value s_sub(State* state) {
+Value s_subFlonum(State* state) {
   return BinOp<Sub>::calc(state);
 }
 
-static Value s_mul(State* state) {
+Value s_mulFlonum(State* state) {
   return BinOp<Mul>::calc(state);
 }
 
-static Value s_div(State* state) {
+Value s_divFlonum(State* state) {
   return BinOp<Div>::calc(state);
 }
 
-} // namespace
-
-static Value s_lessThan(State* state) {
+Value s_lessThanFlonum(State* state) {
   return CompareOp<LessThan>::calc(state);
 }
 
-static Value s_greaterThan(State* state) {
+Value s_greaterThanFlonum(State* state) {
   return CompareOp<GreaterThan>::calc(state);
 }
 
-static Value s_lessEqual(State* state) {
+Value s_lessEqualFlonum(State* state) {
   return CompareOp<LessEqual>::calc(state);
 }
 
-static Value s_greaterEqual(State* state) {
+Value s_greaterEqualFlonum(State* state) {
   return CompareOp<GreaterEqual>::calc(state);
 }
 
@@ -270,7 +272,7 @@ static Value s_flonum(State* state) {
   return v;
 }
 
-static Value s_mod(State* state) {
+Value s_modFlonum(State* state) {
   Value a = state->getArg(0);
   Value b = state->getArg(1);
   switch (a.getType()) {
@@ -302,6 +304,44 @@ static Value s_mod(State* state) {
   }
   return Value::NIL;
 }
+
+Value s_exptFlonum(State* state) {
+  Value a = state->getArg(0);
+  Value b = state->getArg(1);
+  Type ta = a.getType();
+  Type tb = b.getType();
+  if (ta == TT_FIXNUM && tb == TT_FIXNUM)
+    return Value(iexpt(a.toFixnum(), b.toFixnum()));
+
+  switch (a.getType()) {
+  case TT_FIXNUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(pow(a.toFixnum(), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(pow(a.toFixnum(), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  case TT_FLONUM:
+    switch (b.getType()) {
+    case TT_FIXNUM:
+      return state->flonum(pow(a.toFlonum(state), b.toFixnum()));
+    case TT_FLONUM:
+      return state->flonum(pow(a.toFlonum(state), b.toFlonum(state)));
+    default:
+      state->runtimeError("Number expected, but `%@`", &b);
+      break;
+    }
+    break;
+  default:
+    state->runtimeError("Number expected, but `%@`", &a);
+    break;
+  }
+  return Value::NIL;
+}
 #endif
 
 void installFlonumFunctions(State* state) {
@@ -313,15 +353,16 @@ void installFlonumFunctions(State* state) {
     int minArgNum, maxArgNum;
   } static const FuncTable[] = {
     { "flonum", s_flonum, 1 },
-    { "+", s_add, 0, -1 },
-    { "-", s_sub, 0, -1 },
-    { "*", s_mul, 0, -1 },
-    { "/", s_div, 0, -1 },
-    { "mod", s_mod, 2 },
-    { "<", s_lessThan, 2, -1 },
-    { ">", s_greaterThan, 2, -1 },
-    { "<=", s_lessEqual, 2, -1 },
-    { ">=", s_greaterEqual, 2, -1 },
+    { "+", s_addFlonum, 0, -1 },
+    { "-", s_subFlonum, 0, -1 },
+    { "*", s_mulFlonum, 0, -1 },
+    { "/", s_divFlonum, 0, -1 },
+    { "mod", s_modFlonum, 2 },
+    { "<", s_lessThanFlonum, 2, -1 },
+    { ">", s_greaterThanFlonum, 2, -1 },
+    { "<=", s_lessEqualFlonum, 2, -1 },
+    { ">=", s_greaterEqualFlonum, 2, -1 },
+    { "expt", s_exptFlonum, 2 },
   };
 
   for (auto it : FuncTable) {
@@ -339,7 +380,6 @@ void installFlonumFunctions(State* state) {
     b.bind("floor", (Flonum (*)(Flonum)) floor);
     b.bind("ceil", (Flonum (*)(Flonum)) ceil);
     b.bind("atan2", (Flonum (*)(Flonum, Flonum)) atan2);
-    b.bind("expt", (Flonum (*)(Flonum, Flonum)) pow);
   }
 #else
   (void)state;  // To avoid warning.

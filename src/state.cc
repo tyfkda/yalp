@@ -11,6 +11,7 @@
 #include "basic.hh"
 #include "flonum.hh"
 #include "symbol_manager.hh"
+#include "sys.hh"
 #include "vm.hh"
 
 #include <assert.h>
@@ -21,41 +22,26 @@ namespace yalp {
 //=============================================================================
 /*
   Value: tagged pointer representation.
-    XXXXXXX0 : Fixnum
-    XXXXXX01 : Object
-    XXXX0011 : Symbol
+    XXXXXXX1 : Fixnum
+    XXXXXX00 : Object
+    XXXX0010 : Symbol
+    XXXX0110 : Character
  */
 
-const Fixnum TAG_SHIFT = 2;
-const Fixnum TAG_MASK = (1 << TAG_SHIFT) - 1;
-const Fixnum TAG_FIXNUM = 0;
-const Fixnum TAG_OBJECT = 1;
-const Fixnum TAG_OTHER = 3;
-
+#define TAG2_TYPE(x)  (((x) << TAG_SHIFT) | TAG_OTHER)
 const Fixnum TAG2_SHIFT = 4;
 const Fixnum TAG2_MASK = (1 << TAG2_SHIFT) - 1;
-const Fixnum TAG2_SYMBOL = 3;
-
-inline static bool isFixnum(Fixnum v)  { return (v & 1) == TAG_FIXNUM; }
+const Fixnum TAG2_SYMBOL = TAG2_TYPE(0);
+const Fixnum TAG2_CHAR = TAG2_TYPE(1);
 
 // Assumes that first symbol is nil.
 const Value Value::NIL = Value(0, TAG2_SYMBOL);
-
-Value::Value() : v_(TAG_OBJECT) {
-  // Initialized to illegal value.
-}
-
-Value::Value(Fixnum i)
-  : v_((i << 1) | TAG_FIXNUM) {}
-
-Value::Value(class Object* object)
-  : v_(reinterpret_cast<Fixnum>(object) | TAG_OBJECT) {}
 
 Value::Value(Fixnum i, int tag2)
   : v_((i << TAG2_SHIFT) | tag2) {}
 
 Type Value::getType() const {
-  if (isFixnum(v_))
+  if (isFixnum())
     return TT_FIXNUM;
 
   switch (v_ & TAG_MASK) {
@@ -65,6 +51,8 @@ Type Value::getType() const {
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
       return TT_SYMBOL;
+    case TAG2_CHAR:
+      return TT_CHAR;
     }
   }
   assert(!"Must not happen");
@@ -72,7 +60,7 @@ Type Value::getType() const {
 }
 
 unsigned int Value::calcHash(State* state) const {
-  if (isFixnum(v_))
+  if (isFixnum())
     return toFixnum() * 19;
 
   switch (v_ & TAG_MASK) {
@@ -84,6 +72,8 @@ unsigned int Value::calcHash(State* state) const {
       if (v_ >= 0)
         return toSymbol(state)->getHash();
       return (v_ >> TAG2_SHIFT) * 29;
+    case TAG2_CHAR:
+      return (v_ >> TAG2_SHIFT) * 41;
     }
   }
   assert(!"Must not happen");
@@ -91,12 +81,14 @@ unsigned int Value::calcHash(State* state) const {
 }
 
 void Value::mark() {
-  if (isObject())
-    toObject()->mark();
+  Object* obj;
+  if (!isObject() || (obj = toObject())->isMarked())
+    return;
+  obj->mark();
 }
 
 void Value::output(State* state, Stream* o, bool inspect) const {
-  if (isFixnum(v_)) {
+  if (isFixnum()) {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "%ld", toFixnum());
     o->write(buffer);
@@ -115,21 +107,24 @@ void Value::output(State* state, Stream* o, bool inspect) const {
     case TAG2_SYMBOL:
       outputSymbol(state, o);
       break;
+    case TAG2_CHAR:
+      outputCharacter(o, inspect);
+      break;
     }
   }
 }
 
 void Value::outputSymbol(State* state, Stream* o) const {
-  char buffer[64];
-  if (state == NULL) {
-    snprintf(buffer, sizeof(buffer), "#<symbol:%ld>", v_ >> TAG2_SHIFT);
+  char buffer[12 + sizeof(Fixnum) * 3];
+
+  if (v_ < 0) {  // gensym-ed symbol.
+    snprintf(buffer, sizeof(buffer), "#:G%ld", -(v_ >> TAG2_SHIFT));
     o->write(buffer);
     return;
   }
 
-  if (v_ < 0) {  // gensym-ed symbol.
-    int id = -(v_ >> TAG2_SHIFT);
-    snprintf(buffer, sizeof(buffer), "G:%d", id);
+  if (state == NULL) {
+    snprintf(buffer, sizeof(buffer), "#<symbol %ld>", v_ >> TAG2_SHIFT);
     o->write(buffer);
     return;
   }
@@ -138,9 +133,46 @@ void Value::outputSymbol(State* state, Stream* o) const {
   o->write(toSymbol(state)->c_str());
 }
 
-Fixnum Value::toFixnum() const {
-  assert(isFixnum(v_));
-  return v_ >> 1;
+void Value::outputCharacter(Stream* o, bool inspect) const {
+  Fixnum c = v_ >> TAG2_SHIFT;
+  char buffer[16];
+  if (inspect) {
+    const char* str = NULL;
+    switch (c) {
+    case '\n':  str = "#\\nl"; break;
+    case '\t':  str = "#\\tab"; break;
+    case ' ':  str = "#\\space"; break;
+    case 0x1b:  str = "#\\escape"; break;
+    default:
+      {
+        int n = unicodeToUtf8(c, reinterpret_cast<unsigned char*>(buffer + 2));
+        if (n > 0) {
+          buffer[0] = '#';
+          buffer[1] = '\\';
+          buffer[2 + n] = '\0';
+          o->write(buffer);
+          return;
+        }
+      }
+      snprintf(buffer, sizeof(buffer), "#\\x%x", (int)c);
+      str = buffer;
+      break;
+    }
+    o->write(str);
+    return;
+  }
+
+  if (c <= 0x80) {
+    o->write(static_cast<int>(c));
+    return;
+  }
+  int n = unicodeToUtf8(c, reinterpret_cast<unsigned char*>(buffer));
+  if (n > 0) {
+    buffer[n] = '\0';
+    o->write(buffer);
+    return;
+  }
+  o->write("#\???");
 }
 
 #ifndef DISABLE_FLONUM
@@ -157,25 +189,27 @@ Flonum Value::toFlonum(State* state) const {
 }
 #endif
 
-bool Value::isObject() const {
-  return (v_ & TAG_MASK) == TAG_OBJECT;
-}
-
-Object* Value::toObject() const {
-  assert(isObject());
-  return reinterpret_cast<Object*>(v_ & ~TAG_OBJECT);
-}
-
 const Symbol* Value::toSymbol(State* state) const {
   assert((v_ & TAG2_MASK) == TAG2_SYMBOL);
   return state->getSymbol(v_ >> TAG2_SHIFT);
+}
+
+int Value::toCharacter() const {
+  switch (getType()) {
+  case TT_FIXNUM:
+    return static_cast<int>(toFixnum());
+  case TT_CHAR:
+    return v_ >> TAG2_SHIFT;
+  default:
+    return -1;
+  }
 }
 
 bool Value::equal(Value target) const {
   if (eq(target))
     return true;
 
-  if (isFixnum(v_))
+  if (isFixnum())
     return false;
 
   switch (v_ & TAG_MASK) {
@@ -191,6 +225,7 @@ bool Value::equal(Value target) const {
   case TAG_OTHER:
     switch (v_ & TAG2_MASK) {
     case TAG2_SYMBOL:
+    case TAG2_CHAR:
       return false;
     }
   }
@@ -262,13 +297,12 @@ State::State(Allocator* allocator)
   intern("nil");  // "nil" must be the first symbol.
   static const char* constSymbols[NUMBER_OF_CONSTANTS] = {
     "t", "quote", "quasiquote", "unquote", "unquote-splicing", "compile",
-    "*stdin*", "*stdout*",
   };
   for (int i = 0; i < NUMBER_OF_CONSTANTS; ++i)
     constants_[i] = intern(constSymbols[i]);
 
   static const char* TypeSymbolStrings[NUMBER_OF_TYPES] = {
-    "unknown", "int", "symbol", "pair", "string",
+    "unknown", "int", "symbol", "char", "pair", "string",
 #ifndef DISABLE_FLONUM
     "flonum",
 #endif
@@ -280,6 +314,7 @@ State::State(Allocator* allocator)
 
   vm_ = Vm::create(this);
   installBasicFunctions(this);
+  installSystemFunctions(this);
 #ifndef DISABLE_FLONUM
   installFlonumFunctions(this);
 #endif
@@ -311,6 +346,15 @@ void State::installBasicObjects() {
   for (auto e : Table)
     defineGlobal(intern(e.name), Value(createFileStream(e.fp)));
   restoreArena(arena);
+}
+
+Value State::getStandardStream(StandardStream type) const {
+  static const char* table[] = {
+    "*stdin*",
+    "*stdout*",
+    "*stderr*",
+  };
+  return referGlobal(intern(table[type]));
 }
 
 bool State::compile(Value exp, Value* pValue) {
@@ -374,8 +418,16 @@ ErrorCode State::runBinaryFromFile(const char* filename, Value* pResult) {
   FileStream stream(filename, "r");
   if (!stream.isOpened())
     return FILE_NOT_FOUND;
+  return runBinary(&stream, pResult);
+}
 
-  Reader reader(this, &stream);
+ErrorCode State::runBinaryFromString(const char* string, Value* pResult) {
+  StrStream stream(string);
+  return runBinary(&stream, pResult);
+}
+
+ErrorCode State::runBinary(Stream* stream, Value* pResult) {
+  Reader reader(this, stream);
   for (;;) {
     int arena = allocator_->saveArena();
     Value bin;
@@ -411,13 +463,14 @@ void State::free(void* ptr) const {
   allocator_->free(ptr);
 }
 
-Value State::intern(const char* name) {
+Value State::intern(const char* name) const {
   SymbolId symbolId = symbolManager_->intern(name);
   return Value(symbolId, TAG2_SYMBOL);
 }
 
 Value State::gensym() {
-  return Value(--gensymIndex_, TAG2_SYMBOL);
+  // Gensym'ed symbol has negative index for symbol.
+  return Value(-(++gensymIndex_), TAG2_SYMBOL);
 }
 
 const Symbol* State::getSymbol(int symbolId) const {
@@ -427,6 +480,10 @@ const Symbol* State::getSymbol(int symbolId) const {
 
 Value State::cons(Value a, Value d) {
   return Value(allocator_->newObject<Cell>(a, d));
+}
+
+Value State::character(int c) const {
+  return Value(c, TAG2_CHAR);
 }
 
 SHashTable* State::createHashTable(bool equal) {
@@ -458,6 +515,14 @@ Value State::createFileStream(FILE* fp) {
   void* memory = allocator_->alloc(sizeof(FileStream));
   FileStream* stream = new(memory) FileStream(fp);
   return Value(allocator_->newObject<SStream>(stream));
+}
+
+Value State::createStrStream(Value str) {
+  checkType(str, TT_STRING);
+  const char* cstr = static_cast<String*>(str.toObject())->c_str();
+  void* memory = allocator_->alloc(sizeof(StrStream));
+  StrStream* stream = new(memory) StrStream(cstr);
+  return Value(allocator_->newObject<SStream>(stream, str));
 }
 
 Object* State::getFunc() const {
@@ -502,18 +567,26 @@ void State::runtimeError(const char* msg, ...) {
   errout.write('\n');
   va_end(ap);
 
-  int n = vm_->getCallStackDepth();
-  if (n > 0) {
-    const CallStack* callStack = vm_->getCallStack();
-    for (int i = n; --i >= 0; ) {
-      const Symbol* name = callStack[i].callable->getName();
-      format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
-    }
-  }
+  printCallStack(stderr);
   longJmp();
 }
 
-Value State::referGlobal(Value sym, bool* pExist) {
+void State::printCallStack(FILE* fp) {
+  int n = vm_->getCallStackDepth();
+  if (n <= 0) {
+    fprintf(fp, "Empty callstack\n");
+    return;
+  }
+
+  FileStream errout(fp);
+  const CallStack* callStack = vm_->getCallStack();
+  for (int i = n; --i >= 0; ) {
+    const Symbol* name = callStack[i].callable->getName();
+    format(this, &errout, "\tfrom %s\n", (name != NULL ? name->c_str() : "(noname)"));
+  }
+}
+
+Value State::referGlobal(Value sym, bool* pExist) const {
   return vm_->referGlobal(sym, pExist);
 }
 
@@ -539,6 +612,30 @@ void State::setMacroCharacter(int c, Value func) {
 Value State::getMacroCharacter(int c) {
   const Value* p = readTable_->get(character(c));
   return (p != NULL) ? *p : Value::NIL;
+}
+
+void State::setDispatchMacroCharacter(int c1, int c2, Value func) {
+  SHashTable* table;
+  const Value* p = readTable_->get(character(c1));
+  if (p != NULL && p->getType() == TT_HASH_TABLE) {
+    table = static_cast<SHashTable*>(p->toObject());
+  } else {
+    table = createHashTable(false);
+    readTable_->put(character(c1), Value(table));
+  }
+  table->put(character(c2), func);
+}
+
+Value State::getDispatchMacroCharacter(int c1, int c2) {
+  SHashTable* table;
+  const Value* p = readTable_->get(character(c1));
+  if (p != NULL && p->getType() == TT_HASH_TABLE) {
+    table = static_cast<SHashTable*>(p->toObject());
+    const Value* q = table->get(character(c2));
+    if (q != NULL)
+      return *q;
+  }
+  return Value::NIL;
 }
 
 Value State::getMacro(Value name) {
@@ -604,6 +701,7 @@ void State::reportDebugInfo() const {
   vm_->reportDebugInfo();
   symbolManager_->reportDebugInfo();
   fprintf(stdout, "Total gensym: %d\n", gensymIndex_);
+  fprintf(stdout, "Max arena index: %d\n", allocator_->getMaxArenaIndex());
 }
 
 }  // namespace yalp
