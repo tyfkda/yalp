@@ -1,7 +1,7 @@
 yalp
 ====
 
-![Status](https://travis-ci.org/tyfkda/yalp.svg?branch=master)
+[![Build Status](https://travis-ci.org/tyfkda/yalp.svg?branch=master)](https://travis-ci.org/tyfkda/yalp)
 
 Yet Another List Processor
 
