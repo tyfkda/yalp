@@ -1,9 +1,11 @@
 language: cpp
 compiler:
-    - clang
+    - gcc
+env:
+    - GTEST_DIR=/usr/src/gtest
 before_install:
     - sudo apt-get update
-    - sudo apt-get install libgtest-dev
+    - sudo apt-get install libgtest-dev cmake
     - "cd /usr/src/gtest && sudo cmake . && sudo cmake --build . && sudo mv libg* /usr/local/lib/ ; cd -"
 before_script:
     - pwd
